@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="geodesic_raytracing" />
+		<Option pch_mode="2" />
+		<Option compiler="gcc" />
+		<Build>
+			<Target title="Debug">
+				<Option output="bin/Debug/geodesic_raytracing" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Debug/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-g" />
+				</Compiler>
+			</Target>
+			<Target title="Release">
+				<Option output="bin/Release/geodesic_raytracing" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Release/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-O2" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+				</Linker>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-Wall" />
+			<Add option="-fexceptions" />
+			<Add option="-std=c++17" />
+			<Add option="-DIMGUI_IMPL_OPENGL_LOADER_GLEW" />
+			<Add option="-DSUBPIXEL_FONT_RENDERING" />
+			<Add option="-DSFML_STATIC" />
+			<Add option="-DGLEW_STATIC" />
+			<Add option="-DGRAPHITE2_STATIC" />
+			<Add directory="deps" />
+			<Add directory="deps/imgui" />
+		</Compiler>
+		<Linker>
+			<Add option="-static-libstdc++" />
+			<Add option="-static-libgcc" />
+			<Add option="-static" />
+			<Add option="-lmingw32" />
+			<Add option="-l:libssl.a" />
+			<Add option="-l:libglfw3.a" />
+			<Add option="-l:libglew32.a" />
+			<Add option="-lsfml-audio-s" />
+			<Add option="-lsfml-system-s" />
+			<Add option="-Wl,--start-group" />
+			<Add option="-l:libharfbuzz.a" />
+			<Add option="-l:libfreetype.a" />
+			<Add option="-Wl,--end-group" />
+			<Add option="-l:libgraphite2.a" />
+			<Add option="-lopengl32" />
+			<Add option="-l:libflac.a" />
+			<Add option="-l:libpng.a" />
+			<Add option="-l:libz.a" />
+			<Add option="-l:libbz2.a" />
+			<Add option="-l:librpcrt4.a" />
+			<Add option="-l:libopenal.a" />
+			<Add option="-l:libcrypto.a" />
+			<Add option="-lole32" />
+			<Add option="-ldbgeng" />
+			<Add option="-lwinmm" />
+			<Add option="-lgdi32" />
+			<Add option="-lUsp10" />
+			<Add option="-lws2_32" />
+			<Add option="-lmswsock" />
+			<Add option="-l:libbrotlidec-static.a" />
+			<Add option="-l:libbrotlienc-static.a" />
+			<Add option="-l:libbrotlicommon-static.a" />
+			<Add option="-l:libboost_system-mt.a" />
+			<Add option="-lcrypto" />
+			<Add option="-lssl" />
+			<Add option="-l:libboost_fiber-mt.a" />
+			<Add option="-l:libboost_context-mt.a" />
+			<Add option="-lbacktrace" />
+			<Add option="-lopencl" />
+		</Linker>
+		<Unit filename="deps/imgui/examples/imgui_impl_glfw.cpp" />
+		<Unit filename="deps/imgui/examples/imgui_impl_opengl3.cpp" />
+		<Unit filename="deps/imgui/imgui.cpp" />
+		<Unit filename="deps/imgui/imgui_draw.cpp" />
+		<Unit filename="deps/imgui/imgui_widgets.cpp" />
+		<Unit filename="deps/imgui/misc/freetype/imgui_freetype.cpp" />
+		<Unit filename="deps/networking/beast_compilation_unit.cpp" />
+		<Unit filename="deps/networking/networking.cpp" />
+		<Unit filename="deps/networking/serialisable.cpp" />
+		<Unit filename="deps/toolkit/base_serialisables.cpp" />
+		<Unit filename="deps/toolkit/base_serialisables.hpp" />
+		<Unit filename="deps/toolkit/clipboard.cpp" />
+		<Unit filename="deps/toolkit/clipboard.hpp" />
+		<Unit filename="deps/toolkit/clock.cpp" />
+		<Unit filename="deps/toolkit/clock.hpp" />
+		<Unit filename="deps/toolkit/fs_helpers.cpp" />
+		<Unit filename="deps/toolkit/fs_helpers.hpp" />
+		<Unit filename="deps/toolkit/opencl.cpp" />
+		<Unit filename="deps/toolkit/opencl.hpp" />
+		<Unit filename="deps/toolkit/render_window.cpp" />
+		<Unit filename="deps/toolkit/render_window.hpp" />
+		<Unit filename="deps/toolkit/stacktrace.cpp" />
+		<Unit filename="deps/toolkit/stacktrace.hpp" />
+		<Unit filename="deps/toolkit/texture.cpp" />
+		<Unit filename="deps/toolkit/texture.hpp" />
+		<Unit filename="deps/toolkit/vertex.hpp" />
+		<Unit filename="deps/vec/vec.hpp" />
+		<Unit filename="main.cpp" />
+		<Extensions>
+			<code_completion />
+			<envvars />
+			<debugger />
+			<fortran_project />
+			<lib_finder disable_auto="1" />
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>
