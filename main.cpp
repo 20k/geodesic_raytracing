@@ -95,7 +95,9 @@ int main()
     }*/
 
     ///t, x, y, z
-    vec4f camera = {0, 1, 1, -44.5};
+    vec4f camera = {0, 0.01, -0.024, -5};
+
+    //vec4f camera =
 
     while(!win.should_close())
     {
@@ -103,24 +105,29 @@ int main()
 
         rtex.acquire(clctx.cqueue);
 
-        float ds = 0.1;
+        float ds = 0.025;
 
-        float speed = 0.1;
+        float speed = 0.001;
 
         if(ImGui::IsKeyDown(GLFW_KEY_LEFT_SHIFT))
-            speed = 1;
+            speed = 0.1;
 
         camera.z() += (ImGui::IsKeyDown(GLFW_KEY_W) - ImGui::IsKeyDown(GLFW_KEY_S)) * speed;
         camera.y() += (ImGui::IsKeyDown(GLFW_KEY_D) - ImGui::IsKeyDown(GLFW_KEY_A)) * speed;
         camera.w() += (ImGui::IsKeyDown(GLFW_KEY_E) - ImGui::IsKeyDown(GLFW_KEY_Q)) * speed;
 
-        printf("%f camera\n", camera.z());
+        //printf("%f camera\n", camera.z());
 
         vec4f scamera = cartesian_to_schwarz(camera);
 
         printf("Polar vals %f %f %f\n", scamera.y(), scamera.z(), scamera.w());
 
         //printf("scamera %f\n", scamera.y());
+
+        cl::args clr;
+        clr.push_back(rtex);
+
+        clctx.cqueue.exec("clear", clr, {win.get_window_size().x(), win.get_window_size().y()}, {16, 16});
 
         cl::args args;
         args.push_back(rtex);
