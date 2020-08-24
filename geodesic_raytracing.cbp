@@ -81,6 +81,9 @@
 			<Add option="-lbacktrace" />
 			<Add option="-lopencl" />
 		</Linker>
+		<Unit filename="cl.cl">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
 		<Unit filename="deps/imgui/examples/imgui_impl_glfw.cpp" />
 		<Unit filename="deps/imgui/examples/imgui_impl_opengl3.cpp" />
 		<Unit filename="deps/imgui/imgui.cpp" />
@@ -102,7 +105,6 @@
 		<Unit filename="deps/toolkit/opencl.hpp" />
 		<Unit filename="deps/toolkit/render_window.cpp" />
 		<Unit filename="deps/toolkit/render_window.hpp" />
-		<Unit filename="deps/toolkit/stacktrace.cpp" />
 		<Unit filename="deps/toolkit/stacktrace.hpp" />
 		<Unit filename="deps/toolkit/texture.cpp" />
 		<Unit filename="deps/toolkit/texture.hpp" />
