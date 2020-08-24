@@ -1,6 +1,27 @@
 #include <iostream>
 #include <toolkit/render_window.hpp>
 #include <toolkit/texture.hpp>
+#include <vec/vec.hpp>
+
+/*struct light_ray
+{
+    vec4f spacetime_velocity;
+    vec4f spacetime_position;
+};
+
+
+vec4f calculate_lightbeam_spacetime_velocity_schwarz(vec3f position)
+{
+
+}*/
+
+///not a good mapping
+vec4f cartesian_to_schwarz(vec4f position)
+{
+    vec3f polar = cartesian_to_polar(position.xyz());
+
+    return (vec4f){position.x(), polar.x(), polar.y(), polar.z()};
+}
 
 int main()
 {
@@ -32,14 +53,64 @@ int main()
     cl::gl_rendertexture rtex(clctx.ctx);
     rtex.create_from_texture(tex.handle);
 
+    /*int pixels_width = win.get_window_size().x();
+    int pixels_height = win.get_window_size().y();
+
+    cl::buffer rays;
+    rays.alloc(sizeof(light_ray) * pixels_width * pixels_height);
+
+    cl::buffer deltas;
+    deltas.alloc(sizeof(light_ray) * pixels_width * pixels_height);
+
+    {
+        vec3f camera = {0, -10000, 0};
+        vec3f look_vector = {0, 0, 1};
+
+        std::vector<light_ray> rays_data;
+        std::vector<light_ray> deltas_data;
+
+        for(int y=0; y < pixels_height; y++)
+        {
+            for(int x = 0; x < pixels_width; x++)
+            {
+                vec3f pos_3d = camera + (vec3f){x - pixels_width/2, y - pixels_height/2, camera.z};
+
+                light_ray ray;
+                ray.spacetime_position = (vec4f){0, pos_3d.x(), pos_3d.y(), pos_3d.z()};
+                ray.spacetime_velocity = {1, 0, 0, 1};
+
+                rays_data.push_back(ray);
+
+                light_ray delta;
+                delta.spacetime_position = ray.spacetime_position - (vec4f){0, 0, 0, 0};
+                delta.spacetime_velocity = {0, 0, 0, 0};
+
+                deltas_data.push_back(delta);
+            }
+        }
+
+        rays.write(clctx.ctx, rays_data);
+        deltas.write(clctx.ctx, deltas_data);
+    }*/
+
+    ///t, x, y, z
+    vec4f camera = {0, 0, 0, -1000};
+
     while(!win.should_close())
     {
         win.poll();
 
         rtex.acquire(clctx.cqueue);
 
+        float ds = 1;
+
+        vec4f scamera = cartesian_to_schwarz(camera);
+
         cl::args args;
         args.push_back(rtex);
+        args.push_back(ds);
+        args.push_back(camera);
+        args.push_back(scamera);
 
         clctx.cqueue.exec("do_raytracing", args, {win.get_window_size().x(), win.get_window_size().y()}, {16, 16});
 
