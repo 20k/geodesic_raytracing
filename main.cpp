@@ -18,7 +18,7 @@ vec4f calculate_lightbeam_spacetime_velocity_schwarz(vec3f position)
 ///not a good mapping
 vec4f cartesian_to_schwarz(vec4f position)
 {
-    vec3f polar = cartesian_to_polar(position.xyz());
+    vec3f polar = cartesian_to_polar((vec3f){position.y(), position.z(), position.w()});
 
     return (vec4f){position.x(), polar.x(), polar.y(), polar.z()};
 }
@@ -105,6 +105,8 @@ int main()
         float ds = 1;
 
         vec4f scamera = cartesian_to_schwarz(camera);
+
+        //printf("scamera %f\n", scamera.y());
 
         cl::args args;
         args.push_back(rtex);

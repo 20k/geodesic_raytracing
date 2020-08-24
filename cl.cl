@@ -43,9 +43,53 @@ float3 cartesian_velocity_to_polar_velocity(float3 cartesian_position, float3 ca
     return (float3){rdot, tdot, pdot};
 }
 
-float4 fix_light_velocity(float4 velocity)
+float calculate_ds(float4 velocity, float g_metric[])
 {
+    float v[4] = {velocity.x, velocity.y, velocity.z, velocity.w};
 
+    float ds = 0;
+
+    ds += g_metric[0] * v[0] * v[0];
+    ds += g_metric[1] * v[1] * v[1];
+    ds += g_metric[2] * v[2] * v[2];
+    ds += g_metric[3] * v[3] * v[3];
+
+    return ds;
+}
+
+///ds2 = guv dx^u dx^v
+float4 fix_light_velocity(float4 velocity, float g_metric[])
+{
+    float v[4] = {velocity.x, velocity.y, velocity.z, velocity.w};
+
+    /*
+    float ds = 0;
+
+    ds += g_metric[0] * velocity_arr[0] * velocity_arr[0];
+    ds += g_metric[1] * velocity_arr[1] * velocity_arr[1];
+    ds += g_metric[2] * velocity_arr[2] * velocity_arr[2];
+    ds += g_metric[3] * velocity_arr[3] * velocity_arr[3];
+    */
+
+    ///so. g_metric[0] is negative. velocity_arr[0] is 1
+
+    ///so rewritten, ds2 = Eu Ev dxu * dx v
+
+    ///g_metric[1] * v[1]^2 + g_metric[2] * v[2]^2 + g_metric[3] * v[3]^2 = -g_metric[0] * v[0]^2 * scale
+
+    float time_scale = (g_metric[1] * v[1] * v[1] + g_metric[2] * v[2] * v[2] + g_metric[3] * v[3] * v[3]) / (-g_metric[0] * v[0] * v[0]);
+
+    ///g_metric[1] * v[1]^2 / scale + g_metric[2] * v[2]^2 / scale + g_metric[3] * v[3]^2 / scale = -g_metric[0] * v[0]^2
+
+    v[1] /= sqrt(time_scale);
+    v[2] /= sqrt(time_scale);
+    v[3] /= sqrt(time_scale);
+
+    ///should print 0
+    /*float fds = calculate_ds((float4){v[0], v[1], v[2], v[3]}, g_metric);
+    printf("%f fds\n", fds);*/
+
+    return (float4){v[0], v[1], v[2], v[3]};
 }
 
 __kernel
@@ -109,11 +153,10 @@ void do_raytracing(__write_only image2d_t out, float ds, float4 cartesian_camera
 
     float3 cartesian_velocity = fast_normalize(pixel_virtual_pos);
 
-    float3 polar_velocity = cartesian_velocity_to_polar_velocity(pixel_virtual_pos + cartesian_camera_pos, cartesian_velocity);
+    float3 polar_velocity = cartesian_velocity_to_polar_velocity(pixel_virtual_pos + cartesian_camera_pos.zyw, cartesian_velocity);
 
-    float4 bad_light_velocity = polar_velocity;
+    float3 bad_light_velocity = polar_velocity;
 
-    float4 lightray_velocity = fix_velocity(bad_light_velocity);
 
     //float4 spacetime = (float4)(100,2,M_PI/2,M_PI);
     float4 spacetime = polar_camera_pos;
@@ -130,6 +173,9 @@ void do_raytracing(__write_only image2d_t out, float ds, float4 cartesian_camera
                      1/(1 - rs / r),
                      r * r,
                      r * r * pow(sin(theta), 2)};
+
+    float4 lightray_velocity = fix_light_velocity((float4)(1, bad_light_velocity.xyz), g_metric);
+
 
     ///diagonal of the metric, because it only has diagonals
     float g_inv[] = {1/g_metric[0], 1/g_metric[1], 1/g_metric[2], 1/g_metric[3]};
