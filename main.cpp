@@ -21,7 +21,7 @@ vec4f cartesian_to_schwarz(vec4f position)
 {
     vec3f polar = cartesian_to_polar((vec3f){position.y(), position.z(), position.w()});
 
-    return (vec4f){position.x(), polar.x(), (M_PI/2) - polar.y(), polar.z()};
+    return (vec4f){position.x(), polar.x(), polar.y(), polar.z()};
 }
 
 int main()
@@ -95,7 +95,7 @@ int main()
     }*/
 
     ///t, x, y, z
-    vec4f camera = {0, 0, 0, -45};
+    vec4f camera = {0, 1, 1, -44.5};
 
     while(!win.should_close())
     {

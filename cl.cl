@@ -28,7 +28,7 @@ float3 cartesian_to_polar(float3 in)
     float theta = acos(in.z / r);
     float phi = atan2(in.y, in.x);
 
-    return (float3){r, (M_PI/2) - theta, phi};
+    return (float3){r, theta, phi};
 }
 
 float3 cartesian_velocity_to_polar_velocity(float3 cartesian_position, float3 cartesian_velocity)
@@ -36,9 +36,17 @@ float3 cartesian_velocity_to_polar_velocity(float3 cartesian_position, float3 ca
     float3 p = cartesian_position;
     float3 v = cartesian_velocity;
 
-    float rdot = (p.x * v.x + p.y * v.y + p.z * v.z) / length(p);
-    float tdot = -(v.x * p.y - p.x * v.y) / (p.x * p.x + p.y * p.y);
-    float pdot = (p.z * (p.x * v.x + p.y * v.y) - (p.x * p.x + p.y * p.y) * v.z) / ((p.x * p.x + p.y * p.y + p.z * p.z) * sqrt(p.x * p.x + p.y * p.y));
+    /*float rdot = (p.x * v.x + p.y * v.y + p.z * v.z) / length(p);
+    float tdot = (v.x * p.y - p.x * v.y) / (p.x * p.x + p.y * p.y);
+    float pdot = (p.z * (p.x * v.x + p.y * v.y) - (p.x * p.x + p.y * p.y) * v.z) / ((p.x * p.x + p.y * p.y + p.z * p.z) * sqrt(p.x * p.x + p.y * p.y));*/
+
+    float r = length(p);
+
+    float repeated_eq = r * sqrt(1 - (p.z*p.z / (r * r)));
+
+    float rdot = (p.x * v.x + p.y * v.y + p.z * v.z) / r;
+    float tdot = (p.z * rdot) / (r*repeated_eq) - v.z / repeated_eq;
+    float pdot = (p.x * v.y - p.y * v.x) / (p.x * p.x + p.y * p.y);
 
     return (float3){rdot, tdot, pdot};
 }
