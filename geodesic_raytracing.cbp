@@ -48,6 +48,8 @@
 			<Add option="-l:libssl.a" />
 			<Add option="-l:libglfw3.a" />
 			<Add option="-l:libglew32.a" />
+			<Add option="-lsfml-graphics-s" />
+			<Add option="-lsfml-window-s" />
 			<Add option="-lsfml-audio-s" />
 			<Add option="-lsfml-system-s" />
 			<Add option="-Wl,--start-group" />

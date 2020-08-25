@@ -3,6 +3,7 @@
 #include <toolkit/texture.hpp>
 #include <vec/vec.hpp>
 #include <GLFW/glfw3.h>
+#include <SFML/Graphics.hpp>
 
 /*struct light_ray
 {
@@ -54,6 +55,33 @@ int main()
     cl::gl_rendertexture rtex(clctx.ctx);
     rtex.create_from_texture(tex.handle);
 
+    sf::Image img;
+    img.loadFromFile("background.png");
+
+    cl::image clbackground(clctx.ctx);
+    //clbackground.alloc(sizeof(uint8_t) * img.getSize().x * img.getSize().y);
+
+    std::vector<vec4f> as_float;
+
+    for(int y=0; y < img.getSize().y; y++)
+    {
+        for(int x=0; x < img.getSize().x; x++)
+        {
+            auto col = img.getPixel(x, y);
+
+            vec4f val = {col.r / 255.f, col.g / 255.f, col.b / 255.f, col.a / 255.f};
+
+            as_float.push_back(val);
+        }
+    }
+
+    clbackground.alloc({img.getSize().x, img.getSize().y}, {CL_RGBA, CL_FLOAT});
+
+    vec<2, size_t> origin = {0,0};
+    vec<2, size_t> region = {img.getSize().x, img.getSize().y};
+
+    clbackground.write(clctx.cqueue, (const char*)&as_float[0], origin, region);
+
     /*int pixels_width = win.get_window_size().x();
     int pixels_height = win.get_window_size().y();
 
@@ -96,6 +124,11 @@ int main()
 
     ///t, x, y, z
     vec4f camera = {0, 0.01, -0.024, -5};
+    quat camera_quat;
+    //camera_quat.load_from_matrix(axis_angle_to_mat({0, 0, 0}, 0));
+
+    vec3f forward_axis = {0, 0, 1};
+    vec3f up_axis = {0, 1, 0};
 
     //vec4f camera =
 
@@ -105,16 +138,66 @@ int main()
 
         rtex.acquire(clctx.cqueue);
 
-        float ds = 0.025;
+        float ds = 0.01;
 
         float speed = 0.001;
 
         if(ImGui::IsKeyDown(GLFW_KEY_LEFT_SHIFT))
             speed = 0.1;
 
+        /*camera.y() += (ImGui::IsKeyDown(GLFW_KEY_D) - ImGui::IsKeyDown(GLFW_KEY_A)) * speed;
         camera.z() += (ImGui::IsKeyDown(GLFW_KEY_W) - ImGui::IsKeyDown(GLFW_KEY_S)) * speed;
-        camera.y() += (ImGui::IsKeyDown(GLFW_KEY_D) - ImGui::IsKeyDown(GLFW_KEY_A)) * speed;
-        camera.w() += (ImGui::IsKeyDown(GLFW_KEY_E) - ImGui::IsKeyDown(GLFW_KEY_Q)) * speed;
+        camera.w() += (ImGui::IsKeyDown(GLFW_KEY_E) - ImGui::IsKeyDown(GLFW_KEY_Q)) * speed;*/
+
+        if(ImGui::IsKeyDown(GLFW_KEY_RIGHT))
+        {
+            mat3f m = mat3f().ZRot(M_PI/128);
+
+            quat q;
+            q.load_from_matrix(m);
+
+            camera_quat = q * camera_quat;
+        }
+
+        if(ImGui::IsKeyDown(GLFW_KEY_LEFT))
+        {
+            mat3f m = mat3f().ZRot(-M_PI/128);
+
+            quat q;
+            q.load_from_matrix(m);
+
+            camera_quat = q * camera_quat;
+        }
+
+        vec3f up = {0, 0, -1};
+        vec3f right = rot_quat({1, 0, 0}, camera_quat);
+        vec3f forward_axis = rot_quat({0, 0, 1}, camera_quat);
+
+        if(ImGui::IsKeyDown(GLFW_KEY_DOWN))
+        {
+            quat q;
+            q.load_from_axis_angle({right.x(), right.y(), right.z(), M_PI/128});
+
+            camera_quat = q * camera_quat;
+        }
+
+        if(ImGui::IsKeyDown(GLFW_KEY_UP))
+        {
+            quat q;
+            q.load_from_axis_angle({right.x(), right.y(), right.z(), -M_PI/128});
+
+            camera_quat = q * camera_quat;
+        }
+
+        vec3f offset = {0,0,0};
+
+        offset += forward_axis * ((ImGui::IsKeyDown(GLFW_KEY_W) - ImGui::IsKeyDown(GLFW_KEY_S)) * speed);
+        offset += right * (ImGui::IsKeyDown(GLFW_KEY_D) - ImGui::IsKeyDown(GLFW_KEY_A)) * speed;
+        offset += up * (ImGui::IsKeyDown(GLFW_KEY_E) - ImGui::IsKeyDown(GLFW_KEY_Q)) * speed;
+
+        camera.y() += offset.x();
+        camera.z() += offset.y();
+        camera.w() += offset.z();
 
         //printf("%f camera\n", camera.z());
 
@@ -134,6 +217,8 @@ int main()
         args.push_back(ds);
         args.push_back(camera);
         args.push_back(scamera);
+        args.push_back(camera_quat);
+        args.push_back(clbackground);
 
         clctx.cqueue.exec("do_raytracing", args, {win.get_window_size().x(), win.get_window_size().y()}, {16, 16});
 
