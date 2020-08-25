@@ -271,11 +271,11 @@ void do_raytracing(__write_only image2d_t out, float ds, float4 cartesian_camera
         #if 1
         if(lightray_spacetime_position.y < (rs + rs * 0.05))
         {
-            write_imagef(out, (int2){cx, cy}, (float4){1, 0, 0, 1});
+            write_imagef(out, (int2){cx, cy}, (float4){0, 0, 0, 1});
             return;
         }
 
-        if(lightray_spacetime_position.y > 10)
+        if(lightray_spacetime_position.y > 20)
         {
             //float sx = (lightray_spacetime_position.z + M_PI) / (2*M_PI);
             //float sy = (lightray_spacetime_position.w + M_PI) / (2*M_PI);
