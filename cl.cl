@@ -68,7 +68,7 @@ float calculate_ds(float4 velocity, float g_metric[])
 ///ds2 = guv dx^u dx^v
 float4 fix_light_velocity(float4 velocity, float g_metric[])
 {
-    velocity.yzw = normalize(velocity.yzw);
+    //velocity.yzw = normalize(velocity.yzw);
 
     /*velocity.x = -1/sqrt(-g_metric[0]);
     velocity.y = velocity.y / sqrt(g_metric[1]);
@@ -112,7 +112,7 @@ float4 fix_light_velocity(float4 velocity, float g_metric[])
 
 void calculate_metric(float4 spacetime_position, float g_metric_out[])
 {
-    float rs = 0.01;
+    float rs = 1;
     float c = 1;
 
     float r = spacetime_position.y;
@@ -147,7 +147,7 @@ float3 rot_quat(const float3 point, float4 quat)
 }
 
 __kernel
-void do_raytracing(__write_only image2d_t out, float ds, float4 cartesian_camera_pos, float4 polar_camera_pos, float4 camera_quat, __read_only image2d_t background)
+void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camera_pos, float4 polar_camera_pos, float4 camera_quat, __read_only image2d_t background)
 {
     /*
     so t = -(1- rs / r) * c^2
@@ -187,7 +187,7 @@ void do_raytracing(__write_only image2d_t out, float ds, float4 cartesian_camera
     0
     0*/
 
-    #define FOV 40
+    #define FOV 90
 
     float fov_rad = (FOV / 360.f) * 2 * M_PI;
 
@@ -233,31 +233,71 @@ void do_raytracing(__write_only image2d_t out, float ds, float4 cartesian_camera
 
     float4 lightray_spacetime_position = lightray_start_position;
 
-    float rs = 0.01;
+    float rs = 1;
     float c = 1;
 
     float g_metric[4];
 
     calculate_metric(lightray_spacetime_position, g_metric);
 
-    float4 lightray_velocity = fix_light_velocity((float4)(1, bad_light_velocity.xyz), g_metric);
+    float4 lightray_velocity = fix_light_velocity((float4)(-1, bad_light_velocity.xyz), g_metric);
 
     //float4 lightray_velocity = (float4)(1, bad_light_velocity.xyz);
 
     //write_imagef(out, (int2){cx, cy}, (float4){0, 0, 0, 1});
 
-    float4 last_acceleration = {0, 0, 0, 0};
+    float max_ds = 0.001;
+    float min_ds = 0.1;
 
-    for(int i=0; i < 8000; i++)
+    float min_radius = 1.1;
+    float max_radius = 1.6;
+
+    for(int i=0; i < 120000; i++)
     {
+        float interp = clamp(lightray_spacetime_position.y, min_radius, max_radius);
+
+        float frac = (interp - min_radius) / (max_radius - min_radius);
+
+        float ds = mix(max_ds, min_ds, frac);
+
+        /*if(lightray_spacetime_position.z > M_PI- M_PI/64)
+        {
+            write_imagef(out, (int2){cx, cy}, (float4){1, 1, 1, 1});
+            return;
+        }*/
+
+        if(lightray_spacetime_position.z < M_PI/8)
+        {
+            ds = mix(0.001, 0.1, lightray_spacetime_position.z / (M_PI/8));
+        }
+
+        if(lightray_spacetime_position.z >= (M_PI - M_PI/8))
+        {
+            float ffrac = (M_PI - lightray_spacetime_position.z) / (M_PI/8);
+            ds = mix(0.001, 0.1, ffrac);
+        }
+
+        if(lightray_spacetime_position.z < M_PI/2048)
+        {
+            write_imagef(out, (int2){cx, cy}, (float4){0,0,0,1});
+            return;
+            //ds = mix(0.1, 0.1, lightray_spacetime_position.z / (M_PI/32));
+        }
+
+        if(lightray_spacetime_position.z >= M_PI - M_PI/2048)
+        {
+            write_imagef(out, (int2){cx, cy}, (float4){0,0,0,1});
+            return;
+        }
+
         #if 1
-        if(lightray_spacetime_position.y < (rs + rs * 0.05))
+        if(lightray_spacetime_position.y < (rs + rs * 0.0001))
         {
             write_imagef(out, (int2){cx, cy}, (float4){0, 0, 0, 1});
             return;
         }
 
-        if(lightray_spacetime_position.y > 10)
+        if(lightray_spacetime_position.y > 20)
         {
             float thetaf = fmod(lightray_spacetime_position.z, 2 * M_PI);
             float phif = lightray_spacetime_position.w;
@@ -287,7 +327,6 @@ void do_raytracing(__write_only image2d_t out, float ds, float4 cartesian_camera
         float r = lightray_spacetime_position.y;
         float theta = lightray_spacetime_position.z;
 
-
         ///diagonal of the metric, because it only has diagonals
         float g_inv[4] = {1/g_metric[0], 1/g_metric[1], 1/g_metric[2], 1/g_metric[3]};
 
@@ -298,12 +337,6 @@ void do_raytracing(__write_only image2d_t out, float ds, float4 cartesian_camera
         g_partials[2 * 4 + 1] = 2 * r;
         g_partials[3 * 4 + 1] = 2 * r * sin(theta) * sin(theta);
         g_partials[3 * 4 + 2] = 2 * r * r * sin(theta) * cos(theta);
-
-        #if 0
-        float christoff[64] = {
-            0,+ (-1 / ((1 - rs / r) * c * c)) * (-rs * c * c / (r * r)),0,0,+ (-1 / ((1 - rs / r) * c * c)) * (-rs * c * c / (r * r)),0,0,0,0,0,0,0,0,0,0,0,- (1 - rs / r) * (-rs * c * c / (r * r)),0,0,0,0,+ (1 - rs / r) * (-rs / pow(r - rs, 2)) + (1 - rs / r) * (-rs / pow(r - rs, 2)) + - (1 - rs / r) * (-rs / pow(r - rs, 2)),0,0,0,0,- (1 - rs / r) * (2 * r),0,0,0,0,- (1 - rs / r) * (2 * r * pow(sin(theta), 2)),0,0,0,0,0,0,+ (1 / (r * r)) * (2 * r),0,0,+ (1 / (r * r)) * (2 * r),0,0,0,0,0,- (1 / (r * r)) * (2 * r * r * sin(theta) * cos(theta)),0,0,0,0,0,0,0,+ (1 / pow(r * sin(theta), 2)) * (2 * r * pow(sin(theta), 2)),0,0,0,+ (1 / pow(r * sin(theta), 2)) * (2 * r * r * sin(theta) * cos(theta)),0,+ (1 / pow(r * sin(theta), 2)) * (2 * r * pow(sin(theta), 2)),+ (1 / pow(r * sin(theta), 2)) * (2 * r * r * sin(theta) * cos(theta)),0
-        };
-        #endif // 0
 
         float christoff[64] = {0};
 
@@ -337,8 +370,11 @@ void do_raytracing(__write_only image2d_t out, float ds, float4 cartesian_camera
                 }
             }
 
-            if(isnan(sum))
+            if(!isfinite(sum))
+            {
+                write_imagef(out, (int2){cx, cy}, (float4){1, 0, 0, 1});
                 return;
+            }
 
             christ_result[uu] = sum;
         }
@@ -348,13 +384,13 @@ void do_raytracing(__write_only image2d_t out, float ds, float4 cartesian_camera
 
         //float4 acceleration = 0;
 
-        lightray_spacetime_position += lightray_velocity * ds + 0.5 * last_acceleration * ds * ds;
+        //lightray_spacetime_position += lightray_velocity * ds + 0.5 * acceleration * ds * ds;
 
-        lightray_velocity += ds * (last_acceleration + acceleration)/2;
+        //lightray_velocity += ds * (last_acceleration + acceleration)/2;
 
-        last_acceleration = acceleration;
+        lightray_spacetime_position += lightray_velocity * ds;
 
-        //lightray_spacetime_position += lightray_velocity * ds;
+        lightray_velocity += acceleration * ds;
 
         /*if(i == 0 && cx == width / 2 && cy == height/2)
         {

@@ -145,6 +145,9 @@ int main()
         if(ImGui::IsKeyDown(GLFW_KEY_LEFT_SHIFT))
             speed = 0.1;
 
+        if(ImGui::IsKeyDown(GLFW_KEY_LEFT_CONTROL))
+            speed = 0.00001;
+
         /*camera.y() += (ImGui::IsKeyDown(GLFW_KEY_D) - ImGui::IsKeyDown(GLFW_KEY_A)) * speed;
         camera.z() += (ImGui::IsKeyDown(GLFW_KEY_W) - ImGui::IsKeyDown(GLFW_KEY_S)) * speed;
         camera.w() += (ImGui::IsKeyDown(GLFW_KEY_E) - ImGui::IsKeyDown(GLFW_KEY_Q)) * speed;*/
