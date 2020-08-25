@@ -121,7 +121,7 @@ void calculate_metric(float4 spacetime_position, float g_metric_out[])
     g_metric_out[0] = -c * c * (1 - rs / r);
     g_metric_out[1] = 1/(1 - rs / r);
     g_metric_out[2] = r * r;
-    g_metric_out[3] = r * r * pow(sin(theta), 2);
+    g_metric_out[3] = r * r * sin(theta) * sin(theta);
 }
 
 __kernel
@@ -187,26 +187,6 @@ void do_raytracing(__write_only image2d_t out, float ds, float4 cartesian_camera
     0
     0*/
 
-    ///inverse of diagonal matrix is 1/ all the entries
-
-    /*float mat[64] = {0};
-
-    for(int i=0; i < 4; i++)
-    {
-        for(int k=0; k < 4; k++)
-        {
-            for(int l=0; l < 4; l++)
-            {
-                float sum = 0;
-
-                #define INDEX(i,
-
-
-                sum += g_inv[i] * g_partial()
-            }
-        }
-    }*/
-
     #define FOV 40
 
     float fov_rad = (FOV / 360.f) * 2 * M_PI;
@@ -266,6 +246,8 @@ void do_raytracing(__write_only image2d_t out, float ds, float4 cartesian_camera
 
     //write_imagef(out, (int2){cx, cy}, (float4){0, 0, 0, 1});
 
+    float4 last_acceleration = {0, 0, 0, 0};
+
     for(int i=0; i < 8000; i++)
     {
         #if 1
@@ -275,44 +257,8 @@ void do_raytracing(__write_only image2d_t out, float ds, float4 cartesian_camera
             return;
         }
 
-        if(lightray_spacetime_position.y > 20)
+        if(lightray_spacetime_position.y > 10)
         {
-            //float sx = (lightray_spacetime_position.z + M_PI) / (2*M_PI);
-            //float sy = (lightray_spacetime_position.w + M_PI) / (2*M_PI);
-
-            /*float thetaf = fmod(lightray_spacetime_position.z, 2 * M_PI);
-
-            float phif = lightray_spacetime_position.w;
-
-            if(thetaf >= M_PI)
-            {
-                phif += M_PI;
-                thetaf -= M_PI;
-            }
-
-            phif = fmod(phif, 2 * M_PI);
-
-            phif /= 2 * M_PI;
-            thetaf /= M_PI;
-
-            float sx = phif;
-            float sy = thetaf;*/
-
-            /*float3 lp = lightray_spacetime_position.yzw;
-
-            lp.y = fmod(lp.y, 2 * M_PI);
-            lp.z = fmod(lp.z, 2 * M_PI);
-
-            float3 wp = (float3){lp.x * sin(lp.y) * cos(lp.z),
-                                        lp.x * sin(lp.y) * sin(lp.z),
-                                        lp.x * cos(lp.y)};
-
-            float thetaf = atan2(sqrt(wp.x * wp.x + wp.y * wp.y), wp.z);
-            float phif = atan2(wp.y, wp.x);
-
-            float sx = phif / (2 * M_PI);
-            float sy = thetaf / (2 * M_PI);*/
-
             float thetaf = fmod(lightray_spacetime_position.z, 2 * M_PI);
             float phif = lightray_spacetime_position.w;
 
@@ -330,8 +276,6 @@ void do_raytracing(__write_only image2d_t out, float ds, float4 cartesian_camera
             sampler_t sam = CLK_NORMALIZED_COORDS_TRUE |
                             CLK_ADDRESS_REPEAT |
                             CLK_FILTER_LINEAR;
-
-            //float4 val = {sx, sy, 0, 1};
 
             float4 val = read_imagef(background, sam, (float2){sx, sy});
             write_imagef(out, (int2){cx, cy}, val);
@@ -404,8 +348,13 @@ void do_raytracing(__write_only image2d_t out, float ds, float4 cartesian_camera
 
         //float4 acceleration = 0;
 
-        lightray_velocity += acceleration * ds;
-        lightray_spacetime_position += lightray_velocity * ds;
+        lightray_spacetime_position += lightray_velocity * ds + 0.5 * last_acceleration * ds * ds;
+
+        lightray_velocity += ds * (last_acceleration + acceleration)/2;
+
+        last_acceleration = acceleration;
+
+        //lightray_spacetime_position += lightray_velocity * ds;
 
         /*if(i == 0 && cx == width / 2 && cy == height/2)
         {
