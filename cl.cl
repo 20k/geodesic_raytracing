@@ -393,7 +393,6 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
         g_partials[3 * 4 + 1] = 2 * r * sin(theta) * sin(theta);
         g_partials[3 * 4 + 2] = 2 * r * r * sin(theta) * cos(theta);
 
-        //if(theta >= M_PI/64 && theta < (M_PI - M_PI/64))
         {
             ///diagonal of the metric, because it only has diagonals
             float g_inv[4] = {1/g_metric[0], 1/g_metric[1], 1/g_metric[2], 0};
@@ -434,60 +433,6 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
                 ///g_partials[m * 4 + i] = 0
             }
         }
-        ///degenerate case
-        /*else
-        {
-            float g_inv[4] = {1/g_metric[0], 1/g_metric[1], 1/g_metric[2], 0};
-
-            for(int i=0; i < 3; i++)
-            {
-                float ginvii = 0.5 * g_inv[i];
-
-                for(int m=0; m < 4; m++)
-                {
-                    float adding = ginvii * g_partials[i * 4 + m];
-
-                    christoff[i * 16 + i * 4 + m] += adding;
-                    christoff[i * 16 + m * 4 + i] += adding;
-                    christoff[i * 16 + m * 4 + m] -= ginvii * g_partials[m * 4 + i];
-                }
-            }
-
-            int i = 3;
-
-            ///2 * r * sin(theta) * sin(theta) / (r * r * sin(theta) * sin(theta));
-            ///= 2 / r
-
-            ///2 * r * r * sin(theta) * cos(theta) / (r * r * sin(theta) * sin(theta))
-            ///= 2 * cos(theta) / sin(theta)
-            ///= 2 / tan(theta)
-            ///still tends to infinity at theta -> 0, but at least the numerical stability is better
-
-            float result = tan(theta);
-
-            if(fabs(result) < 0.01)
-            {
-                result = 0.01 * sign(result);
-
-                //result = clamp(result, -0.1, 0.1);
-            }
-
-            float third = 1/result;
-
-            float half_partials_divided[4] = {0, 1 / r, third, 0.f};
-
-            for(int m=0; m < 4; m++)
-            {
-                float adding = half_partials_divided[m];
-
-                christoff[i * 16 + i * 4 + m] += adding;
-                christoff[i * 16 + m * 4 + i] += adding;
-                ///g_partials[m * 4 + i] = 0
-            }
-
-            //write_imagef(out, (int2){cx, cy}, (float4)(1,1,1,1));
-            //return;
-        }*/
 
         float velocity_arr[4] = {lightray_velocity.x, lightray_velocity.y, lightray_velocity.z, lightray_velocity.w};
 
