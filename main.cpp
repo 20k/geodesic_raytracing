@@ -219,7 +219,6 @@ int main()
         args.push_back(rtex);
         args.push_back(ds);
         args.push_back(camera);
-        args.push_back(scamera);
         args.push_back(camera_quat);
         args.push_back(clbackground);
 

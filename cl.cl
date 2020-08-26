@@ -175,8 +175,42 @@ float3 spherical_velocity_to_cartesian_velocity(float3 p, float3 dp)
     return (float3){v1, v2, v3};
 }
 
+float3 rotate_vector(float3 bx, float3 by, float3 bz, float3 v)
+{
+    /*
+    [nxx, nyx, nzx,   [vx]
+     nxy, nyy, nzy,   [vy]
+     nxz, nyz, nzz]   [vz] =
+
+     nxx * vx + nxy * vy + nzx * vz
+     nxy * vx + nyy * vy + nzy * vz
+     nxz * vx + nzy * vy + nzz * vz*/
+
+     return (float3){
+        bx.x * v.x + by.x * v.y + bz.x * v.z,
+        bx.y * v.x + by.y * v.y + bz.y * v.z,
+        bx.z * v.x + by.z * v.y + bz.z * v.z
+    };
+}
+
+float3 unrotate_vector(float3 bx, float3 by, float3 bz, float3 v)
+{
+    /*
+    nxx, nxy, nxz,   vx,
+    nyx, nyy, nyz,   vy,
+    nzx, nzy, nzz    vz*/
+
+    return rotate_vector((float3){bx.x, by.x, bz.x}, (float3){bx.y, by.y, bz.y}, (float3){bx.z, by.z, bz.z}, v);
+}
+
+///normalized
+float3 rejection(float3 my_vector, float3 basis)
+{
+    return normalize(my_vector - dot(my_vector, basis) * basis);
+}
+
 __kernel
-void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camera_pos, float4 polar_camera_pos, float4 camera_quat, __read_only image2d_t background)
+void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camera_pos, float4 camera_quat, __read_only image2d_t background)
 {
     /*
     so t = -(1- rs / r) * c^2
@@ -243,10 +277,57 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
 
     float3 cartesian_velocity = normalize(pixel_virtual_pos);
 
+    float3 old_basis_x = (float3){1, 0, 0};
+    float3 old_basis_y = (float3){0, 1, 0};
+    float3 old_basis_z = (float3){0, 0, 1};
 
-    //printf("CVEL %f %f %f\n", cartesian_velocity.x, cartesian_velocity.y, cartesian_velocity.z);
+    /*float3 new_basis_z = normalize(cartesian_velocity);       //vector direction
+    float3 new_basis_x = normalize(-cartesian_camera_pos.yzw); //to black hole
 
-    float3 polar_velocity = cartesian_velocity_to_polar_velocity(cartesian_camera_pos.yzw, cartesian_velocity);
+    new_basis_z = rejection(new_basis_z, new_basis_x);
+
+    float3 new_basis_y = normalize(-cross(new_basis_x, new_basis_z)); //up*/
+
+    float3 new_basis_x = normalize(cartesian_velocity);
+    float3 new_basis_y = normalize(-cartesian_camera_pos.yzw);
+
+    new_basis_x = rejection(new_basis_x, new_basis_y);
+
+    float3 new_basis_z = -normalize(cross(new_basis_x, new_basis_y));
+
+    if(cx == width/2 && cy == height/2)
+    {
+        float f1 = dot(new_basis_z, new_basis_x);
+        float f2 = dot(new_basis_y, new_basis_x);
+        float f3 = dot(new_basis_y, new_basis_z);
+
+        printf("Dots %f %f %f\n", f1, f2, f3);
+    }
+
+    float3 cartesian_camera_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_camera_pos.yzw);
+    float3 cartesian_velocity_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_velocity);
+
+    if(cx == width/2 && cy == height / 2)
+    {
+        //printf("Z %f\n", cartesian_camera_new_basis.z);
+    }
+
+    /*if(cx == width/2 && cy == height/2)
+    {
+        //printf("LENS %f %f\n", length(cartesian_velocity), length(cartesian_velocity_new_basis));
+        //printf("LENS2 %f %f %f\n", length(new_basis_z), length(new_basis_x), length(new_basis_y));
+
+        //float3 test = cartesian_velocity;
+        float3 new_test = cartesian_camera_pos.yzw;
+
+        float3 unrotated = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, new_test);
+
+        //float val = dot(normalize(test), normalize(unrotated));
+
+        printf("VAL %f %f %f\n", length(cartesian_camera_new_basis), length(cartesian_camera_pos.yzw), length(unrotated));
+    }*/
+
+    float3 polar_velocity = cartesian_velocity_to_polar_velocity(cartesian_camera_new_basis, cartesian_velocity_new_basis);
 
     //float pvx = pixel_virtual_pos.x / (width/2);
     //float pvy = pixel_virtual_pos.y / (height/2);
@@ -255,12 +336,15 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
 
     //float3 polar_velocity = (float3){-1, 0, 0};
 
-    float3 bad_light_velocity = polar_velocity;
-
     //float4 spacetime = (float4)(100,2,M_PI/2,M_PI);
-    float4 lightray_start_position = polar_camera_pos;
+    float4 lightray_start_position = (float4)(0, cartesian_to_polar(cartesian_camera_new_basis));
 
     float4 lightray_spacetime_position = lightray_start_position;
+
+    if(cx == width/2 && cy == height/2)
+    {
+        printf("THETA %f PHI %f\n", lightray_start_position.z, lightray_start_position.w);
+    }
 
     float rs = 1;
     float c = 1;
@@ -269,7 +353,7 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
 
     calculate_metric(lightray_spacetime_position, g_metric);
 
-    float4 lightray_velocity = fix_light_velocity((float4)(-1, bad_light_velocity.xyz), g_metric);
+    float4 lightray_velocity = fix_light_velocity((float4)(-1, polar_velocity.xyz), g_metric);
 
     //float4 lightray_velocity = (float4)(1, bad_light_velocity.xyz);
 
@@ -296,7 +380,7 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
 
         //float ds = ambient_precision;
 
-        if(lightray_spacetime_position.z < M_PI/8)
+        /*if(lightray_spacetime_position.z < M_PI/8)
         {
             ds = mix(0.0001, ambient_precision, lightray_spacetime_position.z / (M_PI/8));
         }
@@ -318,16 +402,11 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
         {
             write_imagef(out, (int2){cx, cy}, (float4){0,0,0,1});
             return;
-        }
+        }*/
 
         #if 1
         if(lightray_spacetime_position.y < (rs + rs * 0.0001))
         {
-            /*if(total_ds == 0)
-                return;
-
-            write_imagef(out, (int2){cx, cy}, (float4){traced_quantity / total_ds, 0, 0, 1});*/
-
             write_imagef(out, (int2){cx, cy}, (float4){0,0,0,1});
             return;
         }
@@ -357,14 +436,6 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
 
             if(total_ds == 0)
                 total_ds = 1;
-
-            //float quantity = clamp(traced_quantity / 64, 0.f, 1.f);
-            float quantity = (traced_quantity / (1)) / (512);
-
-            quantity = clamp(quantity, 0.f, 1.f);
-
-            /*val = (float4){0,0,0,1};
-            val.x = quantity;*/
 
             write_imagef(out, (int2){cx, cy}, val);
             return;
@@ -462,75 +533,10 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
         float4 acceleration = {-christ_result[0], -christ_result[1], -christ_result[2], -christ_result[3]};
         #endif // 0
 
-        //float4 acceleration = 0;
-
-        //lightray_spacetime_position += lightray_velocity * ds + 0.5 * acceleration * ds * ds;
-
-        //lightray_velocity += ds * (last_acceleration + acceleration)/2;
-
-        //float3 cartesian_acceleration = spherical_acceleration_to_cartesian_acceleration(lightray_spacetime_position.yzw, lightray_velocity.yzw, acceleration.yzw);
-
-        /*float deformity = length(cartesian_acceleration);
-
-        traced_quantity += deformity;
-        total_ds += ds;*/
-
-        //deformity = sqrt(deformity);
-
-        /*if(ds == ambient_precision)
-        {
-            ds = mix(min_ds, max_ds, clamp(deformity, 0.f, 1.f));
-        }*/
-
-        //float3 old_velocity = spherical_velocity_to_cartesian_velocity(lightray_spacetime_position.yzw, lightray_velocity.yzw);
-        //float old_time = lightray_velocity.x;
-
         lightray_spacetime_position += lightray_velocity * ds;
         lightray_velocity += acceleration * ds;
 
-        /*float3 new_velocity = spherical_velocity_to_cartesian_velocity(lightray_spacetime_position.yzw, lightray_velocity.yzw);
-
-        float4 accel = sqrt(fabs(dot((float4)(old_time, old_velocity), (float4)(lightray_velocity.x, new_velocity)))) / ds;
-
-        //float deformity = length(accel) / 100;
-
-        float base_deformity = 2 * sqrt(rs * (lightray_spacetime_position.y - rs));
-
-        float maximum_deformity = 2 * sqrt(rs * (20 - rs));
-
-        float deformity = (maximum_deformity - base_deformity) / maximum_deformity;*/
-
-
-
-
-        //deformity /= 10;
-
-
-        //float deformity = sqrt(fabs(dot(old_velocity, new_velocity))) / 4;
-        //float deformity = length(acceleration) * 10;//fabs(dot(old_velocity, new_velocity));
-
-        //traced_quantity += deformity;
-        //total_ds += ds;
-
-        /*if(cx == width/2 && cy == width/2)
-        {
-            printf("%f d\n", deformity / total_ds);
-        }*/
-
-        //float spatial_deformity = length(acceleration);
-
-        /*if(i == 0 && cx == width / 2 && cy == height/2)
-        {
-            printf("%f light", lightray_spacetime_position.y);
-        }*/
-
-        /*if(lightray_spacetime_position.y < (rs + rs * 0.0001))
-        {
-            //write_imagef(out, (int2){cx, cy}, (float4){0, 0, 0, 1});
-            return;
-        }*/
-
-        /*if((cx == width/2 && cy == height/2) || (cx == width-2 && cy == height/2) || (cx == 0 && cy == height/2))
+        if((cx == width/2 && cy == height/2) || (cx == width-2 && cy == height/2) || (cx == 0 && cy == height/2))
         {
             float3 lp = lightray_spacetime_position.yzw;
 
@@ -546,11 +552,11 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
 
             float4 write_col = (float4){1,0,1,1};
 
-            float spatial_deformity = deformity;
+            /*float spatial_deformity = deformity;
 
             //spatial_deformity = clamp((spatial_deformity/16), 0.f, 1.f);
 
-            write_col = (float4){0, spatial_deformity, 0, 1};
+            write_col = (float4){0, spatial_deformity, 0, 1};*/
 
             world_pos = round(world_pos) + 0.5;
 
@@ -560,11 +566,11 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
 
             //printf("world pos %f\n", lp.x);
 
-            if(all(world_pos.xz > 0) && all(world_pos.xz < (float2){width-2, height-2}))
-                write_imagef(out, (int2){world_pos.x, world_pos.z}, write_col);
+            //if(all(world_pos.xz > 0) && all(world_pos.xz < (float2){width-2, height-2}))
+            //    write_imagef(out, (int2){world_pos.x, world_pos.z}, write_col);
 
             write_imagef(out, (int2){width/2, height/2}, (float4){1, 0, 0, 1});
-        }*/
+        }
     }
 
 
