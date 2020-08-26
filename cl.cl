@@ -309,14 +309,6 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
 
     float3 polar_velocity = cartesian_velocity_to_polar_velocity(cartesian_camera_new_basis, cartesian_velocity_new_basis);
 
-    //float pvx = pixel_virtual_pos.x / (width/2);
-    //float pvy = pixel_virtual_pos.y / (height/2);
-
-    //float3 polar_velocity = {-1, pvx, pvy};
-
-    //float3 polar_velocity = (float3){-1, 0, 0};
-
-    //float4 spacetime = (float4)(100,2,M_PI/2,M_PI);
     float4 lightray_start_position = (float4)(0, cartesian_to_polar(cartesian_camera_new_basis));
 
     float4 lightray_spacetime_position = lightray_start_position;
@@ -424,9 +416,9 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
 
         {
             ///diagonal of the metric, because it only has diagonals
-            float g_inv[4] = {1/g_metric[0], 1/g_metric[1], 1/g_metric[2], 0};
+            float g_inv[4] = {1/g_metric[0], 1/g_metric[1], 1/g_metric[2], 1/g_metric[3]};
 
-            for(int i=0; i < 3; i++)
+            for(int i=0; i < 4; i++)
             {
                 float ginvii = 0.5 * g_inv[i];
 
@@ -438,28 +430,6 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
                     christoff[i * 16 + m * 4 + i] += adding;
                     christoff[i * 16 + m * 4 + m] -= ginvii * g_partials[m * 4 + i];
                 }
-            }
-
-            int i = 3;
-
-            float result = tan(theta);
-
-            if(fabs(result) < 0.0000001)
-            {
-                result = 0.0000001 * sign(result);
-            }
-
-            float third = 1/result;
-
-            float half_partials_divided[4] = {0, 1 / r, third, 0.f};
-
-            for(int m=0; m < 4; m++)
-            {
-                float adding = half_partials_divided[m];
-
-                christoff[i * 16 + i * 4 + m] += adding;
-                christoff[i * 16 + m * 4 + i] += adding;
-                ///g_partials[m * 4 + i] = 0
             }
         }
 
