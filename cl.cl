@@ -335,7 +335,7 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
     float traced_quantity = 0;
     float total_ds = 0;
 
-    for(int it=0; it < 1280000; it++)
+    for(int it=0; it < 32000; it++)
     {
         float interp = clamp(lightray_spacetime_position.y, min_radius, max_radius);
 
