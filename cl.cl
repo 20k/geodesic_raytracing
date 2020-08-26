@@ -77,16 +77,6 @@ float4 fix_light_velocity(float4 velocity, float g_metric[])
 
     float v[4] = {velocity.x, velocity.y, velocity.z, velocity.w};
 
-    /*
-    float ds = 0;
-
-    ds += g_metric[0] * velocity_arr[0] * velocity_arr[0];
-    ds += g_metric[1] * velocity_arr[1] * velocity_arr[1];
-    ds += g_metric[2] * velocity_arr[2] * velocity_arr[2];
-    ds += g_metric[3] * velocity_arr[3] * velocity_arr[3];
-    */
-
-
     ///so. g_metric[0] is negative. velocity_arr[0] is 1
 
     ///so rewritten, ds2 = Eu Ev dxu * dx v
@@ -144,6 +134,45 @@ float3 rot_quat(const float3 point, float4 quat)
     float3 t = 2.f * cross(quat.xyz, point);
 
     return point + quat.w * t + cross(quat.xyz, t);
+}
+
+float3 spherical_acceleration_to_cartesian_acceleration(float3 p, float3 dp, float3 ddp)
+{
+    float r = p.x;
+    float dr = dp.x;
+    float ddr = ddp.x;
+
+    float x = p.y;
+    float dx = dp.y;
+    float ddx = ddp.y;
+
+    float y = p.z;
+    float dy = dp.z;
+    float ddy = ddp.z;
+
+    float v1 = -r * sin(x) * sin(y) * ddy + r * cos(x) * cos(y) * ddx + sin(x) * cos(y) * ddr - 2 * sin(x) * sin(y) * dr * dy + 2 * cos(x) * cos(y) * dr * dx - r * sin(x) * cos(y) * dx * dx - 2 * r * cos(x) * sin(y) * dx * dy - r * sin(x) * cos(y) * dy * dy;
+    float v2 = sin(x) * sin(y) * ddr + r * sin(x) * cos(y) * ddy + r * cos(x) * sin(y) * ddx - r * sin(x) * sin(y) * dx * dx - r * sin(x) * sin(y) * dy * dy + 2 * r * cos(x) * cos(y) * dx * dy + 2 * cos(x) * sin(y) * dr * dx + 2 * sin(x) * cos(y) * dr * dy;
+    float v3 = sin(x) * (-r * ddx - 2 * dr * dx) + cos(x) * (ddr - r * dx * dx);
+
+    return (float3){v1, v2, v3};
+}
+
+float3 spherical_velocity_to_cartesian_velocity(float3 p, float3 dp)
+{
+    float r = p.x;
+    float dr = dp.x;
+
+    float x = p.y;
+    float dx = dp.y;
+
+    float y = p.z;
+    float dy = dp.z;
+
+    float v1 = - r * sin(x) * sin(y) * dy + r * cos(x) * cos(y) * dx + sin(x) * cos(y) * dr;
+    float v2 = sin(x) * sin(y) * dr + r * sin(x) * cos(y) * dy + r * cos(x) * sin(y) * dx;
+    float v3 = cos(x) * dr - r * sin(x) * dx;
+
+    return (float3){v1, v2, v3};
 }
 
 __kernel
@@ -246,13 +275,18 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
 
     //write_imagef(out, (int2){cx, cy}, (float4){0, 0, 0, 1});
 
+    float ambient_precision = 0.1;
+
     float max_ds = 0.001;
-    float min_ds = 0.1;
+    float min_ds = ambient_precision;
 
     float min_radius = 1.1;
     float max_radius = 1.6;
 
-    for(int i=0; i < 120000; i++)
+    float traced_quantity = 0;
+    float total_ds = 0;
+
+    for(int it=0; it < 120000; it++)
     {
         float interp = clamp(lightray_spacetime_position.y, min_radius, max_radius);
 
@@ -260,31 +294,27 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
 
         float ds = mix(max_ds, min_ds, frac);
 
-        /*if(lightray_spacetime_position.z > M_PI- M_PI/64)
-        {
-            write_imagef(out, (int2){cx, cy}, (float4){1, 1, 1, 1});
-            return;
-        }*/
+        //float ds = ambient_precision;
 
         if(lightray_spacetime_position.z < M_PI/8)
         {
-            ds = mix(0.001, 0.1, lightray_spacetime_position.z / (M_PI/8));
+            ds = mix(0.0001, ambient_precision, lightray_spacetime_position.z / (M_PI/8));
         }
 
         if(lightray_spacetime_position.z >= (M_PI - M_PI/8))
         {
             float ffrac = (M_PI - lightray_spacetime_position.z) / (M_PI/8);
-            ds = mix(0.001, 0.1, ffrac);
+            ds = mix(0.0001, ambient_precision, ffrac);
         }
 
-        if(lightray_spacetime_position.z < M_PI/2048)
+        if(lightray_spacetime_position.z < M_PI/(4096))
         {
             write_imagef(out, (int2){cx, cy}, (float4){0,0,0,1});
             return;
             //ds = mix(0.1, 0.1, lightray_spacetime_position.z / (M_PI/32));
         }
 
-        if(lightray_spacetime_position.z >= M_PI - M_PI/2048)
+        if(lightray_spacetime_position.z >= M_PI - M_PI/(4096))
         {
             write_imagef(out, (int2){cx, cy}, (float4){0,0,0,1});
             return;
@@ -293,7 +323,12 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
         #if 1
         if(lightray_spacetime_position.y < (rs + rs * 0.0001))
         {
-            write_imagef(out, (int2){cx, cy}, (float4){0, 0, 0, 1});
+            /*if(total_ds == 0)
+                return;
+
+            write_imagef(out, (int2){cx, cy}, (float4){traced_quantity / total_ds, 0, 0, 1});*/
+
+            write_imagef(out, (int2){cx, cy}, (float4){0,0,0,1});
             return;
         }
 
@@ -313,22 +348,42 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
             float sx = (phif) / (2 * M_PI);
             float sy = thetaf / M_PI;
 
+
             sampler_t sam = CLK_NORMALIZED_COORDS_TRUE |
                             CLK_ADDRESS_REPEAT |
                             CLK_FILTER_LINEAR;
 
             float4 val = read_imagef(background, sam, (float2){sx, sy});
+
+            if(total_ds == 0)
+                total_ds = 1;
+
+            //float quantity = clamp(traced_quantity / 64, 0.f, 1.f);
+            float quantity = (traced_quantity / (1)) / (512);
+
+            quantity = clamp(quantity, 0.f, 1.f);
+
+            /*val = (float4){0,0,0,1};
+            val.x = quantity;*/
+
             write_imagef(out, (int2){cx, cy}, val);
             return;
         }
 
         calculate_metric(lightray_spacetime_position, g_metric);
 
+        /*
+        g_metric_out[0] = -c * c * (1 - rs / r);
+        g_metric_out[1] = 1/(1 - rs / r);
+        g_metric_out[2] = r * r;
+        g_metric_out[3] = r * r * sin(theta) * sin(theta);*/
+
+        ///so metric 3 is degenerate around the poles, because 1/(r*r*sin(theta)*sin(theta)) -> infinity
+
+        float christoff[64] = {0};
+
         float r = lightray_spacetime_position.y;
         float theta = lightray_spacetime_position.z;
-
-        ///diagonal of the metric, because it only has diagonals
-        float g_inv[4] = {1/g_metric[0], 1/g_metric[1], 1/g_metric[2], 1/g_metric[3]};
 
         float g_partials[16] = {0};
 
@@ -338,21 +393,101 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
         g_partials[3 * 4 + 1] = 2 * r * sin(theta) * sin(theta);
         g_partials[3 * 4 + 2] = 2 * r * r * sin(theta) * cos(theta);
 
-        float christoff[64] = {0};
-
-        for(int i=0; i < 4; i++)
+        //if(theta >= M_PI/64 && theta < (M_PI - M_PI/64))
         {
-            float ginvii = 0.5 * g_inv[i];
+            ///diagonal of the metric, because it only has diagonals
+            float g_inv[4] = {1/g_metric[0], 1/g_metric[1], 1/g_metric[2], 0};
+
+            for(int i=0; i < 3; i++)
+            {
+                float ginvii = 0.5 * g_inv[i];
+
+                for(int m=0; m < 4; m++)
+                {
+                    float adding = ginvii * g_partials[i * 4 + m];
+
+                    christoff[i * 16 + i * 4 + m] += adding;
+                    christoff[i * 16 + m * 4 + i] += adding;
+                    christoff[i * 16 + m * 4 + m] -= ginvii * g_partials[m * 4 + i];
+                }
+            }
+
+            int i = 3;
+
+            float result = tan(theta);
+
+            if(fabs(result) < 0.0000001)
+            {
+                result = 0.0000001 * sign(result);
+            }
+
+            float third = 1/result;
+
+            float half_partials_divided[4] = {0, 1 / r, third, 0.f};
 
             for(int m=0; m < 4; m++)
             {
-                float adding = ginvii * g_partials[i * 4 + m];
+                float adding = half_partials_divided[m];
 
                 christoff[i * 16 + i * 4 + m] += adding;
                 christoff[i * 16 + m * 4 + i] += adding;
-                christoff[i * 16 + m * 4 + m] -= ginvii * g_partials[m * 4 + i];
+                ///g_partials[m * 4 + i] = 0
             }
         }
+        ///degenerate case
+        /*else
+        {
+            float g_inv[4] = {1/g_metric[0], 1/g_metric[1], 1/g_metric[2], 0};
+
+            for(int i=0; i < 3; i++)
+            {
+                float ginvii = 0.5 * g_inv[i];
+
+                for(int m=0; m < 4; m++)
+                {
+                    float adding = ginvii * g_partials[i * 4 + m];
+
+                    christoff[i * 16 + i * 4 + m] += adding;
+                    christoff[i * 16 + m * 4 + i] += adding;
+                    christoff[i * 16 + m * 4 + m] -= ginvii * g_partials[m * 4 + i];
+                }
+            }
+
+            int i = 3;
+
+            ///2 * r * sin(theta) * sin(theta) / (r * r * sin(theta) * sin(theta));
+            ///= 2 / r
+
+            ///2 * r * r * sin(theta) * cos(theta) / (r * r * sin(theta) * sin(theta))
+            ///= 2 * cos(theta) / sin(theta)
+            ///= 2 / tan(theta)
+            ///still tends to infinity at theta -> 0, but at least the numerical stability is better
+
+            float result = tan(theta);
+
+            if(fabs(result) < 0.01)
+            {
+                result = 0.01 * sign(result);
+
+                //result = clamp(result, -0.1, 0.1);
+            }
+
+            float third = 1/result;
+
+            float half_partials_divided[4] = {0, 1 / r, third, 0.f};
+
+            for(int m=0; m < 4; m++)
+            {
+                float adding = half_partials_divided[m];
+
+                christoff[i * 16 + i * 4 + m] += adding;
+                christoff[i * 16 + m * 4 + i] += adding;
+                ///g_partials[m * 4 + i] = 0
+            }
+
+            //write_imagef(out, (int2){cx, cy}, (float4)(1,1,1,1));
+            //return;
+        }*/
 
         float velocity_arr[4] = {lightray_velocity.x, lightray_velocity.y, lightray_velocity.z, lightray_velocity.w};
 
@@ -388,16 +523,69 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
 
         //lightray_velocity += ds * (last_acceleration + acceleration)/2;
 
-        lightray_spacetime_position += lightray_velocity * ds;
+        //float3 cartesian_acceleration = spherical_acceleration_to_cartesian_acceleration(lightray_spacetime_position.yzw, lightray_velocity.yzw, acceleration.yzw);
 
+        /*float deformity = length(cartesian_acceleration);
+
+        traced_quantity += deformity;
+        total_ds += ds;*/
+
+        //deformity = sqrt(deformity);
+
+        /*if(ds == ambient_precision)
+        {
+            ds = mix(min_ds, max_ds, clamp(deformity, 0.f, 1.f));
+        }*/
+
+        //float3 old_velocity = spherical_velocity_to_cartesian_velocity(lightray_spacetime_position.yzw, lightray_velocity.yzw);
+        //float old_time = lightray_velocity.x;
+
+        lightray_spacetime_position += lightray_velocity * ds;
         lightray_velocity += acceleration * ds;
+
+        /*float3 new_velocity = spherical_velocity_to_cartesian_velocity(lightray_spacetime_position.yzw, lightray_velocity.yzw);
+
+        float4 accel = sqrt(fabs(dot((float4)(old_time, old_velocity), (float4)(lightray_velocity.x, new_velocity)))) / ds;
+
+        //float deformity = length(accel) / 100;
+
+        float base_deformity = 2 * sqrt(rs * (lightray_spacetime_position.y - rs));
+
+        float maximum_deformity = 2 * sqrt(rs * (20 - rs));
+
+        float deformity = (maximum_deformity - base_deformity) / maximum_deformity;*/
+
+
+
+
+        //deformity /= 10;
+
+
+        //float deformity = sqrt(fabs(dot(old_velocity, new_velocity))) / 4;
+        //float deformity = length(acceleration) * 10;//fabs(dot(old_velocity, new_velocity));
+
+        //traced_quantity += deformity;
+        //total_ds += ds;
+
+        /*if(cx == width/2 && cy == width/2)
+        {
+            printf("%f d\n", deformity / total_ds);
+        }*/
+
+        //float spatial_deformity = length(acceleration);
 
         /*if(i == 0 && cx == width / 2 && cy == height/2)
         {
             printf("%f light", lightray_spacetime_position.y);
         }*/
 
-        /*if(cx == width/2 && cy == height/2 || (cx == width-2 && cy == height/2) || (cx == 0 && cy == height/2))
+        /*if(lightray_spacetime_position.y < (rs + rs * 0.0001))
+        {
+            //write_imagef(out, (int2){cx, cy}, (float4){0, 0, 0, 1});
+            return;
+        }*/
+
+        /*if((cx == width/2 && cy == height/2) || (cx == width-2 && cy == height/2) || (cx == 0 && cy == height/2))
         {
             float3 lp = lightray_spacetime_position.yzw;
 
@@ -411,12 +599,24 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
             world_pos.y += height/2;
             world_pos.z += height/2;
 
+            float4 write_col = (float4){1,0,1,1};
+
+            float spatial_deformity = deformity;
+
+            //spatial_deformity = clamp((spatial_deformity/16), 0.f, 1.f);
+
+            write_col = (float4){0, spatial_deformity, 0, 1};
+
+            world_pos = round(world_pos) + 0.5;
+
+            write_col = pow(write_col, 1/2.2);
+
             //printf("%f r\n", lightray_spacetime_position.y);
 
             //printf("world pos %f\n", lp.x);
 
             if(all(world_pos.xz > 0) && all(world_pos.xz < (float2){width-2, height-2}))
-                write_imagef(out, (int2){world_pos.x, world_pos.z}, (float4){1, 0, 1, 1});
+                write_imagef(out, (int2){world_pos.x, world_pos.z}, write_col);
 
             write_imagef(out, (int2){width/2, height/2}, (float4){1, 0, 0, 1});
         }*/
