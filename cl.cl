@@ -304,37 +304,8 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
 
     float3 new_basis_z = -normalize(cross(new_basis_x, new_basis_y));
 
-    if(cx == width/2 && cy == height/2)
-    {
-        float f1 = dot(new_basis_z, new_basis_x);
-        float f2 = dot(new_basis_y, new_basis_x);
-        float f3 = dot(new_basis_y, new_basis_z);
-
-        printf("Dots %f %f %f\n", f1, f2, f3);
-    }
-
     float3 cartesian_camera_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_camera_pos.yzw);
     float3 cartesian_velocity_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_velocity);
-
-    if(cx == width/2 && cy == height / 2)
-    {
-        //printf("Z %f\n", cartesian_camera_new_basis.z);
-    }
-
-    /*if(cx == width/2 && cy == height/2)
-    {
-        //printf("LENS %f %f\n", length(cartesian_velocity), length(cartesian_velocity_new_basis));
-        //printf("LENS2 %f %f %f\n", length(new_basis_z), length(new_basis_x), length(new_basis_y));
-
-        //float3 test = cartesian_velocity;
-        float3 new_test = cartesian_camera_pos.yzw;
-
-        float3 unrotated = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, new_test);
-
-        //float val = dot(normalize(test), normalize(unrotated));
-
-        printf("VAL %f %f %f\n", length(cartesian_camera_new_basis), length(cartesian_camera_pos.yzw), length(unrotated));
-    }*/
 
     float3 polar_velocity = cartesian_velocity_to_polar_velocity(cartesian_camera_new_basis, cartesian_velocity_new_basis);
 
@@ -349,11 +320,6 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
     float4 lightray_start_position = (float4)(0, cartesian_to_polar(cartesian_camera_new_basis));
 
     float4 lightray_spacetime_position = lightray_start_position;
-
-    /*if(cx == width/2 && cy == height/2)
-    {
-        printf("RAD %f THETA %f PHI %f\n", lightray_start_position.y, lightray_start_position.z, lightray_start_position.w);
-    }*/
 
     float rs = 1;
     float c = 1;
@@ -386,32 +352,6 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
         float frac = (interp - min_radius) / (max_radius - min_radius);
 
         float ds = mix(max_ds, min_ds, frac);
-
-        //float ds = ambient_precision;
-
-        /*if(lightray_spacetime_position.z < M_PI/8)
-        {
-            ds = mix(0.0001, ambient_precision, lightray_spacetime_position.z / (M_PI/8));
-        }
-
-        if(lightray_spacetime_position.z >= (M_PI - M_PI/8))
-        {
-            float ffrac = (M_PI - lightray_spacetime_position.z) / (M_PI/8);
-            ds = mix(0.0001, ambient_precision, ffrac);
-        }
-
-        if(lightray_spacetime_position.z < M_PI/(4096))
-        {
-            write_imagef(out, (int2){cx, cy}, (float4){0,0,0,1});
-            return;
-            //ds = mix(0.1, 0.1, lightray_spacetime_position.z / (M_PI/32));
-        }
-
-        if(lightray_spacetime_position.z >= M_PI - M_PI/(4096))
-        {
-            write_imagef(out, (int2){cx, cy}, (float4){0,0,0,1});
-            return;
-        }*/
 
         #if 1
         if(lightray_spacetime_position.y < (rs + rs * 0.0001))
