@@ -31,6 +31,15 @@ float3 cartesian_to_polar(float3 in)
     return (float3){r, theta, phi};
 }
 
+float3 polar_to_cartesian(float3 in)
+{
+    float x = in.x * sin(in.y) * cos(in.z);
+    float y = in.x * sin(in.y) * sin(in.z);
+    float z = in.x * cos(in.y);
+
+    return (float3){x, y, z};
+}
+
 float3 cartesian_velocity_to_polar_velocity(float3 cartesian_position, float3 cartesian_velocity)
 {
     float3 p = cartesian_position;
@@ -277,11 +286,11 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
 
     float3 cartesian_velocity = normalize(pixel_virtual_pos);
 
-    float3 old_basis_x = (float3){1, 0, 0};
+    /*float3 old_basis_x = (float3){1, 0, 0};
     float3 old_basis_y = (float3){0, 1, 0};
     float3 old_basis_z = (float3){0, 0, 1};
 
-    /*float3 new_basis_z = normalize(cartesian_velocity);       //vector direction
+    float3 new_basis_z = normalize(cartesian_velocity);       //vector direction
     float3 new_basis_x = normalize(-cartesian_camera_pos.yzw); //to black hole
 
     new_basis_z = rejection(new_basis_z, new_basis_x);
@@ -341,10 +350,10 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
 
     float4 lightray_spacetime_position = lightray_start_position;
 
-    if(cx == width/2 && cy == height/2)
+    /*if(cx == width/2 && cy == height/2)
     {
-        printf("THETA %f PHI %f\n", lightray_start_position.z, lightray_start_position.w);
-    }
+        printf("RAD %f THETA %f PHI %f\n", lightray_start_position.y, lightray_start_position.z, lightray_start_position.w);
+    }*/
 
     float rs = 1;
     float c = 1;
@@ -413,8 +422,17 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
 
         if(lightray_spacetime_position.y > 20)
         {
-            float thetaf = fmod(lightray_spacetime_position.z, 2 * M_PI);
-            float phif = lightray_spacetime_position.w;
+            float3 cart_here = polar_to_cartesian(lightray_spacetime_position.yzw);
+
+            //float thetaf = fmod(lightray_spacetime_position.z, 2 * M_PI);
+            //float phif = lightray_spacetime_position.w;
+
+            cart_here = rotate_vector(new_basis_x, new_basis_y, new_basis_z, cart_here);
+
+            float3 npolar = cartesian_to_polar(cart_here);
+
+            float thetaf = fmod(npolar.y, 2 * M_PI);
+            float phif = npolar.z;
 
             if(thetaf >= M_PI)
             {
