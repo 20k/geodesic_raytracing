@@ -100,8 +100,6 @@ float4 fix_light_velocity(float4 velocity, float g_metric[])
     v[2] /= sqrt(time_scale);
     v[3] /= sqrt(time_scale);*/
 
-    //v[0] *= sqrt(time_scale);
-
     v[0] *= sqrt(time_scale);
 
     ///should print 0
@@ -332,9 +330,6 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
     float min_radius = rs * 1.1;
     float max_radius = rs * 1.6;
 
-    float traced_quantity = 0;
-    float total_ds = 0;
-
     for(int it=0; it < 32000; it++)
     {
         float interp = clamp(lightray_spacetime_position.y, min_radius, max_radius);
@@ -382,9 +377,6 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
 
             float4 val = read_imagef(background, sam, (float2){sx, sy});
 
-            if(total_ds == 0)
-                total_ds = 1;
-
             write_imagef(out, (int2){cx, cy}, val);
             return;
         }
@@ -424,10 +416,10 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
         g_partials[3 * 4 + 1] = 2 * r * sin(theta) * sin(theta);
         g_partials[3 * 4 + 2] = 2 * r * r * sin(theta) * cos(theta);
 
-        {
-            ///diagonal of the metric, because it only has diagonals
-            float g_inv[4] = {1/g_metric[0], 1/g_metric[1], 1/g_metric[2], 1/g_metric[3]};
+        ///diagonal of the metric, because it only has diagonals
+        float g_inv[4] = {1/g_metric[0], 1/g_metric[1], 1/g_metric[2], 1/g_metric[3]};
 
+        {
             for(int i=0; i < 4; i++)
             {
                 float ginvii = 0.5 * g_inv[i];
@@ -467,6 +459,30 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
 
             christ_result[uu] = sum;
         }
+
+        /*float curvature = 0;
+
+        {
+            for(int a = 0; a < 4; a++)
+            {
+                int b = a;
+
+                float cur = g_inv[a];
+
+
+                float accum = 0;
+
+                for(int c=0; c < 4; c++)
+                {
+                    accum += christoff[]
+                }
+            }
+        }*/
+
+        float curvature = 0;
+
+        //for(int i=0)
+
 
         float4 acceleration = {-christ_result[0], -christ_result[1], -christ_result[2], -christ_result[3]};
         #endif // 0
