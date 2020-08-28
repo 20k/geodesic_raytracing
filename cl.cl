@@ -419,9 +419,9 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
 
             float3 linear_val = srgb_to_lin(val.xyz);
 
-            float radiant_energy = linear_val.x + linear_val.y + linear_val.z;
+            float radiant_energy = linear_val.x * 0.2125 + linear_val.y*0.7154 + linear_val.z*0.0721;
 
-            float3 rotated_val = mix(linear_val, radiant_energy * blueshift_col, shift_fraction);
+            float3 rotated_val = mix(linear_val, radiant_energy * (blueshift_col / 0.0721), shift_fraction);
 
             rotated_val = clamp(rotated_val, 0.f, 1.f);
 
