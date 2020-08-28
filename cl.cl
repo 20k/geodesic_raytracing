@@ -225,6 +225,23 @@ float3 rejection(float3 my_vector, float3 basis)
     return normalize(my_vector - dot(my_vector, basis) * basis);
 }
 
+float3 srgb_to_lin(float3 C_srgb)
+{
+    return  0.012522878f * C_srgb +
+            0.682171111f * C_srgb * C_srgb +
+            0.305306011f * C_srgb * C_srgb * C_srgb;
+}
+
+float3 lin_to_srgb(float3 val)
+{
+    float3 S1 = sqrt(val);
+    float3 S2 = sqrt(S1);
+    float3 S3 = sqrt(S2);
+    float3 sRGB = 0.585122381 * S1 + 0.783140355 * S2 - 0.368262736 * S3;
+
+    return sRGB;
+}
+
 __kernel
 void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camera_pos, float4 camera_quat, __read_only image2d_t background)
 {
@@ -370,12 +387,46 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
             float sx = (phif) / (2 * M_PI);
             float sy = thetaf / M_PI;
 
-
             sampler_t sam = CLK_NORMALIZED_COORDS_TRUE |
                             CLK_ADDRESS_REPEAT |
                             CLK_FILTER_LINEAR;
 
             float4 val = read_imagef(background, sam, (float2){sx, sy});
+
+
+            #define BLUESHIFT
+            #ifdef BLUESHIFT
+            float3 start_col = {1,1,1};
+            float3 blueshift_col = {0, 0, 1};
+
+            /*so, blueshift is
+            ///linf / le = 1/sqrt(a - rs/re)
+            ///so, obviously infinities are bad, and infinite shifting is hard to represent
+            ///so lets say instead that at the event horizon, its maximally blue
+
+            ///so, the blueshift equation can be expressed as 1/sqrt(1 - x)
+            ///if we remap that equation to be between 0 and 1, we can instead get
+            ///1/(sqrt(1 - 0.75 * x)) - 1
+            ///this gives a well behaved blueshift-like curve*/
+
+            float x_val = rs / lightray_start_position.y;
+
+            float shift_fraction = (1/(sqrt(1 - 0.75 * x_val))) - 1;
+
+            shift_fraction = clamp(shift_fraction, 0.f, 1.f);
+
+            float3 my_val = mix(start_col, blueshift_col, shift_fraction);
+
+            float3 linear_val = srgb_to_lin(val.xyz);
+
+            float radiant_energy = linear_val.x + linear_val.y + linear_val.z;
+
+            float3 rotated_val = mix(linear_val, radiant_energy * blueshift_col, shift_fraction);
+
+            rotated_val = clamp(rotated_val, 0.f, 1.f);
+
+            val.xyz = lin_to_srgb(rotated_val);
+            #endif // BLUESHIFT
 
             write_imagef(out, (int2){cx, cy}, val);
             return;
