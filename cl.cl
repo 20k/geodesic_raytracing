@@ -242,6 +242,144 @@ float3 lin_to_srgb(float3 val)
     return sRGB;
 }
 
+float lambert_w0(float x)
+{
+    const float c1 = 4.0 / 3.0;
+    const float c2 = 7.0 / 3.0;
+    const float c3 = 5.0 / 6.0;
+    const float c4 = 2.0 / 3.0;
+    float f;
+    float temp;
+    float wn;
+    float y;
+    float zn;
+
+    f = log ( x );
+
+    if ( x <= 0.7385 )
+    {
+        wn = x * ( 1.0 + c1 * x ) / ( 1.0 + x * ( c2 + c3 * x ) );
+    }
+    else
+    {
+        wn = f - 24.0 * ( ( f + 2.0 ) * f - 3.0 )
+        / ( ( 0.7 * f + 58.0 ) * f + 127.0 );
+    }
+
+    zn = f - wn - log ( wn );
+    temp = 1.0 + wn;
+    y = 2.0 * temp * ( temp + c4 * zn ) - zn;
+    float interm = zn * y / ( temp * ( y - zn ) );
+    wn = wn * ( 1.0 + interm );
+
+    return wn;
+}
+
+void calculate_metric_krus(float4 spacetime_position, float g_metric_out[])
+{
+    float rs = 1;
+    float k = rs;
+
+    #ifndef IS_CONSTANT_THETA
+    float theta = spacetime_position.z;
+    #else
+    float theta = M_PI/2;
+    #endif // IS_CONSTANT_THETA
+
+    float T = spacetime_position.x;
+    float X = spacetime_position.y;
+
+    float lambert_interior = lambert_w0((X*X - T*T) / M_E);
+
+    float fXT = k * (1 + lambert_interior);
+
+    g_metric_out[0] = - (4 * k * k * k / fXT) * exp(-fXT / k);
+    g_metric_out[1] = (4 * k * k * k / fXT) * exp(-fXT / k);
+    g_metric_out[2] = fXT * fXT;
+    g_metric_out[3] = fXT * fXT * sin(theta) * sin(theta);
+}
+
+void calculate_partial_derivatives_krus(float4 spacetime_position, float g_metric_partials[])
+{
+    /*TTTT,
+      XXXX,
+      oooo,
+      pppp,*/
+
+    float rs = 1;
+    float k = rs;
+
+    #ifndef IS_CONSTANT_THETA
+    float theta = spacetime_position.z;
+    #else
+    float theta = M_PI/2;
+    #endif // IS_CONSTANT_THETA
+
+    float T = spacetime_position.x;
+    float X = spacetime_position.y;
+
+    float lambert_interior = lambert_w0((X*X - T*T) / M_E);
+
+    float fXT = k * (1 + lambert_interior);
+
+    float f10 = (2 * k * X * lambert_interior) / ((X*X - T*T) * (lambert_interior + 1));
+    float f01 = (2 * k * T * lambert_interior) / ((T*T - X*X) * (lambert_interior + 1));
+
+    float back_component = exp(-fXT/k) * ((4 * k * k * k / (fXT * fXT)) + 4 * k * k / fXT);
+
+    //dT by dT
+    g_metric_partials[0 * 4 + 0] = f01 * back_component;
+    //dT by dX
+    g_metric_partials[0 * 4 + 1] = f10 * back_component;
+
+    //dX by dT
+    g_metric_partials[1 * 4 + 0] = -f01 * back_component;
+    //dX by dX
+    g_metric_partials[1 * 4 + 1] = -f10 * back_component;
+
+    //dtheta by dT
+    g_metric_partials[2 * 4 + 0] = 2 * fXT * f01;
+    //dtheta by dX
+    g_metric_partials[2 * 4 + 1] = 2 * fXT * f10;
+
+    //dphi by dT
+    g_metric_partials[3 * 4 + 0] = 2 * sin(theta) * sin(theta) * fXT * f01;
+    //dphi by dX
+    g_metric_partials[3 * 4 + 1] = 2 * sin(theta) * sin(theta) * fXT * f10;
+    //dphi by dtheta
+    g_metric_partials[3 * 4 + 2] = 2 * sin(theta) * cos(theta) * fXT * fXT;
+}
+
+float r_to_T_krus(float r)
+{
+    float rs = 1;
+    float k = rs;
+
+    if(r > rs)
+        return sqrt(r/k - 1) * exp(0.5 * r/k) * sinh(0.5 * r/k);
+    else
+        return sqrt(1 - r/k) * exp(0.5 * r/k) * cosh(0.5 * r/k);
+}
+
+float r_to_X_krus(float r)
+{
+    float rs = 1;
+    float k = rs;
+
+    if(r > rs)
+        return sqrt(r/k - 1) * exp(0.5 * r/k) * cosh(0.5 * r/k);
+    else
+        return sqrt(1 - r/k) * exp(0.5 * r/k) * sinh(0.5 * r/k);
+}
+
+float TX_to_r_krus(float T, float X)
+{
+    float rs = 1;
+    float k = rs;
+
+    return k * (1 + lambert_w0((X * X - T * T) / M_E));
+}
+
 __kernel
 void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camera_pos, float4 camera_quat, __read_only image2d_t background)
 {
