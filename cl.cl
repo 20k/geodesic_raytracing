@@ -350,26 +350,26 @@ void calculate_partial_derivatives_krus(float4 spacetime_position, float g_metri
     g_metric_partials[3 * 4 + 2] = 2 * sin(theta) * cos(theta) * fXT * fXT;
 }
 
-float r_to_T_krus(float r)
+float rt_to_T_krus(float r, float t)
 {
     float rs = 1;
     float k = rs;
 
     if(r > rs)
-        return sqrt(r/k - 1) * exp(0.5 * r/k) * sinh(0.5 * r/k);
+        return sqrt(r/k - 1) * exp(0.5 * r/k) * sinh(0.5 * t/k);
     else
-        return sqrt(1 - r/k) * exp(0.5 * r/k) * cosh(0.5 * r/k);
+        return sqrt(1 - r/k) * exp(0.5 * r/k) * cosh(0.5 * t/k);
 }
 
-float r_to_X_krus(float r)
+float rt_to_X_krus(float r, float t)
 {
     float rs = 1;
     float k = rs;
 
     if(r > rs)
-        return sqrt(r/k - 1) * exp(0.5 * r/k) * cosh(0.5 * r/k);
+        return sqrt(r/k - 1) * exp(0.5 * r/k) * cosh(0.5 * t/k);
     else
-        return sqrt(1 - r/k) * exp(0.5 * r/k) * sinh(0.5 * r/k);
+        return sqrt(1 - r/k) * exp(0.5 * r/k) * sinh(0.5 * t/k);
 }
 
 float TX_to_r_krus(float T, float X)
@@ -380,8 +380,269 @@ float TX_to_r_krus(float T, float X)
     return k * (1 + lambert_w0((X * X - T * T) / M_E));
 }
 
+float trdtdr_to_dX(float t, float r, float dt, float dr)
+{
+    float rs = 1;
+    float k = rs;
+
+    if(r > rs)
+        return exp(0.5 * r/k) * (dt * (0.5 * r - 0.5 * k) * sinh((0.5 * t) / k) + 0.5 * r * dr * cosh((0.5 * t) / k)) / (k * k * sqrt(r/k - 1));
+    else
+        return exp(0.5 * r/k) * (dt * (0.5 * k - 0.5 * r) * cosh((0.5 * t) / k) - 0.5 * r * dr * sinh((0.5 * t) / k)) / (k * k * sqrt(1 - k/r));
+}
+
+float TX_to_t(float T, float X)
+{
+    float rs = 1;
+
+    if(T * T - X * X < 0)
+        return 2 * rs * atanh(T / X);
+    else
+        return 2 * rs * atanh(X / T);
+}
+
 __kernel
 void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camera_pos, float4 camera_quat, __read_only image2d_t background)
+{
+    /*
+    so t = -(1- rs / r) * c^2
+    then r = (1 - rs/ r)^-1
+    theta = r^2
+    phi = r^2 * (sin theta)^2
+    */
+
+    ///DT
+    /*
+    0
+    0
+    0
+    0
+    */
+
+    ///DR
+    /*
+    -c^2 * rs / r^2
+    -rs/((rs - x)^2)
+    2r
+    2r * (sin theta)^2
+    */
+
+    ///DTHETA
+    /*
+    0
+    0
+    0
+    2 r^2 * sin(theta) * cos(theta)
+    */
+
+    ///DPHI
+    /*
+    0
+    0
+    0
+    0*/
+
+    #define FOV 90
+
+    float fov_rad = (FOV / 360.f) * 2 * M_PI;
+
+    int cx = get_global_id(0);
+    int cy = get_global_id(1);
+
+    float width = get_image_width(out);
+    float height = get_image_height(out);
+
+    if(cx >= width-1 || cy >= height-1)
+        return;
+
+    float nonphysical_plane_half_width = width/2;
+    float nonphysical_f_stop = nonphysical_plane_half_width / tan(fov_rad/2);
+
+    ///need to rotate by camera angle
+
+    ///this position is incredibly wrong
+    float3 pixel_virtual_pos = (float3){cx - width/2, cy - height/2, nonphysical_f_stop};
+
+    //pixel_virtual_pos = normalize(pixel_virtual_pos) / 299792458.f;
+
+    pixel_virtual_pos = rot_quat(pixel_virtual_pos, camera_quat);
+
+    float3 cartesian_velocity = normalize(pixel_virtual_pos);
+
+    float3 new_basis_x = normalize(cartesian_velocity);
+    float3 new_basis_y = normalize(-cartesian_camera_pos.yzw);
+
+    new_basis_x = rejection(new_basis_x, new_basis_y);
+
+    float3 new_basis_z = -normalize(cross(new_basis_x, new_basis_y));
+
+    float3 cartesian_camera_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_camera_pos.yzw);
+    float3 cartesian_velocity_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_velocity);
+
+    float3 polar_velocity = cartesian_velocity_to_polar_velocity(cartesian_camera_new_basis, cartesian_velocity_new_basis);
+
+    float rs = 1;
+    float c = 1;
+
+    float4 lightray_polar_position = (float4)(0, cartesian_to_polar(cartesian_camera_new_basis));
+
+    float start_T = rt_to_T_krus(lightray_polar_position.y, lightray_polar_position.x);
+    float start_X = rt_to_X_krus(lightray_polar_position.y, lightray_polar_position.x);
+
+    float4 lightray_spacetime_position = (float4)(start_T, start_X, lightray_polar_position.z, lightray_polar_position.w);
+
+    float g_metric[4] = {0};
+
+    calculate_metric_krus(lightray_spacetime_position, g_metric);
+
+    ///should be 0
+    float start_t = TX_to_t(start_T, start_X);
+
+    float dX = trdtdr_to_dX(start_t, lightray_polar_position.y, 0, polar_velocity.x);
+
+    float4 lightray_velocity = fix_light_velocity((float4)(1, dX, polar_velocity.yz), g_metric);
+
+    //float4 lightray_velocity = (float4)(1, bad_light_velocity.xyz);
+
+    //write_imagef(out, (int2){cx, cy}, (float4){0, 0, 0, 1});
+
+    float ambient_precision = 0.1;
+
+    ///TODO: need to use external observer time, currently using sim time!!
+    float max_ds = 0.001;
+    float min_ds = ambient_precision;
+
+    float min_radius = rs * 1.1;
+    float max_radius = rs * 1.6;
+
+    for(int it=0; it < 32000; it++)
+    {
+        float interp = clamp(lightray_spacetime_position.y, min_radius, max_radius);
+
+        float frac = (interp - min_radius) / (max_radius - min_radius);
+
+        float ds = mix(max_ds, min_ds, frac);
+
+        float kT = lightray_spacetime_position.x;
+        float kX = lightray_spacetime_position.y;
+
+        float r_value = TX_to_r_krus(kT, kX);
+
+        #if 1
+        if(r_value < (rs + rs * 0.0000001))
+        {
+            write_imagef(out, (int2){cx, cy}, (float4){0,0,0,1});
+            return;
+        }
+
+        if(r_value > 20)
+        {
+            float3 cart_here = polar_to_cartesian((float3)(r_value, lightray_spacetime_position.zw));
+
+            //float thetaf = fmod(lightray_spacetime_position.z, 2 * M_PI);
+            //float phif = lightray_spacetime_position.w;
+
+            cart_here = rotate_vector(new_basis_x, new_basis_y, new_basis_z, cart_here);
+
+            float3 npolar = cartesian_to_polar(cart_here);
+
+            float thetaf = fmod(npolar.y, 2 * M_PI);
+            float phif = npolar.z;
+
+            if(thetaf >= M_PI)
+            {
+                phif += M_PI;
+                thetaf -= M_PI;
+            }
+
+            phif = fmod(phif, 2 * M_PI);
+
+            float sx = (phif) / (2 * M_PI);
+            float sy = thetaf / M_PI;
+
+            sampler_t sam = CLK_NORMALIZED_COORDS_TRUE |
+                            CLK_ADDRESS_REPEAT |
+                            CLK_FILTER_LINEAR;
+
+            float4 val = read_imagef(background, sam, (float2){sx, sy});
+
+            write_imagef(out, (int2){cx, cy}, val);
+            return;
+        }
+
+        calculate_metric_krus(lightray_spacetime_position, g_metric);
+
+        float christoff[64] = {0};
+
+        #ifndef IS_CONSTANT_THETA
+        float theta = lightray_spacetime_position.z;
+        #else
+        float theta = M_PI/2;
+        #endif // IS_CONSTANT_THETA
+
+        float g_partials[16] = {0};
+
+        calculate_partial_derivatives_krus(lightray_spacetime_position, g_metric);
+
+        ///diagonal of the metric, because it only has diagonals
+        float g_inv[4] = {1/g_metric[0], 1/g_metric[1], 1/g_metric[2], 1/g_metric[3]};
+
+        {
+            for(int i=0; i < 4; i++)
+            {
+                float ginvii = 0.5 * g_inv[i];
+
+                for(int m=0; m < 4; m++)
+                {
+                    float adding = ginvii * g_partials[i * 4 + m];
+
+                    christoff[i * 16 + i * 4 + m] += adding;
+                    christoff[i * 16 + m * 4 + i] += adding;
+                    christoff[i * 16 + m * 4 + m] -= ginvii * g_partials[m * 4 + i];
+                }
+            }
+        }
+
+        float velocity_arr[4] = {lightray_velocity.x, lightray_velocity.y, lightray_velocity.z, lightray_velocity.w};
+
+        float christ_result[4] = {0,0,0,0};
+
+        for(int uu=0; uu < 4; uu++)
+        {
+            float sum = 0;
+
+            for(int aa = 0; aa < 4; aa++)
+            {
+                for(int bb = 0; bb < 4; bb++)
+                {
+                    sum += (velocity_arr[aa]) * (velocity_arr[bb]) * christoff[uu * 16 + aa*4 + bb*1];
+                }
+            }
+
+            if(!isfinite(sum))
+            {
+                write_imagef(out, (int2){cx, cy}, (float4){1, 0, 0, 1});
+                return;
+            }
+
+            christ_result[uu] = sum;
+        }
+
+        float4 acceleration = {-christ_result[0], -christ_result[1], -christ_result[2], -christ_result[3]};
+        #endif // 0
+
+        lightray_spacetime_position += lightray_velocity * ds;
+
+        lightray_velocity += acceleration * ds;
+        lightray_velocity = fix_light_velocity(lightray_velocity, g_metric);
+    }
+
+    write_imagef(out, (int2){cx, cy}, (float4){0, 1, 0, 1});
+}
+
+
+__kernel
+void do_raytracing_schwar(__write_only image2d_t out, float ds_, float4 cartesian_camera_pos, float4 camera_quat, __read_only image2d_t background)
 {
     /*
     so t = -(1- rs / r) * c^2
