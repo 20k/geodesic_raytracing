@@ -100,7 +100,7 @@ float4 fix_light_velocity(float4 velocity, float g_metric[])
     v[2] /= sqrt(time_scale);
     v[3] /= sqrt(time_scale);*/
 
-    v[0] *= sqrt(time_scale);
+    //v[0] *= sqrt(time_scale);
 
     ///should print 0
     /*float fds = calculate_ds((float4){v[0], v[1], v[2], v[3]}, g_metric);
@@ -242,7 +242,7 @@ float3 lin_to_srgb(float3 val)
     return sRGB;
 }
 
-float lambert_w0(float x)
+/*float lambert_w0(float x)
 {
     const float c1 = 4.0 / 3.0;
     const float c2 = 7.0 / 3.0;
@@ -273,6 +273,45 @@ float lambert_w0(float x)
     wn = wn * ( 1.0 + interm );
 
     return wn;
+}*/
+
+float lambert_w0(float x)
+{
+  const float c1 = 4.0 / 3.0;
+  const float c2 = 7.0 / 3.0;
+  const float c3 = 5.0 / 6.0;
+  const float c4 = 2.0 / 3.0;
+  float f;
+  float temp;
+  float temp2;
+  float wn;
+  float y;
+  float zn;
+
+  f = log ( x );
+
+  if ( x <= 6.46 )
+  {
+    wn = x * ( 1.0 + c1 * x ) / ( 1.0 + x * ( c2 + c3 * x ) );
+    zn = f - wn - log ( wn );
+  }
+  else
+  {
+    wn = f;
+    zn = - log ( wn );
+  }
+
+  temp = 1.0 + wn;
+  y = 2.0 * temp * ( temp + c4 * zn ) - zn;
+  wn = wn * ( 1.0 + zn * y / ( temp * ( y - zn ) ) );
+
+  zn = f - wn - log ( wn );
+  temp = 1.0 + wn;
+  temp2 = temp + c4 * zn;
+  float en2 = zn * temp2 / ( temp * temp2 - 0.5 * zn );
+  wn = wn * ( 1.0 + en2 );
+
+  return wn;
 }
 
 void calculate_metric_krus(float4 spacetime_position, float g_metric_out[])
@@ -391,6 +430,17 @@ float trdtdr_to_dX(float t, float r, float dt, float dr)
         return exp(0.5 * r/k) * (dt * (0.5 * k - 0.5 * r) * cosh((0.5 * t) / k) - 0.5 * r * dr * sinh((0.5 * t) / k)) / (k * k * sqrt(1 - k/r));
 }
 
+float trdtdr_to_dT(float t, float r, float dt, float dr)
+{
+    float rs = 1;
+    float k = rs;
+
+    if(r > rs)
+        return exp(0.5 * r/k) * (dt * (0.5 * r - 0.5 * k) * cosh((0.5 * t) / k) + 0.5 * r * dr * sinh((0.5 * t) / k)) / (k * k * sqrt(r/k - 1));
+    else
+        return exp(0.5 * r/k) * (dt * (0.5 * k - 0.5 * r) * sinh((0.5 * t) / k) - 0.5 * r * dr * cosh((0.5 * t) / k)) / (k * k * sqrt(1 - k/r));
+}
+
 float TX_to_t(float T, float X)
 {
     float rs = 1;
@@ -457,15 +507,21 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
 
     calculate_metric_krus(lightray_spacetime_position, g_metric);
 
-    float dX = trdtdr_to_dX(0, lightray_polar_position.y, 0, polar_velocity.x);
+    float dX = trdtdr_to_dX(0, lightray_polar_position.y, 1, polar_velocity.x);
+    float dT = trdtdr_to_dT(0, lightray_polar_position.y, 1, polar_velocity.x);
 
-    float4 lightray_velocity = fix_light_velocity((float4)(1, dX, polar_velocity.yz), g_metric);
+    //float4 lightray_velocity = fix_light_velocity((float4)(0, dX, polar_velocity.yz), g_metric);
+
+    float4 lightray_velocity = (float4)(1, dX, polar_velocity.yz);
 
     //printf("START_R %f\n", TX_to_r_krus(start_T, start_X));
 
     //float4 lightray_velocity = (float4)(1, bad_light_velocity.xyz);
 
     //write_imagef(out, (int2){cx, cy}, (float4){0, 0, 0, 1});
+
+    //float lds = calculate_ds(lightray_velocity, g_metric);
+    //printf("LDS %f\n", lds);
 
     float ambient_precision = 0.1;
 
@@ -490,13 +546,13 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
         float ds = mix(max_ds, min_ds, frac);
 
         #if 1
-        if(r_value < (rs + rs * 0.01))
+        /*if(r_value < (rs + rs * 0.00000001))
         {
             //printf("RVAL %f %f %f\n", kX, kT, r_value);
 
-            //write_imagef(out, (int2){cx, cy}, (float4){0,0,1,1});
+            write_imagef(out, (int2){cx, cy}, (float4){0,0,1,1});
             return;
-        }
+        }*/
 
         if(r_value > 20)
         {
@@ -591,10 +647,10 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
         float4 acceleration = {-christ_result[0], -christ_result[1], -christ_result[2], -christ_result[3]};
         #endif // 0
 
-        lightray_velocity = fix_light_velocity(lightray_velocity, g_metric);
         lightray_spacetime_position += lightray_velocity * ds;
 
         lightray_velocity += acceleration * ds;
+        lightray_velocity = fix_light_velocity(lightray_velocity, g_metric);
 
         if((cx == width/2 && cy == height/2) || (cx == width-2 && cy == height/2) || (cx == 0 && cy == height/2))
         {
@@ -631,7 +687,7 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
         }
     }
 
-    //write_imagef(out, (int2){cx, cy}, (float4){0, 1, 0, 1});
+    write_imagef(out, (int2){cx, cy}, (float4){0, 1, 0, 1});
 }
 
 
