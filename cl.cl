@@ -609,7 +609,7 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
 
     float3 polar_camera = cartesian_to_polar(cartesian_camera_pos.yzw);
 
-    float4 krus_camera = (float4)(rt_to_T_krus(polar_camera.x, 0), rt_to_X_krus(polar_camera.y, 0), polar_camera.y, polar_camera.z);
+    float4 krus_camera = (float4)(rt_to_T_krus(polar_camera.x, 0), rt_to_X_krus(polar_camera.x, 0), polar_camera.y, polar_camera.z);
 
     float g_metric[4] = {};
     calculate_metric_krus(krus_camera, g_metric);
@@ -619,10 +619,17 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
 
     float local_r = polar_camera.x;
 
-    float4 bT = (float4)(1/(sqrt(4 * rs * rs * rs / local_r) * exp(-local_r/rs)), 0, 0, 0);
+    /*float4 bT = (float4)(1/(sqrt(4 * rs * rs * rs / local_r) * exp(-local_r/rs)), 0, 0, 0);
     float4 bX = (float4)(0, 1/(sqrt(4 * rs * rs * rs / local_r) * exp(-local_r/rs)), 0, 0);
     float4 btheta = (float4)(0, 0, 1/local_r, 0);
-    float4 bphi = (float4)(0, 0, 0, 1/(local_r * sin(krus_camera.z)));
+    float4 bphi = (float4)(0, 0, 0, 1/(local_r * sin(krus_camera.z)));*/
+
+    float4 co_basis = (float4){sqrt(-g_metric[0]), sqrt(g_metric[1]), sqrt(g_metric[2]), sqrt(g_metric[3])};
+
+    float4 bT = (float4)(1/co_basis.x, 0, 0, 0);
+    float4 bX = (float4)(0, 1/co_basis.y, 0, 0);
+    float4 btheta = (float4)(0, 0, 1/co_basis.z, 0);
+    float4 bphi = (float4)(0, 0, 0, 1/co_basis.w);
 
     float lorenz[16] = {};
 
@@ -720,6 +727,7 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
         printf("LDS %f\n", lds);
 
         printf("VEC %f %f %f %f\n", lightray_velocity.x, lightray_velocity.y, lightray_velocity.z, lightray_velocity.w);
+        printf("MET %f %f %f %f\n", g_metric[0], g_metric[1], g_metric[2], g_metric[3]);
     }
 
     float ambient_precision = 0.1;
@@ -1002,7 +1010,6 @@ void do_raytracing_old(__write_only image2d_t out, float ds_, float4 cartesian_c
         float lorenz[16] = {};
 
         get_lorenz_coeff(bT, g_metric, lorenz);
-        float4 ftime = tensor_contract(lorenz, bT);
 
         float4 cX = tensor_contract(lorenz, btheta);
         float4 cY = tensor_contract(lorenz, bphi);
