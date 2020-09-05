@@ -745,10 +745,10 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
         printf("MET %f %f %f %f\n", g_metric[0], g_metric[1], g_metric[2], g_metric[3]);
     }
 
-    float ambient_precision = 0.1;
+    float ambient_precision = 0.01;
 
     ///TODO: need to use external observer time, currently using sim time!!
-    float max_ds = 0.1;
+    float max_ds = 0.01;
     float min_ds = ambient_precision;
 
     float min_radius = rs * 1.1;
@@ -776,7 +776,7 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
             return;
         }*/
 
-        if(r_value > 20)
+        if(r_value > 3)
         {
             float3 cart_here = polar_to_cartesian((float3)(r_value, lightray_spacetime_position.zw));
 
@@ -872,7 +872,7 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
         lightray_velocity += acceleration * ds;
         lightray_spacetime_position += lightray_velocity * ds;
 
-        //lightray_velocity = fix_light_velocity(lightray_velocity, g_metric);
+        //lightray_velocity = fix_light_velocity2(lightray_velocity, g_metric);
 
         if((cx == width/2 && cy == height/2) || (cx == width-2 && cy == height/2) || (cx == 0 && cy == height/2))
         {
