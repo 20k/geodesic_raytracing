@@ -109,6 +109,17 @@ float4 fix_light_velocity(float4 velocity, float g_metric[])
     return (float4){v[0], v[1], v[2], v[3]};
 }
 
+float4 fix_light_velocity2(float4 v, float g_metric[])
+{
+    ///g_metric[1] * v[1]^2 + g_metric[2] * v[2]^2 + g_metric[3] * v[3]^2 = -g_metric[0] * v[0]^2
+
+    float tvl_2 = (g_metric[1] * v.y * v.y + g_metric[2] * v.z * v.z + g_metric[3] * v.w * v.w) / -g_metric[0];
+
+    v.x = sqrt(tvl_2);
+
+    return v;
+}
+
 //#define IS_CONSTANT_THETA
 
 void calculate_metric(float4 spacetime_position, float g_metric_out[])
@@ -614,7 +625,7 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
     float g_metric[4] = {};
     calculate_metric_krus(krus_camera, g_metric);
 
-    float3 pixel_direction = (float3){cx - width/2, cy - height/2, -nonphysical_f_stop};
+    float3 pixel_direction = (float3){cx - width/2, cy - height/2, nonphysical_f_stop};
     pixel_direction = normalize(pixel_direction);
 
     pixel_direction = rot_quat(pixel_direction, camera_quat);
@@ -656,6 +667,8 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
     //pixel_N.yzw = rot_quat(pixel_N.yzw, camera_quat);
 
     //pixel_N = fix_light_velocity(pixel_N, g_metric);
+
+    pixel_N = fix_light_velocity2(pixel_N, g_metric);
 
     float4 lightray_velocity = pixel_N;
     float4 lightray_spacetime_position = krus_camera;
