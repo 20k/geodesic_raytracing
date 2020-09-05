@@ -565,7 +565,7 @@ float4 tensor_contract(float t16[16], float4 vec)
 }
 
 __kernel
-void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camera_pos, float4 camera_quat, __read_only image2d_t background)
+void do_raytracing_old(__write_only image2d_t out, float ds_, float4 cartesian_camera_pos, float4 camera_quat, __read_only image2d_t background)
 {
     #define FOV 90
 
@@ -663,10 +663,6 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
     float4 vec = pixel_x + pixel_y + pixel_z;
 
     float4 pixel_N = vec / (dot(lower_index(vec, g_metric), vec));
-
-    //pixel_N.yzw = rot_quat(pixel_N.yzw, camera_quat);
-
-    //pixel_N = fix_light_velocity(pixel_N, g_metric);
 
     pixel_N = fix_light_velocity2(pixel_N, g_metric);
 
@@ -913,7 +909,7 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
 }
 
 __kernel
-void do_raytracing_old(__write_only image2d_t out, float ds_, float4 cartesian_camera_pos, float4 camera_quat, __read_only image2d_t background)
+void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camera_pos, float4 camera_quat, __read_only image2d_t background)
 {
     /*
     so t = -(1- rs / r) * c^2
@@ -1022,6 +1018,8 @@ void do_raytracing_old(__write_only image2d_t out, float ds_, float4 cartesian_c
 
         pixel_direction = normalize(pixel_direction);
 
+        pixel_direction = rot_quat(pixel_direction, camera_quat);
+
         float lorenz[16] = {};
 
         get_lorenz_coeff(bT, g_metric, lorenz);
@@ -1040,7 +1038,7 @@ void do_raytracing_old(__write_only image2d_t out, float ds_, float4 cartesian_c
 
         pixel_N = fix_light_velocity(pixel_N, g_metric);
 
-        pixel_N.yzw = rot_quat(pixel_N.yzw, camera_quat);
+        //pixel_N.yzw = rot_quat(pixel_N.yzw, camera_quat);
 
         float4 lightray_velocity = pixel_N;
         float4 lightray_spacetime_position = (float4)(0, polar_camera.xyz);
