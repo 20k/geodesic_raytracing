@@ -209,6 +209,17 @@ float3 rotate_vector(float3 bx, float3 by, float3 bz, float3 v)
     };
 }
 
+float4 rotate_vector4(float4 bx, float4 by, float4 bz, float4 bw, float4 v)
+{
+    return (float4)
+    {
+         bx.x * v.x + by.x * v.y + bz.x * v.z + bw.x * v.w,
+         bx.y * v.x + by.y * v.y + bz.y * v.z + bw.y * v.w,
+         bx.z * v.x + by.z * v.y + bz.z * v.z + bw.z * v.w,
+         bx.w * v.x + by.w * v.y + bz.w * v.z + bw.w * v.w,
+    };
+}
+
 float3 unrotate_vector(float3 bx, float3 by, float3 bz, float3 v)
 {
     /*
@@ -217,6 +228,11 @@ float3 unrotate_vector(float3 bx, float3 by, float3 bz, float3 v)
     nzx, nzy, nzz    vz*/
 
     return rotate_vector((float3){bx.x, by.x, bz.x}, (float3){bx.y, by.y, bz.y}, (float3){bx.z, by.z, bz.z}, v);
+}
+
+float4 unrotate_vector4(float4 bx, float4 by, float4 bz, float4 bw, float4 v)
+{
+
 }
 
 ///normalized
@@ -451,8 +467,16 @@ float TX_to_t(float T, float X)
         return 2 * rs * atanh(X / T);
 }
 
+float4 evaluate_partial_metric(float4 vel, float g_metric[])
+{
+    return (float4){g_metric[0] * vel.x * vel.x,
+                    g_metric[1] * vel.y * vel.y,
+                    g_metric[2] * vel.z * vel.z,
+                    g_metric[3] * vel.w * vel.w};
+}
+
 __kernel
-void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camera_pos, float4 camera_quat, __read_only image2d_t background)
+void do_raytracing_old(__write_only image2d_t out, float ds_, float4 cartesian_camera_pos, float4 camera_quat, __read_only image2d_t background)
 {
     #define FOV 90
 
@@ -496,7 +520,48 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
     float rs = 1;
     float c = 1;
 
+    float4 spacetime_polar_velocity = (float4)(1, polar_velocity.xyz);
+
     float4 lightray_polar_position = (float4)(0, cartesian_to_polar(cartesian_camera_new_basis));
+
+    {
+        float g_metric[4] = {};
+
+        calculate_metric(lightray_polar_position, g_metric);
+
+        float r = lightray_polar_position.y;
+        float theta = lightray_polar_position.z;
+
+        float g_polar_metric[4] = {-1, 1, r * r, r * r * sin(theta) * sin(theta)};
+
+        /*float interval = g_polar_metric[0] * pow(spacetime_polar_velocity[0], 2) +
+                         g_polar_metric[1] * pow(spacetime_polar_velocity[1], 2) +
+                         g_polar_metric[2] * pow(spacetime_polar_velocity[2], 2) +
+                         g_polar_metric[3] * pow(spacetime_polar_velocity[3], 2);*/
+
+        //so lets say
+        //g1uv v1u v1v = g2uv v2u v2v
+
+        float4 ev_1 = evaluate_partial_metric(spacetime_polar_velocity, g_polar_metric);
+        ev_1 *= (float4){1/g_metric[0], 1/g_metric[1], 1/g_metric[2], 1/g_metric[3]};
+
+        float4 res = sqrt(ev_1);
+
+        if(cx == width/2 && cy == height/2)
+        {
+            float lds = calculate_ds(res, g_metric);
+
+            printf("LDG %f\n", lds);
+
+            //float lds = calculate_ds(local_vel, g_metric);
+
+            //printf("RDS %f\n", lds);
+
+            //printf("Flat interval %f\n", interval);
+        }
+
+        spacetime_polar_velocity = res;
+    }
 
     float start_T = rt_to_T_krus(lightray_polar_position.y, lightray_polar_position.x);
     float start_X = rt_to_X_krus(lightray_polar_position.y, lightray_polar_position.x);
@@ -507,12 +572,12 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
 
     calculate_metric_krus(lightray_spacetime_position, g_metric);
 
-    float dX = trdtdr_to_dX(0, lightray_polar_position.y, 1, polar_velocity.x);
-    float dT = trdtdr_to_dT(0, lightray_polar_position.y, 1, polar_velocity.x);
+    float dX = trdtdr_to_dX(0, lightray_polar_position.y, spacetime_polar_velocity.x, spacetime_polar_velocity.y);
+    float dT = trdtdr_to_dT(0, lightray_polar_position.y, spacetime_polar_velocity.x, spacetime_polar_velocity.y);
 
-    //float4 lightray_velocity = fix_light_velocity((float4)(0, dX, polar_velocity.yz), g_metric);
+    float4 lightray_velocity = fix_light_velocity((float4)(dT, dX, spacetime_polar_velocity.zw), g_metric);
 
-    float4 lightray_velocity = (float4)(1, dX, polar_velocity.yz);
+    //float4 lightray_velocity = (float4)(1, dX, polar_velocity.yz);
 
     //printf("START_R %f\n", TX_to_r_krus(start_T, start_X));
 
@@ -520,8 +585,11 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
 
     //write_imagef(out, (int2){cx, cy}, (float4){0, 0, 0, 1});
 
-    //float lds = calculate_ds(lightray_velocity, g_metric);
-    //printf("LDS %f\n", lds);
+    if(cx == width/2 && cy == height/2)
+    {
+        float lds = calculate_ds(lightray_velocity, g_metric);
+        printf("LDS %f\n", lds);
+    }
 
     float ambient_precision = 0.1;
 
@@ -647,10 +715,10 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
         float4 acceleration = {-christ_result[0], -christ_result[1], -christ_result[2], -christ_result[3]};
         #endif // 0
 
+        lightray_velocity += acceleration * ds;
         lightray_spacetime_position += lightray_velocity * ds;
 
-        lightray_velocity += acceleration * ds;
-        lightray_velocity = fix_light_velocity(lightray_velocity, g_metric);
+        //lightray_velocity = fix_light_velocity(lightray_velocity, g_metric);
 
         if((cx == width/2 && cy == height/2) || (cx == width-2 && cy == height/2) || (cx == 0 && cy == height/2))
         {
@@ -690,9 +758,85 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
     write_imagef(out, (int2){cx, cy}, (float4){0, 1, 0, 1});
 }
 
+float4 lower_index(float4 raised, float g_metric[])
+{
+    float4 ret;
+
+    /*
+    for(int i=0; i < 4; i++)
+    {
+        float sum = 0;
+
+        for(int j=0; j < 4; j++)
+        {
+            sum += g_metric_cov[i * 4 + j] * vector[j];
+        }
+
+        ret.v[i] = sum;
+    }
+    */
+
+    ret.x = g_metric[0] * raised.x;
+    ret.y = g_metric[1] * raised.y;
+    ret.z = g_metric[2] * raised.z;
+    ret.w = g_metric[3] * raised.w;
+
+    return ret;
+}
+
+#define ARRAY4(v) {v.x, v.y, v.z, v.w}
+
+void get_lorenz_coeff(float4 time_basis, float g_metric[], float coeff_out[16])
+{
+    //float g_metric[] = {-g_metric_in[0], -g_metric_in[1], -g_metric_in[2], -g_metric_in[3]};
+
+    float4 low_time_basis = lower_index(time_basis, g_metric);
+
+    float tuu[] = {time_basis.x, time_basis.y, time_basis.z, time_basis.w};
+    float tuv[] = {low_time_basis.x, low_time_basis.y, low_time_basis.z, low_time_basis.w};
+
+    for(int i=0; i < 16; i++)
+    {
+        coeff_out[i] = 0;
+    }
+
+    float obvs[] = {1, 0, 0, 0};
+    float4 lobvsv = lower_index((float4){1, 0, 0, 0}, g_metric);
+
+    float lobvs[4] = ARRAY4(lobvsv);
+
+    float gamma = -tuv[0] * obvs[0];
+
+    coeff_out[0 * 4 + 0] = 1;
+    coeff_out[1 * 4 + 1] = 1;
+    coeff_out[2 * 4 + 2] = 1;
+    coeff_out[3 * 4 + 3] = 1;
+
+    for(int u=0; u < 4; u++)
+    {
+        for(int v=0; v < 4; v++)
+        {
+            float val = -1/(1 + gamma) * (tuu[u] + obvs[u]) * (-tuv[v] - lobvs[v]) - 2 * obvs[u] * tuv[v];
+
+            coeff_out[u * 4 + v] += val;
+        }
+    }
+}
+
+float4 tensor_contract(float t16[16], float4 vec)
+{
+    float4 res;
+
+    res.x = t16[0 * 4 + 0] * vec.x + t16[0 * 4 + 1] * vec.y + t16[0 * 4 + 2] * vec.z + t16[0 * 4 + 3] * vec.w;
+    res.y = t16[1 * 4 + 0] * vec.x + t16[1 * 4 + 1] * vec.y + t16[1 * 4 + 2] * vec.z + t16[1 * 4 + 3] * vec.w;
+    res.z = t16[2 * 4 + 0] * vec.x + t16[2 * 4 + 1] * vec.y + t16[2 * 4 + 2] * vec.z + t16[2 * 4 + 3] * vec.w;
+    res.w = t16[3 * 4 + 0] * vec.x + t16[3 * 4 + 1] * vec.y + t16[3 * 4 + 2] * vec.z + t16[3 * 4 + 3] * vec.w;
+
+    return res;
+}
 
 __kernel
-void do_raytracing_schwar(__write_only image2d_t out, float ds_, float4 cartesian_camera_pos, float4 camera_quat, __read_only image2d_t background)
+void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camera_pos, float4 camera_quat, __read_only image2d_t background)
 {
     /*
     so t = -(1- rs / r) * c^2
@@ -775,14 +919,141 @@ void do_raytracing_schwar(__write_only image2d_t out, float ds_, float4 cartesia
 
     float4 lightray_spacetime_position = lightray_start_position;
 
-    float rs = 1;
     float c = 1;
+    float rs = 1;
 
     float g_metric[4];
 
     calculate_metric(lightray_spacetime_position, g_metric);
 
     float4 lightray_velocity = fix_light_velocity((float4)(-1, polar_velocity.xyz), g_metric);
+
+    #if 1
+    {
+        /*float g_metric[4] = {};
+
+        calculate_metric(lightray_spacetime_position, g_metric);
+
+        float r = lightray_spacetime_position.y;
+        float theta = lightray_spacetime_position.z;*/
+
+        //float g_polar_metric[4] = {-1, 1, r * r, r * r * sin(theta) * sin(theta)};
+
+        //so lets say
+        //g1uv v1u v1v = g2uv v2u v2v
+
+        //float4 ev_1 = evaluate_partial_metric(lightray_velocity, g_polar_metric);
+        //ev_1 *= (float4){1/g_metric[0], 1/g_metric[1], 1/g_metric[2], 1/g_metric[3]};
+
+        /*if(cx == width/2 && cy == height/2)
+        {
+            printf("VALS %f %f %f %f\n", ev_1.x, ev_1.y, ev_1.z, ev_1.w);
+        }*/
+
+        //float4 res = sqrt(ev_1);
+
+        ///so
+        ///guv = (dxu' / dxu) (dxv' / dxv) * g'uv
+
+        ///new tensor = g'00 * (dx0'/dx0)^2 + g'11 * (dx1' / dx1)^2 + g'22 * (dx'2 / dx2)^2 + g'33 * (dx'3 / dx3)^2
+        ///new tensor is g00  + g11 + g22 + g33
+
+        ///g00 = g'00 * (dx0' / dx0)^2
+        ///g00 * dx0^2 = g'00 * dx0'^2
+        ///dx0 = sqrt(g'00 * dx0'^2 / g00)
+
+        //float4 res = sqrt(evaluate_partial_metric(lightray_velocity, g_polar_metric) / (float4){g_metric[0], g_metric[1], g_metric[2], g_metric[3]});
+
+        #if 0
+        float dt = 1;
+        float dT = sqrt((1 - rs/r) * dt * dt);
+
+        float lorenz = dt / dT;
+
+        /*float A = 1;
+        float3 Z = lightray_velocity.yzw;
+        float3 n =
+
+        float a_prime = lorenz * (1 - )*/
+
+        //float t_shell
+
+        float4 res = lightray_velocity * lorenz;
+
+        if(cx == width/2 && cy == height/2)
+        {
+            printf("DSF %f %f\n", calculate_ds(res, g_metric), lorenz);
+        }
+        #endif // 0
+
+        //float or = 99999;
+
+        float3 polar_camera = cartesian_to_polar(cartesian_camera_new_basis);
+
+        //float4 new_basis = (float4)(1/sqrt(1 - rs / or), sqrt(1 - rs / or), 1/or, 1/(or * sin(theta)));
+
+        /*float4 bT = (float4)(1/sqrt(1 - rs/polar_camera.x), 0, 0, 0);
+        float4 bR = (float4)(0, sqrt(1 - rs/polar_camera.x), 0, 0);
+        float4 btheta = (float4)(0, 0, 1/polar_camera.x, 0);
+        float4 bphi = (float4)(0, 0, 0, 1/(polar_camera.x * sin(polar_camera.y)));*/
+
+        float4 bT = (float4)(1/(1 - rs/polar_camera.x), -sqrt(rs/polar_camera.x), 0, 0);
+        float4 bR = (float4)(-sqrt(rs/polar_camera.x) / (1 - rs/polar_camera.x), 1, 0, 0);
+        float4 btheta = (float4)(0, 0, 1/polar_camera.x, 0);
+        float4 bphi = (float4)(0, 0, 0, 1/(polar_camera.x * sin(polar_camera.y)));
+
+        float g_metric[4] = {};
+
+        calculate_metric((float4)(0, polar_camera.xyz), g_metric);
+
+        float3 pixel_direction = (float3){cx - width/2, cy - height/2, nonphysical_f_stop};
+
+        pixel_direction = normalize(pixel_direction);
+
+        float lorenz[16] = {};
+
+        //float test_metric[4] = {-1, 1, 1, 1};
+
+        get_lorenz_coeff(bT, g_metric, lorenz);
+        float4 ftime = tensor_contract(lorenz, bT);
+
+        float4 cX = tensor_contract(lorenz, btheta);
+        float4 cY = tensor_contract(lorenz, bphi);
+        float4 cZ = tensor_contract(lorenz, bR);
+
+        float4 pixel_x = pixel_direction.x * cX;
+        float4 pixel_y = pixel_direction.y * cY;
+        //float4 pixel_z = pixel_direction.z * cZ;
+
+        //float4 pixel_z = (2/nonphysical_f_stop) * cross(pixel_x, pixel_y);
+
+        float4 sW = cZ + (pixel_x + pixel_y);
+
+        float4 sWl = lower_index(sW, g_metric);
+
+        //float bottom = -dot(lower_index(sW, g_metric), sW);
+
+        //float4 bottom =
+
+        float4 pixel_N = -cZ + 2 * sW / (-dot(sWl, sW));
+
+        float ds = calculate_ds(pixel_N, g_metric);
+
+        if(cx == width/2 && cy == height/2)
+        {
+            printf("HDS %f %f %f\n", ds, sW.w, bphi.w);
+            printf("TC %f %f %f %f\n", ftime.x, ftime.y, ftime.z, ftime.w);
+        }
+
+        lightray_velocity = pixel_N;
+
+        ///guv * dx0^2 * dx1^1 * dx2^2
+
+        //float4 res = lightray_velocity;
+
+        //lightray_velocity = res;
+    }
+    #endif // 0
 
     //float4 lightray_velocity = (float4)(1, bad_light_velocity.xyz);
 
