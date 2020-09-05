@@ -100,7 +100,7 @@ float4 fix_light_velocity(float4 velocity, float g_metric[])
     v[2] /= sqrt(time_scale);
     v[3] /= sqrt(time_scale);*/
 
-    //v[0] *= sqrt(time_scale);
+    v[0] *= sqrt(time_scale);
 
     ///should print 0
     /*float fds = calculate_ds((float4){v[0], v[1], v[2], v[3]}, g_metric);
@@ -109,7 +109,7 @@ float4 fix_light_velocity(float4 velocity, float g_metric[])
     return (float4){v[0], v[1], v[2], v[3]};
 }
 
-#define IS_CONSTANT_THETA
+//#define IS_CONSTANT_THETA
 
 void calculate_metric(float4 spacetime_position, float g_metric_out[])
 {
@@ -892,6 +892,9 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
     float nonphysical_plane_half_width = width/2;
     float nonphysical_f_stop = nonphysical_plane_half_width / tan(fov_rad/2);
 
+    float c = 1;
+    float rs = 1;
+
     ///need to rotate by camera angle
 
     ///this position is incredibly wrong
@@ -899,7 +902,7 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
 
     //pixel_virtual_pos = normalize(pixel_virtual_pos) / 299792458.f;
 
-    pixel_virtual_pos = rot_quat(pixel_virtual_pos, camera_quat);
+    /*pixel_virtual_pos = rot_quat(pixel_virtual_pos, camera_quat);
 
     float3 cartesian_velocity = normalize(pixel_virtual_pos);
 
@@ -919,17 +922,14 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
 
     float4 lightray_spacetime_position = lightray_start_position;
 
-    float c = 1;
-    float rs = 1;
-
     float g_metric[4];
 
     calculate_metric(lightray_spacetime_position, g_metric);
 
-    float4 lightray_velocity = fix_light_velocity((float4)(-1, polar_velocity.xyz), g_metric);
+    float4 lightray_velocity = fix_light_velocity((float4)(-1, polar_velocity.xyz), g_metric);*/
 
     #if 1
-    {
+    //{
         /*float g_metric[4] = {};
 
         calculate_metric(lightray_spacetime_position, g_metric);
@@ -988,7 +988,8 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
 
         //float or = 99999;
 
-        float3 polar_camera = cartesian_to_polar(cartesian_camera_new_basis);
+        //float3 polar_camera = cartesian_to_polar(cartesian_camera_new_basis);
+        float3 polar_camera = cartesian_to_polar(cartesian_camera_pos.yzw);
 
         //float4 new_basis = (float4)(1/sqrt(1 - rs / or), sqrt(1 - rs / or), 1/or, 1/(or * sin(theta)));
 
@@ -1006,7 +1007,7 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
 
         calculate_metric((float4)(0, polar_camera.xyz), g_metric);
 
-        float3 pixel_direction = (float3){cx - width/2, cy - height/2, nonphysical_f_stop};
+        float3 pixel_direction = (float3){cx - width/2, cy - height/2, -nonphysical_f_stop};
 
         pixel_direction = normalize(pixel_direction);
 
@@ -1023,11 +1024,12 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
 
         float4 pixel_x = pixel_direction.x * cX;
         float4 pixel_y = pixel_direction.y * cY;
-        //float4 pixel_z = pixel_direction.z * cZ;
+        float4 pixel_z = pixel_direction.z * cZ;
 
-        //float4 pixel_z = (2/nonphysical_f_stop) * cross(pixel_x, pixel_y);
+        float4 pixel_I = (2 * tan(FOV/2.f) / (width)) * (pixel_x + pixel_y);
 
-        float4 sW = cZ + (pixel_x + pixel_y);
+        float4 sW = cZ + pixel_I;
+        //float4 sW = cZ + (pixel_x + pixel_y);
 
         float4 sWl = lower_index(sW, g_metric);
 
@@ -1035,24 +1037,33 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
 
         //float4 bottom =
 
-        float4 pixel_N = -cZ + 2 * sW / (-dot(sWl, sW));
+        //float4 pixel_N = -cZ + 2 * sW / (dot(sWl, sW));
+
+        float4 vec = pixel_x + pixel_y + pixel_z;
+
+        float4 pixel_N = vec / (dot(lower_index(vec, g_metric), vec));
+
+        pixel_N = fix_light_velocity(pixel_N, g_metric);
 
         float ds = calculate_ds(pixel_N, g_metric);
 
         if(cx == width/2 && cy == height/2)
         {
-            printf("HDS %f %f %f\n", ds, sW.w, bphi.w);
+            printf("HDS %f %f\n", ds, pixel_N.x);
             printf("TC %f %f %f %f\n", ftime.x, ftime.y, ftime.z, ftime.w);
         }
 
-        lightray_velocity = pixel_N;
+        pixel_N.yzw = rot_quat(pixel_N.yzw, camera_quat);
+
+        float4 lightray_velocity = pixel_N;
+        float4 lightray_spacetime_position = (float4)(0, polar_camera.xyz);
 
         ///guv * dx0^2 * dx1^1 * dx2^2
 
         //float4 res = lightray_velocity;
 
         //lightray_velocity = res;
-    }
+    //}
     #endif // 0
 
     //float4 lightray_velocity = (float4)(1, bad_light_velocity.xyz);
@@ -1089,7 +1100,7 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
             //float thetaf = fmod(lightray_spacetime_position.z, 2 * M_PI);
             //float phif = lightray_spacetime_position.w;
 
-            cart_here = rotate_vector(new_basis_x, new_basis_y, new_basis_z, cart_here);
+            //cart_here = rotate_vector(new_basis_x, new_basis_y, new_basis_z, cart_here);
 
             float3 npolar = cartesian_to_polar(cart_here);
 
@@ -1114,7 +1125,7 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
             float4 val = read_imagef(background, sam, (float2){sx, sy});
 
 
-            #define BLUESHIFT
+            //#define BLUESHIFT
             #ifdef BLUESHIFT
             float3 start_col = {1,1,1};
             float3 blueshift_col = {0, 0, 1};
