@@ -364,9 +364,6 @@ float lambert_w0_halley(float x)
 
     for(int i=0; i < 10; i++)
     {
-        if(current < -(1 / M_E))
-            current = -(1 / M_E);
-
         float denom = exp(current) * (current + 1) - ((current + 2) * (current * exp(current) - x) / (2 * current + 2));
 
         float next = current - ((current * exp(current) - x) / denom);
