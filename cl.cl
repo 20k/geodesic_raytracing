@@ -1005,10 +1005,23 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
     //{
         float3 polar_camera = cartesian_to_polar(cartesian_camera_pos.yzw);
 
+        ///i think
+        ///really i just need this basis to be expressed in cartesian, instead of polar
+        ///or do complex polar maths
         float4 bT = (float4)(1/(1 - rs/polar_camera.x), -sqrt(rs/polar_camera.x), 0, 0);
         float4 bR = (float4)(-sqrt(rs/polar_camera.x) / (1 - rs/polar_camera.x), 1, 0, 0);
         float4 btheta = (float4)(0, 0, 1/polar_camera.x, 0);
         float4 bphi = (float4)(0, 0, 0, 1/(polar_camera.x * sin(polar_camera.y)));
+
+        //float4 fT = (float4){1, 0, 0, 0};
+        float4 fX = (float4){0, 1, 0, 0};
+        float4 fY = (float4){0, 0, 1, 0};
+        float4 fZ = (float4){0, 0, 0, 1};
+
+        //float4 fpT = cartesian_velocity_to_polar_velocity(cartesian_camera_pos.yzw, fT);
+        float4 fpR = (float4)(0, cartesian_velocity_to_polar_velocity(cartesian_camera_pos.yzw, fX.yzw));
+        float4 fpH = (float4)(0, cartesian_velocity_to_polar_velocity(cartesian_camera_pos.yzw, fY.yzw));
+        float4 fpP = (float4)(0, cartesian_velocity_to_polar_velocity(cartesian_camera_pos.yzw, fZ.yzw));
 
         float g_metric[4] = {};
 
@@ -1028,15 +1041,44 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
         float4 cY = tensor_contract(lorenz, bphi);
         float4 cZ = tensor_contract(lorenz, bR);
 
+        float3 cartesian_cx = spherical_velocity_to_cartesian_velocity(polar_camera, cX.yzw);
+        float3 cartesian_cy = spherical_velocity_to_cartesian_velocity(polar_camera, cY.yzw);
+        float3 cartesian_cz = spherical_velocity_to_cartesian_velocity(polar_camera, cZ.yzw);
+
+        pixel_direction = unrotate_vector(cartesian_cx, cartesian_cy, cartesian_cz, pixel_direction);
+
+        /*float4 cfpR = tensor_contract(lorenz, fpR);
+        float4 cfpH = tensor_contract(lorenz, fpH);
+        float4 cfpP = tensor_contract(lorenz, fpP);*/
+
+        //float3 polar_pixel_velocity = cartesian_velocity_to_polar_velocity(cartesian_camera_pos.yzw, pixel_direction);
+
+        //polar_pixel_velocity = unrotate_vector(cZ.yzw, cX.yzw, cY.yzw, polar_pixel_velocity);
+        //polar_pixel_velocity = rotate_vector(cfpR.yzw, cfpH.yzw, cfpP.yzw, polar_pixel_velocity);
+
+        //spherical_velocity_to_cartesian_velocity
+
+        //pixel_direction = polar_pixel_velocity;
+
+        //pixel_direction = rot_quat(pixel_direction, camera_quat);
+
+        //pixel_direction = spherical_velocity_to_cartesian_velocity(polar_camera, pixel_direction);
+
+        //pixel_direction = rot_quat(normalize(pixel_direction), camera_quat);
+
+        //pixel_direction = cartesian_velocity_to_polar_velocity(cartesian_camera_pos.yzw, pixel_direction);
+
         float4 pixel_x = pixel_direction.x * cX;
         float4 pixel_y = pixel_direction.y * cY;
         float4 pixel_z = pixel_direction.z * cZ;
 
         float4 vec = pixel_x + pixel_y + pixel_z;
 
+        //float4 vec = (float4)(1, pixel_direction);
+
         float4 pixel_N = vec / (dot(lower_index(vec, g_metric), vec));
 
-        pixel_N = fix_light_velocity(pixel_N, g_metric);
+        pixel_N = fix_light_velocity2(pixel_N, g_metric);
 
         //pixel_N.yzw = rot_quat(pixel_N.yzw, camera_quat);
 
@@ -1251,7 +1293,7 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
         lightray_spacetime_position += lightray_velocity * ds;
 
         lightray_velocity += acceleration * ds;
-        lightray_velocity = fix_light_velocity(lightray_velocity, g_metric);
+        lightray_velocity = fix_light_velocity2(lightray_velocity, g_metric);
 
         /*if((cx == width/2 && cy == height/2) || (cx == width-2 && cy == height/2) || (cx == 0 && cy == height/2))
         {
