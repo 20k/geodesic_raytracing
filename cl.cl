@@ -763,12 +763,6 @@ void do_raytracing_kruskal(__write_only image2d_t out, float ds_, float4 cartesi
 
         float christoff[64] = {0};
 
-        #ifndef IS_CONSTANT_THETA
-        float theta = lightray_spacetime_position.z;
-        #else
-        float theta = M_PI/2;
-        #endif // IS_CONSTANT_THETA
-
         float g_partials[16] = {0};
 
         calculate_partial_derivatives_krus(lightray_spacetime_position, g_partials);
