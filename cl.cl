@@ -449,8 +449,15 @@ void calculate_partial_derivatives_krus(float4 spacetime_position, float g_metri
 
     float fXT = k * (1 + lambert_interior);
 
-    float f10 = (2 * k * X * lambert_interior) / ((X*X - T*T) * (lambert_interior + 1));
-    float f01 = (2 * k * T * lambert_interior) / ((T*T - X*X) * (lambert_interior + 1));
+    float f10 = 0;
+
+    if(fabs(lambert_interior) > 0.00001)
+        f10 = (2 * k * X * lambert_interior) / ((X*X - T*T) * (lambert_interior + 1));
+
+    float f01 = 0;
+
+    if(fabs(lambert_interior) > 0.00001)
+        f01 = (2 * k * T * lambert_interior) / ((T*T - X*X) * (lambert_interior + 1));
 
     float back_component = exp(-fXT/k) * ((4 * k * k * k / (fXT * fXT)) + 4 * k * k / fXT);
 
