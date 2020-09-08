@@ -362,7 +362,7 @@ float lambert_w0_halley(float x)
 
     float current = 0;
 
-    for(int i=0; i < 10; i++)
+    for(int i=0; i < 5; i++)
     {
         float denom = exp(current) * (current + 1) - ((current + 2) * (current * exp(current) - x) / (2 * current + 2));
 
@@ -758,7 +758,20 @@ void do_raytracing_kruskal(__write_only image2d_t out, float ds_, float4 cartesi
         float kT = lightray_spacetime_position.x;
         float kX = lightray_spacetime_position.y;
 
+        if(kT * kT - kX * kX > 0.9999)
+        {
+            break;
+        }
+
         float r_value = TX_to_r_krus(kT, kX);
+
+        /*if(cx == width/2 && cy == height/2)
+        {
+            if(it == 0 || it == 500)
+            {
+                printf("RVAL %f\n", r_value);
+            }
+        }*/
 
         float interp = clamp(r_value, min_radius, max_radius);
 
@@ -808,6 +821,11 @@ void do_raytracing_kruskal(__write_only image2d_t out, float ds_, float4 cartesi
         }
 
         calculate_metric_krus(lightray_spacetime_position, g_metric);
+
+        /*if(cx == width/2 && cy == height/2)
+        {
+            printf("METRIC %f %f %f %f\nR: %f\n", g_metric[0], g_metric[1], g_metric[2], g_metric[3], r_value);
+        }*/
 
         float christoff[64] = {0};
 
