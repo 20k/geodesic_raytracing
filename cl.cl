@@ -971,7 +971,7 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
     ///need to rotate by camera angle
 
     ///this position is incredibly wrong
-    float3 pixel_virtual_pos = (float3){cx - width/2, cy - height/2, nonphysical_f_stop};
+    //float3 pixel_virtual_pos = (float3){cx - width/2, cy - height/2, nonphysical_f_stop};
 
     //pixel_virtual_pos = normalize(pixel_virtual_pos) / 299792458.f;
 
