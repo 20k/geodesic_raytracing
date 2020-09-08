@@ -1003,6 +1003,29 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
 
     #if 1
     //{
+
+        float3 pixel_direction = (float3){cx - width/2, cy - height/2, nonphysical_f_stop};
+
+        pixel_direction = normalize(pixel_direction);
+        pixel_direction = rot_quat(pixel_direction, camera_quat);
+
+        float3 cartesian_velocity = normalize(pixel_direction);
+
+        float3 new_basis_x = normalize(cartesian_velocity);
+        float3 new_basis_y = normalize(-cartesian_camera_pos.yzw);
+
+        new_basis_x = rejection(new_basis_x, new_basis_y);
+
+        float3 new_basis_z = -normalize(cross(new_basis_x, new_basis_y));
+
+        {
+            float3 cartesian_camera_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_camera_pos.yzw);
+            float3 cartesian_velocity_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_velocity);
+
+            cartesian_camera_pos.yzw = cartesian_camera_new_basis;
+            pixel_direction = normalize(cartesian_velocity_new_basis);
+        }
+
         float3 polar_camera = cartesian_to_polar(cartesian_camera_pos.yzw);
 
         ///i think
@@ -1017,12 +1040,6 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
 
         calculate_metric((float4)(0, polar_camera.xyz), g_metric);
 
-        float3 pixel_direction = (float3){cx - width/2, cy - height/2, nonphysical_f_stop};
-
-        pixel_direction = normalize(pixel_direction);
-
-        pixel_direction = rot_quat(pixel_direction, camera_quat);
-
         float lorenz[16] = {};
 
         get_lorenz_coeff(bT, g_metric, lorenz);
@@ -1035,7 +1052,7 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
         float3 cartesian_cy = spherical_velocity_to_cartesian_velocity(polar_camera, cY.yzw);
         float3 cartesian_cz = spherical_velocity_to_cartesian_velocity(polar_camera, cZ.yzw);
 
-        pixel_direction = unrotate_vector(cartesian_cx, cartesian_cy, cartesian_cz, pixel_direction);
+        pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
 
         float4 pixel_x = pixel_direction.x * cX;
         float4 pixel_y = pixel_direction.y * cY;
@@ -1086,7 +1103,7 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
             //float thetaf = fmod(lightray_spacetime_position.z, 2 * M_PI);
             //float phif = lightray_spacetime_position.w;
 
-            //cart_here = rotate_vector(new_basis_x, new_basis_y, new_basis_z, cart_here);
+            cart_here = rotate_vector(new_basis_x, new_basis_y, new_basis_z, cart_here);
 
             float3 npolar = cartesian_to_polar(cart_here);
 
