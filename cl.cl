@@ -539,6 +539,14 @@ float TX_to_t(float T, float X)
         return 2 * rs * atanh(X / T);
 }
 
+///so the problem with this function, and the kruskal partial derivative function
+///is that X*X - T * T = 0 at the horizon, so divide by 0
+///however, the equation is basically 2 * k * lambert * (X * dX - T * dT) / ((X * X - T * T) * (lambert + 1))
+///need to figure out the limit of this equation
+
+///So
+///
+
 float TXdTdX_to_dr(float T, float X, float dT, float dX)
 {
     float rs = 1;
@@ -547,11 +555,43 @@ float TXdTdX_to_dr(float T, float X, float dT, float dX)
     /*(2 k x W((x^2 - t^2)/e))/((x^2 - t^2) (W((x^2 - t^2)/e) + 1)) - (2 k t W((x^2 - t^2)/e))/((x^2 - t^2) (W((x^2 - t^2)/e) + 1))*/
     //aka D[k * (1 + ProductLog[(x * x - t * t) / e]), x] + D[k * (1 + ProductLog[(x * x - t * t) / e]), t]
 
-    float ILamb = (X * X - T * T) / M_E;
+    /*float ILamb = (X * X - T * T) / M_E;
 
     float lambert = lambert_w0((X * X - T * T) / M_E);
 
     //printf("LAM %f %f\n", lambert, ILamb);
+
+    float denom = (X * X - T * T) * (lambert + 1);
+
+    float num = 2 * k * X * lambert * dX - 2 * k * T * lambert * dT;
+
+    return num / denom;*/
+
+    float lambert = lambert_w0((X * X - T * T) / M_E);
+
+    if(fabs(T * T - X * X) < 0.0001)
+    {
+        float dU = dT - dX;
+        float dV = dT + dX;
+
+        float left = 0;
+        float right = 0;
+
+        float U = (T - X);
+        float V = (T + X);
+
+        if(fabs(U) > 0.0001)
+        {
+            left = k * dU * lambert / (U * (lambert + 1));
+        }
+
+        if(fabs(V) > 0.0001)
+        {
+            right = k * dV * lambert / (V * (lambert + 1));
+        }
+
+        return left + right;
+    }
 
     float denom = (X * X - T * T) * (lambert + 1);
 
@@ -758,7 +798,7 @@ void do_raytracing_kruskal(__write_only image2d_t out, float ds_, float4 cartesi
         float kT = lightray_spacetime_position.x;
         float kX = lightray_spacetime_position.y;
 
-        if(kT * kT - kX * kX > 0.9999)
+        if(kT * kT - kX * kX > 0.9)
         {
             break;
         }
@@ -773,11 +813,13 @@ void do_raytracing_kruskal(__write_only image2d_t out, float ds_, float4 cartesi
             }
         }*/
 
-        float interp = clamp(r_value, min_radius, max_radius);
+        /*float interp = clamp(r_value, min_radius, max_radius);
 
         float frac = (r_value - min_radius) / (max_radius - min_radius);
 
-        float ds = mix(max_ds, min_ds, frac);
+        float ds = mix(max_ds, min_ds, frac);*/
+
+        float ds = min_ds;
 
         #if 1
         /*if(r_value < (rs + rs * 0.00000001))
