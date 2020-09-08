@@ -805,17 +805,19 @@ void do_raytracing_kruskal(__write_only image2d_t out, float ds_, float4 cartesi
         float kT = lightray_spacetime_position.x;
         float kX = lightray_spacetime_position.y;
 
+        float r_value = TX_to_r_krus(kT, kX);
+
+        /*
+        ///numerical stability threshold with ds = 0.01 for tracing rays inside the black hole
         if(kT * kT - kX * kX > 0.9)
         {
             break;
-        }
+        }*/
 
         if(kT * kT - kX * kX >= 0)
         {
             break;
         }
-
-        float r_value = TX_to_r_krus(kT, kX);
 
         /*if(cx == width/2 && cy == height/2)
         {
