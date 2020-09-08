@@ -302,7 +302,7 @@ float3 lin_to_srgb(float3 val)
     return wn;
 }*/
 
-float lambert_w0(float x)
+/*float lambert_w0(float x)
 {
   const float c1 = 4.0 / 3.0;
   const float c2 = 7.0 / 3.0;
@@ -339,7 +339,49 @@ float lambert_w0(float x)
   wn = wn * ( 1.0 + en2 );
 
   return wn;
+}*/
+
+float lambert_w0_newton(float x)
+{
+    float current = 0;
+
+    for(int i=0; i < 10; i++)
+    {
+        float next = current - ((current * exp(current) - x) / (exp(current) + current * exp(current)));
+
+        current = next;
+    }
+
+    return current;
 }
+
+float lambert_w0_halley(float x)
+{
+    if(x < -(1 / M_E))
+        x = -(1 / M_E);
+
+    float current = 0;
+
+    for(int i=0; i < 10; i++)
+    {
+        if(current < -(1 / M_E))
+            current = -(1 / M_E);
+
+        float denom = exp(current) * (current + 1) - ((current + 2) * (current * exp(current) - x) / (2 * current + 2));
+
+        float next = current - ((current * exp(current) - x) / denom);
+
+        current = next;
+    }
+
+    return current;
+}
+
+float lambert_w0(float x)
+{
+    return lambert_w0_halley(x);
+}
+
 
 void calculate_metric_krus(float4 spacetime_position, float g_metric_out[])
 {
@@ -508,7 +550,11 @@ float TXdTdX_to_dr(float T, float X, float dT, float dX)
     /*(2 k x W((x^2 - t^2)/e))/((x^2 - t^2) (W((x^2 - t^2)/e) + 1)) - (2 k t W((x^2 - t^2)/e))/((x^2 - t^2) (W((x^2 - t^2)/e) + 1))*/
     //aka D[k * (1 + ProductLog[(x * x - t * t) / e]), x] + D[k * (1 + ProductLog[(x * x - t * t) / e]), t]
 
+    float ILamb = (X * X - T * T) / M_E;
+
     float lambert = lambert_w0((X * X - T * T) / M_E);
+
+    //printf("LAM %f %f\n", lambert, ILamb);
 
     float denom = (X * X - T * T) * (lambert + 1);
 
@@ -695,6 +741,11 @@ void do_raytracing_kruskal(__write_only image2d_t out, float ds_, float4 cartesi
 
     float4 lightray_velocity = pixel_N;
     float4 lightray_spacetime_position = krus_camera;
+
+    if(cx == width/2 && cy == height/2)
+    {
+        printf("VEL %f %f %f %f %f\n", krus_camera.x, krus_camera.y, cX.x, cX.y, Xpolar_r);
+    }
 
     float ambient_precision = 0.01;
 
