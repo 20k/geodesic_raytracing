@@ -365,6 +365,28 @@ void calculate_metric_krus(float4 spacetime_position, float g_metric_out[])
     g_metric_out[3] = fXT * fXT * sin(theta) * sin(theta);
 }
 
+void calculate_metric_krus_with_r(float4 spacetime_position, float r, float g_metric_out[])
+{
+    float rs = 1;
+    float k = rs;
+
+    #ifndef IS_CONSTANT_THETA
+    float theta = spacetime_position.z;
+    #else
+    float theta = M_PI/2;
+    #endif // IS_CONSTANT_THETA
+
+    float T = spacetime_position.x;
+    float X = spacetime_position.y;
+
+    float fXT = r;
+
+    g_metric_out[0] = - (4 * k * k * k / fXT) * exp(-fXT / k);
+    g_metric_out[1] = (4 * k * k * k / fXT) * exp(-fXT / k);
+    g_metric_out[2] = fXT * fXT;
+    g_metric_out[3] = fXT * fXT * sin(theta) * sin(theta);
+}
+
 void calculate_partial_derivatives_krus(float4 spacetime_position, float g_metric_partials[])
 {
     /*TTTT,
@@ -630,7 +652,7 @@ void do_raytracing_kruskal(__write_only image2d_t out, float ds_, float4 cartesi
     float4 krus_camera = (float4)(rt_to_T_krus(polar_camera.x, 0), rt_to_X_krus(polar_camera.x, 0), polar_camera.y, polar_camera.z);
 
     float g_metric[4] = {};
-    calculate_metric_krus(krus_camera, g_metric);
+    calculate_metric_krus_with_r(krus_camera, polar_camera.x, g_metric);
 
     float4 co_basis = (float4){sqrt(-g_metric[0]), sqrt(g_metric[1]), sqrt(g_metric[2]), sqrt(g_metric[3])};
 
