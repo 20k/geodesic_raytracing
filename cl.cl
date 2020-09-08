@@ -1017,7 +1017,7 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
 
         calculate_metric((float4)(0, polar_camera.xyz), g_metric);
 
-        float3 pixel_direction = (float3){cx - width/2, cy - height/2, -nonphysical_f_stop};
+        float3 pixel_direction = (float3){cx - width/2, cy - height/2, nonphysical_f_stop};
 
         pixel_direction = normalize(pixel_direction);
 
@@ -1058,7 +1058,7 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
 
     float ambient_precision = 0.1;
 
-    float max_ds = 0.001;
+    float max_ds = 0.01;
     float min_ds = ambient_precision;
 
     float min_radius = rs * 1.1;
@@ -1073,7 +1073,7 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
         float ds = mix(max_ds, min_ds, frac);
 
         #if 1
-        if(lightray_spacetime_position.y < (rs + rs * 0.0000001))
+        if(lightray_spacetime_position.y < (rs + rs * 0.0001))
         {
             write_imagef(out, (int2){cx, cy}, (float4){0,0,0,1});
             return;
