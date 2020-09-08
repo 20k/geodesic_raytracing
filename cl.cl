@@ -706,8 +706,8 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
         float3 cartesian_camera_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_camera_pos.yzw);
         float3 cartesian_velocity_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_velocity);
 
-        //cartesian_camera_pos.yzw = cartesian_camera_new_basis;
-        //pixel_direction = normalize(cartesian_velocity_new_basis);
+        cartesian_camera_pos.yzw = cartesian_camera_new_basis;
+        pixel_direction = normalize(cartesian_velocity_new_basis);
     }
 
     float3 polar_camera = cartesian_to_polar(cartesian_camera_pos.yzw);
@@ -873,7 +873,7 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
         {
             float3 cart_here = polar_to_cartesian((float3)(r_value, lightray_spacetime_position.zw));
 
-            //cart_here = rotate_vector(new_basis_x, new_basis_y, new_basis_z, cart_here);
+            cart_here = rotate_vector(new_basis_x, new_basis_y, new_basis_z, cart_here);
 
             float3 npolar = cartesian_to_polar(cart_here);
 
