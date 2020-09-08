@@ -120,7 +120,7 @@ float4 fix_light_velocity2(float4 v, float g_metric[])
     return v;
 }
 
-//#define IS_CONSTANT_THETA
+#define IS_CONSTANT_THETA
 
 void calculate_metric(float4 spacetime_position, float g_metric_out[])
 {
