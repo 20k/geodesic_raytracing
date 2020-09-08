@@ -478,6 +478,23 @@ float TX_to_t(float T, float X)
         return 2 * rs * atanh(X / T);
 }
 
+float TXdTdX_to_dr(float T, float X, float dT, float dX)
+{
+    float rs = 1;
+    float k = rs;
+
+    /*(2 k x W((x^2 - t^2)/e))/((x^2 - t^2) (W((x^2 - t^2)/e) + 1)) - (2 k t W((x^2 - t^2)/e))/((x^2 - t^2) (W((x^2 - t^2)/e) + 1))*/
+    //aka D[k * (1 + ProductLog[(x * x - t * t) / e]), x] + D[k * (1 + ProductLog[(x * x - t * t) / e]), t]
+
+    float lambert = lambert_w0((X * X - T * T) / M_E);
+
+    float denom = (X * X - T * T) * (lambert + 1);
+
+    float num = 2 * k * X * lambert * dX - 2 * k * T * lambert * dT;
+
+    return num / denom;
+}
+
 float4 evaluate_partial_metric(float4 vel, float g_metric[])
 {
     return (float4){g_metric[0] * vel.x * vel.x,
@@ -565,7 +582,7 @@ float4 tensor_contract(float t16[16], float4 vec)
 }
 
 __kernel
-void do_raytracing_old(__write_only image2d_t out, float ds_, float4 cartesian_camera_pos, float4 camera_quat, __read_only image2d_t background)
+void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camera_pos, float4 camera_quat, __read_only image2d_t background)
 {
     #define FOV 90
 
@@ -618,6 +635,7 @@ void do_raytracing_old(__write_only image2d_t out, float ds_, float4 cartesian_c
     float rs = 1;
     float c = 1;
 
+    #if 0
     float3 polar_camera = cartesian_to_polar(cartesian_camera_pos.yzw);
 
     float4 krus_camera = (float4)(rt_to_T_krus(polar_camera.x, 0), rt_to_X_krus(polar_camera.x, 0), polar_camera.y, polar_camera.z);
@@ -668,6 +686,85 @@ void do_raytracing_old(__write_only image2d_t out, float ds_, float4 cartesian_c
 
     float4 lightray_velocity = pixel_N;
     float4 lightray_spacetime_position = krus_camera;
+    #else
+
+    float3 pixel_direction = (float3){cx - width/2, cy - height/2, nonphysical_f_stop};
+
+    pixel_direction = normalize(pixel_direction);
+    pixel_direction = rot_quat(pixel_direction, camera_quat);
+
+    float3 cartesian_velocity = normalize(pixel_direction);
+
+    float3 new_basis_x = normalize(cartesian_velocity);
+    float3 new_basis_y = normalize(-cartesian_camera_pos.yzw);
+
+    new_basis_x = rejection(new_basis_x, new_basis_y);
+
+    float3 new_basis_z = -normalize(cross(new_basis_x, new_basis_y));
+
+    {
+        float3 cartesian_camera_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_camera_pos.yzw);
+        float3 cartesian_velocity_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_velocity);
+
+        //cartesian_camera_pos.yzw = cartesian_camera_new_basis;
+        //pixel_direction = normalize(cartesian_velocity_new_basis);
+    }
+
+    float3 polar_camera = cartesian_to_polar(cartesian_camera_pos.yzw);
+
+    float4 krus_camera = (float4)(rt_to_T_krus(polar_camera.x, 0), rt_to_X_krus(polar_camera.x, 0), polar_camera.y, polar_camera.z);
+
+    float g_metric[4] = {};
+    calculate_metric_krus(krus_camera, g_metric);
+
+    float4 co_basis = (float4){sqrt(-g_metric[0]), sqrt(g_metric[1]), sqrt(g_metric[2]), sqrt(g_metric[3])};
+
+    float4 bT = (float4)(1/co_basis.x, 0, 0, 0);
+    float4 bX = (float4)(0, 1/co_basis.y, 0, 0);
+    float4 btheta = (float4)(0, 0, 1/co_basis.z, 0);
+    float4 bphi = (float4)(0, 0, 0, 1/co_basis.w);
+
+    float lorenz[16] = {};
+
+    get_lorenz_coeff(bT, g_metric, lorenz);
+
+    float4 cX = tensor_contract(lorenz, btheta);
+    float4 cY = tensor_contract(lorenz, bphi);
+    float4 cZ = tensor_contract(lorenz, bX);
+
+    ///made exactly the same mistake here, which is that we need delta_r, not r, because its a vector not a position!
+    /*float Xpolar_r = TX_to_r_krus(cX.x, cX.y);
+    float Hpolar_r = TX_to_r_krus(cY.x, cY.y);
+    float Ppolar_r = TX_to_r_krus(cZ.x, cZ.y);*/
+
+    float Xpolar_r = TXdTdX_to_dr(krus_camera.x, krus_camera.y, cX.x, cX.y);
+    float Hpolar_r = TXdTdX_to_dr(krus_camera.x, krus_camera.y, cY.x, cY.y);
+    float Ppolar_r = TXdTdX_to_dr(krus_camera.x, krus_camera.y, cZ.x, cZ.y);
+
+    float3 cartesian_cx = spherical_velocity_to_cartesian_velocity(polar_camera, (float3)(Xpolar_r, cX.zw));
+    float3 cartesian_cy = spherical_velocity_to_cartesian_velocity(polar_camera, (float3)(Hpolar_r, cY.zw));
+    float3 cartesian_cz = spherical_velocity_to_cartesian_velocity(polar_camera, (float3)(Ppolar_r, cZ.zw));
+
+    if(cx == width/2 && cy == height/2)
+    {
+        printf("BSIS %f %f %f\n", cartesian_cz.x, cartesian_cz.y, cartesian_cz.z);
+    }
+
+    pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
+
+    float4 pixel_x = pixel_direction.x * cX;
+    float4 pixel_y = pixel_direction.y * cY;
+    float4 pixel_z = pixel_direction.z * cZ;
+
+    float4 vec = pixel_x + pixel_y + pixel_z;
+
+    float4 pixel_N = vec / (dot(lower_index(vec, g_metric), vec));
+
+    pixel_N = fix_light_velocity2(pixel_N, g_metric);
+
+    float4 lightray_velocity = pixel_N;
+    float4 lightray_spacetime_position = krus_camera;
+    #endif // 0
 
     /*float3 polar_camera = cartesian_to_polar(cartesian_camera_pos.yzw);
 
@@ -909,7 +1006,7 @@ void do_raytracing_old(__write_only image2d_t out, float ds_, float4 cartesian_c
 }
 
 __kernel
-void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camera_pos, float4 camera_quat, __read_only image2d_t background)
+void do_raytracing_old(__write_only image2d_t out, float ds_, float4 cartesian_camera_pos, float4 camera_quat, __read_only image2d_t background)
 {
     /*
     so t = -(1- rs / r) * c^2
@@ -1028,9 +1125,6 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
 
         float3 polar_camera = cartesian_to_polar(cartesian_camera_pos.yzw);
 
-        ///i think
-        ///really i just need this basis to be expressed in cartesian, instead of polar
-        ///or do complex polar maths
         float4 bT = (float4)(1/(1 - rs/polar_camera.x), -sqrt(rs/polar_camera.x), 0, 0);
         float4 bR = (float4)(-sqrt(rs/polar_camera.x) / (1 - rs/polar_camera.x), 1, 0, 0);
         float4 btheta = (float4)(0, 0, 1/polar_camera.x, 0);
