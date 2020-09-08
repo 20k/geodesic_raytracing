@@ -130,6 +130,8 @@ int main()
     vec3f forward_axis = {0, 0, 1};
     vec3f up_axis = {0, 1, 0};
 
+    bool kruskal = false;
+
     //vec4f camera =
 
     while(!win.should_close())
@@ -171,6 +173,9 @@ int main()
 
             camera_quat = q * camera_quat;
         }
+
+        if(ImGui::IsKeyPressed(GLFW_KEY_T))
+            kruskal = !kruskal;
 
         vec3f up = {0, 0, -1};
         vec3f right = rot_quat({1, 0, 0}, camera_quat);
@@ -222,11 +227,15 @@ int main()
         args.push_back(camera_quat);
         args.push_back(clbackground);
 
-        clctx.cqueue.exec("do_raytracing", args, {win.get_window_size().x(), win.get_window_size().y()}, {16, 16});
+        if(!kruskal)
+            clctx.cqueue.exec("do_raytracing_polar", args, {win.get_window_size().x(), win.get_window_size().y()}, {16, 16});
+        else
+            clctx.cqueue.exec("do_raytracing_kruskal", args, {win.get_window_size().x(), win.get_window_size().y()}, {16, 16});
 
         rtex.unacquire(clctx.cqueue);
-        clctx.cqueue.block();
 
+        glFinish();
+        clctx.cqueue.block();
         glFinish();
 
         {

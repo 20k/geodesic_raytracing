@@ -582,7 +582,7 @@ float4 tensor_contract(float t16[16], float4 vec)
 }
 
 __kernel
-void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camera_pos, float4 camera_quat, __read_only image2d_t background)
+void do_raytracing_kruskal(__write_only image2d_t out, float ds_, float4 cartesian_camera_pos, float4 camera_quat, __read_only image2d_t background)
 {
     #define FOV 90
 
@@ -842,7 +842,7 @@ void do_raytracing(__write_only image2d_t out, float ds_, float4 cartesian_camer
 }
 
 __kernel
-void do_raytracing_old(__write_only image2d_t out, float ds_, float4 cartesian_camera_pos, float4 camera_quat, __read_only image2d_t background)
+void do_raytracing_polar(__write_only image2d_t out, float ds_, float4 cartesian_camera_pos, float4 camera_quat, __read_only image2d_t background)
 {
     /*
     so t = -(1- rs / r) * c^2
@@ -990,8 +990,8 @@ void do_raytracing_old(__write_only image2d_t out, float ds_, float4 cartesian_c
 
         float4 vec = pixel_x + pixel_y + pixel_z;
 
+        ///check that this isn't the issue, swap with light velocity fix
         float4 pixel_N = vec / (dot(lower_index(vec, g_metric), vec));
-
         pixel_N = fix_light_velocity2(pixel_N, g_metric);
 
         float4 lightray_velocity = pixel_N;
@@ -1194,18 +1194,13 @@ void do_raytracing_old(__write_only image2d_t out, float ds_, float4 cartesian_c
             }
         }*/
 
-        float curvature = 0;
-
-        //for(int i=0)
-
-
         float4 acceleration = {-christ_result[0], -christ_result[1], -christ_result[2], -christ_result[3]};
         #endif // 0
 
-        lightray_spacetime_position += lightray_velocity * ds;
-
         lightray_velocity += acceleration * ds;
         lightray_velocity = fix_light_velocity2(lightray_velocity, g_metric);
+
+        lightray_spacetime_position += lightray_velocity * ds;
 
         /*if((cx == width/2 && cy == height/2) || (cx == width-2 && cy == height/2) || (cx == 0 && cy == height/2))
         {
