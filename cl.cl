@@ -882,10 +882,17 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
     float4 cY = tensor_contract(lorenz, bphi);
     float4 cZ = tensor_contract(lorenz, bX);
 
+    /*if(cx == width/2 && cy == height/2)
+    {
+        float4 diff = bX - cZ;
+
+        printf("DIFF %f %f %f %f\n", diff.x, diff.y, diff.z, diff.w);
+    }*/
+
     ///the inaccuracy here is fairly bad, not sure what to do because we're using lorenz contracted basises
-    float Xpolar_r = TXdTdX_to_dr(krus_camera.x, krus_camera.y, cX.x, cX.y);
-    float Hpolar_r = TXdTdX_to_dr(krus_camera.x, krus_camera.y, cY.x, cY.y);
-    float Ppolar_r = TXdTdX_to_dr(krus_camera.x, krus_camera.y, cZ.x, cZ.y);
+    float Xpolar_r = TXdTdX_to_dr_with_r(krus_camera.x, krus_camera.y, cX.x, cX.y, polar_camera.x);
+    float Hpolar_r = TXdTdX_to_dr_with_r(krus_camera.x, krus_camera.y, cY.x, cY.y, polar_camera.x);
+    float Ppolar_r = TXdTdX_to_dr_with_r(krus_camera.x, krus_camera.y, cZ.x, cZ.y, polar_camera.x);
 
     float3 cartesian_cx = spherical_velocity_to_cartesian_velocity(polar_camera, (float3)(Xpolar_r, cX.zw));
     float3 cartesian_cy = spherical_velocity_to_cartesian_velocity(polar_camera, (float3)(Hpolar_r, cY.zw));
@@ -920,7 +927,7 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
 
     bool is_kruskal = true;
 
-    if(polar_camera.x >= 1.15 * rs)
+    if(polar_camera.x >= rs * 1.15)
     {
         is_kruskal = false;
 
@@ -932,7 +939,11 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
         lightray_velocity = new_vel;
     }
 
-    for(int it=0; it < 32000; it++)
+    float last_r_value = 0;
+
+    int bad_rays = 0;
+
+    for(int it=0; it < 60000; it++)
     {
         /*float kT = lightray_spacetime_position.x;
         float kX = lightray_spacetime_position.y;
@@ -959,7 +970,9 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
             r_value = lightray_spacetime_position.y;
         }
 
-        if(r_value < 0.25 * rs)
+        last_r_value = r_value;
+
+        if(r_value < 0.025 * rs)
             break;
 
         if(r_value < rs * 1.1 && !is_kruskal)
@@ -1035,7 +1048,7 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
             //ds = 0.01;
         }
 
-        if(r_value > 20 || r_value < 0.5)
+        if(r_value > 60 || r_value < 0.2)
         {
             float3 cart_here = polar_to_cartesian((float3)(r_value, lightray_spacetime_position.zw));
 
@@ -1100,6 +1113,18 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
             calculate_partial_derivatives_krus(lightray_spacetime_position, g_partials);
         else
             calculate_partial_derivatives(lightray_spacetime_position, g_partials);
+
+        if(is_kruskal)
+        {
+            if(fabs(g_partials[2 * 4 + 0]) < 0.0001 && fabs(g_partials[2 * 4 + 1]) < 0.0001 && fabs(g_partials[3 * 4 + 2]) < 0.0001)
+                bad_rays++;
+
+            if(bad_rays >= 5)
+            {
+                write_imagef(out, (int2)(cx, cy), (float4)(1, 0, 1, 1));
+                return;
+            }
+        }
 
         ///diagonal of the metric, because it only has diagonals
         float g_inv[4] = {1/g_metric[0], 1/g_metric[1], 1/g_metric[2], 1/g_metric[3]};
