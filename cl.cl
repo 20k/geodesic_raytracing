@@ -343,9 +343,12 @@ float3 lin_to_srgb(float3 val)
 
 float lambert_w0_newton(float x)
 {
+    if(x < -(1 / M_E))
+        x = -(1 / M_E);
+
     float current = 0;
 
-    for(int i=0; i < 10; i++)
+    for(int i=0; i < 5; i++)
     {
         float next = current - ((current * exp(current) - x) / (exp(current) + current * exp(current)));
 
@@ -362,11 +365,13 @@ float lambert_w0_halley(float x)
 
     float current = 0;
 
-    for(int i=0; i < 5; i++)
+    for(int i=0; i < 2; i++)
     {
-        float denom = exp(current) * (current + 1) - ((current + 2) * (current * exp(current) - x) / (2 * current + 2));
+        float cexp = exp(current);
 
-        float next = current - ((current * exp(current) - x) / denom);
+        float denom = cexp * (current + 1) - ((current + 2) * (current * cexp - x) / (2 * current + 2));
+
+        float next = current - ((current * cexp - x) / denom);
 
         current = next;
     }
@@ -377,6 +382,8 @@ float lambert_w0_halley(float x)
 float lambert_w0(float x)
 {
     return lambert_w0_halley(x);
+
+    //return lambert_w0_halley(x);
 }
 
 
@@ -875,6 +882,7 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
     float4 cY = tensor_contract(lorenz, bphi);
     float4 cZ = tensor_contract(lorenz, bX);
 
+    ///the inaccuracy here is fairly bad, not sure what to do because we're using lorenz contracted basises
     float Xpolar_r = TXdTdX_to_dr(krus_camera.x, krus_camera.y, cX.x, cX.y);
     float Hpolar_r = TXdTdX_to_dr(krus_camera.x, krus_camera.y, cY.x, cY.y);
     float Ppolar_r = TXdTdX_to_dr(krus_camera.x, krus_camera.y, cZ.x, cZ.y);
@@ -978,7 +986,7 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
             lightray_velocity = new_vel;
         }
 
-        #define NO_EVENT_HORIZON_CROSSING
+        //#define NO_EVENT_HORIZON_CROSSING
         #ifdef NO_EVENT_HORIZON_CROSSING
         if(r_value <= rs)
         {
