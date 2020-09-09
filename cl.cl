@@ -919,6 +919,15 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
     float max_ds = 0.001;
     float min_ds = 0.001;
 
+    #define NO_EVENT_HORIZON_CROSSING
+
+    #ifdef NO_EVENT_HORIZON_CROSSING
+    ambient_precision = 0.01;
+    max_ds = 0.01;
+    min_ds = 0.01;
+    #endif // NO_EVENT_HORIZON_CROSSING
+
+
     /*float min_radius = rs * 1.1;
     float max_radius = rs * 1.6;*/
 
@@ -1002,7 +1011,6 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
             lightray_velocity = new_vel;
         }
 
-        //#define NO_EVENT_HORIZON_CROSSING
         #ifdef NO_EVENT_HORIZON_CROSSING
         if(r_value <= rs)
         {
