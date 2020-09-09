@@ -795,7 +795,7 @@ void do_raytracing_kruskal(__write_only image2d_t out, float ds_, float4 cartesi
     float min_radius = rs * 1.1;
     float max_radius = rs * 1.6;
 
-    for(int it=0; it < 64000; it++)
+    for(int it=0; it < 32000; it++)
     {
         float kT = lightray_spacetime_position.x;
         float kX = lightray_spacetime_position.y;
