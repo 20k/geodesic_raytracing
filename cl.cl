@@ -913,7 +913,7 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
     float4 lightray_spacetime_position = krus_camera;
 
     float ambient_precision = 0.001;
-    float subambient_precision = 0.1;
+    float subambient_precision = 0.5;
 
     ///TODO: need to use external observer time, currently using sim time!!
     float max_ds = 0.001;
@@ -1031,7 +1031,7 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
 
         if(!is_kruskal)
         {
-            float new_max = 5 * rs;
+            float new_max = 4 * rs;
             float new_min = 1.1 * rs;
 
             float interp = clamp(r_value, new_min, new_max);
