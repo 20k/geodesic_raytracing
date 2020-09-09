@@ -786,15 +786,10 @@ void do_raytracing_kruskal(__write_only image2d_t out, float ds_, float4 cartesi
     float4 lightray_velocity = pixel_N;
     float4 lightray_spacetime_position = krus_camera;
 
-    if(cx == width/2 && cy == height/2)
-    {
-        printf("VEL %f %f %f %f %f\n", krus_camera.x, krus_camera.y, cX.x, cX.y, Xpolar_r);
-    }
-
-    float ambient_precision = 0.01;
+    float ambient_precision = 0.001;
 
     ///TODO: need to use external observer time, currently using sim time!!
-    float max_ds = 0.01;
+    float max_ds = 0.001;
     float min_ds = ambient_precision;
 
     float min_radius = rs * 1.1;
@@ -807,17 +802,19 @@ void do_raytracing_kruskal(__write_only image2d_t out, float ds_, float4 cartesi
 
         float r_value = TX_to_r_krus(kT, kX);
 
-        /*
+
         ///numerical stability threshold with ds = 0.01 for tracing rays inside the black hole
-        if(kT * kT - kX * kX > 0.9)
+        if(kT * kT - kX * kX > 0.99)
         {
             break;
-        }*/
+        }
 
+        #ifdef NO_EVENT_HORIZON_CROSSING
         if(kT * kT - kX * kX >= 0)
         {
             break;
         }
+        #endif
 
         /*if(cx == width/2 && cy == height/2)
         {
@@ -844,7 +841,7 @@ void do_raytracing_kruskal(__write_only image2d_t out, float ds_, float4 cartesi
             return;
         }*/
 
-        if(r_value > 2)
+        if(r_value > 2 || r_value < 0.2)
         {
             float3 cart_here = polar_to_cartesian((float3)(r_value, lightray_spacetime_position.zw));
 
@@ -872,9 +869,31 @@ void do_raytracing_kruskal(__write_only image2d_t out, float ds_, float4 cartesi
 
             float4 val = read_imagef(background, sam, (float2){sx, sy});
 
+            //if(r_value < 0.5)
+            {
+                val = (float4)(0,0,0,1);
+
+                int x_half = fabs(fmod(sx * 10, 1)) > 0.5 ? 1 : 0;
+                int y_half = fabs(fmod(sy * 10, 1)) > 0.5 ? 1 : 0;
+
+                val.x = (x_half + y_half) % 2;
+
+                if(sy < 0.1 || sy >= 0.9)
+                {
+                    val.x = 0;
+                    val.z = 1;
+                }
+
+                //val.z = fabs(sy);
+
+                //val.x = fmod(sx * 100, 1);
+                //val.y = fmod(sy * 100, 1);
+            }
+
             write_imagef(out, (int2){cx, cy}, val);
             return;
         }
+
 
         calculate_metric_krus(lightray_spacetime_position, g_metric);
 
