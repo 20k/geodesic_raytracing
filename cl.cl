@@ -804,7 +804,7 @@ void do_raytracing_kruskal(__write_only image2d_t out, float ds_, float4 cartesi
 
 
         ///numerical stability threshold with ds = 0.01 for tracing rays inside the black hole
-        if(kT * kT - kX * kX > 0.99)
+        if(kT * kT - kX * kX > 0.999)
         {
             break;
         }
@@ -841,7 +841,7 @@ void do_raytracing_kruskal(__write_only image2d_t out, float ds_, float4 cartesi
             return;
         }*/
 
-        if(r_value > 2 || r_value < 0.2)
+        if(r_value > 2 || r_value < 0.5)
         {
             float3 cart_here = polar_to_cartesian((float3)(r_value, lightray_spacetime_position.zw));
 
@@ -869,18 +869,22 @@ void do_raytracing_kruskal(__write_only image2d_t out, float ds_, float4 cartesi
 
             float4 val = read_imagef(background, sam, (float2){sx, sy});
 
-            //if(r_value < 0.5)
+            if(r_value < 0.5)
             {
                 val = (float4)(0,0,0,1);
 
                 int x_half = fabs(fmod(sx * 10, 1)) > 0.5 ? 1 : 0;
                 int y_half = fabs(fmod(sy * 10, 1)) > 0.5 ? 1 : 0;
 
-                val.x = (x_half + y_half) % 2;
+                //val.x = (x_half + y_half) % 2;
+
+                val.x = x_half;
+                val.y = y_half;
 
                 if(sy < 0.1 || sy >= 0.9)
                 {
                     val.x = 0;
+                    val.y = 0;
                     val.z = 1;
                 }
 
