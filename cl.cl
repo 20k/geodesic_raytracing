@@ -975,6 +975,9 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
         if(r_value < 0.025 * rs)
             break;
 
+        if(r_value <= rs && it >= 10000 && polar_camera.x >= rs * 1.1)
+            break;
+
         if(r_value < rs * 1.1 && !is_kruskal)
         {
             is_kruskal = true;
@@ -1048,7 +1051,7 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
             //ds = 0.01;
         }
 
-        if(r_value > 60 || r_value < 0.2)
+        if(r_value > 60 || r_value < 0.5)
         {
             float3 cart_here = polar_to_cartesian((float3)(r_value, lightray_spacetime_position.zw));
 
