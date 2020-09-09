@@ -1119,10 +1119,12 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
 
         if(is_kruskal)
         {
-            if(fabs(g_partials[2 * 4 + 0]) < 0.0001 && fabs(g_partials[2 * 4 + 1]) < 0.0001 && fabs(g_partials[3 * 4 + 2]) < 0.0001)
+            float ftol = 0.001;
+
+            if(fabs(g_partials[2 * 4 + 0]) < ftol && fabs(g_partials[2 * 4 + 1]) < ftol && fabs(g_partials[3 * 4 + 2]) < ftol)
                 bad_rays++;
 
-            if(bad_rays >= 5)
+            if(bad_rays >= 3)
             {
                 write_imagef(out, (int2)(cx, cy), (float4)(1, 0, 1, 1));
                 return;
