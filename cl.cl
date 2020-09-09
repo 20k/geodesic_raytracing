@@ -484,6 +484,26 @@ void calculate_partial_derivatives_krus(float4 spacetime_position, float g_metri
     g_metric_partials[3 * 4 + 2] = 2 * sin(theta) * cos(theta) * fXT * fXT;
 }
 
+void calculate_partial_derivatives(float4 spacetime_position, float g_metric_partials[])
+{
+    float r = spacetime_position.y;
+
+    float rs = 1;
+    float c = 1;
+
+    #ifndef IS_CONSTANT_THETA
+    float theta = spacetime_position.z;
+    #else
+    float theta = M_PI/2;
+    #endif // IS_CONSTANT_THETA
+
+    g_metric_partials[0 * 4 + 1] = -c*c*rs/(r*r);
+    g_metric_partials[1 * 4 + 1] = -rs / ((rs - r) * (rs - r));
+    g_metric_partials[2 * 4 + 1] = 2 * r;
+    g_metric_partials[3 * 4 + 1] = 2 * r * sin(theta) * sin(theta);
+    g_metric_partials[3 * 4 + 2] = 2 * r * r * sin(theta) * cos(theta);
+}
+
 float rt_to_T_krus(float r, float t)
 {
     float rs = 1;
@@ -546,6 +566,22 @@ float TX_to_t(float T, float X)
         return 2 * rs * atanh(X / T);
 }
 
+float TXdTdX_to_dt(float T, float X, float dT, float dX)
+{
+    float rs = 1;
+
+    /*if(T * T - X * X < 0)
+    {
+        return 2 * rs * (T * dX - dT * X) / (T * T - X * X);
+    }
+    else
+    {
+        return 2 * rs * (T * dX - dT * X) / (T * T - X * X);
+    }*/
+
+    return 2 * rs * (T * dX - dT * X) / (T * T - X * X);
+}
+
 ///so the problem with this function, and the kruskal partial derivative function
 ///is that X*X - T * T = 0 at the horizon, so divide by 0
 ///however, the equation is basically 2 * k * lambert * (X * dX - T * dT) / ((X * X - T * T) * (lambert + 1))
@@ -559,22 +595,45 @@ float TXdTdX_to_dr(float T, float X, float dT, float dX)
     float rs = 1;
     float k = rs;
 
-    /*(2 k x W((x^2 - t^2)/e))/((x^2 - t^2) (W((x^2 - t^2)/e) + 1)) - (2 k t W((x^2 - t^2)/e))/((x^2 - t^2) (W((x^2 - t^2)/e) + 1))*/
-    //aka D[k * (1 + ProductLog[(x * x - t * t) / e]), x] + D[k * (1 + ProductLog[(x * x - t * t) / e]), t]
-
-    /*float ILamb = (X * X - T * T) / M_E;
-
     float lambert = lambert_w0((X * X - T * T) / M_E);
 
-    //printf("LAM %f %f\n", lambert, ILamb);
+    if(fabs(T * T - X * X) < 0.0001)
+    {
+        float dU = dT - dX;
+        float dV = dT + dX;
+
+        float left = 0;
+        float right = 0;
+
+        float U = (T - X);
+        float V = (T + X);
+
+        if(fabs(U) > 0.0001)
+        {
+            left = k * dU * lambert / (U * (lambert + 1));
+        }
+
+        if(fabs(V) > 0.0001)
+        {
+            right = k * dV * lambert / (V * (lambert + 1));
+        }
+
+        return left + right;
+    }
 
     float denom = (X * X - T * T) * (lambert + 1);
 
     float num = 2 * k * X * lambert * dX - 2 * k * T * lambert * dT;
 
-    return num / denom;*/
+    return num / denom;
+}
 
-    float lambert = lambert_w0((X * X - T * T) / M_E);
+float TXdTdX_to_dr_with_r(float T, float X, float dT, float dX, float r)
+{
+    float rs = 1;
+    float k = rs;
+
+    float lambert = (r / rs) - 1;
 
     if(fabs(T * T - X * X) < 0.0001)
     {
@@ -691,6 +750,401 @@ float4 tensor_contract(float t16[16], float4 vec)
     res.w = t16[3 * 4 + 0] * vec.x + t16[3 * 4 + 1] * vec.y + t16[3 * 4 + 2] * vec.z + t16[3 * 4 + 3] * vec.w;
 
     return res;
+}
+
+float4 kruskal_position_to_schwarzs_position(float4 krus)
+{
+    float X = krus.y;
+    float T = krus.x;
+
+    float rs = 1;
+    float r = TX_to_r_krus(T, X);
+
+    float t = TX_to_t(T, X);
+
+    return (float4)(t, r, krus.zw);
+}
+
+float4 kruskal_velocity_to_schwarzs_velocity(float4 krus, float4 dkrus)
+{
+    float dr = TXdTdX_to_dr(krus.x, krus.y, dkrus.x, dkrus.y);
+    float dt = TXdTdX_to_dt(krus.x, krus.y, dkrus.x, dkrus.y);
+
+    return (float4)(dt, dr, dkrus.zw);
+}
+
+float4 kruskal_position_to_schwarzs_position_with_r(float4 krus, float r)
+{
+    float X = krus.y;
+    float T = krus.x;
+
+    float rs = 1;
+
+    float t = TX_to_t(T, X);
+
+    return (float4)(t, r, krus.zw);
+}
+
+float4 kruskal_velocity_to_schwarzs_velocity_with_r(float4 krus, float4 dkrus, float r)
+{
+    float dr = TXdTdX_to_dr_with_r(krus.x, krus.y, dkrus.x, dkrus.y, r);
+    float dt = TXdTdX_to_dt(krus.x, krus.y, dkrus.x, dkrus.y);
+
+    return (float4)(dt, dr, dkrus.zw);
+}
+
+float4 schwarzs_position_to_kruskal_position(float4 pos)
+{
+    float X = rt_to_X_krus(pos.y, pos.x);
+    float T = rt_to_T_krus(pos.y, pos.x);
+
+    return (float4)(T, X, pos.zw);
+}
+
+float4 schwarzs_velocity_to_kruskal_velocity(float4 pos, float4 dpos)
+{
+    float dX = trdtdr_to_dX(pos.x, pos.y, dpos.x, dpos.y);
+    float dT = trdtdr_to_dX(pos.x, pos.y, dpos.x, dpos.y);
+
+    return (float4)(dT, dX, dpos.zw);
+}
+
+__kernel
+void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4 cartesian_camera_pos, float4 camera_quat, __read_only image2d_t background)
+{
+    #define FOV 90
+
+    float fov_rad = (FOV / 360.f) * 2 * M_PI;
+
+    int cx = get_global_id(0);
+    int cy = get_global_id(1);
+
+    float width = get_image_width(out);
+    float height = get_image_height(out);
+
+    if(cx >= width-1 || cy >= height-1)
+        return;
+
+    float nonphysical_plane_half_width = width/2;
+    float nonphysical_f_stop = nonphysical_plane_half_width / tan(fov_rad/2);
+
+    float rs = 1;
+    float c = 1;
+
+    float3 pixel_direction = (float3){cx - width/2, cy - height/2, nonphysical_f_stop};
+
+    pixel_direction = normalize(pixel_direction);
+    pixel_direction = rot_quat(pixel_direction, camera_quat);
+
+    float3 cartesian_velocity = normalize(pixel_direction);
+
+    float3 new_basis_x = normalize(cartesian_velocity);
+    float3 new_basis_y = normalize(-cartesian_camera_pos.yzw);
+
+    new_basis_x = rejection(new_basis_x, new_basis_y);
+
+    float3 new_basis_z = -normalize(cross(new_basis_x, new_basis_y));
+
+    {
+        float3 cartesian_camera_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_camera_pos.yzw);
+        float3 cartesian_velocity_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_velocity);
+
+        cartesian_camera_pos.yzw = cartesian_camera_new_basis;
+        pixel_direction = normalize(cartesian_velocity_new_basis);
+    }
+
+    float3 polar_camera = cartesian_to_polar(cartesian_camera_pos.yzw);
+
+    float4 krus_camera = (float4)(rt_to_T_krus(polar_camera.x, 0), rt_to_X_krus(polar_camera.x, 0), polar_camera.y, polar_camera.z);
+
+    float g_metric[4] = {};
+    calculate_metric_krus_with_r(krus_camera, polar_camera.x, g_metric);
+
+    float4 co_basis = (float4){sqrt(-g_metric[0]), sqrt(g_metric[1]), sqrt(g_metric[2]), sqrt(g_metric[3])};
+
+    float4 bT = (float4)(1/co_basis.x, 0, 0, 0);
+    float4 bX = (float4)(0, 1/co_basis.y, 0, 0);
+    float4 btheta = (float4)(0, 0, 1/co_basis.z, 0);
+    float4 bphi = (float4)(0, 0, 0, 1/co_basis.w);
+
+    float lorenz[16] = {};
+
+    get_lorenz_coeff(bT, g_metric, lorenz);
+
+    float4 cX = tensor_contract(lorenz, btheta);
+    float4 cY = tensor_contract(lorenz, bphi);
+    float4 cZ = tensor_contract(lorenz, bX);
+
+    float Xpolar_r = TXdTdX_to_dr(krus_camera.x, krus_camera.y, cX.x, cX.y);
+    float Hpolar_r = TXdTdX_to_dr(krus_camera.x, krus_camera.y, cY.x, cY.y);
+    float Ppolar_r = TXdTdX_to_dr(krus_camera.x, krus_camera.y, cZ.x, cZ.y);
+
+    float3 cartesian_cx = spherical_velocity_to_cartesian_velocity(polar_camera, (float3)(Xpolar_r, cX.zw));
+    float3 cartesian_cy = spherical_velocity_to_cartesian_velocity(polar_camera, (float3)(Hpolar_r, cY.zw));
+    float3 cartesian_cz = spherical_velocity_to_cartesian_velocity(polar_camera, (float3)(Ppolar_r, cZ.zw));
+
+    pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
+
+    float4 pixel_x = pixel_direction.x * cX;
+    float4 pixel_y = pixel_direction.y * cY;
+    float4 pixel_z = pixel_direction.z * cZ;
+
+    float4 vec = pixel_x + pixel_y + pixel_z;
+
+    float4 pixel_N = vec / (dot(lower_index(vec, g_metric), vec));
+    pixel_N = fix_light_velocity2(pixel_N, g_metric);
+
+    float4 lightray_velocity = pixel_N;
+    float4 lightray_spacetime_position = krus_camera;
+
+    float ambient_precision = 0.001;
+    float subambient_precision = 0.1;
+
+    ///TODO: need to use external observer time, currently using sim time!!
+    float max_ds = 0.001;
+    float min_ds = 0.001;
+
+    /*float min_radius = rs * 1.1;
+    float max_radius = rs * 1.6;*/
+
+    float min_radius = 0.7 * rs;
+    float max_radius = 1.1 * rs;
+
+    bool is_kruskal = true;
+
+    if(polar_camera.x >= 1.15 * rs)
+    {
+        is_kruskal = false;
+
+        ///not 100% sure this is correct?
+        float4 new_pos = kruskal_position_to_schwarzs_position_with_r(lightray_spacetime_position, polar_camera.x);
+        float4 new_vel = kruskal_velocity_to_schwarzs_velocity_with_r(lightray_spacetime_position, lightray_velocity, polar_camera.x);
+
+        lightray_spacetime_position = new_pos;
+        lightray_velocity = new_vel;
+    }
+
+    for(int it=0; it < 32000; it++)
+    {
+        /*float kT = lightray_spacetime_position.x;
+        float kX = lightray_spacetime_position.y;
+
+        float r_value = TX_to_r_krus(kT, kX);
+
+        ///numerical stability threshold with ds = 0.01 for tracing rays inside the black hole
+        if(kT * kT - kX * kX > 0.999)
+        {
+            break;
+        }*/
+
+        float r_value = 0;
+
+        if(is_kruskal)
+        {
+            float kT = lightray_spacetime_position.x;
+            float kX = lightray_spacetime_position.y;
+
+            r_value = TX_to_r_krus(kT, kX);
+        }
+        else
+        {
+            r_value = lightray_spacetime_position.y;
+        }
+
+        if(r_value < 0.25 * rs)
+            break;
+
+        if(r_value < rs * 1.1 && !is_kruskal)
+        {
+            is_kruskal = true;
+
+            float4 new_pos = schwarzs_position_to_kruskal_position(lightray_spacetime_position);
+            float4 new_vel = schwarzs_velocity_to_kruskal_velocity(lightray_spacetime_position, lightray_velocity);
+
+            lightray_spacetime_position = new_pos;
+            lightray_velocity = new_vel;
+            //write_imagef(out, (int2){cx, cy}, (float4)(1, 0, 0, 1));
+            //return;
+        }
+
+        if(r_value >= rs * 1.15 && is_kruskal)
+        {
+            is_kruskal = false;
+
+            float4 new_pos = kruskal_position_to_schwarzs_position(lightray_spacetime_position);
+            float4 new_vel = kruskal_velocity_to_schwarzs_velocity(lightray_spacetime_position, lightray_velocity);
+
+            lightray_spacetime_position = new_pos;
+            lightray_velocity = new_vel;
+        }
+
+        #define NO_EVENT_HORIZON_CROSSING
+        #ifdef NO_EVENT_HORIZON_CROSSING
+        if(r_value <= rs)
+        {
+            write_imagef(out, (int2)(cx, cy), (float4)(0,0,0,1));
+            return;
+        }
+        #endif
+
+        /*float ds = 0.1;
+
+        if(r_value < max_radius)
+        {
+            float interp = clamp(r_value, min_radius, max_radius);
+            float frac = (interp - min_radius) / (max_radius - min_radius);
+            ds = mix(max_ds, min_ds, frac);
+        }
+        else
+        {
+            float new_max = 5 * rs;
+            float new_min = 1.1 * rs;
+
+            float interp = clamp(r_value, new_min, new_max);
+            float frac = (interp - new_min) / (new_max - new_min);
+
+            ds = mix(ambient_precision, subambient_precision, frac);
+        }*/
+
+        float ds = 0;
+
+        if(!is_kruskal)
+        {
+            float new_max = 5 * rs;
+            float new_min = 1.1 * rs;
+
+            float interp = clamp(r_value, new_min, new_max);
+            float frac = (interp - new_min) / (new_max - new_min);
+
+            ds = mix(ambient_precision, subambient_precision, frac);
+        }
+        else
+        {
+            float interp = clamp(r_value, min_radius, max_radius);
+            float frac = (interp - min_radius) / (max_radius - min_radius);
+            ds = mix(max_ds, min_ds, frac);
+
+            //ds = 0.01;
+        }
+
+        if(r_value > 20 || r_value < 0.5)
+        {
+            float3 cart_here = polar_to_cartesian((float3)(r_value, lightray_spacetime_position.zw));
+
+            cart_here = rotate_vector(new_basis_x, new_basis_y, new_basis_z, cart_here);
+
+            float3 npolar = cartesian_to_polar(cart_here);
+
+            float thetaf = fmod(npolar.y, 2 * M_PI);
+            float phif = npolar.z;
+
+            if(thetaf >= M_PI)
+            {
+                phif += M_PI;
+                thetaf -= M_PI;
+            }
+
+            phif = fmod(phif, 2 * M_PI);
+
+            float sx = (phif) / (2 * M_PI);
+            float sy = thetaf / M_PI;
+
+            sampler_t sam = CLK_NORMALIZED_COORDS_TRUE |
+                            CLK_ADDRESS_REPEAT |
+                            CLK_FILTER_LINEAR;
+
+            float4 val = read_imagef(background, sam, (float2){sx, sy});
+
+            if(r_value < 1)
+            {
+                val = (float4)(0,0,0,1);
+
+                int x_half = fabs(fmod(sx * 10, 1)) > 0.5 ? 1 : 0;
+                int y_half = fabs(fmod(sy * 10, 1)) > 0.5 ? 1 : 0;
+
+                //val.x = (x_half + y_half) % 2;
+
+                val.x = x_half;
+                val.y = y_half;
+
+                if(sy < 0.1 || sy >= 0.9)
+                {
+                    val.x = 0;
+                    val.y = 0;
+                    val.z = 1;
+                }
+            }
+
+            write_imagef(out, (int2){cx, cy}, val);
+            return;
+        }
+
+        if(is_kruskal)
+            calculate_metric_krus(lightray_spacetime_position, g_metric);
+        else
+            calculate_metric(lightray_spacetime_position, g_metric);
+
+        float christoff[64] = {0};
+
+        float g_partials[16] = {0};
+
+        if(is_kruskal)
+            calculate_partial_derivatives_krus(lightray_spacetime_position, g_partials);
+        else
+            calculate_partial_derivatives(lightray_spacetime_position, g_partials);
+
+        ///diagonal of the metric, because it only has diagonals
+        float g_inv[4] = {1/g_metric[0], 1/g_metric[1], 1/g_metric[2], 1/g_metric[3]};
+
+        {
+            for(int i=0; i < 4; i++)
+            {
+                float ginvii = 0.5 * g_inv[i];
+
+                for(int m=0; m < 4; m++)
+                {
+                    float adding = ginvii * g_partials[i * 4 + m];
+
+                    christoff[i * 16 + i * 4 + m] += adding;
+                    christoff[i * 16 + m * 4 + i] += adding;
+                    christoff[i * 16 + m * 4 + m] -= ginvii * g_partials[m * 4 + i];
+                }
+            }
+        }
+
+        float velocity_arr[4] = {lightray_velocity.x, lightray_velocity.y, lightray_velocity.z, lightray_velocity.w};
+
+        float christ_result[4] = {0,0,0,0};
+
+        for(int uu=0; uu < 4; uu++)
+        {
+            float sum = 0;
+
+            for(int aa = 0; aa < 4; aa++)
+            {
+                for(int bb = 0; bb < 4; bb++)
+                {
+                    sum += (velocity_arr[aa]) * (velocity_arr[bb]) * christoff[uu * 16 + aa*4 + bb*1];
+                }
+            }
+
+            if(!isfinite(sum))
+            {
+                write_imagef(out, (int2){cx, cy}, (float4){1, 0, 0, 1});
+                return;
+            }
+
+            christ_result[uu] = sum;
+        }
+
+        float4 acceleration = {-christ_result[0], -christ_result[1], -christ_result[2], -christ_result[3]};
+
+        lightray_velocity += acceleration * ds;
+        lightray_velocity = fix_light_velocity2(lightray_velocity, g_metric);
+        lightray_spacetime_position += lightray_velocity * ds;
+    }
+
+    write_imagef(out, (int2){cx, cy}, (float4){0, 1, 0, 1});
 }
 
 __kernel
