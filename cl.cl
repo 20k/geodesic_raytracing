@@ -786,7 +786,7 @@ void do_raytracing_kruskal(__write_only image2d_t out, float ds_, float4 cartesi
     float4 lightray_velocity = pixel_N;
     float4 lightray_spacetime_position = krus_camera;
 
-    float ambient_precision = 0.001;
+    float ambient_precision = 0.05;
 
     ///TODO: need to use external observer time, currently using sim time!!
     float max_ds = 0.001;
@@ -802,7 +802,6 @@ void do_raytracing_kruskal(__write_only image2d_t out, float ds_, float4 cartesi
 
         float r_value = TX_to_r_krus(kT, kX);
 
-
         ///numerical stability threshold with ds = 0.01 for tracing rays inside the black hole
         if(kT * kT - kX * kX > 0.999)
         {
@@ -816,21 +815,19 @@ void do_raytracing_kruskal(__write_only image2d_t out, float ds_, float4 cartesi
         }
         #endif
 
+        float interp = clamp(r_value, min_radius, max_radius);
+
+        float frac = (interp - min_radius) / (max_radius - min_radius);
+
+        float ds = mix(max_ds, min_ds, frac);
+
         /*if(cx == width/2 && cy == height/2)
         {
-            if(it == 0 || it == 500)
+            if(it == 0)
             {
-                printf("RVAL %f\n", r_value);
+                printf("RVAL %f %f\n", r_value, ds);
             }
         }*/
-
-        /*float interp = clamp(r_value, min_radius, max_radius);
-
-        float frac = (r_value - min_radius) / (max_radius - min_radius);
-
-        float ds = mix(max_ds, min_ds, frac);*/
-
-        float ds = min_ds;
 
         #if 1
         /*if(r_value < (rs + rs * 0.00000001))
