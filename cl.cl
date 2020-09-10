@@ -869,6 +869,59 @@ bool is_radius_leq_than(float4 spacetime_position, bool is_kruskal, float radius
     }
 }
 
+float4 calculate_acceleration(float4 lightray_velocity, float g_metric[4], float g_partials[16])
+{
+    ///diagonal of the metric, because it only has diagonals
+    float g_inv[4] = {1/g_metric[0], 1/g_metric[1], 1/g_metric[2], 1/g_metric[3]};
+
+    float christoff[64] = {0};
+
+    {
+        for(int i=0; i < 4; i++)
+        {
+            float ginvii = 0.5 * g_inv[i];
+
+            for(int m=0; m < 4; m++)
+            {
+                float adding = ginvii * g_partials[i * 4 + m];
+
+                christoff[i * 16 + i * 4 + m] += adding;
+                christoff[i * 16 + m * 4 + i] += adding;
+                christoff[i * 16 + m * 4 + m] -= ginvii * g_partials[m * 4 + i];
+            }
+        }
+    }
+
+    float velocity_arr[4] = {lightray_velocity.x, lightray_velocity.y, lightray_velocity.z, lightray_velocity.w};
+
+    float christ_result[4] = {0,0,0,0};
+
+    for(int uu=0; uu < 4; uu++)
+    {
+        float sum = 0;
+
+        for(int aa = 0; aa < 4; aa++)
+        {
+            for(int bb = 0; bb < 4; bb++)
+            {
+                sum += (velocity_arr[aa]) * (velocity_arr[bb]) * christoff[uu * 16 + aa*4 + bb*1];
+            }
+        }
+
+        /*if(!isfinite(sum))
+        {
+            write_imagef(out, (int2){cx, cy}, (float4){1, 0, 0, 1});
+            return;
+        }*/
+
+        christ_result[uu] = sum;
+    }
+
+    float4 acceleration = {-christ_result[0], -christ_result[1], -christ_result[2], -christ_result[3]};
+
+    return acceleration;
+}
+
 __kernel
 void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4 cartesian_camera_pos, float4 camera_quat, __read_only image2d_t background)
 {
@@ -1027,6 +1080,10 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
         lightray_velocity = new_vel;
     }
 
+    float4 last_position = lightray_spacetime_position;
+    float4 last_velocity = lightray_velocity;
+    float4 last_acceleration = (float4)(0,0,0,0);
+    float last_timestep = 0;
 
     ///T is 0 because time coordinate is 0
     //float T_at_transition_radius = rt_to_T_krus(rs * 1.15, 0);
@@ -1113,7 +1170,13 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
 
             if(r_value >= 20)
             {
-                //ds = r_value / 10;
+                /*float nfrac = (r_value - 20) / 100;
+
+                nfrac = clamp(nfrac, 0.f, 1.f);
+
+                ds = mix(subambient_precision, 10, nfrac);*/
+
+                ds = r_value / 10;
             }
         }
         else
@@ -1203,14 +1266,14 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
         else
             calculate_metric(lightray_spacetime_position, g_metric);
 
-        float christoff[64] = {0};
-
         float g_partials[16] = {0};
 
         if(is_kruskal)
             calculate_partial_derivatives_krus(lightray_spacetime_position, g_partials);
         else
             calculate_partial_derivatives(lightray_spacetime_position, g_partials);
+
+        float4 acceleration = calculate_acceleration(lightray_velocity, g_metric, g_partials);
 
         #ifndef NO_EVENT_HORIZON_CROSSING
         if(is_kruskal)
@@ -1228,55 +1291,32 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
         }
         #endif // NO_HORIZON_CROSSING
 
-        ///diagonal of the metric, because it only has diagonals
-        float g_inv[4] = {1/g_metric[0], 1/g_metric[1], 1/g_metric[2], 1/g_metric[3]};
-
-        {
-            for(int i=0; i < 4; i++)
-            {
-                float ginvii = 0.5 * g_inv[i];
-
-                for(int m=0; m < 4; m++)
-                {
-                    float adding = ginvii * g_partials[i * 4 + m];
-
-                    christoff[i * 16 + i * 4 + m] += adding;
-                    christoff[i * 16 + m * 4 + i] += adding;
-                    christoff[i * 16 + m * 4 + m] -= ginvii * g_partials[m * 4 + i];
-                }
-            }
-        }
-
-        float velocity_arr[4] = {lightray_velocity.x, lightray_velocity.y, lightray_velocity.z, lightray_velocity.w};
-
-        float christ_result[4] = {0,0,0,0};
-
-        for(int uu=0; uu < 4; uu++)
-        {
-            float sum = 0;
-
-            for(int aa = 0; aa < 4; aa++)
-            {
-                for(int bb = 0; bb < 4; bb++)
-                {
-                    sum += (velocity_arr[aa]) * (velocity_arr[bb]) * christoff[uu * 16 + aa*4 + bb*1];
-                }
-            }
-
-            if(!isfinite(sum))
-            {
-                write_imagef(out, (int2){cx, cy}, (float4){1, 0, 0, 1});
-                return;
-            }
-
-            christ_result[uu] = sum;
-        }
-
-        float4 acceleration = {-christ_result[0], -christ_result[1], -christ_result[2], -christ_result[3]};
-
         lightray_velocity += acceleration * ds;
         lightray_velocity = fix_light_velocity2(lightray_velocity, g_metric);
         lightray_spacetime_position += lightray_velocity * ds;
+
+        #if 0
+        float4 saved_position = lightray_spacetime_position;
+        float4 saved_velocity = lightray_velocity;
+
+        if(last_timestep == 0)
+        {
+            lightray_spacetime_position = lightray_spacetime_position + lightray_velocity * ds + 0.5 * acceleration * ds * ds;
+        }
+        else
+        {
+            float4 next_position = lightray_spacetime_position
+
+            /*float4 next = (lightray_spacetime_position - last_position) * (ds / last_timestep) + acceleration * (ds + last_timestep) * 0.5 * ds;
+
+            lightray_spacetime_position = next;*/
+        }
+        #endif // 0
+
+        /*last_timestep = ds;
+        last_position = saved_position;
+        last_velocity = saved_velocity;
+        last_acceleration = acceleration;*/
     }
 
     write_imagef(out, (int2){cx, cy}, (float4){0, 1, 0, 1});
