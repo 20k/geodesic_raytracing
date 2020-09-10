@@ -1013,37 +1013,6 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
 
     for(int it=0; it < 60000; it++)
     {
-        /*float kT = lightray_spacetime_position.x;
-        float kX = lightray_spacetime_position.y;
-
-        float r_value = TX_to_r_krus(kT, kX);
-
-        ///numerical stability threshold with ds = 0.01 for tracing rays inside the black hole
-        if(kT * kT - kX * kX > 0.999)
-        {
-            break;
-        }*/
-
-        /*float r_value = 0;
-
-        if(is_kruskal)
-        {
-            float kT = lightray_spacetime_position.x;
-            float kX = lightray_spacetime_position.y;
-
-            r_value = TX_to_r_krus(kT, kX);
-        }
-        else
-        {
-            r_value = lightray_spacetime_position.y;
-        }*/
-
-        /*if(r_value < 0.025 * rs)
-            break;*/
-
-        /*if(r_value <= rs && it >= 10000 && polar_camera.x >= rs * 1.1)
-            break;*/
-
         if(!is_kruskal)
         {
             if(lightray_spacetime_position.y < rs * 1.1)
@@ -1102,25 +1071,6 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
         }
         #endif
 
-        /*float ds = 0.1;
-
-        if(r_value < max_radius)
-        {
-            float interp = clamp(r_value, min_radius, max_radius);
-            float frac = (interp - min_radius) / (max_radius - min_radius);
-            ds = mix(max_ds, min_ds, frac);
-        }
-        else
-        {
-            float new_max = 5 * rs;
-            float new_min = 1.1 * rs;
-
-            float interp = clamp(r_value, new_min, new_max);
-            float frac = (interp - new_min) / (new_max - new_min);
-
-            ds = mix(ambient_precision, subambient_precision, frac);
-        }*/
-
         float ds = 0;
 
         if(!is_kruskal)
@@ -1142,9 +1092,17 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
             ds = mix(max_ds, min_ds, frac);*/
 
             ds = min_ds;
-        }
 
-        //if(r_value > 60 || r_value < 0.5)
+            /*if(is_radius_leq_than(lightray_spacetime_position, is_kruskal, 0.2))
+            {
+                ds = min_ds/100;
+            }
+
+            if(is_radius_leq_than(lightray_spacetime_position, is_kruskal, 0.01))
+            {
+                ds = min_ds / 10000;
+            }*/
+        }
 
         if(!is_radius_leq_than(lightray_spacetime_position, is_kruskal, 60) || is_radius_leq_than(lightray_spacetime_position, is_kruskal, 0.5))
         {
