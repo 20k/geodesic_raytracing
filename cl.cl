@@ -972,6 +972,8 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
     float4 lightray_spacetime_position;
 
     float g_metric[4] = {};
+    float g_partials[16] = {0};
+
     bool is_kruskal = polar_camera.x < 20;
 
     float4 camera;
@@ -1080,6 +1082,25 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
         lightray_velocity = new_vel;
     }
 
+    float4 lightray_acceleration = (float4)(0,0,0,0);
+
+    //if(is_kruskal)
+    {
+        {
+            if(is_kruskal)
+                calculate_metric_krus(lightray_spacetime_position, g_metric);
+            else
+                calculate_metric(lightray_spacetime_position, g_metric);
+
+            if(is_kruskal)
+                calculate_partial_derivatives_krus(lightray_spacetime_position, g_partials);
+            else
+                calculate_partial_derivatives(lightray_spacetime_position, g_partials);
+        }
+
+        lightray_acceleration = calculate_acceleration(lightray_velocity, g_metric, g_partials);
+    }
+
     float4 last_position = lightray_spacetime_position;
     float4 last_velocity = lightray_velocity;
     float4 last_acceleration = (float4)(0,0,0,0);
@@ -1097,7 +1118,7 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
 
     for(int it=0; it < 60000; it++)
     {
-        if(!is_kruskal)
+        /*if(!is_kruskal)
         {
             if(lightray_spacetime_position.y < rs * 1.1)
             {
@@ -1109,7 +1130,7 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
                 lightray_spacetime_position = new_pos;
                 lightray_velocity = new_vel;
             }
-        }
+        }*/
 
         if(is_kruskal)
         {
@@ -1198,6 +1219,8 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
             }*/
         }
 
+        //ds = 0.1;
+
         if(!is_radius_leq_than(lightray_spacetime_position, is_kruskal, 40) || is_radius_leq_than(lightray_spacetime_position, is_kruskal, 0.5))
         {
             float r_value = 0;
@@ -1261,20 +1284,6 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
             return;
         }
 
-        if(is_kruskal)
-            calculate_metric_krus(lightray_spacetime_position, g_metric);
-        else
-            calculate_metric(lightray_spacetime_position, g_metric);
-
-        float g_partials[16] = {0};
-
-        if(is_kruskal)
-            calculate_partial_derivatives_krus(lightray_spacetime_position, g_partials);
-        else
-            calculate_partial_derivatives(lightray_spacetime_position, g_partials);
-
-        float4 acceleration = calculate_acceleration(lightray_velocity, g_metric, g_partials);
-
         #ifndef NO_EVENT_HORIZON_CROSSING
         if(is_kruskal)
         {
@@ -1291,32 +1300,59 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
         }
         #endif // NO_HORIZON_CROSSING
 
+        /*float g_partials[16] = {0};
+
+        {
+            if(is_kruskal)
+                calculate_metric_krus(lightray_spacetime_position, g_metric);
+            else
+                calculate_metric(lightray_spacetime_position, g_metric);
+
+            if(is_kruskal)
+                calculate_partial_derivatives_krus(lightray_spacetime_position, g_partials);
+            else
+                calculate_partial_derivatives(lightray_spacetime_position, g_partials);
+        }*/
+
+        /*
+        ///euler
+        float4 acceleration = calculate_acceleration(lightray_velocity, g_metric, g_partials);
         lightray_velocity += acceleration * ds;
         lightray_velocity = fix_light_velocity2(lightray_velocity, g_metric);
-        lightray_spacetime_position += lightray_velocity * ds;
+        lightray_spacetime_position += lightray_velocity * ds;*/
 
-        #if 0
-        float4 saved_position = lightray_spacetime_position;
-        float4 saved_velocity = lightray_velocity;
+        ///verlet?
+        /*float4 acceleration = calculate_acceleration(lightray_velocity, g_metric, g_partials);
 
-        if(last_timestep == 0)
+        lightray_velocity += acceleration * ds;
+        lightray_velocity = fix_light_velocity2(lightray_velocity, g_metric);
+        lightray_spacetime_position += lightray_velocity * ds;*/
+
+        float4 next_position = lightray_spacetime_position + lightray_velocity * ds + 0.5 * lightray_acceleration * ds * ds;
+        float4 intermediate_next_velocity = lightray_velocity + lightray_acceleration * ds;
+
+        ///try moving this out of the loop
         {
-            lightray_spacetime_position = lightray_spacetime_position + lightray_velocity * ds + 0.5 * acceleration * ds * ds;
+            if(is_kruskal)
+                calculate_metric_krus(next_position, g_metric);
+            else
+                calculate_metric(next_position, g_metric);
+
+            if(is_kruskal)
+                calculate_partial_derivatives_krus(next_position, g_partials);
+            else
+                calculate_partial_derivatives(next_position, g_partials);
         }
-        else
-        {
-            float4 next_position = lightray_spacetime_position
 
-            /*float4 next = (lightray_spacetime_position - last_position) * (ds / last_timestep) + acceleration * (ds + last_timestep) * 0.5 * ds;
+        float4 next_acceleration = calculate_acceleration(intermediate_next_velocity, g_metric, g_partials);
 
-            lightray_spacetime_position = next;*/
-        }
-        #endif // 0
+        float4 next_velocity = lightray_velocity + 0.5 * (lightray_acceleration + next_acceleration) * ds;
 
-        /*last_timestep = ds;
-        last_position = saved_position;
-        last_velocity = saved_velocity;
-        last_acceleration = acceleration;*/
+
+        lightray_spacetime_position = next_position;
+        //lightray_velocity = next_velocity;
+        lightray_velocity = fix_light_velocity2(next_velocity, g_metric);
+        lightray_acceleration = next_acceleration;
     }
 
     write_imagef(out, (int2){cx, cy}, (float4){0, 1, 0, 1});
