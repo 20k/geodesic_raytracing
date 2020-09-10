@@ -379,6 +379,27 @@ float lambert_w0_halley(float x)
     return current;
 }
 
+float lambert_w0_highprecision(float x)
+{
+    if(x < -(1 / M_E))
+        x = -(1 / M_E);
+
+    float current = 0;
+
+    for(int i=0; i < 20; i++)
+    {
+        float cexp = exp(current);
+
+        float denom = cexp * (current + 1) - ((current + 2) * (current * cexp - x) / (2 * current + 2));
+
+        float next = current - ((current * cexp - x) / denom);
+
+        current = next;
+    }
+
+    return current;
+}
+
 float lambert_w0(float x)
 {
     return lambert_w0_halley(x);
@@ -539,6 +560,14 @@ float TX_to_r_krus(float T, float X)
     float k = rs;
 
     return k * (1 + lambert_w0((X * X - T * T) / M_E));
+}
+
+float TX_to_r_krus_highprecision(float T, float X)
+{
+    float rs = 1;
+    float k = rs;
+
+    return k * (1 + lambert_w0_highprecision((X * X - T * T) / M_E));
 }
 
 float trdtdr_to_dX(float t, float r, float dt, float dr)
@@ -1004,8 +1033,10 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
         {
             is_kruskal = false;
 
-            float4 new_pos = kruskal_position_to_schwarzs_position(lightray_spacetime_position);
-            float4 new_vel = kruskal_velocity_to_schwarzs_velocity(lightray_spacetime_position, lightray_velocity);
+            float high_r = TX_to_r_krus_highprecision(lightray_spacetime_position.x, lightray_spacetime_position.y);
+
+            float4 new_pos = kruskal_position_to_schwarzs_position_with_r(lightray_spacetime_position, high_r);
+            float4 new_vel = kruskal_velocity_to_schwarzs_velocity_with_r(lightray_spacetime_position, lightray_velocity, high_r);
 
             lightray_spacetime_position = new_pos;
             lightray_velocity = new_vel;
