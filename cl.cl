@@ -915,10 +915,25 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
 
     float3 polar_camera = cartesian_to_polar(cartesian_camera_pos.yzw);
 
-    float4 krus_camera = (float4)(rt_to_T_krus(polar_camera.x, 0), rt_to_X_krus(polar_camera.x, 0), polar_camera.y, polar_camera.z);
+    float4 lightray_velocity;
+    float4 lightray_spacetime_position;
 
     float g_metric[4] = {};
-    calculate_metric_krus_with_r(krus_camera, polar_camera.x, g_metric);
+    bool is_kruskal = true;
+
+    is_kruskal = polar_camera.x < 20;
+
+    float4 camera;
+
+    if(is_kruskal)
+        camera = (float4)(rt_to_T_krus(polar_camera.x, 0), rt_to_X_krus(polar_camera.x, 0), polar_camera.y, polar_camera.z);
+    else
+        camera = (float4)(0, polar_camera);
+
+    if(is_kruskal)
+        calculate_metric_krus_with_r(camera, polar_camera.x, g_metric);
+    else
+        calculate_metric((float4)(0, polar_camera), g_metric);
 
     float4 co_basis = (float4){sqrt(-g_metric[0]), sqrt(g_metric[1]), sqrt(g_metric[2]), sqrt(g_metric[3])};
 
@@ -928,27 +943,36 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
     float4 bphi = (float4)(0, 0, 0, 1/co_basis.w);
 
     float lorenz[16] = {};
-
     get_lorenz_coeff(bT, g_metric, lorenz);
 
     float4 cX = tensor_contract(lorenz, btheta);
     float4 cY = tensor_contract(lorenz, bphi);
     float4 cZ = tensor_contract(lorenz, bX);
 
-    /*if(cx == width/2 && cy == height/2)
+    float3 sVx;
+    float3 sVy;
+    float3 sVz;
+
+    if(is_kruskal)
     {
-        float4 diff = bX - cZ;
+        float Xpolar_r = TXdTdX_to_dr_with_r(camera.x, camera.y, cX.x, cX.y, polar_camera.x);
+        float Hpolar_r = TXdTdX_to_dr_with_r(camera.x, camera.y, cY.x, cY.y, polar_camera.x);
+        float Ppolar_r = TXdTdX_to_dr_with_r(camera.x, camera.y, cZ.x, cZ.y, polar_camera.x);
 
-        printf("DIFF %f %f %f %f\n", diff.x, diff.y, diff.z, diff.w);
-    }*/
+        sVx = (float3)(Xpolar_r, cX.zw);
+        sVy = (float3)(Hpolar_r, cY.zw);
+        sVz = (float3)(Ppolar_r, cZ.zw);
+    }
+    else
+    {
+        sVx = cX.yzw;
+        sVy = cY.yzw;
+        sVz = cZ.yzw;
+    }
 
-    float Xpolar_r = TXdTdX_to_dr_with_r(krus_camera.x, krus_camera.y, cX.x, cX.y, polar_camera.x);
-    float Hpolar_r = TXdTdX_to_dr_with_r(krus_camera.x, krus_camera.y, cY.x, cY.y, polar_camera.x);
-    float Ppolar_r = TXdTdX_to_dr_with_r(krus_camera.x, krus_camera.y, cZ.x, cZ.y, polar_camera.x);
-
-    float3 cartesian_cx = spherical_velocity_to_cartesian_velocity(polar_camera, (float3)(Xpolar_r, cX.zw));
-    float3 cartesian_cy = spherical_velocity_to_cartesian_velocity(polar_camera, (float3)(Hpolar_r, cY.zw));
-    float3 cartesian_cz = spherical_velocity_to_cartesian_velocity(polar_camera, (float3)(Ppolar_r, cZ.zw));
+    float3 cartesian_cx = spherical_velocity_to_cartesian_velocity(polar_camera, sVx);
+    float3 cartesian_cy = spherical_velocity_to_cartesian_velocity(polar_camera, sVy);
+    float3 cartesian_cz = spherical_velocity_to_cartesian_velocity(polar_camera, sVz);
 
     pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
 
@@ -961,8 +985,92 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
     float4 pixel_N = vec / (dot(lower_index(vec, g_metric), vec));
     pixel_N = fix_light_velocity2(pixel_N, g_metric);
 
-    float4 lightray_velocity = pixel_N;
-    float4 lightray_spacetime_position = krus_camera;
+    lightray_velocity = pixel_N;
+    lightray_spacetime_position = camera;
+
+    /*if(polar_camera.x < 20)
+    {
+        float4 krus_camera = (float4)(rt_to_T_krus(polar_camera.x, 0), rt_to_X_krus(polar_camera.x, 0), polar_camera.y, polar_camera.z);
+
+        calculate_metric_krus_with_r(krus_camera, polar_camera.x, g_metric);
+
+        float4 co_basis = (float4){sqrt(-g_metric[0]), sqrt(g_metric[1]), sqrt(g_metric[2]), sqrt(g_metric[3])};
+
+        float4 bT = (float4)(1/co_basis.x, 0, 0, 0);
+        float4 bX = (float4)(0, 1/co_basis.y, 0, 0);
+        float4 btheta = (float4)(0, 0, 1/co_basis.z, 0);
+        float4 bphi = (float4)(0, 0, 0, 1/co_basis.w);
+
+        float lorenz[16] = {};
+        get_lorenz_coeff(bT, g_metric, lorenz);
+
+        float4 cX = tensor_contract(lorenz, btheta);
+        float4 cY = tensor_contract(lorenz, bphi);
+        float4 cZ = tensor_contract(lorenz, bX);
+
+        float Xpolar_r = TXdTdX_to_dr_with_r(krus_camera.x, krus_camera.y, cX.x, cX.y, polar_camera.x);
+        float Hpolar_r = TXdTdX_to_dr_with_r(krus_camera.x, krus_camera.y, cY.x, cY.y, polar_camera.x);
+        float Ppolar_r = TXdTdX_to_dr_with_r(krus_camera.x, krus_camera.y, cZ.x, cZ.y, polar_camera.x);
+
+        float3 cartesian_cx = spherical_velocity_to_cartesian_velocity(polar_camera, (float3)(Xpolar_r, cX.zw));
+        float3 cartesian_cy = spherical_velocity_to_cartesian_velocity(polar_camera, (float3)(Hpolar_r, cY.zw));
+        float3 cartesian_cz = spherical_velocity_to_cartesian_velocity(polar_camera, (float3)(Ppolar_r, cZ.zw));
+
+        pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
+
+        float4 pixel_x = pixel_direction.x * cX;
+        float4 pixel_y = pixel_direction.y * cY;
+        float4 pixel_z = pixel_direction.z * cZ;
+
+        float4 vec = pixel_x + pixel_y + pixel_z;
+
+        float4 pixel_N = vec / (dot(lower_index(vec, g_metric), vec));
+        pixel_N = fix_light_velocity2(pixel_N, g_metric);
+
+        lightray_velocity = pixel_N;
+        lightray_spacetime_position = krus_camera;
+
+        is_kruskal = true;
+    }
+    else
+    {
+        ///external observer???
+        calculate_metric((float4)(0, polar_camera), g_metric);
+
+        float4 co_basis = (float4){sqrt(-g_metric[0]), sqrt(g_metric[1]), sqrt(g_metric[2]), sqrt(g_metric[3])};
+
+        float4 bt = (float4)(1/co_basis.x, 0, 0, 0);
+        float4 br = (float4)(0, 1/co_basis.y, 0, 0);
+        float4 btheta = (float4)(0, 0, 1/co_basis.z, 0);
+        float4 bphi = (float4)(0, 0, 0, 1/co_basis.w);
+
+        float lorenz[16] = {};
+        get_lorenz_coeff(bt, g_metric, lorenz);
+
+        float4 cX = tensor_contract(lorenz, btheta);
+        float4 cY = tensor_contract(lorenz, bphi);
+        float4 cZ = tensor_contract(lorenz, br);
+
+        float3 cartesian_cx = spherical_velocity_to_cartesian_velocity(polar_camera, cX.yzw);
+        float3 cartesian_cy = spherical_velocity_to_cartesian_velocity(polar_camera, cY.yzw);
+        float3 cartesian_cz = spherical_velocity_to_cartesian_velocity(polar_camera, cZ.yzw);
+
+        pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
+
+        float4 pixel_x = pixel_direction.x * cX;
+        float4 pixel_y = pixel_direction.y * cY;
+        float4 pixel_z = pixel_direction.z * cZ;
+
+        float4 vec = pixel_x + pixel_y + pixel_z;
+
+        float4 pixel_N = vec / (dot(lower_index(vec, g_metric), vec));
+        pixel_N = fix_light_velocity2(pixel_N, g_metric);
+
+        lightray_velocity = pixel_N;
+        lightray_spacetime_position = (float4)(0, polar_camera);
+
+        is_kruskal = false;
+    }*/
 
     //lightray_velocity.y = -lightray_velocity.y;
 
@@ -988,17 +1096,7 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
     float min_radius = 0.7 * rs;
     float max_radius = 1.1 * rs;
 
-    bool is_kruskal = true;
-
-    ///so, co_basis.y blows up because its basically 0 once you head away from the black hole
-    ///definitely need a new basis basically
-    if(cx == width/2 && cy == height/2)
-    {
-        printf("COB %f\n", co_basis.y);
-        //printf("DBG %f %f %f\n", cZ.x, cZ.y, cZ.z);
-    }
-
-    if(polar_camera.x >= rs * 1.15)
+    if(polar_camera.x >= rs * 1.15 && is_kruskal)
     {
         is_kruskal = false;
 
@@ -1096,7 +1194,7 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
 
             if(r_value >= 20)
             {
-                ds = r_value / 20;
+                ds = r_value / 10;
             }
         }
         else

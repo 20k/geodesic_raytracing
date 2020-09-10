@@ -134,6 +134,8 @@ int main()
 
     //vec4f camera =
 
+    sf::Clock clk;
+
     while(!win.should_close())
     {
         win.poll();
@@ -264,6 +266,10 @@ int main()
         }
 
         win.display();
+
+        double time = clk.restart().asMicroseconds() / 1000.;
+
+        std::cout << "FRAMETIME " << time << std::endl;
     }
 
     return 0;
