@@ -919,12 +919,15 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
     float4 lightray_spacetime_position;
 
     float g_metric[4] = {};
-    bool is_kruskal = true;
-
-    is_kruskal = polar_camera.x < 20;
+    bool is_kruskal = polar_camera.x < 20;
 
     float4 camera;
 
+    ///the reason that there aren't just two fully separate branches for is_kruskal and !is_kruskal
+    ///is that for some reason it absolutely murders performance, possibly for register file allocation reasons
+    ///but in reality i have very little idea. Its not branch divergence though, because all rays
+    ///take the same branch here, this is basically a compile time switch, because its only dependent on camera position
+    ///it may also be because it defeats some sort of compiler optimisation, or just honestly anything really
     if(is_kruskal)
         camera = (float4)(rt_to_T_krus(polar_camera.x, 0), rt_to_X_krus(polar_camera.x, 0), polar_camera.y, polar_camera.z);
     else
@@ -937,8 +940,8 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
 
     float4 co_basis = (float4){sqrt(-g_metric[0]), sqrt(g_metric[1]), sqrt(g_metric[2]), sqrt(g_metric[3])};
 
-    float4 bT = (float4)(1/co_basis.x, 0, 0, 0);
-    float4 bX = (float4)(0, 1/co_basis.y, 0, 0);
+    float4 bT = (float4)(1/co_basis.x, 0, 0, 0); ///or bt
+    float4 bX = (float4)(0, 1/co_basis.y, 0, 0); ///or br
     float4 btheta = (float4)(0, 0, 1/co_basis.z, 0);
     float4 bphi = (float4)(0, 0, 0, 1/co_basis.w);
 
@@ -987,90 +990,6 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
 
     lightray_velocity = pixel_N;
     lightray_spacetime_position = camera;
-
-    /*if(polar_camera.x < 20)
-    {
-        float4 krus_camera = (float4)(rt_to_T_krus(polar_camera.x, 0), rt_to_X_krus(polar_camera.x, 0), polar_camera.y, polar_camera.z);
-
-        calculate_metric_krus_with_r(krus_camera, polar_camera.x, g_metric);
-
-        float4 co_basis = (float4){sqrt(-g_metric[0]), sqrt(g_metric[1]), sqrt(g_metric[2]), sqrt(g_metric[3])};
-
-        float4 bT = (float4)(1/co_basis.x, 0, 0, 0);
-        float4 bX = (float4)(0, 1/co_basis.y, 0, 0);
-        float4 btheta = (float4)(0, 0, 1/co_basis.z, 0);
-        float4 bphi = (float4)(0, 0, 0, 1/co_basis.w);
-
-        float lorenz[16] = {};
-        get_lorenz_coeff(bT, g_metric, lorenz);
-
-        float4 cX = tensor_contract(lorenz, btheta);
-        float4 cY = tensor_contract(lorenz, bphi);
-        float4 cZ = tensor_contract(lorenz, bX);
-
-        float Xpolar_r = TXdTdX_to_dr_with_r(krus_camera.x, krus_camera.y, cX.x, cX.y, polar_camera.x);
-        float Hpolar_r = TXdTdX_to_dr_with_r(krus_camera.x, krus_camera.y, cY.x, cY.y, polar_camera.x);
-        float Ppolar_r = TXdTdX_to_dr_with_r(krus_camera.x, krus_camera.y, cZ.x, cZ.y, polar_camera.x);
-
-        float3 cartesian_cx = spherical_velocity_to_cartesian_velocity(polar_camera, (float3)(Xpolar_r, cX.zw));
-        float3 cartesian_cy = spherical_velocity_to_cartesian_velocity(polar_camera, (float3)(Hpolar_r, cY.zw));
-        float3 cartesian_cz = spherical_velocity_to_cartesian_velocity(polar_camera, (float3)(Ppolar_r, cZ.zw));
-
-        pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
-
-        float4 pixel_x = pixel_direction.x * cX;
-        float4 pixel_y = pixel_direction.y * cY;
-        float4 pixel_z = pixel_direction.z * cZ;
-
-        float4 vec = pixel_x + pixel_y + pixel_z;
-
-        float4 pixel_N = vec / (dot(lower_index(vec, g_metric), vec));
-        pixel_N = fix_light_velocity2(pixel_N, g_metric);
-
-        lightray_velocity = pixel_N;
-        lightray_spacetime_position = krus_camera;
-
-        is_kruskal = true;
-    }
-    else
-    {
-        ///external observer???
-        calculate_metric((float4)(0, polar_camera), g_metric);
-
-        float4 co_basis = (float4){sqrt(-g_metric[0]), sqrt(g_metric[1]), sqrt(g_metric[2]), sqrt(g_metric[3])};
-
-        float4 bt = (float4)(1/co_basis.x, 0, 0, 0);
-        float4 br = (float4)(0, 1/co_basis.y, 0, 0);
-        float4 btheta = (float4)(0, 0, 1/co_basis.z, 0);
-        float4 bphi = (float4)(0, 0, 0, 1/co_basis.w);
-
-        float lorenz[16] = {};
-        get_lorenz_coeff(bt, g_metric, lorenz);
-
-        float4 cX = tensor_contract(lorenz, btheta);
-        float4 cY = tensor_contract(lorenz, bphi);
-        float4 cZ = tensor_contract(lorenz, br);
-
-        float3 cartesian_cx = spherical_velocity_to_cartesian_velocity(polar_camera, cX.yzw);
-        float3 cartesian_cy = spherical_velocity_to_cartesian_velocity(polar_camera, cY.yzw);
-        float3 cartesian_cz = spherical_velocity_to_cartesian_velocity(polar_camera, cZ.yzw);
-
-        pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
-
-        float4 pixel_x = pixel_direction.x * cX;
-        float4 pixel_y = pixel_direction.y * cY;
-        float4 pixel_z = pixel_direction.z * cZ;
-
-        float4 vec = pixel_x + pixel_y + pixel_z;
-
-        float4 pixel_N = vec / (dot(lower_index(vec, g_metric), vec));
-        pixel_N = fix_light_velocity2(pixel_N, g_metric);
-
-        lightray_velocity = pixel_N;
-        lightray_spacetime_position = (float4)(0, polar_camera);
-
-        is_kruskal = false;
-    }*/
 
     //lightray_velocity.y = -lightray_velocity.y;
 
@@ -1194,7 +1113,7 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
 
             if(r_value >= 20)
             {
-                ds = r_value / 10;
+                //ds = r_value / 10;
             }
         }
         else
@@ -1216,7 +1135,7 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
             }*/
         }
 
-        if(!is_radius_leq_than(lightray_spacetime_position, is_kruskal, 40000) || is_radius_leq_than(lightray_spacetime_position, is_kruskal, 0.5))
+        if(!is_radius_leq_than(lightray_spacetime_position, is_kruskal, 40) || is_radius_leq_than(lightray_spacetime_position, is_kruskal, 0.5))
         {
             float r_value = 0;
 
