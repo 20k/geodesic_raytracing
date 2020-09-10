@@ -227,11 +227,6 @@ int main()
         args.push_back(camera_quat);
         args.push_back(clbackground);
 
-        /*if(!kruskal)
-            clctx.cqueue.exec("do_raytracing_polar", args, {win.get_window_size().x(), win.get_window_size().y()}, {16, 16});
-        else
-            clctx.cqueue.exec("do_raytracing_kruskal", args, {win.get_window_size().x(), win.get_window_size().y()}, {16, 16});*/
-
         clctx.cqueue.exec("do_raytracing_multicoordinate", args, {win.get_window_size().x(), win.get_window_size().y()}, {16, 16});
 
         rtex.unacquire(clctx.cqueue);
