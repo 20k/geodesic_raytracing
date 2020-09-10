@@ -28,8 +28,8 @@ vec4f cartesian_to_schwarz(vec4f position)
 int main()
 {
     render_settings sett;
-    sett.width = 800;
-    sett.height = 600;
+    sett.width = 1500;
+    sett.height = 800;
     sett.opencl = true;
     sett.no_double_buffer = true;
 
@@ -56,7 +56,7 @@ int main()
     rtex.create_from_texture(tex.handle);
 
     sf::Image img;
-    img.loadFromFile("background.png");
+    img.loadFromFile("background_med.png");
 
     cl::image clbackground(clctx.ctx);
     //clbackground.alloc(sizeof(uint8_t) * img.getSize().x * img.getSize().y);

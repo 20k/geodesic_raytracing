@@ -845,6 +845,30 @@ float4 schwarzs_velocity_to_kruskal_velocity(float4 pos, float4 dpos)
     return (float4)(dT, dX, dpos.zw);
 }
 
+float r_to_T2_m_X2(float radius)
+{
+    float rs = 1;
+
+    return (1 - radius / rs) * exp(radius / rs);
+}
+
+bool is_radius_leq_than(float4 spacetime_position, bool is_kruskal, float radius)
+{
+    if(!is_kruskal)
+    {
+        return spacetime_position.y < radius;
+    }
+    else
+    {
+        float cr = r_to_T2_m_X2(radius);
+
+        float T = spacetime_position.x;
+        float X = spacetime_position.y;
+
+        return T*T - X*X >= cr;
+    }
+}
+
 __kernel
 void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4 cartesian_camera_pos, float4 camera_quat, __read_only image2d_t background)
 {
@@ -977,7 +1001,13 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
         lightray_velocity = new_vel;
     }
 
-    float last_r_value = 0;
+    ///T is 0 because time coordinate is 0
+    //float T_at_transition_radius = rt_to_T_krus(rs * 1.15, 0);
+
+    float krus_radius = 1.15 * rs;
+
+    float T2_m_X2_transition = r_to_T2_m_X2(krus_radius);
+    float krus_inner_cutoff = r_to_T2_m_X2(0.5 * rs);
 
     int bad_rays = 0;
 
@@ -994,7 +1024,7 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
             break;
         }*/
 
-        float r_value = 0;
+        /*float r_value = 0;
 
         if(is_kruskal)
         {
@@ -1006,47 +1036,69 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
         else
         {
             r_value = lightray_spacetime_position.y;
+        }*/
+
+        /*if(r_value < 0.025 * rs)
+            break;*/
+
+        /*if(r_value <= rs && it >= 10000 && polar_camera.x >= rs * 1.1)
+            break;*/
+
+        if(!is_kruskal)
+        {
+            if(lightray_spacetime_position.y < rs * 1.1)
+            {
+                is_kruskal = true;
+
+                float4 new_pos = schwarzs_position_to_kruskal_position(lightray_spacetime_position);
+                float4 new_vel = schwarzs_velocity_to_kruskal_velocity(lightray_spacetime_position, lightray_velocity);
+
+                lightray_spacetime_position = new_pos;
+                lightray_velocity = new_vel;
+            }
         }
 
-        last_r_value = r_value;
+        //if(r_value >= rs * 1.15 && is_kruskal)
 
-        if(r_value < 0.025 * rs)
-            break;
-
-        if(r_value <= rs && it >= 10000 && polar_camera.x >= rs * 1.1)
-            break;
-
-        if(r_value < rs * 1.1 && !is_kruskal)
+        if(is_kruskal)
         {
-            is_kruskal = true;
+            float T = lightray_spacetime_position.x;
+            float X = lightray_spacetime_position.y;
 
-            float4 new_pos = schwarzs_position_to_kruskal_position(lightray_spacetime_position);
-            float4 new_vel = schwarzs_velocity_to_kruskal_velocity(lightray_spacetime_position, lightray_velocity);
+            ///https://www.wolframalpha.com/input/?i=%281+-+r%29+*+e%5Er%2C+r+from+0+to+3
+            if(T*T - X*X < T2_m_X2_transition)
+            {
+                is_kruskal = false;
 
-            lightray_spacetime_position = new_pos;
-            lightray_velocity = new_vel;
-            //write_imagef(out, (int2){cx, cy}, (float4)(1, 0, 0, 1));
-            //return;
-        }
+                float high_r = TX_to_r_krus_highprecision(lightray_spacetime_position.x, lightray_spacetime_position.y);
 
-        if(r_value >= rs * 1.15 && is_kruskal)
-        {
-            is_kruskal = false;
+                float4 new_pos = kruskal_position_to_schwarzs_position_with_r(lightray_spacetime_position, high_r);
+                float4 new_vel = kruskal_velocity_to_schwarzs_velocity_with_r(lightray_spacetime_position, lightray_velocity, high_r);
 
-            float high_r = TX_to_r_krus_highprecision(lightray_spacetime_position.x, lightray_spacetime_position.y);
-
-            float4 new_pos = kruskal_position_to_schwarzs_position_with_r(lightray_spacetime_position, high_r);
-            float4 new_vel = kruskal_velocity_to_schwarzs_velocity_with_r(lightray_spacetime_position, lightray_velocity, high_r);
-
-            lightray_spacetime_position = new_pos;
-            lightray_velocity = new_vel;
+                lightray_spacetime_position = new_pos;
+                lightray_velocity = new_vel;
+            }
         }
 
         #ifdef NO_EVENT_HORIZON_CROSSING
-        if(r_value <= rs)
+        if(is_kruskal)
         {
-            write_imagef(out, (int2)(cx, cy), (float4)(0,0,0,1));
-            return;
+            float T = lightray_spacetime_position.x;
+            float X = lightray_spacetime_position.y;
+
+            if(T*T - X*X >= 0)
+            {
+                write_imagef(out, (int2)(cx, cy), (float4)(0,0,0,1));
+                return;
+            }
+        }
+        else
+        {
+            if(lightray_spacetime_position.y <= rs)
+            {
+                write_imagef(out, (int2)(cx, cy), (float4)(0,0,0,1));
+                return;
+            }
         }
         #endif
 
@@ -1076,6 +1128,8 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
             float new_max = 4 * rs;
             float new_min = 1.1 * rs;
 
+            float r_value = lightray_spacetime_position.y;
+
             float interp = clamp(r_value, new_min, new_max);
             float frac = (interp - new_min) / (new_max - new_min);
 
@@ -1083,15 +1137,28 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
         }
         else
         {
-            float interp = clamp(r_value, min_radius, max_radius);
+            /*float interp = clamp(r_value, min_radius, max_radius);
             float frac = (interp - min_radius) / (max_radius - min_radius);
-            ds = mix(max_ds, min_ds, frac);
+            ds = mix(max_ds, min_ds, frac);*/
 
-            //ds = 0.01;
+            ds = min_ds;
         }
 
-        if(r_value > 60 || r_value < 0.5)
+        //if(r_value > 60 || r_value < 0.5)
+
+        if(!is_radius_leq_than(lightray_spacetime_position, is_kruskal, 60) || is_radius_leq_than(lightray_spacetime_position, is_kruskal, 0.5))
         {
+            float r_value = 0;
+
+            if(is_kruskal)
+            {
+                r_value = TX_to_r_krus_highprecision(lightray_spacetime_position.x, lightray_spacetime_position.y);
+            }
+            else
+            {
+                r_value = lightray_spacetime_position.y;
+            }
+
             float3 cart_here = polar_to_cartesian((float3)(r_value, lightray_spacetime_position.zw));
 
             cart_here = rotate_vector(new_basis_x, new_basis_y, new_basis_z, cart_here);
@@ -1156,6 +1223,7 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
         else
             calculate_partial_derivatives(lightray_spacetime_position, g_partials);
 
+        #ifndef NO_EVENT_HORIZON_CROSSING
         if(is_kruskal)
         {
             float ftol = 0.001;
@@ -1169,6 +1237,7 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
                 return;
             }
         }
+        #endif // NO_HORIZON_CROSSING
 
         ///diagonal of the metric, because it only has diagonals
         float g_inv[4] = {1/g_metric[0], 1/g_metric[1], 1/g_metric[2], 1/g_metric[3]};
