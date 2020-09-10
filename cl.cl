@@ -942,7 +942,6 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
         printf("DIFF %f %f %f %f\n", diff.x, diff.y, diff.z, diff.w);
     }*/
 
-    ///the inaccuracy here is fairly bad, not sure what to do because we're using lorenz contracted basises
     float Xpolar_r = TXdTdX_to_dr_with_r(krus_camera.x, krus_camera.y, cX.x, cX.y, polar_camera.x);
     float Hpolar_r = TXdTdX_to_dr_with_r(krus_camera.x, krus_camera.y, cY.x, cY.y, polar_camera.x);
     float Ppolar_r = TXdTdX_to_dr_with_r(krus_camera.x, krus_camera.y, cZ.x, cZ.y, polar_camera.x);
@@ -991,6 +990,14 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
 
     bool is_kruskal = true;
 
+    ///so, co_basis.y blows up because its basically 0 once you head away from the black hole
+    ///definitely need a new basis basically
+    if(cx == width/2 && cy == height/2)
+    {
+        printf("COB %f\n", co_basis.y);
+        //printf("DBG %f %f %f\n", cZ.x, cZ.y, cZ.z);
+    }
+
     if(polar_camera.x >= rs * 1.15)
     {
         is_kruskal = false;
@@ -1002,6 +1009,7 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
         lightray_spacetime_position = new_pos;
         lightray_velocity = new_vel;
     }
+
 
     ///T is 0 because time coordinate is 0
     //float T_at_transition_radius = rt_to_T_krus(rs * 1.15, 0);
@@ -1085,6 +1093,11 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
             float frac = (interp - new_min) / (new_max - new_min);
 
             ds = mix(ambient_precision, subambient_precision, frac);
+
+            if(r_value >= 20)
+            {
+                ds = r_value / 20;
+            }
         }
         else
         {
@@ -1105,7 +1118,7 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
             }*/
         }
 
-        if(!is_radius_leq_than(lightray_spacetime_position, is_kruskal, 60) || is_radius_leq_than(lightray_spacetime_position, is_kruskal, 0.5))
+        if(!is_radius_leq_than(lightray_spacetime_position, is_kruskal, 40000) || is_radius_leq_than(lightray_spacetime_position, is_kruskal, 0.5))
         {
             float r_value = 0;
 
