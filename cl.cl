@@ -965,6 +965,8 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
     float4 lightray_velocity = pixel_N;
     float4 lightray_spacetime_position = krus_camera;
 
+    //lightray_velocity.y = -lightray_velocity.y;
+
     float ambient_precision = 0.001;
     float subambient_precision = 0.5;
 
@@ -1027,14 +1029,13 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
             }
         }
 
-        //if(r_value >= rs * 1.15 && is_kruskal)
-
         if(is_kruskal)
         {
             float T = lightray_spacetime_position.x;
             float X = lightray_spacetime_position.y;
 
             ///https://www.wolframalpha.com/input/?i=%281+-+r%29+*+e%5Er%2C+r+from+0+to+3
+            ///if radius >= krus_radius
             if(T*T - X*X < T2_m_X2_transition)
             {
                 is_kruskal = false;
