@@ -578,7 +578,7 @@ float trdtdr_to_dX(float t, float r, float dt, float dr)
     if(r > rs)
     {
         ///https://www.wolframalpha.com/input/?i=D%5B%28r%2Fk+-+1%29%5E0.5+*+%28e%5E%280.5+*+r%2Fk%29%29+*+cosh%280.5+*+t%2Fk%29%2C+r%5D+*+r0+%2B+D%5B%28r%2Fk+-+1%29%5E0.5+*+%28e%5E%280.5+*+r%2Fk%29%29+*+cosh%280.5+*+t%2Fk%29%2C+t%5D+*+t0
-        return exp((0.5 * r)/k) * (r * (2 * dr * cosh((0.5 * t)/k) + dt * (exp((0.5 * t/k) - exp(-(0.5 * t)/k))) - 2 * k * dt * sinh((0.5 * t)/k))) / (4 * k * k * sqrt((r - k)/k));
+        return exp((0.5 * r)/k) * (r * (2 * dr * cosh((0.5 * t)/k) + dt * (exp((0.5 * t/k)) - exp(-(0.5 * t)/k))) - 2 * k * dt * sinh((0.5 * t)/k)) / (4 * k * k * sqrt((r - k)/k));
     }
     else
     {
@@ -1143,6 +1143,23 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
 
     ///T is 0 because time coordinate is 0
     //float T_at_transition_radius = rt_to_T_krus(rs * 1.15, 0);
+
+    if(cx == width/2 && cy == height/2)
+    {
+        float4 some_position = (float4)(0.5,1.5,2.5,3.5);
+        float4 some_vector = (float4)(2.5,3.5,4.5,5.5);
+
+        float4 to_krus_pos = schwarzs_position_to_kruskal_position(some_position);
+        float4 to_krus_vel = schwarzs_velocity_to_kruskal_velocity(some_position, some_vector);
+        float high_r = TX_to_r_krus_highprecision(to_krus_pos.x, to_krus_pos.y);
+
+        ///3.915231 8.341846 4.500000 5.500000 for kruskal vel, need to check
+
+        float4 and_back = kruskal_position_to_schwarzs_position_with_r(to_krus_pos, high_r);
+        float4 vback = kruskal_velocity_to_schwarzs_velocity_with_r(to_krus_pos, to_krus_vel, high_r);
+
+        printf("BACK %f %f %f %f\n", vback.x, vback.y, vback.z, vback.w);
+    }
 
     float krus_radius = 1.15 * rs;
 
