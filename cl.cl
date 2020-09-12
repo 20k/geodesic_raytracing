@@ -1394,25 +1394,6 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
 
         #endif // EULER_INTEGRATION
 
-        //#define REARRANGED_VERLET
-        #ifdef REARRANGED_VERLET
-
-        {
-            if(is_kruskal)
-                calculate_metric_krus(lightray_spacetime_position, g_metric);
-            else
-                calculate_metric(lightray_spacetime_position, g_metric);
-
-            if(is_kruskal)
-                calculate_partial_derivatives_krus(lightray_spacetime_position, g_partials);
-            else
-                calculate_partial_derivatives(lightray_spacetime_position, g_partials);
-        }
-
-        float4 next_acceleration = calculate_acceleration(lightray_velocity, g_metric, g_partials);
-
-        #endif // REARRANGED_VERLET
-
         #define VERLET_INTEGRATION
         #ifdef VERLET_INTEGRATION
         float4 next_position = lightray_spacetime_position + lightray_velocity * ds + 0.5 * lightray_acceleration * ds * ds;
