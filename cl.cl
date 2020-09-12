@@ -302,7 +302,7 @@ float3 lin_to_srgb(float3 val)
     return wn;
 }*/
 
-/*float lambert_w0(float x)
+float lambert_w0_approx(float x)
 {
   const float c1 = 4.0 / 3.0;
   const float c2 = 7.0 / 3.0;
@@ -339,7 +339,7 @@ float3 lin_to_srgb(float3 val)
   wn = wn * ( 1.0 + en2 );
 
   return wn;
-}*/
+}
 
 float lambert_w0_newton(float x)
 {
@@ -403,6 +403,8 @@ float lambert_w0_highprecision(float x)
 float lambert_w0(float x)
 {
     return lambert_w0_halley(x);
+
+    //return lambert_w0_halley(x);
 
     //return lambert_w0_halley(x);
 }
@@ -478,6 +480,8 @@ void calculate_partial_derivatives_krus(float4 spacetime_position, float g_metri
     float fXT = k * (1 + lambert_interior);
 
     float f10 = 0;
+
+    float xt = X*X - T*T;
 
     if(fabs(lambert_interior) > 0.00001)
         f10 = (2 * k * X * lambert_interior) / ((X*X - T*T) * (lambert_interior + 1));
@@ -1164,6 +1168,31 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
 
     int bad_rays = 0;
 
+    if(cx == width/2 && cy == height/2)
+    {
+        /*ORIGINAL POS 14.207630 1.092663 1.570796 -1.031804 REORIGINAL 14.193185 1.091771 1.570796 -1.031804
+        HI 11.101505 -0.932047 0.000000 0.417340  orig 0.464286 -0.029032 0.000000 0.417340*/
+
+        /*ORIGINAL POS 13.010679 1.098720 1.570796 0.304009 REORIGINAL 12.997944 1.100110 1.570796 0.304009
+        HI 9.631205 -0.760206 0.000000 1.255385  orig 7.402597 -0.567387 0.000000 1.255385*/
+
+        float4 input_position = (float4)(14.207630, 1.092663, 1.570796, -1.031804);
+        float4 input_velocity = (float4)(11.101505, -0.932047, 0.000000, 0.417340);
+
+        //float4 input_position = (float4)(13.010679, 1.098720, 1.570796, 0.304009);
+        //float4 input_velocity = (float4)(9.631205, -0.760206, 0.000000, 1.255385 );
+
+        float4 kruskal_position = schwarzs_position_to_kruskal_position(input_position);
+        float4 kruskal_velocity = schwarzs_velocity_to_kruskal_velocity(input_position, input_velocity);
+
+        float4 reschwarzs_position = kruskal_position_to_schwarzs_position(kruskal_position);
+        float4 reschwarzs_velocity = kruskal_velocity_to_schwarzs_velocity(kruskal_position, kruskal_velocity);
+
+        printf("RESCHWARZS %f %f %f %f\n", reschwarzs_velocity.x, reschwarzs_velocity.y, reschwarzs_velocity.z, reschwarzs_velocity.w);
+    }
+
+    return;
+
     for(int it=0; it < 60000; it++)
     {
         float g_partials[16] = {0};
@@ -1183,6 +1212,34 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
                 /*float4 ivel = schwarzs_velocity_to_kruskal_velocity(lightray_spacetime_position, intermediate_velocity);
 
                 intermediate_velocity = ivel;*/
+
+                float g_metric2[4] = {0};
+                calculate_metric_krus(new_pos, g_metric2);
+
+                float g_metric3[4] = {0};
+                calculate_metric(lightray_spacetime_position, g_metric3);
+
+                {
+                    float4 original_position = kruskal_position_to_schwarzs_position(new_pos);
+                    float4 original_velocity = kruskal_velocity_to_schwarzs_velocity(new_pos, new_vel);
+
+                    if(cx == width/2 && cy == height/2)
+                    {
+                        ///ORIGINAL POS 15.639179 1.097281 1.570796 -1.104478 REORIGINAL 15.719241 1.084516 1.570796 -1.104478
+
+                        printf("ORIGINAL POS %f %f %f %f REORIGINAL %f %f %f %f\n", lightray_spacetime_position.x, lightray_spacetime_position.y, lightray_spacetime_position.z, lightray_spacetime_position.w,
+                                                                                    original_position.x, original_position.y, original_position.z, original_position.w);
+
+                        ///HI 10.778732 -0.919415 0.000000 0.524834  orig -3.716216 0.342751 0.000000 0.524834
+                        ///so getting fairly different values than I should be for velocity, doesn't roundtrip
+
+                        printf("HI %f %f %f %f  orig %f %f %f %f", lightray_velocity.x, lightray_velocity.y, lightray_velocity.z, lightray_velocity.w,
+                                                                    original_velocity.x, original_velocity.y, original_velocity.z, original_velocity.w);
+
+                        printf("HDS %f\n", calculate_ds(new_vel, g_metric2));
+                        printf("HDS2 %f\n", calculate_ds(lightray_velocity, g_metric3));
+                    }
+                }
 
                 lightray_spacetime_position = new_pos;
                 lightray_velocity = new_vel;
@@ -1446,11 +1503,49 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
         }
 
         ///so normalising here breaks everything, which is distressing
-        lightray_velocity = fix_light_velocity2(lightray_velocity, g_metric);
+        //lightray_velocity = fix_light_velocity2(lightray_velocity, g_metric);
+
+        ///so, after the coordinate transform, the ray is just going in the wrong direction, there's no way around it
+        /*if(cx == width/2 && cy == height/2)
+        {
+            float r = lightray_spacetime_position.y;
+            int is_krus = is_kruskal;
+
+            if(is_kruskal)
+            {
+                r = TX_to_r_krus(lightray_spacetime_position.x, lightray_spacetime_position.y);
+            }
+
+            if(r < 2)
+            {
+                printf("DS %f r %f is krus %i\n", calculate_ds(lightray_velocity, g_metric), r, is_krus);
+                printf("MET %f %f %f %f\n", g_metric[0], g_metric[1], g_metric[2], g_metric[3]);
+            }
+        }*/
+
         float4 acceleration = calculate_acceleration(lightray_velocity, g_metric, g_partials);
+
         lightray_velocity += acceleration * ds;
         lightray_velocity = fix_light_velocity2(lightray_velocity, g_metric);
+
         lightray_spacetime_position += lightray_velocity * ds;
+
+
+        {
+            float g_metric2[4] = {0};
+
+            if(is_kruskal)
+            {
+                calculate_metric_krus(lightray_spacetime_position, g_metric2);
+            }
+            else
+            {
+                calculate_metric(lightray_spacetime_position, g_metric2);
+            }
+
+            lightray_velocity = fix_light_velocity2(lightray_velocity, g_metric2);
+        }
+
         #endif // EULER_INTEGRATION
 
         //#define REARRANGED_VERLET
