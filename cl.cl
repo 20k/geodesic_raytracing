@@ -1169,27 +1169,16 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
                 lightray_spacetime_position = new_pos;
                 lightray_velocity = new_vel;
 
-                #if 1
-                /*float4 last_new_pos = schwarzs_position_to_kruskal_position(last_position);
-                float4 last_new_vel = schwarzs_velocity_to_kruskal_velocity(last_position, last_velocity);
+                float4 last_new_pos = schwarzs_position_to_kruskal_position((float4)(0, last_position.yzw));
+                float4 last_new_vel = schwarzs_velocity_to_kruskal_velocity((float4)(0, last_position.yzw), last_velocity);
 
                 last_position = last_new_pos;
-                last_velocity = last_new_vel;*/
+                last_velocity = last_new_vel;
 
 
-                /*float g_metric2[4] = {0};
-                calculate_metric_krus(lightray_spacetime_position, g_metric2);*/
+                float4 old_lightray_acceleration = ((lightray_spacetime_position - last_position) - (last_velocity * last_ds)) / (0.5 * last_ds * last_ds);
 
-                /*float g_partials2[16] = {0};
-                calculate_partial_derivatives_krus(lightray_spacetime_position, g_partials2);*/
-
-                //lightray_velocity = fix_light_velocity2(lightray_velocity, g_metric2);
-                /*intermediate_velocity = fix_light_velocity2(intermediate_velocity, g_metric2);
-                lightray_acceleration = calculate_acceleration(intermediate_velocity, g_metric2, g_partials2);
-                last_velocity = fix_light_velocity2(last_velocity, g_metric2);*/
-                #endif // 0
-
-                //lightray_acceleration = ((lightray_spacetime_position - last_position) - (last_velocity * last_ds)) / (0.5 * last_ds * last_ds);
+                lightray_acceleration = ((lightray_velocity - last_velocity) / (0.5 * last_ds)) - old_lightray_acceleration;
             }
         }
         #endif // NO_KRUSKAL
@@ -1210,19 +1199,9 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
                 float4 new_pos = kruskal_position_to_schwarzs_position_with_r(lightray_spacetime_position, high_r);
                 float4 new_vel = kruskal_velocity_to_schwarzs_velocity_with_r(lightray_spacetime_position, lightray_velocity, high_r);
 
-                /*float4 ivel = kruskal_velocity_to_schwarzs_velocity_with_r(lightray_spacetime_position, intermediate_velocity, high_r);
-
-                intermediate_velocity = ivel;*/
-
                 lightray_spacetime_position = new_pos;
                 lightray_velocity = new_vel;
 
-                #if 0
-                float g_metric2[4] = {0};
-                calculate_metric(lightray_spacetime_position, g_metric2);
-
-                float g_partials2[16] = {0};
-                calculate_partial_derivatives(lightray_spacetime_position, g_partials2);
 
                 float last_high_r = TX_to_r_krus_highprecision(last_position.x, last_position.y);
 
@@ -1232,21 +1211,14 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
                 last_position = last_new_pos;
                 last_velocity = last_new_vel;
 
-                /*calculate_metric(new_pos, g_metric);
-                calculate_partial_derivatives(new_pos, g_partials);*/
+                float4 old_lightray_acceleration = ((lightray_spacetime_position - last_position) - (last_velocity * last_ds)) / (0.5 * last_ds * last_ds);
 
-                lightray_velocity = fix_light_velocity2(lightray_velocity, g_metric2);
-                intermediate_velocity = fix_light_velocity2(intermediate_velocity, g_metric2);
-                lightray_acceleration = calculate_acceleration(intermediate_velocity, g_metric2, g_partials2);
-                last_velocity = fix_light_velocity2(last_velocity, g_metric2);
-                #endif // 0
-
-                //lightray_acceleration = ((lightray_spacetime_position - last_position) - (last_velocity * last_ds)) / (0.5 * last_ds * last_ds);
+                lightray_acceleration = ((lightray_velocity - last_velocity) / (0.5 * last_ds)) - old_lightray_acceleration;
             }
         }
 
-        /*last_position = lightray_spacetime_position;
-        last_velocity = lightray_velocity;*/
+        last_position = lightray_spacetime_position;
+        last_velocity = lightray_velocity;
 
         #ifdef NO_EVENT_HORIZON_CROSSING
         if(is_kruskal)
@@ -1398,7 +1370,7 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
 
         ///euler
 
-        #define EULER_INTEGRATION
+        //#define EULER_INTEGRATION
         #ifdef EULER_INTEGRATION
         {
             if(is_kruskal)
@@ -1441,7 +1413,7 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
 
         #endif // REARRANGED_VERLET
 
-        //#define VERLET_INTEGRATION
+        #define VERLET_INTEGRATION
         #ifdef VERLET_INTEGRATION
         float4 next_position = lightray_spacetime_position + lightray_velocity * ds + 0.5 * lightray_acceleration * ds * ds;
         float4 intermediate_next_velocity = lightray_velocity + lightray_acceleration * ds;
@@ -1467,7 +1439,8 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
         last_ds = ds;
 
         lightray_spacetime_position = next_position;
-        lightray_velocity = fix_light_velocity2(next_velocity, g_metric);
+        //lightray_velocity = fix_light_velocity2(next_velocity, g_metric);
+        lightray_velocity = next_velocity;
         lightray_acceleration = next_acceleration;
         intermediate_velocity = intermediate_next_velocity;
         #endif // VERLET_INTEGRATION
