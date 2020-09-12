@@ -1141,26 +1141,6 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
     //float4 last_acceleration = (float4)(0,0,0,0);
     float last_ds = 1;
 
-    ///T is 0 because time coordinate is 0
-    //float T_at_transition_radius = rt_to_T_krus(rs * 1.15, 0);
-
-    /*if(cx == width/2 && cy == height/2)
-    {
-        float4 some_position = (float4)(1.5,1.5,2.5,3.5);
-        float4 some_vector = (float4)(2.5,3.5,4.5,5.5);
-
-        float4 to_krus_pos = schwarzs_position_to_kruskal_position(some_position);
-        float4 to_krus_vel = schwarzs_velocity_to_kruskal_velocity(some_position, some_vector);
-        float high_r = TX_to_r_krus_highprecision(to_krus_pos.x, to_krus_pos.y);
-
-        ///3.915231 8.341846 4.500000 5.500000 for kruskal vel, need to check
-
-        float4 and_back = kruskal_position_to_schwarzs_position_with_r(to_krus_pos, high_r);
-        float4 vback = kruskal_velocity_to_schwarzs_velocity_with_r(to_krus_pos, to_krus_vel, high_r);
-
-        printf("BACK %f %f %f %f\n", vback.x, vback.y, vback.z, vback.w);
-    }*/
-
     float krus_radius = 1.15 * rs;
 
     float T2_m_X2_transition = r_to_T2_m_X2(krus_radius);
@@ -1168,66 +1148,9 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
 
     int bad_rays = 0;
 
-    #if 0
-    if(cx == width/2 && cy == height/2)
-    {
-        /*ORIGINAL POS 14.207630 1.092663 1.570796 -1.031804 REORIGINAL 14.193185 1.091771 1.570796 -1.031804
-        HI 11.101505 -0.932047 0.000000 0.417340  orig 0.464286 -0.029032 0.000000 0.417340*/
-
-        /*ORIGINAL POS 13.010679 1.098720 1.570796 0.304009 REORIGINAL 12.997944 1.100110 1.570796 0.304009
-        HI 9.631205 -0.760206 0.000000 1.255385  orig 7.402597 -0.567387 0.000000 1.255385*/
-
-        float4 input_position = (float4)(14.207630, 1.092663, 1.570796, -1.031804);
-        float4 input_velocity = (float4)(11.101505, -0.932047, 0.000000, 0.417340);
-
-        //float4 input_position = (float4)(13.010679, 1.098720, 1.570796, 0.304009);
-        //float4 input_velocity = (float4)(9.631205, -0.760206, 0.000000, 1.255385 );
-
-        float4 kruskal_position = schwarzs_position_to_kruskal_position(input_position);
-        float4 kruskal_velocity = schwarzs_velocity_to_kruskal_velocity(input_position, input_velocity);
-
-        printf("Kruskal pos %f %f %f %f\nkruskal vel %f %f %f %f\n", kruskal_position.x, kruskal_position.y, kruskal_position.z, kruskal_position.w,
-                                            kruskal_velocity.x, kruskal_velocity.y, kruskal_velocity.z, kruskal_velocity.w);
-
-        float high_r = TX_to_r_krus_highprecision(kruskal_position.x, kruskal_position.y);
-
-        //high_r = input_position.y;
-
-        float4 reschwarzs_position = kruskal_position_to_schwarzs_position_with_r(kruskal_position, high_r);
-        float4 reschwarzs_velocity = kruskal_velocity_to_schwarzs_velocity_with_r(kruskal_position, kruskal_velocity, high_r);
-
-        printf("RESCHWARZS position %f %f %f %f\n", reschwarzs_position.x, reschwarzs_position.y, reschwarzs_position.z, reschwarzs_position.w);
-        printf("RESCHWARZS velocity %f %f %f %f\n", reschwarzs_velocity.x, reschwarzs_velocity.y, reschwarzs_velocity.z, reschwarzs_velocity.w);
-
-        printf("R vals: Original %f Recalculated %f\n", input_position.y, high_r);
-
-        /*
-        schwarzs pos 14.207630, 1.092663, 1.570796, -1.031804
-        schwarzs vel 11.101505, -0.932047, 0.000000, 0.417340
-        Kruskal pos 319.771240 319.771667 1.570796 -1.031804
-        kruskal vel 17.750223 17.753166 0.000000 0.417340
-        RESCHWARZS position 14.237637 1.091771 1.570796 -1.031804
-        RESCHWARZS velocity -6.828571 0.583504 0.000000 0.417340*/
-
-        ///calculated X = 319.772
-        ///calculated T = 319.771
-        ///so kruskals really is just terribly numerically unstable
-
-        ///successfully got a T velocity of 17.7497 via wolfram alpha, which roughly matches our kruskal velocities
-        ///successfully got an X velocity of 17.7404 via wolfram alpha, now for T
-        ///allowing for a small slack with lambert_w0
-
-        ///so, th eproblem seems to be numerical inaccuracy, T^2 - X^2 is a very imprecise quantity
-    }
-
-    return;
-    #endif // 0
-
     for(int it=0; it < 60000; it++)
     {
         float g_partials[16] = {0};
-
-        bool tform = false;
 
         #ifndef NO_KRUSKAL
         if(!is_kruskal)
@@ -1242,34 +1165,6 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
                 /*float4 ivel = schwarzs_velocity_to_kruskal_velocity(lightray_spacetime_position, intermediate_velocity);
 
                 intermediate_velocity = ivel;*/
-
-                /*float g_metric2[4] = {0};
-                calculate_metric_krus(new_pos, g_metric2);
-
-                float g_metric3[4] = {0};
-                calculate_metric(lightray_spacetime_position, g_metric3);
-
-                {
-                    float4 original_position = kruskal_position_to_schwarzs_position(new_pos);
-                    float4 original_velocity = kruskal_velocity_to_schwarzs_velocity(new_pos, new_vel);
-
-                    if(cx == width/2 && cy == height/2)
-                    {
-                        ///ORIGINAL POS 15.639179 1.097281 1.570796 -1.104478 REORIGINAL 15.719241 1.084516 1.570796 -1.104478
-
-                        printf("ORIGINAL POS %f %f %f %f REORIGINAL %f %f %f %f\n", lightray_spacetime_position.x, lightray_spacetime_position.y, lightray_spacetime_position.z, lightray_spacetime_position.w,
-                                                                                    original_position.x, original_position.y, original_position.z, original_position.w);
-
-                        ///HI 10.778732 -0.919415 0.000000 0.524834  orig -3.716216 0.342751 0.000000 0.524834
-                        ///so getting fairly different values than I should be for velocity, doesn't roundtrip
-
-                        printf("HI %f %f %f %f  orig %f %f %f %f", lightray_velocity.x, lightray_velocity.y, lightray_velocity.z, lightray_velocity.w,
-                                                                    original_velocity.x, original_velocity.y, original_velocity.z, original_velocity.w);
-
-                        printf("HDS %f\n", calculate_ds(new_vel, g_metric2));
-                        printf("HDS2 %f\n", calculate_ds(lightray_velocity, g_metric3));
-                    }
-                }*/
 
                 lightray_spacetime_position = new_pos;
                 lightray_velocity = new_vel;
@@ -1287,20 +1182,6 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
 
                 /*float g_partials2[16] = {0};
                 calculate_partial_derivatives_krus(lightray_spacetime_position, g_partials2);*/
-
-                /*if(cx == width/2 && cy == height/2)
-                {
-                    lightray_velocity = fix_light_velocity2(lightray_velocity, g_metric2);
-
-                    float ds = calculate_ds(lightray_velocity, g_metric2);
-
-                    printf("LDS %f", ds);
-                }*/
-
-                if(cx == width/2 && cy == height/2)
-                {
-                    tform = true;
-                }
 
                 //lightray_velocity = fix_light_velocity2(lightray_velocity, g_metric2);
                 /*intermediate_velocity = fix_light_velocity2(intermediate_velocity, g_metric2);
@@ -1532,49 +1413,12 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
             }
         }
 
-        ///so normalising here breaks everything, which is distressing
-        //lightray_velocity = fix_light_velocity2(lightray_velocity, g_metric);
-
-        ///so, after the coordinate transform, the ray is just going in the wrong direction, there's no way around it
-        /*if(cx == width/2 && cy == height/2)
-        {
-            float r = lightray_spacetime_position.y;
-            int is_krus = is_kruskal;
-
-            if(is_kruskal)
-            {
-                r = TX_to_r_krus(lightray_spacetime_position.x, lightray_spacetime_position.y);
-            }
-
-            if(r < 2)
-            {
-                printf("DS %f r %f is krus %i\n", calculate_ds(lightray_velocity, g_metric), r, is_krus);
-                printf("MET %f %f %f %f\n", g_metric[0], g_metric[1], g_metric[2], g_metric[3]);
-            }
-        }*/
-
         float4 acceleration = calculate_acceleration(lightray_velocity, g_metric, g_partials);
 
         lightray_velocity += acceleration * ds;
         lightray_velocity = fix_light_velocity2(lightray_velocity, g_metric);
 
         lightray_spacetime_position += lightray_velocity * ds;
-
-
-        /*{
-            float g_metric2[4] = {0};
-
-            if(is_kruskal)
-            {
-                calculate_metric_krus(lightray_spacetime_position, g_metric2);
-            }
-            else
-            {
-                calculate_metric(lightray_spacetime_position, g_metric2);
-            }
-
-            lightray_velocity = fix_light_velocity2(lightray_velocity, g_metric2);
-        }*/
 
         #endif // EULER_INTEGRATION
 
