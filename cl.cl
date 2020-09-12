@@ -1185,10 +1185,22 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
         float4 kruskal_position = schwarzs_position_to_kruskal_position(input_position);
         float4 kruskal_velocity = schwarzs_velocity_to_kruskal_velocity(input_position, input_velocity);
 
+        printf("Kruskal pos %f %f %f %f\nkruskal vel %f %f %f %f\n", kruskal_position.x, kruskal_position.y, kruskal_position.z, kruskal_position.w,
+                                            kruskal_velocity.x, kruskal_velocity.y, kruskal_velocity.z, kruskal_velocity.w);
+
         float4 reschwarzs_position = kruskal_position_to_schwarzs_position(kruskal_position);
         float4 reschwarzs_velocity = kruskal_velocity_to_schwarzs_velocity(kruskal_position, kruskal_velocity);
 
-        printf("RESCHWARZS %f %f %f %f\n", reschwarzs_velocity.x, reschwarzs_velocity.y, reschwarzs_velocity.z, reschwarzs_velocity.w);
+        printf("RESCHWARZS position %f %f %f %f\n", reschwarzs_position.x, reschwarzs_position.y, reschwarzs_position.z, reschwarzs_position.w);
+        printf("RESCHWARZS velocity %f %f %f %f\n", reschwarzs_velocity.x, reschwarzs_velocity.y, reschwarzs_velocity.z, reschwarzs_velocity.w);
+
+        /*
+        schwarzs pos 14.207630, 1.092663, 1.570796, -1.031804
+        schwarzs vel 11.101505, -0.932047, 0.000000, 0.417340
+        Kruskal pos 319.771240 319.771667 1.570796 -1.031804
+        kruskal vel 17.750223 17.753166 0.000000 0.417340
+        RESCHWARZS position 14.237637 1.091771 1.570796 -1.031804
+        RESCHWARZS velocity -6.828571 0.583504 0.000000 0.417340*/
     }
 
     return;
