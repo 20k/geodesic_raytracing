@@ -618,7 +618,7 @@ float TX_to_t(float T, float X)
 {
     float rs = 1;
 
-    if(T * T - X * X < 0)
+    if((T * T - X * X) < 0)
         return 2 * rs * atanh(T / X);
     else
         return 2 * rs * atanh(X / T);
@@ -680,12 +680,9 @@ float TXdTdX_to_dr(float T, float X, float dT, float dX)
         return left + right;
     }
 
-    /*float denom = (X * X - T * T) * (lambert + 1);
+    float denom = (X * X - T * T) * (lambert + 1);
 
-    float num = 2 * k * X * lambert * dX - 2 * k * T * lambert * dT;*/
-
-    float num = 4 * k * lambert * (T * dT - X * dX);
-    float denom = (T - X) * (T + X) * (lambert + 1);
+    float num = 2 * k * X * lambert * dX - 2 * k * T * lambert * dT;
 
     return num / denom;
 }
@@ -722,7 +719,6 @@ float TXdTdX_to_dr_with_r(float T, float X, float dT, float dX, float r)
     }
 
     float denom = (X * X - T * T) * (lambert + 1);
-
     float num = 2 * k * X * lambert * dX - 2 * k * T * lambert * dT;
 
     return num / denom;
@@ -1144,9 +1140,9 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
     ///T is 0 because time coordinate is 0
     //float T_at_transition_radius = rt_to_T_krus(rs * 1.15, 0);
 
-    if(cx == width/2 && cy == height/2)
+    /*if(cx == width/2 && cy == height/2)
     {
-        float4 some_position = (float4)(0.5,1.5,2.5,3.5);
+        float4 some_position = (float4)(1.5,1.5,2.5,3.5);
         float4 some_vector = (float4)(2.5,3.5,4.5,5.5);
 
         float4 to_krus_pos = schwarzs_position_to_kruskal_position(some_position);
@@ -1159,7 +1155,7 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
         float4 vback = kruskal_velocity_to_schwarzs_velocity_with_r(to_krus_pos, to_krus_vel, high_r);
 
         printf("BACK %f %f %f %f\n", vback.x, vback.y, vback.z, vback.w);
-    }
+    }*/
 
     float krus_radius = 1.15 * rs;
 
