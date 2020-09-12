@@ -454,7 +454,7 @@ void calculate_metric_krus_with_r(float4 spacetime_position, float r, float g_me
     g_metric_out[3] = fXT * fXT * sin(theta) * sin(theta);
 }
 
-void calculate_partial_derivatives_krus(float4 spacetime_position, float g_metric_partials[])
+void calculate_partial_derivatives_krus(float4 spacetime_position, float g_metric_partials[16])
 {
     /*TTTT,
       XXXX,
@@ -576,9 +576,20 @@ float trdtdr_to_dX(float t, float r, float dt, float dr)
     float k = rs;
 
     if(r > rs)
+    {
+        ///https://www.wolframalpha.com/input/?i=D%5B%28r%2Fk+-+1%29%5E0.5+*+%28e%5E%280.5+*+r%2Fk%29%29+*+cosh%280.5+*+t%2Fk%29%2C+r%5D+*+r0+%2B+D%5B%28r%2Fk+-+1%29%5E0.5+*+%28e%5E%280.5+*+r%2Fk%29%29+*+cosh%280.5+*+t%2Fk%29%2C+t%5D+*+t0
+        return exp((0.5 * r)/k) * (r * (2 * dr * cosh((0.5 * t)/k) + dt * (exp((0.5 * t/k) - exp(-(0.5 * t)/k))) - 2 * k * dt * sinh((0.5 * t)/k))) / (4 * k * k * sqrt((r - k)/k));
+    }
+    else
+    {
+        ///https://www.wolframalpha.com/input/?i=D%5B%281+-+r%2Fk%29%5E0.5+*+%28e%5E%280.5+*+r%2Fk%29%29+*+sinh%280.5+*+t%2Fk%29%2C+r%5D+*+r0+%2B+D%5B%281+-+r%2Fk%29%5E0.5+*+%28e%5E%280.5+*+r%2Fk%29%29+*+sinh%280.5+*+t%2Fk%29%2C+t%5D+*+t0
+        return exp((0.5 * r)/k) * (dt * (0.5 * k - 0.5 * r) * cosh((0.5 * t) / k) - 0.5 * r * dr * sinh((0.5 * t/k))) / (k * k * sqrt(1-r/k));
+    }
+
+    /*if(r > rs)
         return exp(0.5 * r/k) * (dt * (0.5 * r - 0.5 * k) * sinh((0.5 * t) / k) + 0.5 * r * dr * cosh((0.5 * t) / k)) / (k * k * sqrt(r/k - 1));
     else
-        return exp(0.5 * r/k) * (dt * (0.5 * k - 0.5 * r) * cosh((0.5 * t) / k) - 0.5 * r * dr * sinh((0.5 * t) / k)) / (k * k * sqrt(1 - k/r));
+        return exp(0.5 * r/k) * (dt * (0.5 * k - 0.5 * r) * cosh((0.5 * t) / k) - 0.5 * r * dr * sinh((0.5 * t) / k)) / (k * k * sqrt(1 - k/r));*/
 }
 
 float trdtdr_to_dT(float t, float r, float dt, float dr)
@@ -587,9 +598,20 @@ float trdtdr_to_dT(float t, float r, float dt, float dr)
     float k = rs;
 
     if(r > rs)
+    {
+        ///https://www.wolframalpha.com/input/?i=D%5B%28r%2Fk+-+1%29%5E0.5+*+%28e%5E%280.5+*+r%2Fk%29%29+*+sinh%280.5+*+t%2Fk%29%2C+r%5D+*+r0+%2B+D%5B%28r%2Fk+-+1%29%5E0.5+*+%28e%5E%280.5+*+r%2Fk%29%29+*+sinh%280.5+*+t%2Fk%29%2C+t%5D+*+t0
+        return exp((0.5 * r)/k) * (0.5 * r * dr * sinh((0.5 * t)/k) + dt * (0.5 * r - 0.5 * k) * cosh((0.5 * t/k))) / (k * k * sqrt(r/k - 1));
+    }
+    else
+    {
+        ///https://www.wolframalpha.com/input/?i=D%5B%281+-+r%2Fk%29%5E0.5+*+%28e%5E%280.5+*+r%2Fk%29%29+*+cosh%280.5+*+t%2Fk%29%2C+r%5D+*+r0+%2B+D%5B%281+-+r%2Fk%29%5E0.5+*+%28e%5E%280.5+*+r%2Fk%29%29+*+cosh%280.5+*+t%2Fk%29%2C+t%5D+*+t0
+        return -exp((0.5 * r)/k) * (r * (2 * dr * cosh((0.5 * t)/k) + dt * (exp((0.5 * t)/k) - exp(-(0.5 * t)/k))) - 2 * k * dt * sinh((0.5 * t)/k)) / (4 * k * k * sqrt(-(r-k)/k));
+    }
+
+    /*if(r > rs)
         return exp(0.5 * r/k) * (dt * (0.5 * r - 0.5 * k) * cosh((0.5 * t) / k) + 0.5 * r * dr * sinh((0.5 * t) / k)) / (k * k * sqrt(r/k - 1));
     else
-        return exp(0.5 * r/k) * (dt * (0.5 * k - 0.5 * r) * sinh((0.5 * t) / k) - 0.5 * r * dr * cosh((0.5 * t) / k)) / (k * k * sqrt(1 - k/r));
+        return exp(0.5 * r/k) * (dt * (0.5 * k - 0.5 * r) * sinh((0.5 * t) / k) - 0.5 * r * dr * cosh((0.5 * t) / k)) / (k * k * sqrt(1 - k/r));*/
 }
 
 float TX_to_t(float T, float X)
@@ -626,6 +648,7 @@ float TXdTdX_to_dt(float T, float X, float dT, float dX)
 ///So
 ///
 
+///https://www.wolframalpha.com/input/?i=D%5Bk+*+%281+%2B+W%28%28X+*+X+-+T+*+T%29+%2F+e%29%29%2C+T%5D+*+t0+%2B+D%5Bk+*+%281+%2B+W%28%28X+*+X+-+T+*+T%29+%2F+e%29%29%2C+X%5D+*+x0+
 float TXdTdX_to_dr(float T, float X, float dT, float dX)
 {
     float rs = 1;
@@ -657,9 +680,12 @@ float TXdTdX_to_dr(float T, float X, float dT, float dX)
         return left + right;
     }
 
-    float denom = (X * X - T * T) * (lambert + 1);
+    /*float denom = (X * X - T * T) * (lambert + 1);
 
-    float num = 2 * k * X * lambert * dX - 2 * k * T * lambert * dT;
+    float num = 2 * k * X * lambert * dX - 2 * k * T * lambert * dT;*/
+
+    float num = 4 * k * lambert * (T * dT - X * dX);
+    float denom = (T - X) * (T + X) * (lambert + 1);
 
     return num / denom;
 }
@@ -840,7 +866,7 @@ float4 schwarzs_position_to_kruskal_position(float4 pos)
 float4 schwarzs_velocity_to_kruskal_velocity(float4 pos, float4 dpos)
 {
     float dX = trdtdr_to_dX(pos.x, pos.y, dpos.x, dpos.y);
-    float dT = trdtdr_to_dX(pos.x, pos.y, dpos.x, dpos.y);
+    float dT = trdtdr_to_dT(pos.x, pos.y, dpos.x, dpos.y);
 
     return (float4)(dT, dX, dpos.zw);
 }
@@ -871,10 +897,10 @@ bool is_radius_leq_than(float4 spacetime_position, bool is_kruskal, float radius
 
 float4 calculate_acceleration(float4 lightray_velocity, float g_metric[4], float g_partials[16])
 {
+    float christoff[64] = {0};
+
     ///diagonal of the metric, because it only has diagonals
     float g_inv[4] = {1/g_metric[0], 1/g_metric[1], 1/g_metric[2], 1/g_metric[3]};
-
-    float christoff[64] = {0};
 
     {
         for(int i=0; i < 4; i++)
@@ -1111,6 +1137,7 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
 
     float4 last_position = lightray_spacetime_position;
     float4 last_velocity = lightray_velocity;
+    float4 intermediate_velocity = lightray_velocity;
     //float4 last_acceleration = (float4)(0,0,0,0);
     float last_ds = 1;
 
@@ -1128,6 +1155,8 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
     {
         float g_partials[16] = {0};
 
+        bool tform = false;
+
         #ifndef NO_KRUSKAL
         if(!is_kruskal)
         {
@@ -1138,13 +1167,46 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
                 float4 new_pos = schwarzs_position_to_kruskal_position(lightray_spacetime_position);
                 float4 new_vel = schwarzs_velocity_to_kruskal_velocity(lightray_spacetime_position, lightray_velocity);
 
+                /*float4 ivel = schwarzs_velocity_to_kruskal_velocity(lightray_spacetime_position, intermediate_velocity);
+
+                intermediate_velocity = ivel;*/
+
                 lightray_spacetime_position = new_pos;
                 lightray_velocity = new_vel;
 
-                /*calculate_metric_krus(new_pos, g_metric);
-                calculate_partial_derivatives_krus(new_pos, g_partials);
+                #if 1
+                /*float4 last_new_pos = schwarzs_position_to_kruskal_position(last_position);
+                float4 last_new_vel = schwarzs_velocity_to_kruskal_velocity(last_position, last_velocity);
 
-                lightray_acceleration = calculate_acceleration(lightray_velocity, g_metric, g_partials);*/
+                last_position = last_new_pos;
+                last_velocity = last_new_vel;*/
+
+
+                /*float g_metric2[4] = {0};
+                calculate_metric_krus(lightray_spacetime_position, g_metric2);*/
+
+                /*float g_partials2[16] = {0};
+                calculate_partial_derivatives_krus(lightray_spacetime_position, g_partials2);*/
+
+                /*if(cx == width/2 && cy == height/2)
+                {
+                    lightray_velocity = fix_light_velocity2(lightray_velocity, g_metric2);
+
+                    float ds = calculate_ds(lightray_velocity, g_metric2);
+
+                    printf("LDS %f", ds);
+                }*/
+
+                if(cx == width/2 && cy == height/2)
+                {
+                    tform = true;
+                }
+
+                //lightray_velocity = fix_light_velocity2(lightray_velocity, g_metric2);
+                /*intermediate_velocity = fix_light_velocity2(intermediate_velocity, g_metric2);
+                lightray_acceleration = calculate_acceleration(intermediate_velocity, g_metric2, g_partials2);
+                last_velocity = fix_light_velocity2(last_velocity, g_metric2);*/
+                #endif // 0
 
                 //lightray_acceleration = ((lightray_spacetime_position - last_position) - (last_velocity * last_ds)) / (0.5 * last_ds * last_ds);
             }
@@ -1167,16 +1229,43 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
                 float4 new_pos = kruskal_position_to_schwarzs_position_with_r(lightray_spacetime_position, high_r);
                 float4 new_vel = kruskal_velocity_to_schwarzs_velocity_with_r(lightray_spacetime_position, lightray_velocity, high_r);
 
+                /*float4 ivel = kruskal_velocity_to_schwarzs_velocity_with_r(lightray_spacetime_position, intermediate_velocity, high_r);
+
+                intermediate_velocity = ivel;*/
+
                 lightray_spacetime_position = new_pos;
                 lightray_velocity = new_vel;
 
-                /*calculate_metric(new_pos, g_metric);
-                calculate_partial_derivatives(new_pos, g_partials);
+                #if 0
+                float g_metric2[4] = {0};
+                calculate_metric(lightray_spacetime_position, g_metric2);
 
-                lightray_acceleration = calculate_acceleration(lightray_velocity, g_metric, g_partials);*/
+                float g_partials2[16] = {0};
+                calculate_partial_derivatives(lightray_spacetime_position, g_partials2);
+
+                float last_high_r = TX_to_r_krus_highprecision(last_position.x, last_position.y);
+
+                float4 last_new_pos = kruskal_position_to_schwarzs_position_with_r(last_position, last_high_r);
+                float4 last_new_vel = kruskal_velocity_to_schwarzs_velocity_with_r(last_position, last_velocity, last_high_r);
+
+                last_position = last_new_pos;
+                last_velocity = last_new_vel;
+
+                /*calculate_metric(new_pos, g_metric);
+                calculate_partial_derivatives(new_pos, g_partials);*/
+
+                lightray_velocity = fix_light_velocity2(lightray_velocity, g_metric2);
+                intermediate_velocity = fix_light_velocity2(intermediate_velocity, g_metric2);
+                lightray_acceleration = calculate_acceleration(intermediate_velocity, g_metric2, g_partials2);
+                last_velocity = fix_light_velocity2(last_velocity, g_metric2);
+                #endif // 0
+
                 //lightray_acceleration = ((lightray_spacetime_position - last_position) - (last_velocity * last_ds)) / (0.5 * last_ds * last_ds);
             }
         }
+
+        /*last_position = lightray_spacetime_position;
+        last_velocity = lightray_velocity;*/
 
         #ifdef NO_EVENT_HORIZON_CROSSING
         if(is_kruskal)
@@ -1332,6 +1421,30 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
         #ifdef EULER_INTEGRATION
         {
             if(is_kruskal)
+            {
+                calculate_metric_krus(lightray_spacetime_position, g_metric);
+                calculate_partial_derivatives_krus(lightray_spacetime_position, g_partials);
+            }
+            else
+            {
+                calculate_metric(lightray_spacetime_position, g_metric);
+                calculate_partial_derivatives(lightray_spacetime_position, g_partials);
+            }
+        }
+
+        ///so normalising here breaks everything, which is distressing
+        lightray_velocity = fix_light_velocity2(lightray_velocity, g_metric);
+        float4 acceleration = calculate_acceleration(lightray_velocity, g_metric, g_partials);
+        lightray_velocity += acceleration * ds;
+        lightray_velocity = fix_light_velocity2(lightray_velocity, g_metric);
+        lightray_spacetime_position += lightray_velocity * ds;
+        #endif // EULER_INTEGRATION
+
+        //#define REARRANGED_VERLET
+        #ifdef REARRANGED_VERLET
+
+        {
+            if(is_kruskal)
                 calculate_metric_krus(lightray_spacetime_position, g_metric);
             else
                 calculate_metric(lightray_spacetime_position, g_metric);
@@ -1342,11 +1455,9 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
                 calculate_partial_derivatives(lightray_spacetime_position, g_partials);
         }
 
-        float4 acceleration = calculate_acceleration(lightray_velocity, g_metric, g_partials);
-        lightray_velocity += acceleration * ds;
-        lightray_velocity = fix_light_velocity2(lightray_velocity, g_metric);
-        lightray_spacetime_position += lightray_velocity * ds;
-        #endif // EULER_INTEGRATION
+        float4 next_acceleration = calculate_acceleration(lightray_velocity, g_metric, g_partials);
+
+        #endif // REARRANGED_VERLET
 
         //#define VERLET_INTEGRATION
         #ifdef VERLET_INTEGRATION
@@ -1366,16 +1477,17 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
                 calculate_partial_derivatives(next_position, g_partials);
         }
 
+        intermediate_next_velocity = fix_light_velocity2(intermediate_next_velocity, g_metric);
+
         float4 next_acceleration = calculate_acceleration(intermediate_next_velocity, g_metric, g_partials);
         float4 next_velocity = lightray_velocity + 0.5 * (lightray_acceleration + next_acceleration) * ds;
 
-        last_position = lightray_spacetime_position;
-        last_velocity = lightray_velocity;
         last_ds = ds;
 
         lightray_spacetime_position = next_position;
         lightray_velocity = fix_light_velocity2(next_velocity, g_metric);
         lightray_acceleration = next_acceleration;
+        intermediate_velocity = intermediate_next_velocity;
         #endif // VERLET_INTEGRATION
     }
 
