@@ -1321,6 +1321,14 @@ void relauncher(__global struct lightray* schwarzs_rays_in, __global struct ligh
     int offset = 0;
     int loffset = 256;
 
+    /*if((dim % loffset) != 0)
+    {
+        int rem = dim % loffset;
+
+        dim -= rem;
+        dim += loffset;
+    }*/
+
     int one = 1;
     int oneoffset = 1;
 
