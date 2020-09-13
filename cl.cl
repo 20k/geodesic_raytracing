@@ -964,12 +964,13 @@ float linear_val(float value, float min_val, float max_val, float val_at_min, fl
 
 struct lightray
 {
-    int sx, sy;
     float4 position;
     float4 velocity;
     float4 acceleration;
+    int sx, sy;
 };
 
+#if 1
 __kernel
 void init_rays(float4 cartesian_camera_pos, float4 camera_quat, __global struct lightray* schwarzs_rays, __global struct lightray* kruskal_rays, __global int* schwarzs_count, __global int* kruskal_count, int width, int height)
 {
@@ -1122,7 +1123,7 @@ void init_rays(float4 cartesian_camera_pos, float4 camera_quat, __global struct 
     float min_radius = 0.7 * rs;
     float max_radius = 1.1 * rs;
 
-    //#define NO_KRUSKAL
+    #define NO_KRUSKAL
 
     ///from kruskal > to kruskal
     #define FROM_KRUSKAL 1.25
@@ -1212,12 +1213,63 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
     float ds = 0.1;
     float last_ds = ds;
 
-    for(int i=0; i < 64; i++)
+    float ambient_precision = 0.001;
+    float subambient_precision = 0.5;
+
+    ///TODO: need to use external observer time, currently using sim time!!
+    float max_ds = 0.001;
+    float min_ds = 0.001;
+
+    #define NO_EVENT_HORIZON_CROSSING
+
+    #ifdef NO_EVENT_HORIZON_CROSSING
+    ambient_precision = 0.01;
+    max_ds = 0.01;
+    min_ds = 0.01;
+    #endif // NO_EVENT_HORIZON_CROSSING
+
+    //#define EULER_INTEGRATION
+    #define VERLET_INTEGRATION
+
+    #ifdef VERLET_INTEGRATION
+    #ifdef NO_EVENT_HORIZON_CROSSING
+    ambient_precision = 0.05;
+    max_ds = 0.05;
+    min_ds = 0.05;
+    #endif // NO_EVENT_HORIZON_CROSSING
+    #endif // VERLET_INTEGRATION
+
+    /*float min_radius = rs * 1.1;
+    float max_radius = rs * 1.6;*/
+
+    float rs = 1;
+
+    float min_radius = 0.7 * rs;
+    float max_radius = 1.1 * rs;
+
+    for(int i=0; i < 100; i++)
     {
+        float new_max = 4 * rs;
+        float new_min = 1.1 * rs;
+
+        float r_value = position.y;
+
+        float interp = clamp(r_value, new_min, new_max);
+        float frac = (interp - new_min) / (new_max - new_min);
+
+        ds = mix(ambient_precision, subambient_precision, frac);
+
+        if(r_value >= new_max)
+        {
+            float multiplier = linear_val(r_value, new_max, new_max * 10, 0.1, 1);
+
+            ds = (r_value - new_max) * multiplier + subambient_precision;
+        }
+
         float g_metric[4] = {};
         float g_partials[16] = {};
 
-        if(!is_radius_leq_than(position, false, 400000) || is_radius_leq_than(position, false, 1.0001))
+        if(!is_radius_leq_than(position, false, 400000) || is_radius_leq_than(position, false, 1.001))
         {
             int out_id = atomic_inc(finished_count_out);
 
@@ -1229,7 +1281,7 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
             out_ray.acceleration = acceleration;
 
             finished_rays[out_id] = out_ray;
-            break;
+            return;
         }
 
         #ifdef EULER_INTEGRATION
@@ -1292,9 +1344,21 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
     int sx = ray->sx;
     int sy = ray->sy;
 
+    if(sx >= get_image_width(out) || sy >= get_image_height(out))
+        return;
+
+    if(sx < 0 || sy < 0)
+        return;
+
     float4 position = ray->position;
 
     float r_value = position.y;
+
+    if(r_value < 2)
+    {
+        write_imagef(out, (int2){sx, sy}, (float4)(0, 0, 0, 1));
+        return;
+    }
 
     float3 cart_here = polar_to_cartesian((float3)(r_value, position.zw));
 
@@ -1365,6 +1429,7 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
 
     write_imagef(out, (int2){sx, sy}, val);
 }
+#endif // 0
 
 __kernel
 void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4 cartesian_camera_pos, float4 camera_quat, __read_only image2d_t background)
@@ -1524,7 +1589,7 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
     float min_radius = 0.7 * rs;
     float max_radius = 1.1 * rs;
 
-    //#define NO_KRUSKAL
+    #define NO_KRUSKAL
 
     ///from kruskal > to kruskal
     #define FROM_KRUSKAL 1.25

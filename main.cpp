@@ -25,6 +25,15 @@ vec4f cartesian_to_schwarz(vec4f position)
     return (vec4f){position.x(), polar.x(), polar.y(), polar.z()};
 }
 
+
+struct lightray
+{
+    vec4f position;
+    vec4f velocity;
+    vec4f acceleration;
+    int sx, sy;
+};
+
 int main()
 {
     render_settings sett;
@@ -130,11 +139,33 @@ int main()
     vec3f forward_axis = {0, 0, 1};
     vec3f up_axis = {0, 1, 0};
 
-    bool kruskal = false;
-
-    //vec4f camera =
-
     sf::Clock clk;
+
+    int ray_count = sett.width * sett.height;
+
+    cl::buffer schwarzs_1(clctx.ctx);
+    cl::buffer schwarzs_2(clctx.ctx);
+    cl::buffer kruskal_1(clctx.ctx);
+    cl::buffer kruskal_2(clctx.ctx);
+    cl::buffer finished_1(clctx.ctx);
+
+    cl::buffer schwarzs_count_1(clctx.ctx);
+    cl::buffer schwarzs_count_2(clctx.ctx);
+    cl::buffer kruskal_count_1(clctx.ctx);
+    cl::buffer kruskal_count_2(clctx.ctx);
+    cl::buffer finished_count_1(clctx.ctx);
+
+    schwarzs_1.alloc(sizeof(lightray) * ray_count * 2);
+    schwarzs_2.alloc(sizeof(lightray) * ray_count * 2);
+    kruskal_1.alloc(sizeof(lightray) * ray_count * 2);
+    kruskal_2.alloc(sizeof(lightray) * ray_count * 2);
+    finished_1.alloc(sizeof(lightray) * ray_count * 2);
+
+    schwarzs_count_1.alloc(sizeof(int));
+    schwarzs_count_2.alloc(sizeof(int));
+    kruskal_count_1.alloc(sizeof(int));
+    kruskal_count_2.alloc(sizeof(int));
+    finished_count_1.alloc(sizeof(int));
 
     while(!win.should_close())
     {
@@ -190,9 +221,6 @@ int main()
             camera_quat = q * camera_quat;
         }
 
-        if(ImGui::IsKeyPressed(GLFW_KEY_T))
-            kruskal = !kruskal;
-
         vec3f up = {0, 0, -1};
         vec3f right = rot_quat({1, 0, 0}, camera_quat);
         vec3f forward_axis = rot_quat({0, 0, 1}, camera_quat);
@@ -231,12 +259,16 @@ int main()
 
         //printf("scamera %f\n", scamera.y());
 
+
+        int width = win.get_window_size().x();
+        int height = win.get_window_size().y();
+
         cl::args clr;
         clr.push_back(rtex);
 
         clctx.cqueue.exec("clear", clr, {win.get_window_size().x(), win.get_window_size().y()}, {16, 16});
 
-        cl::args args;
+        /*cl::args args;
         args.push_back(rtex);
         args.push_back(ds);
         args.push_back(camera);
@@ -244,6 +276,77 @@ int main()
         args.push_back(clbackground);
 
         clctx.cqueue.exec("do_raytracing_multicoordinate", args, {win.get_window_size().x(), win.get_window_size().y()}, {16, 16});
+
+        rtex.unacquire(clctx.cqueue);
+
+        glFinish();
+        clctx.cqueue.block();
+        glFinish();*/
+
+        /*schwarzs_1.set_to_zero(clctx.cqueue);
+        schwarzs_2.set_to_zero(clctx.cqueue);
+        kruskal_1.set_to_zero(clctx.cqueue);
+        kruskal_2.set_to_zero(clctx.cqueue);
+        finished_1.set_to_zero(clctx.cqueue);*/
+
+        schwarzs_count_1.set_to_zero(clctx.cqueue);
+        schwarzs_count_2.set_to_zero(clctx.cqueue);
+        kruskal_count_1.set_to_zero(clctx.cqueue);
+        kruskal_count_2.set_to_zero(clctx.cqueue);
+        finished_count_1.set_to_zero(clctx.cqueue);
+
+        cl::buffer* b1 = &schwarzs_1;
+        cl::buffer* b2 = &schwarzs_2;
+        cl::buffer* c1 = &schwarzs_count_1;
+        cl::buffer* c2 = &schwarzs_count_2;
+
+        {
+            cl::args init_args;
+            init_args.push_back(camera);
+            init_args.push_back(camera_quat);
+            init_args.push_back(*b1);
+            init_args.push_back(kruskal_1); ///temp
+            init_args.push_back(*c1);
+            init_args.push_back(kruskal_count_1); ///temp
+            init_args.push_back(width);
+            init_args.push_back(height);
+
+            clctx.cqueue.exec("init_rays", init_args, {width, height}, {16, 16});
+
+            for(int i=0; i < 10; i++)
+            {
+                c2->set_to_zero(clctx.cqueue);
+
+                cl::args run_args;
+                run_args.push_back(*b1);
+                run_args.push_back(*b2);
+                run_args.push_back(kruskal_1);
+                run_args.push_back(kruskal_2);
+                run_args.push_back(finished_1);
+                run_args.push_back(*c1);
+                run_args.push_back(*c2);
+                run_args.push_back(kruskal_count_1);
+                run_args.push_back(kruskal_count_2);
+                run_args.push_back(finished_count_1);
+
+                clctx.cqueue.exec("do_schwarzs_rays", run_args, {width * height}, {256});
+
+                std::swap(b1, b2);
+                std::swap(c1, c2);
+            }
+
+            cl::args render_args;
+            render_args.push_back(camera);
+            render_args.push_back(camera_quat);
+            render_args.push_back(finished_1);
+            render_args.push_back(finished_count_1);
+            render_args.push_back(rtex);
+            render_args.push_back(clbackground);
+            render_args.push_back(width);
+            render_args.push_back(height);
+
+            clctx.cqueue.exec("render", render_args, {width * height}, {256});
+        }
 
         rtex.unacquire(clctx.cqueue);
 
