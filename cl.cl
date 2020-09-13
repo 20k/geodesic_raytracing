@@ -150,7 +150,7 @@ void clear(__write_only image2d_t out)
     if(x >= get_image_width(out) || y >= get_image_height(out))
         return;
 
-    write_imagef(out, (int2){x, y}, (float4){0,1,0,1});
+    write_imagef(out, (int2){x, y}, (float4){0,0,0,1});
 }
 
 

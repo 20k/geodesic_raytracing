@@ -321,7 +321,9 @@ int main()
 
             clctx.cqueue.exec("init_rays", init_args, {width, height}, {16, 16});
 
-            /*for(int i=0; i < 100; i++)
+            //#define CPU_CONTROL
+            #ifdef CPU_CONTROL
+            for(int i=0; i < 100; i++)
             {
                 c2->set_to_zero(clctx.cqueue);
 
@@ -341,7 +343,9 @@ int main()
 
                 std::swap(b1, b2);
                 std::swap(c1, c2);
-            }*/
+            }
+
+            #else
 
             cl::args run_args;
             run_args.push_back(*b1);
@@ -359,6 +363,8 @@ int main()
             run_args.push_back(fallback);
 
             clctx.cqueue.exec("relauncher", run_args, {1}, {1});
+
+            #endif // CPU_CONTROL
 
             cl::args render_args;
             render_args.push_back(camera);
