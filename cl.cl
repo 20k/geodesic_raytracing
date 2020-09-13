@@ -1286,7 +1286,14 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
 
             ds = mix(ambient_precision, subambient_precision, frac);
 
-            if(r_value >= 20)
+            if(r_value >= new_max)
+            {
+                float value = (r_value - new_max) * 0.1 + subambient_precision;
+
+                ds = value;
+            }
+
+            if(r_value >= 80)
             {
                 /*float nfrac = (r_value - 20) / 100;
 
@@ -1294,7 +1301,7 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
 
                 ds = mix(subambient_precision, 10, nfrac);*/
 
-                ds = r_value / 10;
+                //ds = r_value / 10;
             }
         }
         else
@@ -1318,7 +1325,7 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
 
         //ds = 0.1;
 
-        if(!is_radius_leq_than(lightray_spacetime_position, is_kruskal, 40) || is_radius_leq_than(lightray_spacetime_position, is_kruskal, 0.5))
+        if(!is_radius_leq_than(lightray_spacetime_position, is_kruskal, 400000) || is_radius_leq_than(lightray_spacetime_position, is_kruskal, 0.5))
         {
             float r_value = 0;
 
@@ -1427,14 +1434,15 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
         ///try moving this out of the loop
         {
             if(is_kruskal)
+            {
                 calculate_metric_krus(next_position, g_metric);
-            else
-                calculate_metric(next_position, g_metric);
-
-            if(is_kruskal)
                 calculate_partial_derivatives_krus(next_position, g_partials);
+            }
             else
+            {
+                calculate_metric(next_position, g_metric);
                 calculate_partial_derivatives(next_position, g_partials);
+            }
         }
 
         intermediate_next_velocity = fix_light_velocity2(intermediate_next_velocity, g_metric);
@@ -1450,6 +1458,13 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
         lightray_acceleration = next_acceleration;
         intermediate_velocity = intermediate_next_velocity;
         #endif // VERLET_INTEGRATION
+
+        /*if(cx == width/2 && cy == height/2)
+        {
+            float ds = calculate_ds(lightray_velocity, g_metric);
+
+            printf("DS %f\n", ds);
+        }*/
     }
 
     write_imagef(out, (int2){cx, cy}, (float4){0, 1, 0, 1});
