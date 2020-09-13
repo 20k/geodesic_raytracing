@@ -150,7 +150,7 @@ void clear(__write_only image2d_t out)
     if(x >= get_image_width(out) || y >= get_image_height(out))
         return;
 
-    write_imagef(out, (int2){x, y}, (float4){0,0,0,1});
+    write_imagef(out, (int2){x, y}, (float4){0,1,0,1});
 }
 
 
@@ -1094,7 +1094,7 @@ void init_rays(float4 cartesian_camera_pos, float4 camera_quat, __global struct 
 
     //lightray_velocity.y = -lightray_velocity.y;
 
-    //#define NO_KRUSKAL
+    #define NO_KRUSKAL
 
     ///from kruskal > to kruskal
     #define FROM_KRUSKAL 1.15
@@ -1188,7 +1188,6 @@ void do_kruskal_rays(__global struct lightray* schwarzs_rays_in, __global struct
     float ambient_precision = 0.001;
     float subambient_precision = 0.5;
 
-    ///TODO: need to use external observer time, currently using sim time!!
     float max_ds = 0.001;
     float min_ds = 0.001;
 
@@ -1224,14 +1223,14 @@ void do_kruskal_rays(__global struct lightray* schwarzs_rays_in, __global struct
     float T2_m_X2_transition = r_to_T2_m_X2(krus_radius);
     float krus_inner_cutoff = r_to_T2_m_X2(0.5 * rs);
 
-    for(int i=0; i < 1000; i++)
+    for(int i=0; i < 100; i++)
     {
         float ds = 0.05;
 
         float g_metric[4] = {};
         float g_partials[16] = {};
 
-        if(position.x * position.x - position.y * position.y >= 0)
+        if((position.x * position.x - position.y * position.y) >= 0)
         {
             int out_id = atomic_inc(finished_count_out);
 
@@ -1378,7 +1377,6 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
     float ambient_precision = 0.001;
     float subambient_precision = 0.5;
 
-    ///TODO: need to use external observer time, currently using sim time!!
     float max_ds = 0.001;
     float min_ds = 0.001;
 
@@ -1409,7 +1407,7 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
     float min_radius = 0.7 * rs;
     float max_radius = 1.1 * rs;
 
-    for(int i=0; i < 100; i++)
+    for(int i=0; i < 64000/125; i++)
     {
         float new_max = 4 * rs;
         float new_min = 1.1 * rs;
@@ -1433,6 +1431,9 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
 
         if(position.y >= 400000 || position.y <= rs)
         {
+            if(position.y <= rs)
+                return;
+
             int out_id = atomic_inc(finished_count_out);
 
             struct lightray out_ray;
@@ -1447,7 +1448,7 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
         }
 
         #ifndef NO_KRUSKAL
-        if(position.y < rs * TO_KRUSKAL)
+        if(position.y <= rs * TO_KRUSKAL)
         {
             float4 new_pos = schwarzs_position_to_kruskal_position((float4)(0.f, position.yzw));
             float4 new_vel = schwarzs_velocity_to_kruskal_velocity((float4)(0.f, position.yzw), velocity);
@@ -1568,7 +1569,7 @@ void relauncher(__global struct lightray* schwarzs_rays_in, __global struct ligh
                       int width, int height, int fallback)
 {
     ///failed to converge
-    if(fallback > 1000)
+    if(fallback > 125)
         return;
 
     if((*schwarzs_count_in) == 0 && (*kruskal_count_in) == 0)
@@ -1619,18 +1620,6 @@ void relauncher(__global struct lightray* schwarzs_rays_in, __global struct ligh
 
     clk_event_t f4;
 
-    /*enqueue_kernel(get_default_queue(), CLK_ENQUEUE_FLAGS_NO_WAIT,
-                   ndrange_1D(offset, kruskal_count, loffset),
-                   1, &f3, &f4,
-                   ^{
-                        do_kruskal_rays(schwarzs_rays_out, schwarzs_rays_in,
-                                        kruskal_rays_in, kruskal_rays_out,
-                                        finished_rays,
-                                        schwarzs_count_out, schwarzs_count_in,
-                                        kruskal_count_in, kruskal_count_out,
-                                        finished_count_out);
-                   });*/
-
     enqueue_kernel(get_default_queue(), CLK_ENQUEUE_FLAGS_NO_WAIT,
                    ndrange_1D(offset, 1, 1),
                    1, &f3, &f4,
@@ -1643,7 +1632,7 @@ void relauncher(__global struct lightray* schwarzs_rays_in, __global struct ligh
                                         finished_count_out);
                    });
 
-    enqueue_kernel(get_default_queue(), CLK_ENQUEUE_FLAGS_WAIT_KERNEL,
+    enqueue_kernel(get_default_queue(), CLK_ENQUEUE_FLAGS_NO_WAIT,
                    ndrange_1D(offset, one, oneoffset),
                    1, &f4, NULL,
                    ^{
@@ -1680,9 +1669,10 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
 
     float4 position = ray->position;
 
+    float rs = 1;
     float r_value = position.y;
 
-    if(r_value < 1)
+    if(r_value <= rs)
     {
         write_imagef(out, (int2){sx, sy}, (float4)(1, 0, 0, 1));
         return;
@@ -1891,6 +1881,11 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
     float max_ds = 0.001;
     float min_ds = 0.001;
 
+    #undef NO_EVENT_HORIZON_CROSSING
+    #undef VERLET_INTEGRATION
+    #undef EULER_INTEGRATION
+    #undef NO_KRUSKAL
+
     #define NO_EVENT_HORIZON_CROSSING
 
     #ifdef NO_EVENT_HORIZON_CROSSING
@@ -1899,8 +1894,8 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
     min_ds = 0.01;
     #endif // NO_EVENT_HORIZON_CROSSING
 
-    //#define EULER_INTEGRATION
-    #define VERLET_INTEGRATION
+    #define EULER_INTEGRATION
+    //#define VERLET_INTEGRATION
 
     #ifdef VERLET_INTEGRATION
     #ifdef NO_EVENT_HORIZON_CROSSING

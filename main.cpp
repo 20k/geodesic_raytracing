@@ -271,7 +271,8 @@ int main()
 
         clctx.cqueue.exec("clear", clr, {win.get_window_size().x(), win.get_window_size().y()}, {16, 16});
 
-        /*cl::args args;
+        #if 0
+        cl::args args;
         args.push_back(rtex);
         args.push_back(ds);
         args.push_back(camera);
@@ -284,7 +285,8 @@ int main()
 
         glFinish();
         clctx.cqueue.block();
-        glFinish();*/
+        glFinish();
+        #endif // OLD_AND_GOOD
 
         /*schwarzs_1.set_to_zero(clctx.cqueue);
         schwarzs_2.set_to_zero(clctx.cqueue);
@@ -319,7 +321,7 @@ int main()
 
             clctx.cqueue.exec("init_rays", init_args, {width, height}, {16, 16});
 
-            /*for(int i=0; i < 10; i++)
+            /*for(int i=0; i < 100; i++)
             {
                 c2->set_to_zero(clctx.cqueue);
 
