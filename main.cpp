@@ -299,6 +299,8 @@ int main()
         kruskal_count_2.set_to_zero(clctx.cqueue);
         finished_count_1.set_to_zero(clctx.cqueue);
 
+        int fallback = 0;
+
         cl::buffer* b1 = &schwarzs_1;
         cl::buffer* b2 = &schwarzs_2;
         cl::buffer* c1 = &schwarzs_count_1;
@@ -352,6 +354,7 @@ int main()
             run_args.push_back(finished_count_1);
             run_args.push_back(width);
             run_args.push_back(height);
+            run_args.push_back(fallback);
 
             clctx.cqueue.exec("relauncher", run_args, {1}, {1});
 
