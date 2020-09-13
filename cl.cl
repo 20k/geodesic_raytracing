@@ -1302,12 +1302,6 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
 }
 
 __kernel
-void clean(__global int* val)
-{
-    *val = 0;
-}
-
-__kernel
 void relauncher(__global struct lightray* schwarzs_rays_in, __global struct lightray* schwarzs_rays_out,
                       __global struct lightray* kruskal_rays_in, __global struct lightray* kruskal_rays_out,
                       __global struct lightray* finished_rays,
@@ -1336,23 +1330,15 @@ void relauncher(__global struct lightray* schwarzs_rays_in, __global struct ligh
                    ndrange_1D(offset, one, oneoffset),
                    0, NULL, &f1,
                    ^{
-                       clean(schwarzs_count_out);
-                   });
-
-    clk_event_t f2;
-
-    enqueue_kernel(get_default_queue(),CLK_ENQUEUE_FLAGS_NO_WAIT,
-                   ndrange_1D(offset, one, oneoffset),
-                   1, &f1, &f2,
-                   ^{
-                       clean(kruskal_count_out);
+                       *schwarzs_count_out = 0;
+                       *kruskal_count_out = 0;
                    });
 
     clk_event_t f3;
 
     enqueue_kernel(get_default_queue(), CLK_ENQUEUE_FLAGS_NO_WAIT,
                    ndrange_1D(offset, dim, loffset),
-                   1, &f2, &f3,
+                   1, &f1, &f3,
                    ^{
                         do_schwarzs_rays(schwarzs_rays_in, schwarzs_rays_out,
                                          kruskal_rays_in, kruskal_rays_out,
@@ -1362,56 +1348,21 @@ void relauncher(__global struct lightray* schwarzs_rays_in, __global struct ligh
                                          finished_count_out);
                    });
 
-    clk_event_t f4;
-
-    enqueue_kernel(get_default_queue(),CLK_ENQUEUE_FLAGS_NO_WAIT,
-                   ndrange_1D(offset, one, oneoffset),
-                   1, &f3, &f4,
-                   ^{
-                       clean(schwarzs_count_in);
-                   });
-    clk_event_t f5;
-
-    enqueue_kernel(get_default_queue(),CLK_ENQUEUE_FLAGS_NO_WAIT,
-                   ndrange_1D(offset, one, oneoffset),
-                   1, &f4, &f5,
-                   ^{
-                       clean(kruskal_count_in);
-                   });
-
-    clk_event_t f6;
-
-    enqueue_kernel(get_default_queue(), CLK_ENQUEUE_FLAGS_NO_WAIT,
-                   ndrange_1D(offset, dim, loffset),
-                   1, &f5, &f6,
-                   ^{
-                        do_schwarzs_rays(schwarzs_rays_out, schwarzs_rays_in,
-                                         kruskal_rays_out, kruskal_rays_in,
-                                         finished_rays,
-                                         schwarzs_count_out, schwarzs_count_in,
-                                         kruskal_count_out, kruskal_count_in,
-                                         finished_count_out);
-                   });
-
     release_event(f1);
-    release_event(f2);
-    release_event(f3);
-    release_event(f4);
-    release_event(f5);
 
     enqueue_kernel(get_default_queue(), CLK_ENQUEUE_FLAGS_WAIT_KERNEL,
                    ndrange_1D(offset, one, oneoffset),
-                   1, &f6, NULL,
+                   1, &f3, NULL,
                    ^{
-                        relauncher(schwarzs_rays_in, schwarzs_rays_out,
-                                             kruskal_rays_in, kruskal_rays_out,
-                                             finished_rays,
-                                             schwarzs_count_in, schwarzs_count_out,
-                                             kruskal_count_in, kruskal_count_out,
-                                             finished_count_out, width, height, fallback + 1);
+                        relauncher(schwarzs_rays_out, schwarzs_rays_in,
+                                   kruskal_rays_out, kruskal_rays_in,
+                                   finished_rays,
+                                   schwarzs_count_out, schwarzs_count_in,
+                                   kruskal_count_out,kruskal_count_in,
+                                   finished_count_out, width, height, fallback + 1);
                    });
 
-    release_event(f6);
+    release_event(f3);
 }
 
 __kernel
