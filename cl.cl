@@ -1125,14 +1125,15 @@ void init_rays(float4 cartesian_camera_pos, float4 camera_quat, __global struct 
 
         {
             if(is_kruskal)
+            {
                 calculate_metric_krus(lightray_spacetime_position, g_metric);
-            else
-                calculate_metric(lightray_spacetime_position, g_metric);
-
-            if(is_kruskal)
                 calculate_partial_derivatives_krus(lightray_spacetime_position, g_partials);
+            }
             else
+            {
+                calculate_metric(lightray_spacetime_position, g_metric);
                 calculate_partial_derivatives(lightray_spacetime_position, g_partials);
+            }
         }
 
         lightray_velocity = fix_light_velocity2(lightray_velocity, g_metric);
