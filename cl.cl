@@ -948,6 +948,20 @@ float4 calculate_acceleration(float4 lightray_velocity, float g_metric[4], float
     return acceleration;
 }
 
+float linear_mix(float value, float min_val, float max_val)
+{
+    value = clamp(value, min_val, max_val);
+
+    return (value - min_val) / (max_val - min_val);
+}
+
+float linear_val(float value, float min_val, float max_val, float val_at_min, float val_at_max)
+{
+    float mixd = linear_mix(value, min_val, max_val);
+
+    return mix(mixd, val_at_min, val_at_max);
+}
+
 __kernel
 void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4 cartesian_camera_pos, float4 camera_quat, __read_only image2d_t background)
 {
@@ -1080,7 +1094,7 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
     float max_ds = 0.001;
     float min_ds = 0.001;
 
-    //#define NO_EVENT_HORIZON_CROSSING
+    #define NO_EVENT_HORIZON_CROSSING
 
     #ifdef NO_EVENT_HORIZON_CROSSING
     ambient_precision = 0.01;
@@ -1093,9 +1107,9 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
 
     #ifdef VERLET_INTEGRATION
     #ifdef NO_EVENT_HORIZON_CROSSING
-    ambient_precision = 0.1;
-    max_ds = 0.1;
-    min_ds = 0.1;
+    ambient_precision = 0.05;
+    max_ds = 0.05;
+    min_ds = 0.05;
     #endif // NO_EVENT_HORIZON_CROSSING
     #endif // VERLET_INTEGRATION
 
@@ -1111,7 +1125,6 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
     ///from kruskal > to kruskal
     #define FROM_KRUSKAL 1.25
     #define TO_KRUSKAL 1.2
-
 
     #ifndef NO_KRUSKAL
     if(polar_camera.x >= rs * FROM_KRUSKAL && is_kruskal)
@@ -1288,10 +1301,17 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
 
             if(r_value >= new_max)
             {
-                float value = (r_value - new_max) * 0.1 + subambient_precision;
+                float multiplier = linear_val(r_value, new_max, new_max * 10, 0.1, 1);
 
-                ds = value;
+                ds = (r_value - new_max) * multiplier + subambient_precision;
             }
+
+            /*float ds_at_max = (new_max * 10) * 0.1 + subambient_precision;
+
+            if(r_value >= new_max * 10)
+            {
+                ds = (r_value - new_max * 10) * 0.5 + ds_at_max;
+            }*/
 
             if(r_value >= 80)
             {
@@ -1325,7 +1345,7 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
 
         //ds = 0.1;
 
-        if(!is_radius_leq_than(lightray_spacetime_position, is_kruskal, 400000) || is_radius_leq_than(lightray_spacetime_position, is_kruskal, 0.5))
+        if(!is_radius_leq_than(lightray_spacetime_position, is_kruskal, 4000) || is_radius_leq_than(lightray_spacetime_position, is_kruskal, 0.5))
         {
             float r_value = 0;
 
