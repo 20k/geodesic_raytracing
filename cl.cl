@@ -241,10 +241,10 @@ float3 unrotate_vector(float3 bx, float3 by, float3 bz, float3 v)
     return rotate_vector((float3){bx.x, by.x, bz.x}, (float3){bx.y, by.y, bz.y}, (float3){bx.z, by.z, bz.z}, v);
 }
 
-float4 unrotate_vector4(float4 bx, float4 by, float4 bz, float4 bw, float4 v)
+/*float4 unrotate_vector4(float4 bx, float4 by, float4 bz, float4 bw, float4 v)
 {
 
-}
+}*/
 
 ///normalized
 float3 rejection(float3 my_vector, float3 basis)
@@ -1284,8 +1284,8 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
         position = next_position;
         //velocity = fix_light_velocity2(next_velocity, g_metric);
         velocity = next_velocity;
-        acceleration = next_acceleration;
         //intermediate_velocity = intermediate_next_velocity;
+        acceleration = next_acceleration;
         #endif // VERLET_INTEGRATION
     }
 
@@ -1299,6 +1299,114 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
     out_ray.acceleration = acceleration;
 
     schwarzs_rays_out[out_id] = out_ray;
+}
+
+__kernel
+void clean(__global int* val)
+{
+    *val = 0;
+}
+
+__kernel
+void relauncher(__global struct lightray* schwarzs_rays_in, __global struct lightray* schwarzs_rays_out,
+                      __global struct lightray* kruskal_rays_in, __global struct lightray* kruskal_rays_out,
+                      __global struct lightray* finished_rays,
+                      __global int* schwarzs_count_in, __global int* schwarzs_count_out,
+                      __global int* kruskal_count_in, __global int* kruskal_count_out,
+                      __global int* finished_count_out,
+                      int width, int height)
+{
+    int dim = width * height;
+    int offset = 0;
+    int loffset = 256;
+
+    int one = 1;
+    int oneoffset = 1;
+
+    clk_event_t first;
+
+    enqueue_kernel(get_default_queue(),CLK_ENQUEUE_FLAGS_NO_WAIT,
+                       ndrange_1D(offset, one, oneoffset),
+                       0, NULL, &first,
+                       ^{
+                           clean(finished_count_out);
+                       });
+
+    for(int i=0; i < 2; i++)
+    {
+        clk_event_t f1;
+
+        enqueue_kernel(get_default_queue(),CLK_ENQUEUE_FLAGS_NO_WAIT,
+                       ndrange_1D(offset, one, oneoffset),
+                       1, &first, &f1,
+                       ^{
+                           clean(schwarzs_count_out);
+                       });
+
+        clk_event_t f2;
+
+        enqueue_kernel(get_default_queue(),CLK_ENQUEUE_FLAGS_NO_WAIT,
+                       ndrange_1D(offset, one, oneoffset),
+                       1, &f1, &f2,
+                       ^{
+                           clean(kruskal_count_out);
+                       });
+
+        clk_event_t f3;
+
+        enqueue_kernel(get_default_queue(), CLK_ENQUEUE_FLAGS_NO_WAIT,
+                       ndrange_1D(offset, dim, loffset),
+                       1, &f2, &f3,
+                       ^{
+                            do_schwarzs_rays(schwarzs_rays_in, schwarzs_rays_out,
+                                             kruskal_rays_in, kruskal_rays_out,
+                                             finished_rays,
+                                             schwarzs_count_in, schwarzs_count_out,
+                                             kruskal_count_in, kruskal_count_out,
+                                             finished_count_out);
+                       });
+
+        clk_event_t f4;
+
+        enqueue_kernel(get_default_queue(),CLK_ENQUEUE_FLAGS_NO_WAIT,
+                       ndrange_1D(offset, one, oneoffset),
+                       1, &f3, &f4,
+                       ^{
+                           clean(schwarzs_count_in);
+                       });
+        clk_event_t f5;
+
+        enqueue_kernel(get_default_queue(),CLK_ENQUEUE_FLAGS_NO_WAIT,
+                       ndrange_1D(offset, one, oneoffset),
+                       1, &f4, &f5,
+                       ^{
+                           clean(kruskal_count_in);
+                       });
+
+        clk_event_t f6;
+
+        enqueue_kernel(get_default_queue(), CLK_ENQUEUE_FLAGS_NO_WAIT,
+                       ndrange_1D(offset, dim, loffset),
+                       1, &f5, &f6,
+                       ^{
+                            do_schwarzs_rays(schwarzs_rays_out, schwarzs_rays_in,
+                                             kruskal_rays_out, kruskal_rays_in,
+                                             finished_rays,
+                                             schwarzs_count_out, schwarzs_count_in,
+                                             kruskal_count_out, kruskal_count_in,
+                                             finished_count_out);
+                       });
+
+       release_event(f1);
+       release_event(f2);
+       release_event(f3);
+       release_event(f4);
+       release_event(f5);
+       release_event(first);
+       first = f6;
+    }
+
+    release_event(first);
 }
 
 __kernel

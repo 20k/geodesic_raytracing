@@ -49,7 +49,7 @@ int main()
     opencl_context& clctx = *win.clctx;
 
     cl::program prog(clctx.ctx, "cl.cl");
-    prog.build(clctx.ctx, "");
+    prog.build(clctx.ctx, "-O3 -cl-std=CL2.0");
 
     clctx.ctx.register_program(prog);
 
@@ -92,6 +92,7 @@ int main()
     clbackground.write(clctx.cqueue, (const char*)&as_float[0], origin, region);
 
     cl::command_queue read_queue(clctx.ctx, CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE);
+    cl::device_command_queue dqueue(clctx.ctx);
 
     /*int pixels_width = win.get_window_size().x();
     int pixels_height = win.get_window_size().y();
@@ -316,7 +317,7 @@ int main()
 
             clctx.cqueue.exec("init_rays", init_args, {width, height}, {16, 16});
 
-            for(int i=0; i < 10; i++)
+            /*for(int i=0; i < 10; i++)
             {
                 c2->set_to_zero(clctx.cqueue);
 
@@ -336,7 +337,23 @@ int main()
 
                 std::swap(b1, b2);
                 std::swap(c1, c2);
-            }
+            }*/
+
+            cl::args run_args;
+            run_args.push_back(*b1);
+            run_args.push_back(*b2);
+            run_args.push_back(kruskal_1);
+            run_args.push_back(kruskal_2);
+            run_args.push_back(finished_1);
+            run_args.push_back(*c1);
+            run_args.push_back(*c2);
+            run_args.push_back(kruskal_count_1);
+            run_args.push_back(kruskal_count_2);
+            run_args.push_back(finished_count_1);
+            run_args.push_back(width);
+            run_args.push_back(height);
+
+            clctx.cqueue.exec("relauncher", run_args, {1}, {1});
 
             cl::args render_args;
             render_args.push_back(camera);
