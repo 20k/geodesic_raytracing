@@ -971,6 +971,7 @@ struct lightray
 };
 
 #if 1
+
 __kernel
 void init_rays(float4 cartesian_camera_pos, float4 camera_quat, __global struct lightray* schwarzs_rays, __global struct lightray* kruskal_rays, __global int* schwarzs_count, __global int* kruskal_count, int width, int height)
 {
@@ -1092,36 +1093,6 @@ void init_rays(float4 cartesian_camera_pos, float4 camera_quat, __global struct 
     lightray_spacetime_position = camera;
 
     //lightray_velocity.y = -lightray_velocity.y;
-
-    float ambient_precision = 0.001;
-    float subambient_precision = 0.5;
-
-    ///TODO: need to use external observer time, currently using sim time!!
-    float max_ds = 0.001;
-    float min_ds = 0.001;
-
-    #define NO_EVENT_HORIZON_CROSSING
-
-    #ifdef NO_EVENT_HORIZON_CROSSING
-    ambient_precision = 0.01;
-    max_ds = 0.01;
-    min_ds = 0.01;
-    #endif // NO_EVENT_HORIZON_CROSSING
-
-    //#define EULER_INTEGRATION
-    #define VERLET_INTEGRATION
-
-    #ifdef VERLET_INTEGRATION
-    #ifdef NO_EVENT_HORIZON_CROSSING
-    ambient_precision = 0.05;
-    max_ds = 0.05;
-    min_ds = 0.05;
-    #endif // NO_EVENT_HORIZON_CROSSING
-    #endif // VERLET_INTEGRATION
-
-
-    float min_radius = 0.7 * rs;
-    float max_radius = 1.1 * rs;
 
     #define NO_KRUSKAL
 
@@ -1294,7 +1265,6 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
         velocity = fix_light_velocity2(velocity, g_metric);
 
         position += velocity * ds;
-
         #endif // EULER_INTEGRATION
 
         #ifdef VERLET_INTEGRATION

@@ -91,6 +91,8 @@ int main()
 
     clbackground.write(clctx.cqueue, (const char*)&as_float[0], origin, region);
 
+    cl::command_queue read_queue(clctx.ctx, CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE);
+
     /*int pixels_width = win.get_window_size().x();
     int pixels_height = win.get_window_size().y();
 
@@ -289,6 +291,7 @@ int main()
         kruskal_2.set_to_zero(clctx.cqueue);
         finished_1.set_to_zero(clctx.cqueue);*/
 
+        #if 1
         schwarzs_count_1.set_to_zero(clctx.cqueue);
         schwarzs_count_2.set_to_zero(clctx.cqueue);
         kruskal_count_1.set_to_zero(clctx.cqueue);
@@ -353,6 +356,7 @@ int main()
         glFinish();
         clctx.cqueue.block();
         glFinish();
+        #endif
 
         {
             ImDrawList* lst = ImGui::GetBackgroundDrawList();
