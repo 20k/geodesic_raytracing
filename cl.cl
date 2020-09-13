@@ -1094,11 +1094,11 @@ void init_rays(float4 cartesian_camera_pos, float4 camera_quat, __global struct 
 
     //lightray_velocity.y = -lightray_velocity.y;
 
-    #define NO_KRUSKAL
+    //#define NO_KRUSKAL
 
     ///from kruskal > to kruskal
-    #define FROM_KRUSKAL 1.25
-    #define TO_KRUSKAL 1.2
+    #define FROM_KRUSKAL 1.15
+    #define TO_KRUSKAL 1.1
 
     #ifndef NO_KRUSKAL
     if(polar_camera.x >= rs * FROM_KRUSKAL && is_kruskal)
@@ -1162,6 +1162,196 @@ void init_rays(float4 cartesian_camera_pos, float4 camera_quat, __global struct 
 }
 
 __kernel
+void do_kruskal_rays(__global struct lightray* schwarzs_rays_in, __global struct lightray* schwarzs_rays_out,
+                      __global struct lightray* kruskal_rays_in, __global struct lightray* kruskal_rays_out,
+                      __global struct lightray* finished_rays,
+                      __global int* schwarzs_count_in, __global int* schwarzs_count_out,
+                      __global int* kruskal_count_in, __global int* kruskal_count_out,
+                      __global int* finished_count_out)
+{
+    int id = get_global_id(0);
+
+    if(id >= *kruskal_count_in)
+        return;
+
+    __global struct lightray* ray = &kruskal_rays_in[id];
+
+    float4 position = ray->position;
+    float4 velocity = ray->velocity;
+    float4 acceleration = ray->acceleration;
+    int sx = ray->sx;
+    int sy = ray->sy;
+
+    float ds = 0.1;
+    float last_ds = ds;
+
+    float ambient_precision = 0.001;
+    float subambient_precision = 0.5;
+
+    ///TODO: need to use external observer time, currently using sim time!!
+    float max_ds = 0.001;
+    float min_ds = 0.001;
+
+    #define NO_EVENT_HORIZON_CROSSING
+
+    #ifdef NO_EVENT_HORIZON_CROSSING
+    ambient_precision = 0.01;
+    max_ds = 0.01;
+    min_ds = 0.01;
+    #endif // NO_EVENT_HORIZON_CROSSING
+
+    #define EULER_INTEGRATION
+    //#define VERLET_INTEGRATION
+
+    #ifdef VERLET_INTEGRATION
+    #ifdef NO_EVENT_HORIZON_CROSSING
+    ambient_precision = 0.05;
+    max_ds = 0.05;
+    min_ds = 0.05;
+    #endif // NO_EVENT_HORIZON_CROSSING
+    #endif // VERLET_INTEGRATION
+
+    /*float min_radius = rs * 1.1;
+    float max_radius = rs * 1.6;*/
+
+    float rs = 1;
+
+    float min_radius = 0.7 * rs;
+    float max_radius = 1.1 * rs;
+
+    float krus_radius = FROM_KRUSKAL * rs;
+
+    float T2_m_X2_transition = r_to_T2_m_X2(krus_radius);
+    float krus_inner_cutoff = r_to_T2_m_X2(0.5 * rs);
+
+    for(int i=0; i < 1000; i++)
+    {
+        float ds = 0.05;
+
+        float g_metric[4] = {};
+        float g_partials[16] = {};
+
+        if(position.x * position.x - position.y * position.y >= 0)
+        {
+            int out_id = atomic_inc(finished_count_out);
+
+            float high_r = TX_to_r_krus_highprecision(position.x, position.y);
+
+            struct lightray out_ray;
+            out_ray.sx = sx;
+            out_ray.sy = sy;
+            out_ray.position = position;
+            out_ray.velocity = velocity;
+            out_ray.acceleration = (float4)(0,0,0,0);
+
+            ///BIT HACKY INNIT
+            out_ray.position.y = high_r;
+
+            finished_rays[out_id] = out_ray;
+            return;
+        }
+
+        {
+            float T = position.x;
+            float X = position.y;
+
+            ///https://www.wolframalpha.com/input/?i=%281+-+r%29+*+e%5Er%2C+r+from+0+to+3
+            ///if radius >= krus_radius
+            if(T*T - X*X < T2_m_X2_transition)
+            {
+                float high_r = TX_to_r_krus_highprecision(position.x, position.y);
+
+                float4 new_pos = kruskal_position_to_schwarzs_position_with_r(position, high_r);
+                float4 new_vel = kruskal_velocity_to_schwarzs_velocity_with_r(position, velocity, high_r);
+
+                #ifdef VERLET_INTEGRATION
+                #ifndef NO_KRUSKAL
+                float4 ivel = kruskal_velocity_to_schwarzs_velocity_with_r(position, intermediate_velocity, high_r);
+                #endif // NO_KRUSKAL
+                #endif // VERLET_INTEGRATION
+
+                struct lightray out_ray;
+                out_ray.sx = sx;
+                out_ray.sy = sy;
+                out_ray.position = new_pos;
+                out_ray.velocity = new_vel;
+                out_ray.acceleration = (float4)(0,0,0,0);
+
+                int fid = atomic_inc(schwarzs_count_in);
+
+                schwarzs_rays_in[fid] = out_ray;
+
+                return;
+
+                //position = new_pos;
+                //velocity = new_vel;
+
+                #ifdef VERLET_INTEGRATION
+                #ifndef NO_KRUSKAL
+                float last_high_r = TX_to_r_krus_highprecision(last_position.x, last_position.y);
+
+                float4 last_new_pos = kruskal_position_to_schwarzs_position_with_r(last_position, last_high_r);
+                float4 last_new_vel = kruskal_velocity_to_schwarzs_velocity_with_r(last_position, last_velocity, last_high_r);
+
+                last_position = last_new_pos;
+                last_velocity = last_new_vel;
+
+                //float4 old_lightray_acceleration = ((position - last_position) - (last_velocity * last_ds)) / (0.5 * last_ds * last_ds);
+                //float4 old_lightray_acceleration = ((velocity - last_velocity) / last_ds);
+                float4 old_lightray_acceleration = ((ivel - last_velocity) / last_ds);
+                lightray_acceleration = ((velocity - last_velocity) / (0.5 * last_ds)) - old_lightray_acceleration;
+                #endif // NO_KRUSKAL
+                #endif // VERLET_INTEGRATION
+            }
+        }
+
+        #ifdef EULER_INTEGRATION
+        calculate_metric_krus(position, g_metric);
+        calculate_partial_derivatives_krus(position, g_partials);
+
+        float4 acceleration = calculate_acceleration(velocity, g_metric, g_partials);
+
+        velocity += acceleration * ds;
+        velocity = fix_light_velocity2(velocity, g_metric);
+
+        position += velocity * ds;
+        #endif // EULER_INTEGRATION
+
+        #ifdef VERLET_INTEGRATION
+        float4 next_position = position + velocity * ds + 0.5 * acceleration * ds * ds;
+        float4 intermediate_next_velocity = velocity + acceleration * ds;
+
+        calculate_metric_krus(next_position, g_metric);
+        calculate_partial_derivatives_krus(next_position, g_partials);
+
+        intermediate_next_velocity = fix_light_velocity2(intermediate_next_velocity, g_metric);
+
+        float4 next_acceleration = calculate_acceleration(intermediate_next_velocity, g_metric, g_partials);
+        float4 next_velocity = velocity + 0.5 * (acceleration + next_acceleration) * ds;
+
+        last_ds = ds;
+
+        position = next_position;
+        //velocity = fix_light_velocity2(next_velocity, g_metric);
+        velocity = next_velocity;
+        //intermediate_velocity = intermediate_next_velocity;
+        acceleration = next_acceleration;
+        #endif // VERLET_INTEGRATION
+    }
+
+    int out_id = atomic_inc(kruskal_count_out);
+
+    struct lightray out_ray;
+    out_ray.sx = sx;
+    out_ray.sy = sy;
+    out_ray.position = position;
+    out_ray.velocity = velocity;
+    out_ray.acceleration = acceleration;
+
+    kruskal_rays_out[out_id] = out_ray;
+}
+
+__kernel
 void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struct lightray* schwarzs_rays_out,
                       __global struct lightray* kruskal_rays_in, __global struct lightray* kruskal_rays_out,
                       __global struct lightray* finished_rays,
@@ -1200,8 +1390,8 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
     min_ds = 0.01;
     #endif // NO_EVENT_HORIZON_CROSSING
 
-    //#define EULER_INTEGRATION
-    #define VERLET_INTEGRATION
+    #define EULER_INTEGRATION
+    //#define VERLET_INTEGRATION
 
     #ifdef VERLET_INTEGRATION
     #ifdef NO_EVENT_HORIZON_CROSSING
@@ -1241,7 +1431,7 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
         float g_metric[4] = {};
         float g_partials[16] = {};
 
-        if(!is_radius_leq_than(position, false, 400000) || is_radius_leq_than(position, false, 1.001))
+        if(position.y >= 400000 || position.y <= rs)
         {
             int out_id = atomic_inc(finished_count_out);
 
@@ -1255,6 +1445,46 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
             finished_rays[out_id] = out_ray;
             return;
         }
+
+        #ifndef NO_KRUSKAL
+        if(position.y < rs * TO_KRUSKAL)
+        {
+            float4 new_pos = schwarzs_position_to_kruskal_position((float4)(0.f, position.yzw));
+            float4 new_vel = schwarzs_velocity_to_kruskal_velocity((float4)(0.f, position.yzw), velocity);
+
+            #ifdef VERLET_INTEGRATION
+            float4 last_new_pos = schwarzs_position_to_kruskal_position((float4)(0, last_position.yzw));
+            float4 last_new_vel = schwarzs_velocity_to_kruskal_velocity((float4)(0, last_position.yzw), last_velocity);
+
+            float4 ivel = schwarzs_velocity_to_kruskal_velocity((float4)(0.f, lightray_spacetime_position.yzw), intermediate_velocity);
+            #endif // VERLET_INTEGRATION
+
+            struct lightray out_ray;
+            out_ray.sx = sx;
+            out_ray.sy = sy;
+            out_ray.position = new_pos;
+            out_ray.velocity = new_vel;
+            out_ray.acceleration = (float4)(0,0,0,0);
+
+            int kid = atomic_inc(kruskal_count_in);
+
+            kruskal_rays_in[kid] = out_ray;
+            return;
+
+            //lightray_spacetime_position = new_pos;
+            //lightray_velocity = new_vel;
+
+            #ifdef VERLET_INTEGRATION
+            last_position = last_new_pos;
+            last_velocity = last_new_vel;
+
+            //float4 old_lightray_acceleration = ((lightray_spacetime_position - last_position) - (last_velocity * last_ds)) / (0.5 * last_ds * last_ds); ///worst
+            //float4 old_lightray_acceleration = ((lightray_velocity - last_velocity) / last_ds); ///second best, but seems fine
+            float4 old_lightray_acceleration = ((ivel - last_velocity) / last_ds); ///technically the best
+            lightray_acceleration = ((lightray_velocity - last_velocity) / (0.5 * last_ds)) - old_lightray_acceleration;
+            #endif // VERLET_INTEGRATION
+        }
+        #endif // NO_KRUSKAL
 
         #ifdef EULER_INTEGRATION
         calculate_metric(position, g_metric);
@@ -1303,6 +1533,32 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
 }
 
 __kernel
+void kruskal_launcher(__global struct lightray* schwarzs_rays_in, __global struct lightray* schwarzs_rays_out,
+                      __global struct lightray* kruskal_rays_in, __global struct lightray* kruskal_rays_out,
+                      __global struct lightray* finished_rays,
+                      __global int* schwarzs_count_in, __global int* schwarzs_count_out,
+                      __global int* kruskal_count_in, __global int* kruskal_count_out,
+                      __global int* finished_count_out)
+{
+    int kruskal_count = *kruskal_count_in;
+
+    if(kruskal_count == 0)
+        return;
+
+    enqueue_kernel(get_default_queue(), CLK_ENQUEUE_FLAGS_WAIT_KERNEL,
+                   ndrange_1D(0, kruskal_count, 256),
+                   0, NULL, NULL,
+                   ^{
+                        do_kruskal_rays(schwarzs_rays_in, schwarzs_rays_out,
+                                        kruskal_rays_in, kruskal_rays_out,
+                                        finished_rays,
+                                        schwarzs_count_in, schwarzs_count_out,
+                                        kruskal_count_in, kruskal_count_out,
+                                        finished_count_out);
+                   });
+}
+
+__kernel
 void relauncher(__global struct lightray* schwarzs_rays_in, __global struct lightray* schwarzs_rays_out,
                       __global struct lightray* kruskal_rays_in, __global struct lightray* kruskal_rays_out,
                       __global struct lightray* finished_rays,
@@ -1312,13 +1568,15 @@ void relauncher(__global struct lightray* schwarzs_rays_in, __global struct ligh
                       int width, int height, int fallback)
 {
     ///failed to converge
-    if(fallback > 10)
+    if(fallback > 1000)
         return;
 
-    if((*schwarzs_count_in) == 0)
+    if((*schwarzs_count_in) == 0 && (*kruskal_count_in) == 0)
         return;
 
-    int dim = *schwarzs_count_in;
+    int schwarzs_count = *schwarzs_count_in;
+    //int kruskal_count = *kruskal_count_in;
+
     int offset = 0;
     int loffset = 256;
 
@@ -1346,7 +1604,7 @@ void relauncher(__global struct lightray* schwarzs_rays_in, __global struct ligh
     clk_event_t f3;
 
     enqueue_kernel(get_default_queue(), CLK_ENQUEUE_FLAGS_NO_WAIT,
-                   ndrange_1D(offset, dim, loffset),
+                   ndrange_1D(offset, schwarzs_count, loffset),
                    1, &f1, &f3,
                    ^{
                         do_schwarzs_rays(schwarzs_rays_in, schwarzs_rays_out,
@@ -1359,9 +1617,35 @@ void relauncher(__global struct lightray* schwarzs_rays_in, __global struct ligh
 
     release_event(f1);
 
+    clk_event_t f4;
+
+    /*enqueue_kernel(get_default_queue(), CLK_ENQUEUE_FLAGS_NO_WAIT,
+                   ndrange_1D(offset, kruskal_count, loffset),
+                   1, &f3, &f4,
+                   ^{
+                        do_kruskal_rays(schwarzs_rays_out, schwarzs_rays_in,
+                                        kruskal_rays_in, kruskal_rays_out,
+                                        finished_rays,
+                                        schwarzs_count_out, schwarzs_count_in,
+                                        kruskal_count_in, kruskal_count_out,
+                                        finished_count_out);
+                   });*/
+
+    enqueue_kernel(get_default_queue(), CLK_ENQUEUE_FLAGS_NO_WAIT,
+                   ndrange_1D(offset, 1, 1),
+                   1, &f3, &f4,
+                   ^{
+                        kruskal_launcher(schwarzs_rays_out, schwarzs_rays_in,
+                                        kruskal_rays_in, kruskal_rays_out,
+                                        finished_rays,
+                                        schwarzs_count_out, schwarzs_count_in,
+                                        kruskal_count_in, kruskal_count_out,
+                                        finished_count_out);
+                   });
+
     enqueue_kernel(get_default_queue(), CLK_ENQUEUE_FLAGS_WAIT_KERNEL,
                    ndrange_1D(offset, one, oneoffset),
-                   1, &f3, NULL,
+                   1, &f4, NULL,
                    ^{
                         relauncher(schwarzs_rays_out, schwarzs_rays_in,
                                    kruskal_rays_out, kruskal_rays_in,
@@ -1372,6 +1656,7 @@ void relauncher(__global struct lightray* schwarzs_rays_in, __global struct ligh
                    });
 
     release_event(f3);
+    release_event(f4);
 }
 
 __kernel
@@ -1397,9 +1682,9 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
 
     float r_value = position.y;
 
-    if(r_value < 2)
+    if(r_value < 1)
     {
-        write_imagef(out, (int2){sx, sy}, (float4)(0, 0, 0, 1));
+        write_imagef(out, (int2){sx, sy}, (float4)(1, 0, 0, 1));
         return;
     }
 

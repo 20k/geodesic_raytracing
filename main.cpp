@@ -158,11 +158,11 @@ int main()
     cl::buffer kruskal_count_2(clctx.ctx);
     cl::buffer finished_count_1(clctx.ctx);
 
-    schwarzs_1.alloc(sizeof(lightray) * ray_count * 2);
-    schwarzs_2.alloc(sizeof(lightray) * ray_count * 2);
-    kruskal_1.alloc(sizeof(lightray) * ray_count * 2);
-    kruskal_2.alloc(sizeof(lightray) * ray_count * 2);
-    finished_1.alloc(sizeof(lightray) * ray_count * 2);
+    schwarzs_1.alloc(sizeof(lightray) * ray_count * 4);
+    schwarzs_2.alloc(sizeof(lightray) * ray_count * 4);
+    kruskal_1.alloc(sizeof(lightray) * ray_count * 4);
+    kruskal_2.alloc(sizeof(lightray) * ray_count * 4);
+    finished_1.alloc(sizeof(lightray) * ray_count * 4);
 
     schwarzs_count_1.alloc(sizeof(int));
     schwarzs_count_2.alloc(sizeof(int));
