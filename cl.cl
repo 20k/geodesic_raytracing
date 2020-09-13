@@ -1345,7 +1345,7 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
 
         //ds = 0.1;
 
-        if(!is_radius_leq_than(lightray_spacetime_position, is_kruskal, 4000) || is_radius_leq_than(lightray_spacetime_position, is_kruskal, 0.5))
+        if(!is_radius_leq_than(lightray_spacetime_position, is_kruskal, 400000) || is_radius_leq_than(lightray_spacetime_position, is_kruskal, 0.5))
         {
             float r_value = 0;
 
