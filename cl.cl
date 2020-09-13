@@ -962,6 +962,410 @@ float linear_val(float value, float min_val, float max_val, float val_at_min, fl
     return mix(mixd, val_at_min, val_at_max);
 }
 
+struct lightray
+{
+    int sx, sy;
+    float4 position;
+    float4 velocity;
+    float4 acceleration;
+};
+
+__kernel
+void init_rays(float4 cartesian_camera_pos, float4 camera_quat, __global struct lightray* schwarzs_rays, __global struct lightray* kruskal_rays, __global int* schwarzs_count, __global int* kruskal_count, int width, int height)
+{
+    #define FOV 90
+
+    float fov_rad = (FOV / 360.f) * 2 * M_PI;
+
+    int cx = get_global_id(0);
+    int cy = get_global_id(1);
+
+    if(cx >= width-1 || cy >= height-1)
+        return;
+
+    float nonphysical_plane_half_width = width/2;
+    float nonphysical_f_stop = nonphysical_plane_half_width / tan(fov_rad/2);
+
+    float rs = 1;
+    float c = 1;
+
+    float3 pixel_direction = (float3){cx - width/2, cy - height/2, nonphysical_f_stop};
+
+    pixel_direction = normalize(pixel_direction);
+    pixel_direction = rot_quat(pixel_direction, camera_quat);
+
+    float3 cartesian_velocity = normalize(pixel_direction);
+
+    float3 new_basis_x = normalize(cartesian_velocity);
+    float3 new_basis_y = normalize(-cartesian_camera_pos.yzw);
+
+    new_basis_x = rejection(new_basis_x, new_basis_y);
+
+    float3 new_basis_z = -normalize(cross(new_basis_x, new_basis_y));
+
+    {
+        float3 cartesian_camera_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_camera_pos.yzw);
+        float3 cartesian_velocity_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_velocity);
+
+        cartesian_camera_pos.yzw = cartesian_camera_new_basis;
+        pixel_direction = normalize(cartesian_velocity_new_basis);
+    }
+
+    float3 polar_camera = cartesian_to_polar(cartesian_camera_pos.yzw);
+
+    float4 lightray_velocity;
+    float4 lightray_spacetime_position;
+
+    float g_metric[4] = {};
+
+    bool is_kruskal = polar_camera.x < 20;
+
+    float4 camera;
+
+    ///the reason that there aren't just two fully separate branches for is_kruskal and !is_kruskal
+    ///is that for some reason it absolutely murders performance, possibly for register file allocation reasons
+    ///but in reality i have very little idea. Its not branch divergence though, because all rays
+    ///take the same branch here, this is basically a compile time switch, because its only dependent on camera position
+    ///it may also be because it defeats some sort of compiler optimisation, or just honestly anything really
+    if(is_kruskal)
+        camera = (float4)(rt_to_T_krus(polar_camera.x, 0), rt_to_X_krus(polar_camera.x, 0), polar_camera.y, polar_camera.z);
+    else
+        camera = (float4)(0, polar_camera);
+
+    if(is_kruskal)
+        calculate_metric_krus_with_r(camera, polar_camera.x, g_metric);
+    else
+        calculate_metric((float4)(0, polar_camera), g_metric);
+
+    float4 co_basis = (float4){sqrt(-g_metric[0]), sqrt(g_metric[1]), sqrt(g_metric[2]), sqrt(g_metric[3])};
+
+    float4 bT = (float4)(1/co_basis.x, 0, 0, 0); ///or bt
+    float4 bX = (float4)(0, 1/co_basis.y, 0, 0); ///or br
+    float4 btheta = (float4)(0, 0, 1/co_basis.z, 0);
+    float4 bphi = (float4)(0, 0, 0, 1/co_basis.w);
+
+    float lorenz[16] = {};
+    get_lorenz_coeff(bT, g_metric, lorenz);
+
+    float4 cX = tensor_contract(lorenz, btheta);
+    float4 cY = tensor_contract(lorenz, bphi);
+    float4 cZ = tensor_contract(lorenz, bX);
+
+    float3 sVx;
+    float3 sVy;
+    float3 sVz;
+
+    if(is_kruskal)
+    {
+        float Xpolar_r = TXdTdX_to_dr_with_r(camera.x, camera.y, cX.x, cX.y, polar_camera.x);
+        float Hpolar_r = TXdTdX_to_dr_with_r(camera.x, camera.y, cY.x, cY.y, polar_camera.x);
+        float Ppolar_r = TXdTdX_to_dr_with_r(camera.x, camera.y, cZ.x, cZ.y, polar_camera.x);
+
+        sVx = (float3)(Xpolar_r, cX.zw);
+        sVy = (float3)(Hpolar_r, cY.zw);
+        sVz = (float3)(Ppolar_r, cZ.zw);
+    }
+    else
+    {
+        sVx = cX.yzw;
+        sVy = cY.yzw;
+        sVz = cZ.yzw;
+    }
+
+    float3 cartesian_cx = spherical_velocity_to_cartesian_velocity(polar_camera, sVx);
+    float3 cartesian_cy = spherical_velocity_to_cartesian_velocity(polar_camera, sVy);
+    float3 cartesian_cz = spherical_velocity_to_cartesian_velocity(polar_camera, sVz);
+
+    pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
+
+    float4 pixel_x = pixel_direction.x * cX;
+    float4 pixel_y = pixel_direction.y * cY;
+    float4 pixel_z = pixel_direction.z * cZ;
+
+    float4 vec = pixel_x + pixel_y + pixel_z;
+
+    float4 pixel_N = vec / (dot(lower_index(vec, g_metric), vec));
+    pixel_N = fix_light_velocity2(pixel_N, g_metric);
+
+    lightray_velocity = pixel_N;
+    lightray_spacetime_position = camera;
+
+    //lightray_velocity.y = -lightray_velocity.y;
+
+    float ambient_precision = 0.001;
+    float subambient_precision = 0.5;
+
+    ///TODO: need to use external observer time, currently using sim time!!
+    float max_ds = 0.001;
+    float min_ds = 0.001;
+
+    #define NO_EVENT_HORIZON_CROSSING
+
+    #ifdef NO_EVENT_HORIZON_CROSSING
+    ambient_precision = 0.01;
+    max_ds = 0.01;
+    min_ds = 0.01;
+    #endif // NO_EVENT_HORIZON_CROSSING
+
+    //#define EULER_INTEGRATION
+    #define VERLET_INTEGRATION
+
+    #ifdef VERLET_INTEGRATION
+    #ifdef NO_EVENT_HORIZON_CROSSING
+    ambient_precision = 0.05;
+    max_ds = 0.05;
+    min_ds = 0.05;
+    #endif // NO_EVENT_HORIZON_CROSSING
+    #endif // VERLET_INTEGRATION
+
+
+    float min_radius = 0.7 * rs;
+    float max_radius = 1.1 * rs;
+
+    //#define NO_KRUSKAL
+
+    ///from kruskal > to kruskal
+    #define FROM_KRUSKAL 1.25
+    #define TO_KRUSKAL 1.2
+
+    #ifndef NO_KRUSKAL
+    if(polar_camera.x >= rs * FROM_KRUSKAL && is_kruskal)
+    #else
+    if(is_kruskal)
+    #endif // NO_KRUSKAL
+    {
+        is_kruskal = false;
+
+        lightray_spacetime_position.x = 0;
+
+        ///not 100% sure this is correct?
+        float4 new_pos = kruskal_position_to_schwarzs_position_with_r(lightray_spacetime_position, polar_camera.x);
+        float4 new_vel = kruskal_velocity_to_schwarzs_velocity_with_r(lightray_spacetime_position, lightray_velocity, polar_camera.x);
+
+        lightray_spacetime_position = new_pos;
+        lightray_velocity = new_vel;
+    }
+
+    float4 lightray_acceleration = (float4)(0,0,0,0);
+
+    {
+        float g_partials[16] = {0};
+
+        {
+            if(is_kruskal)
+                calculate_metric_krus(lightray_spacetime_position, g_metric);
+            else
+                calculate_metric(lightray_spacetime_position, g_metric);
+
+            if(is_kruskal)
+                calculate_partial_derivatives_krus(lightray_spacetime_position, g_partials);
+            else
+                calculate_partial_derivatives(lightray_spacetime_position, g_partials);
+        }
+
+        lightray_velocity = fix_light_velocity2(lightray_velocity, g_metric);
+        lightray_acceleration = calculate_acceleration(lightray_velocity, g_metric, g_partials);
+    }
+
+    struct lightray ray;
+    ray.sx = cx;
+    ray.sy = cy;
+    ray.position = lightray_spacetime_position;
+    ray.velocity = lightray_velocity;
+    ray.acceleration = lightray_acceleration;
+
+    if(is_kruskal)
+    {
+        int id = atomic_inc(kruskal_count);
+
+        kruskal_rays[id] = ray;
+    }
+    else
+    {
+        int id = atomic_inc(schwarzs_count);
+
+        schwarzs_rays[id] = ray;
+    }
+}
+
+__kernel
+void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struct lightray* schwarzs_rays_out,
+                      __global struct lightray* kruskal_rays_in, __global struct lightray* kruskal_rays_out,
+                      __global struct lightray* finished_rays,
+                      __global int* schwarzs_count_in, __global int* schwarzs_count_out,
+                      __global int* kruskal_count_in, __global int* kruskal_count_out,
+                      __global int* finished_count_out)
+{
+    int id = get_global_id(0);
+
+    if(id >= *schwarzs_count_in)
+        return;
+
+    __global struct lightray* ray = &schwarzs_rays_in[id];
+
+    float4 position = ray->position;
+    float4 velocity = ray->velocity;
+    float4 acceleration = ray->acceleration;
+    int sx = ray->sx;
+    int sy = ray->sy;
+
+    float ds = 0.1;
+    float last_ds = ds;
+
+    for(int i=0; i < 64; i++)
+    {
+        float g_metric[4] = {};
+        float g_partials[16] = {};
+
+        if(!is_radius_leq_than(position, false, 400000) || is_radius_leq_than(position, false, 1.0001))
+        {
+            int out_id = atomic_inc(finished_count_out);
+
+            struct lightray out_ray;
+            out_ray.sx = sx;
+            out_ray.sy = sy;
+            out_ray.position = position;
+            out_ray.velocity = velocity;
+            out_ray.acceleration = acceleration;
+
+            finished_rays[out_id] = out_ray;
+            break;
+        }
+
+        #ifdef EULER_INTEGRATION
+        calculate_metric(position, g_metric);
+        calculate_partial_derivatives(position, g_partials);
+
+        float4 acceleration = calculate_acceleration(velocity, g_metric, g_partials);
+
+        velocity += acceleration * ds;
+        velocity = fix_light_velocity2(velocity, g_metric);
+
+        position += velocity * ds;
+
+        #endif // EULER_INTEGRATION
+
+        #ifdef VERLET_INTEGRATION
+        float4 next_position = position + velocity * ds + 0.5 * acceleration * ds * ds;
+        float4 intermediate_next_velocity = velocity + acceleration * ds;
+
+        calculate_metric(next_position, g_metric);
+        calculate_partial_derivatives(next_position, g_partials);
+
+        intermediate_next_velocity = fix_light_velocity2(intermediate_next_velocity, g_metric);
+
+        float4 next_acceleration = calculate_acceleration(intermediate_next_velocity, g_metric, g_partials);
+        float4 next_velocity = velocity + 0.5 * (acceleration + next_acceleration) * ds;
+
+        last_ds = ds;
+
+        position = next_position;
+        //velocity = fix_light_velocity2(next_velocity, g_metric);
+        velocity = next_velocity;
+        acceleration = next_acceleration;
+        //intermediate_velocity = intermediate_next_velocity;
+        #endif // VERLET_INTEGRATION
+    }
+
+    int out_id = atomic_inc(schwarzs_count_out);
+
+    struct lightray out_ray;
+    out_ray.sx = sx;
+    out_ray.sy = sy;
+    out_ray.position = position;
+    out_ray.velocity = velocity;
+    out_ray.acceleration = acceleration;
+
+    schwarzs_rays_out[out_id] = out_ray;
+}
+
+__kernel
+void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lightray* finished_rays, __global int* finished_count_in, __write_only image2d_t out, __read_only image2d_t background, int width, int height)
+{
+    int id = get_global_id(0);
+
+    if(id >= *finished_count_in)
+        return;
+
+    __global struct lightray* ray = &finished_rays[id];
+
+    int sx = ray->sx;
+    int sy = ray->sy;
+
+    float4 position = ray->position;
+
+    float r_value = position.y;
+
+    float3 cart_here = polar_to_cartesian((float3)(r_value, position.zw));
+
+    #define FOV 90
+
+    float fov_rad = (FOV / 360.f) * 2 * M_PI;
+
+    float nonphysical_plane_half_width = width/2;
+    float nonphysical_f_stop = nonphysical_plane_half_width / tan(fov_rad/2);
+
+    float3 pixel_direction = (float3){sx - width/2, sy - height/2, nonphysical_f_stop};
+
+    pixel_direction = normalize(pixel_direction);
+    pixel_direction = rot_quat(pixel_direction, camera_quat);
+
+    float3 cartesian_velocity = normalize(pixel_direction);
+
+    float3 new_basis_x = normalize(cartesian_velocity);
+    float3 new_basis_y = normalize(-cartesian_camera_pos.yzw);
+
+    new_basis_x = rejection(new_basis_x, new_basis_y);
+
+    float3 new_basis_z = -normalize(cross(new_basis_x, new_basis_y));
+
+    cart_here = rotate_vector(new_basis_x, new_basis_y, new_basis_z, cart_here);
+
+    float3 npolar = cartesian_to_polar(cart_here);
+
+    float thetaf = fmod(npolar.y, 2 * M_PI);
+    float phif = npolar.z;
+
+    if(thetaf >= M_PI)
+    {
+        phif += M_PI;
+        thetaf -= M_PI;
+    }
+
+    phif = fmod(phif, 2 * M_PI);
+
+    float sxf = (phif) / (2 * M_PI);
+    float syf = thetaf / M_PI;
+
+    sampler_t sam = CLK_NORMALIZED_COORDS_TRUE |
+                    CLK_ADDRESS_REPEAT |
+                    CLK_FILTER_LINEAR;
+
+    float4 val = read_imagef(background, sam, (float2){sxf, syf});
+
+    /*if(r_value < 1)
+    {
+        val = (float4)(0,0,0,1);
+
+        int x_half = fabs(fmod(sx * 10, 1)) > 0.5 ? 1 : 0;
+        int y_half = fabs(fmod(sy * 10, 1)) > 0.5 ? 1 : 0;
+
+        //val.x = (x_half + y_half) % 2;
+
+        val.x = x_half;
+        val.y = y_half;
+
+        if(sy < 0.1 || sy >= 0.9)
+        {
+            val.x = 0;
+            val.y = 0;
+            val.z = 1;
+        }
+    }*/
+
+    write_imagef(out, (int2){sx, sy}, val);
+}
+
 __kernel
 void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4 cartesian_camera_pos, float4 camera_quat, __read_only image2d_t background)
 {
