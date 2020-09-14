@@ -1424,19 +1424,18 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
 
         ds = mix(ambient_precision, subambient_precision, frac);
 
+        #if 1
         if(r_value >= new_max)
         {
-            //float multiplier = linear_val(r_value, new_max, new_max * 10, 0.1, 1);
-
-            //ds = (r_value - new_max) * multiplier + subambient_precision;
-
             ds = 0.1 * (r_value - new_max) + subambient_precision;
+            //ds = 0.05 * (r_value - new_max) + subambient_precision;
         }
+        #endif // 0
 
         float g_metric[4] = {};
         float g_partials[16] = {};
 
-        if(position.y >= 400000 || position.y <= rs)
+        if(position.y >= 4000000 || position.y <= rs)
         {
             if(position.y <= rs)
                 return;
