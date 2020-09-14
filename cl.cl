@@ -959,7 +959,8 @@ float linear_val(float value, float min_val, float max_val, float val_at_min, fl
 {
     float mixd = linear_mix(value, min_val, max_val);
 
-    return mix(mixd, val_at_min, val_at_max);
+    return mix(val_at_min, val_at_max, mixd);
+    //return mix(mixd, val_at_min, val_at_max);
 }
 
 struct lightray
@@ -1185,11 +1186,11 @@ void do_kruskal_rays(__global struct lightray* schwarzs_rays_in, __global struct
     float ds = 0.1;
     float last_ds = ds;
 
-    float ambient_precision = 0.001;
+    float ambient_precision = 0.01;
     float subambient_precision = 0.5;
 
-    float max_ds = 0.001;
-    float min_ds = 0.001;
+    float max_ds = 0.01;
+    float min_ds = 0.01;
 
     //#define NO_EVENT_HORIZON_CROSSING
 
@@ -1226,6 +1227,9 @@ void do_kruskal_rays(__global struct lightray* schwarzs_rays_in, __global struct
     for(int i=0; i < 100; i++)
     {
         float ds = min_ds;
+
+        float r_value = TX_to_r_krus(position.x, position.y);
+        ds = linear_val(r_value, 0.5f * rs, 1 * rs, 0.001f, 0.01f);
 
         float g_metric[4] = {};
         float g_partials[16] = {};
@@ -1425,9 +1429,11 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
 
         if(r_value >= new_max)
         {
-            float multiplier = linear_val(r_value, new_max, new_max * 10, 0.1, 1);
+            //float multiplier = linear_val(r_value, new_max, new_max * 10, 0.1, 1);
 
-            ds = (r_value - new_max) * multiplier + subambient_precision;
+            //ds = (r_value - new_max) * multiplier + subambient_precision;
+
+            ds = 0.1 * (r_value - new_max) + subambient_precision;
         }
 
         float g_metric[4] = {};
@@ -1636,7 +1642,7 @@ void relauncher(__global struct lightray* schwarzs_rays_in, __global struct ligh
                                         finished_count_out);
                    });
 
-    enqueue_kernel(get_default_queue(), CLK_ENQUEUE_FLAGS_NO_WAIT,
+    enqueue_kernel(get_default_queue(), CLK_ENQUEUE_FLAGS_WAIT_KERNEL,
                    ndrange_1D(offset, one, oneoffset),
                    1, &f4, NULL,
                    ^{
@@ -2123,9 +2129,11 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
 
             if(r_value >= new_max)
             {
-                float multiplier = linear_val(r_value, new_max, new_max * 10, 0.1, 1);
+                //float multiplier = linear_val(r_value, new_max, new_max * 10, 0.1, 1);
 
-                ds = (r_value - new_max) * multiplier + subambient_precision;
+                ds = 0.1 * (r_value - new_max) + subambient_precision;
+
+                //ds = (r_value - new_max) * multiplier + subambient_precision;
             }
 
             /*float ds_at_max = (new_max * 10) * 0.1 + subambient_precision;

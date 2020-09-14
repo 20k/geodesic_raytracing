@@ -262,6 +262,7 @@ int main()
 
         //printf("scamera %f\n", scamera.y());
 
+        //glFinish();
 
         int width = win.get_window_size().x();
         int height = win.get_window_size().y();
@@ -362,7 +363,7 @@ int main()
             run_args.push_back(height);
             run_args.push_back(fallback);
 
-            clctx.cqueue.exec("relauncher", run_args, {1}, {1});
+            cl::event evt = clctx.cqueue.exec("relauncher", run_args, {1}, {1});
 
             #endif // CPU_CONTROL
 
@@ -376,7 +377,7 @@ int main()
             render_args.push_back(width);
             render_args.push_back(height);
 
-            clctx.cqueue.exec("render", render_args, {width * height}, {256});
+            clctx.cqueue.exec("render", render_args, {width * height}, {256}, {evt});
         }
 
         rtex.unacquire(clctx.cqueue);
