@@ -1109,8 +1109,6 @@ void init_rays(float4 cartesian_camera_pos, float4 camera_quat, __global struct 
     {
         is_kruskal = false;
 
-        lightray_spacetime_position.x = 0;
-
         ///not 100% sure this is correct?
         float4 new_pos = kruskal_position_to_schwarzs_position_with_r(lightray_spacetime_position, polar_camera.x);
         float4 new_vel = kruskal_velocity_to_schwarzs_velocity_with_r(lightray_spacetime_position, lightray_velocity, polar_camera.x);
