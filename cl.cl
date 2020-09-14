@@ -1414,7 +1414,7 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
 
     for(int i=0; i < 64000/125; i++)
     {
-        float new_max = 4 * rs;
+        float new_max = 6 * rs;
         float new_min = 1.1 * rs;
 
         float r_value = position.y;
