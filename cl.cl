@@ -1160,6 +1160,8 @@ void init_rays(float4 cartesian_camera_pos, float4 camera_quat, __global struct 
     }
 }
 
+//#define NO_EVENT_HORIZON_CROSSING
+
 __kernel
 void do_kruskal_rays(__global struct lightray* schwarzs_rays_in, __global struct lightray* schwarzs_rays_out,
                       __global struct lightray* kruskal_rays_in, __global struct lightray* kruskal_rays_out,
@@ -1198,8 +1200,11 @@ void do_kruskal_rays(__global struct lightray* schwarzs_rays_in, __global struct
     min_ds = 0.01;
     #endif // NO_EVENT_HORIZON_CROSSING
 
-    #define EULER_INTEGRATION
-    //#define VERLET_INTEGRATION
+    #undef EULER_INTEGRATION
+    #undef VERLET_INTEGRATION
+
+    //#define EULER_INTEGRATION
+    #define VERLET_INTEGRATION
 
     #ifdef VERLET_INTEGRATION
     #ifdef NO_EVENT_HORIZON_CROSSING
@@ -1214,12 +1219,16 @@ void do_kruskal_rays(__global struct lightray* schwarzs_rays_in, __global struct
 
     float rs = 1;
 
-    float min_radius = 0.7 * rs;
-    float max_radius = 1.1 * rs;
+    //float min_radius = 0.7 * rs;
+    //float max_radius = 1.1 * rs;
 
     float krus_radius = FROM_KRUSKAL * rs;
 
     float T2_m_X2_transition = r_to_T2_m_X2(krus_radius);
+
+    float4 last_position = 0;
+    float4 last_velocity = 0;
+    float4 intermediate_velocity = 0;
 
     for(int i=0; i < 100; i++)
     {
@@ -1261,17 +1270,26 @@ void do_kruskal_rays(__global struct lightray* schwarzs_rays_in, __global struct
 
             ///https://www.wolframalpha.com/input/?i=%281+-+r%29+*+e%5Er%2C+r+from+0+to+3
             ///if radius >= krus_radius
-            if(T*T - X*X < T2_m_X2_transition)
+            if(T*T - X*X < T2_m_X2_transition && i > 0)
             {
                 float high_r = TX_to_r_krus_highprecision(position.x, position.y);
 
                 float4 new_pos = kruskal_position_to_schwarzs_position_with_r(position, high_r);
                 float4 new_vel = kruskal_velocity_to_schwarzs_velocity_with_r(position, velocity, high_r);
+                float4 new_acceleration = 0;
 
                 #ifdef VERLET_INTEGRATION
-                #ifndef NO_KRUSKAL
                 float4 ivel = kruskal_velocity_to_schwarzs_velocity_with_r(position, intermediate_velocity, high_r);
-                #endif // NO_KRUSKAL
+
+                float last_high_r = TX_to_r_krus_highprecision(last_position.x, last_position.y);
+
+                float4 last_new_pos = kruskal_position_to_schwarzs_position_with_r(last_position, last_high_r);
+                float4 last_new_vel = kruskal_velocity_to_schwarzs_velocity_with_r(last_position, last_velocity, last_high_r);
+
+                //float4 old_lightray_acceleration = ((position - last_new_pos) - (last_velocity * last_ds)) / (0.5 * last_ds * last_ds);
+                //float4 old_lightray_acceleration = ((velocity - last_new_vel) / last_ds);
+                float4 old_lightray_acceleration = ((ivel - last_new_vel) / last_ds);
+                new_acceleration = ((new_vel - last_new_vel) / (0.5 * last_ds)) - old_lightray_acceleration;
                 #endif // VERLET_INTEGRATION
 
                 struct lightray out_ray;
@@ -1279,35 +1297,20 @@ void do_kruskal_rays(__global struct lightray* schwarzs_rays_in, __global struct
                 out_ray.sy = sy;
                 out_ray.position = new_pos;
                 out_ray.velocity = new_vel;
-                out_ray.acceleration = (float4)(0,0,0,0);
+                out_ray.acceleration = new_acceleration;
 
                 int fid = atomic_inc(schwarzs_count_in);
 
                 schwarzs_rays_in[fid] = out_ray;
 
                 return;
-
-                //position = new_pos;
-                //velocity = new_vel;
-
-                #ifdef VERLET_INTEGRATION
-                #ifndef NO_KRUSKAL
-                float last_high_r = TX_to_r_krus_highprecision(last_position.x, last_position.y);
-
-                float4 last_new_pos = kruskal_position_to_schwarzs_position_with_r(last_position, last_high_r);
-                float4 last_new_vel = kruskal_velocity_to_schwarzs_velocity_with_r(last_position, last_velocity, last_high_r);
-
-                last_position = last_new_pos;
-                last_velocity = last_new_vel;
-
-                //float4 old_lightray_acceleration = ((position - last_position) - (last_velocity * last_ds)) / (0.5 * last_ds * last_ds);
-                //float4 old_lightray_acceleration = ((velocity - last_velocity) / last_ds);
-                float4 old_lightray_acceleration = ((ivel - last_velocity) / last_ds);
-                lightray_acceleration = ((velocity - last_velocity) / (0.5 * last_ds)) - old_lightray_acceleration;
-                #endif // NO_KRUSKAL
-                #endif // VERLET_INTEGRATION
             }
         }
+
+        #ifdef VERLET_INTEGRATION
+        last_position = position;
+        last_velocity = velocity;
+        #endif // VERLET_INTEGRATION
 
         #ifdef EULER_INTEGRATION
         calculate_metric_krus(position, g_metric);
@@ -1338,7 +1341,7 @@ void do_kruskal_rays(__global struct lightray* schwarzs_rays_in, __global struct
         position = next_position;
         //velocity = fix_light_velocity2(next_velocity, g_metric);
         velocity = next_velocity;
-        //intermediate_velocity = intermediate_next_velocity;
+        intermediate_velocity = intermediate_next_velocity;
         acceleration = next_acceleration;
         #endif // VERLET_INTEGRATION
     }
@@ -1393,8 +1396,11 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
     min_ds = 0.01;
     #endif // NO_EVENT_HORIZON_CROSSING
 
-    #define EULER_INTEGRATION
-    //#define VERLET_INTEGRATION
+    #undef EULER_INTEGRATION
+    #undef VERLET_INTEGRATION
+
+    //#define EULER_INTEGRATION
+    #define VERLET_INTEGRATION
 
     #ifdef VERLET_INTEGRATION
     #ifdef NO_EVENT_HORIZON_CROSSING
@@ -1412,10 +1418,14 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
     float min_radius = 0.7 * rs;
     float max_radius = 1.1 * rs;
 
+    float4 last_position = 0;
+    float4 last_velocity = 0;
+    float4 intermediate_velocity = 0;
+
     for(int i=0; i < 64000/125; i++)
     {
         float new_max = 6 * rs;
-        float new_min = 1.1 * rs;
+        float new_min = FROM_KRUSKAL * rs;
 
         float r_value = position.y;
 
@@ -1447,51 +1457,51 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
             out_ray.sy = sy;
             out_ray.position = position;
             out_ray.velocity = velocity;
-            out_ray.acceleration = acceleration;
+            out_ray.acceleration = 0;
 
             finished_rays[out_id] = out_ray;
             return;
         }
 
         #ifndef NO_KRUSKAL
-        if(position.y <= rs * TO_KRUSKAL)
+        if(position.y <= rs * TO_KRUSKAL && i > 0)
         {
             float4 new_pos = schwarzs_position_to_kruskal_position((float4)(0.f, position.yzw));
             float4 new_vel = schwarzs_velocity_to_kruskal_velocity((float4)(0.f, position.yzw), velocity);
+            float4 new_acceleration = 0;
 
             #ifdef VERLET_INTEGRATION
             float4 last_new_pos = schwarzs_position_to_kruskal_position((float4)(0, last_position.yzw));
             float4 last_new_vel = schwarzs_velocity_to_kruskal_velocity((float4)(0, last_position.yzw), last_velocity);
 
-            float4 ivel = schwarzs_velocity_to_kruskal_velocity((float4)(0.f, lightray_spacetime_position.yzw), intermediate_velocity);
+            float4 ivel = schwarzs_velocity_to_kruskal_velocity((float4)(0.f, position.yzw), intermediate_velocity);
+
+            //float4 old_lightray_acceleration = ((lightray_spacetime_position - last_new_pos) - (last_new_vel * last_ds)) / (0.5 * last_ds * last_ds); ///worst
+            //float4 old_lightray_acceleration = ((lightray_velocity - last_new_vel) / last_ds); ///second best, but seems fine
+            float4 old_lightray_acceleration = ((ivel - last_new_vel) / last_ds); ///technically the best
+            new_acceleration = ((new_vel - last_new_vel) / (0.5 * last_ds)) - old_lightray_acceleration;
             #endif // VERLET_INTEGRATION
 
             struct lightray out_ray;
             out_ray.sx = sx;
             out_ray.sy = sy;
+            ///you know, could use old pos, vel, and acceleration, slightly less work
             out_ray.position = new_pos;
             out_ray.velocity = new_vel;
-            out_ray.acceleration = (float4)(0,0,0,0);
+            out_ray.acceleration = new_acceleration;
 
             int kid = atomic_inc(kruskal_count_in);
 
             kruskal_rays_in[kid] = out_ray;
+
             return;
-
-            //lightray_spacetime_position = new_pos;
-            //lightray_velocity = new_vel;
-
-            #ifdef VERLET_INTEGRATION
-            last_position = last_new_pos;
-            last_velocity = last_new_vel;
-
-            //float4 old_lightray_acceleration = ((lightray_spacetime_position - last_position) - (last_velocity * last_ds)) / (0.5 * last_ds * last_ds); ///worst
-            //float4 old_lightray_acceleration = ((lightray_velocity - last_velocity) / last_ds); ///second best, but seems fine
-            float4 old_lightray_acceleration = ((ivel - last_velocity) / last_ds); ///technically the best
-            lightray_acceleration = ((lightray_velocity - last_velocity) / (0.5 * last_ds)) - old_lightray_acceleration;
-            #endif // VERLET_INTEGRATION
         }
         #endif // NO_KRUSKAL
+
+        #ifdef VERLET_INTEGRATION
+        last_position = position;
+        last_velocity = velocity;
+        #endif // VERLET_INTEGRATION
 
         #ifdef EULER_INTEGRATION
         calculate_metric(position, g_metric);
@@ -1506,7 +1516,7 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
         #endif // EULER_INTEGRATION
 
         #ifdef VERLET_INTEGRATION
-        float4 next_position = position + velocity * ds + 0.5 * acceleration * ds * ds;
+        float4 next_position = position + velocity * ds + 0.5f * acceleration * ds * ds;
         float4 intermediate_next_velocity = velocity + acceleration * ds;
 
         calculate_metric(next_position, g_metric);
@@ -1515,14 +1525,14 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
         intermediate_next_velocity = fix_light_velocity2(intermediate_next_velocity, g_metric);
 
         float4 next_acceleration = calculate_acceleration(intermediate_next_velocity, g_metric, g_partials);
-        float4 next_velocity = velocity + 0.5 * (acceleration + next_acceleration) * ds;
+        float4 next_velocity = velocity + 0.5f * (acceleration + next_acceleration) * ds;
 
         last_ds = ds;
 
         position = next_position;
         //velocity = fix_light_velocity2(next_velocity, g_metric);
         velocity = next_velocity;
-        //intermediate_velocity = intermediate_next_velocity;
+        intermediate_velocity = intermediate_next_velocity;
         acceleration = next_acceleration;
         #endif // VERLET_INTEGRATION
     }
