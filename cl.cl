@@ -1094,7 +1094,7 @@ void init_rays(float4 cartesian_camera_pos, float4 camera_quat, __global struct 
 
     //lightray_velocity.y = -lightray_velocity.y;
 
-    #define NO_KRUSKAL
+    //#define NO_KRUSKAL
 
     ///from kruskal > to kruskal
     #define FROM_KRUSKAL 1.15
@@ -1191,7 +1191,7 @@ void do_kruskal_rays(__global struct lightray* schwarzs_rays_in, __global struct
     float max_ds = 0.001;
     float min_ds = 0.001;
 
-    #define NO_EVENT_HORIZON_CROSSING
+    //#define NO_EVENT_HORIZON_CROSSING
 
     #ifdef NO_EVENT_HORIZON_CROSSING
     ambient_precision = 0.01;
@@ -1225,12 +1225,16 @@ void do_kruskal_rays(__global struct lightray* schwarzs_rays_in, __global struct
 
     for(int i=0; i < 100; i++)
     {
-        float ds = 0.05;
+        float ds = min_ds;
 
         float g_metric[4] = {};
         float g_partials[16] = {};
 
+        #ifdef NO_EVENT_HORIZON_CROSSING
         if((position.x * position.x - position.y * position.y) >= 0)
+        #else
+        if(is_radius_leq_than(position, true, 0.5 * rs))
+        #endif // NO_EVENT_HORIZON_CROSSING
         {
             int out_id = atomic_inc(finished_count_out);
 
@@ -1380,7 +1384,7 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
     float max_ds = 0.001;
     float min_ds = 0.001;
 
-    #define NO_EVENT_HORIZON_CROSSING
+    //#define NO_EVENT_HORIZON_CROSSING
 
     #ifdef NO_EVENT_HORIZON_CROSSING
     ambient_precision = 0.01;
@@ -1672,11 +1676,13 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
     float rs = 1;
     float r_value = position.y;
 
+    #ifdef NO_EVENT_HORIZON_CROSSINGS
     if(r_value <= rs)
     {
-        write_imagef(out, (int2){sx, sy}, (float4)(1, 0, 0, 1));
+        write_imagef(out, (int2){sx, sy}, (float4)(0, 0, 0, 1));
         return;
     }
+    #endif // NO_EVENT_HORIZON_CROSSINGS
 
     float3 cart_here = polar_to_cartesian((float3)(r_value, position.zw));
 
@@ -1744,6 +1750,30 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
             val.z = 1;
         }
     }*/
+
+    #ifndef NO_EVENT_HORIZON_CROSSINGS
+
+    if(r_value <= rs)
+    {
+        val = (float4)(0,0,0,1);
+
+        int x_half = fabs(fmod(sxf * 10.f, 1.f)) > 0.5 ? 1 : 0;
+        int y_half = fabs(fmod(syf * 10.f, 1.f)) > 0.5 ? 1 : 0;
+
+        //val.x = (x_half + y_half) % 2;
+
+        val.x = x_half;
+        val.y = y_half;
+
+        if(syf < 0.1 || syf >= 0.9)
+        {
+            val.x = 0;
+            val.y = 0;
+            val.z = 1;
+        }
+    }
+
+    #endif // NO_EVENT_HORIZON_CROSSINGS
 
     write_imagef(out, (int2){sx, sy}, val);
 }
@@ -1886,7 +1916,7 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
     #undef EULER_INTEGRATION
     #undef NO_KRUSKAL
 
-    #define NO_EVENT_HORIZON_CROSSING
+    //#define NO_EVENT_HORIZON_CROSSING
 
     #ifdef NO_EVENT_HORIZON_CROSSING
     ambient_precision = 0.01;
@@ -1912,7 +1942,7 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
     float min_radius = 0.7 * rs;
     float max_radius = 1.1 * rs;
 
-    #define NO_KRUSKAL
+    //#define NO_KRUSKAL
 
     ///from kruskal > to kruskal
     #define FROM_KRUSKAL 1.25
