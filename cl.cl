@@ -1220,7 +1220,6 @@ void do_kruskal_rays(__global struct lightray* schwarzs_rays_in, __global struct
     float krus_radius = FROM_KRUSKAL * rs;
 
     float T2_m_X2_transition = r_to_T2_m_X2(krus_radius);
-    float krus_inner_cutoff = r_to_T2_m_X2(0.5 * rs);
 
     for(int i=0; i < 100; i++)
     {
