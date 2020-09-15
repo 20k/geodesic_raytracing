@@ -1183,6 +1183,13 @@ void do_kruskal_rays(__global struct lightray* schwarzs_rays_in, __global struct
     int sx = ray->sx;
     int sy = ray->sy;
 
+    {
+        float g_metric[4] = {0};
+        calculate_metric_krus(position, g_metric);
+
+        velocity = fix_light_velocity2(velocity, g_metric);
+    }
+
     float ds = 0.1;
     float last_ds = ds;
 
@@ -1203,8 +1210,8 @@ void do_kruskal_rays(__global struct lightray* schwarzs_rays_in, __global struct
     #undef EULER_INTEGRATION
     #undef VERLET_INTEGRATION
 
-    //#define EULER_INTEGRATION
-    #define VERLET_INTEGRATION
+    #define EULER_INTEGRATION
+    //#define VERLET_INTEGRATION
 
     #ifdef VERLET_INTEGRATION
     #ifdef NO_EVENT_HORIZON_CROSSING
@@ -1230,7 +1237,7 @@ void do_kruskal_rays(__global struct lightray* schwarzs_rays_in, __global struct
     float4 last_velocity = 0;
     float4 intermediate_velocity = 0;
 
-    for(int i=0; i < 100; i++)
+    for(int i=0; i < 64000/125; i++)
     {
         float ds = min_ds;
 
@@ -1316,10 +1323,11 @@ void do_kruskal_rays(__global struct lightray* schwarzs_rays_in, __global struct
         calculate_metric_krus(position, g_metric);
         calculate_partial_derivatives_krus(position, g_partials);
 
+        velocity = fix_light_velocity2(velocity, g_metric);
+
         float4 acceleration = calculate_acceleration(velocity, g_metric, g_partials);
 
         velocity += acceleration * ds;
-        velocity = fix_light_velocity2(velocity, g_metric);
 
         position += velocity * ds;
         #endif // EULER_INTEGRATION
@@ -1379,6 +1387,13 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
     int sx = ray->sx;
     int sy = ray->sy;
 
+    {
+        float g_metric[4] = {0};
+        calculate_metric(position, g_metric);
+
+        velocity = fix_light_velocity2(velocity, g_metric);
+    }
+
     float ds = 0.1;
     float last_ds = ds;
 
@@ -1399,8 +1414,8 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
     #undef EULER_INTEGRATION
     #undef VERLET_INTEGRATION
 
-    //#define EULER_INTEGRATION
-    #define VERLET_INTEGRATION
+    #define EULER_INTEGRATION
+    //#define VERLET_INTEGRATION
 
     #ifdef VERLET_INTEGRATION
     #ifdef NO_EVENT_HORIZON_CROSSING
@@ -1429,10 +1444,7 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
 
         float r_value = position.y;
 
-        float interp = clamp(r_value, new_min, new_max);
-        float frac = (interp - new_min) / (new_max - new_min);
-
-        ds = mix(ambient_precision, subambient_precision, frac);
+        ds = linear_val(r_value, new_min, new_max, ambient_precision, subambient_precision);
 
         #if 1
         if(r_value >= new_max)
@@ -1464,7 +1476,11 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
         }
 
         #ifndef NO_KRUSKAL
+        #ifdef VERLET_INTEGRATION
         if(position.y <= rs * TO_KRUSKAL && i > 0)
+        #else
+        if(position.y <= rs * TO_KRUSKAL)
+        #endif // VERLET_INTEGRATION
         {
             float4 new_pos = schwarzs_position_to_kruskal_position((float4)(0.f, position.yzw));
             float4 new_vel = schwarzs_velocity_to_kruskal_velocity((float4)(0.f, position.yzw), velocity);
@@ -1507,10 +1523,10 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
         calculate_metric(position, g_metric);
         calculate_partial_derivatives(position, g_partials);
 
-        float4 acceleration = calculate_acceleration(velocity, g_metric, g_partials);
-
-        velocity += acceleration * ds;
         velocity = fix_light_velocity2(velocity, g_metric);
+
+        float4 acceleration = calculate_acceleration(velocity, g_metric, g_partials);
+        velocity += acceleration * ds;
 
         position += velocity * ds;
         #endif // EULER_INTEGRATION
