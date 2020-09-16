@@ -1198,30 +1198,7 @@ void do_kruskal_rays(__global struct lightray* schwarzs_rays_in, __global struct
     float ambient_precision = 0.01;
     float subambient_precision = 0.5;
 
-    float max_ds = 0.01;
-    float min_ds = 0.01;
-
-    #ifdef NO_EVENT_HORIZON_CROSSING
-    ambient_precision = 0.01;
-    max_ds = 0.01;
-    min_ds = 0.01;
-    #endif // NO_EVENT_HORIZON_CROSSING
-
-    #ifdef VERLET_INTEGRATION
-    #ifdef NO_EVENT_HORIZON_CROSSING
-    ambient_precision = 0.05;
-    max_ds = 0.05;
-    min_ds = 0.05;
-    #endif // NO_EVENT_HORIZON_CROSSING
-    #endif // VERLET_INTEGRATION
-
-    /*float min_radius = rs * 1.1;
-    float max_radius = rs * 1.6;*/
-
     float rs = 1;
-
-    //float min_radius = 0.7 * rs;
-    //float max_radius = 1.1 * rs;
 
     float krus_radius = FROM_KRUSKAL * rs;
 
@@ -1399,30 +1376,7 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
     float ambient_precision = 0.01;
     float subambient_precision = 0.5;
 
-    float max_ds = 0.01;
-    float min_ds = 0.01;
-
-    #ifdef NO_EVENT_HORIZON_CROSSING
-    ambient_precision = 0.01;
-    max_ds = 0.01;
-    min_ds = 0.01;
-    #endif // NO_EVENT_HORIZON_CROSSING
-
-    #ifdef VERLET_INTEGRATION
-    #ifdef NO_EVENT_HORIZON_CROSSING
-    ambient_precision = 0.05;
-    max_ds = 0.05;
-    min_ds = 0.05;
-    #endif // NO_EVENT_HORIZON_CROSSING
-    #endif // VERLET_INTEGRATION
-
-    /*float min_radius = rs * 1.1;
-    float max_radius = rs * 1.6;*/
-
     float rs = 1;
-
-    float min_radius = 0.7 * rs;
-    float max_radius = 1.1 * rs;
 
     float4 last_position = 0;
     float4 last_velocity = 0;
