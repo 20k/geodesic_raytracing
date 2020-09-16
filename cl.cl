@@ -1099,7 +1099,7 @@ void init_rays(float4 cartesian_camera_pos, float4 camera_quat, __global struct 
 
     ///from kruskal > to kruskal
     #define FROM_KRUSKAL 1.15
-    #define TO_KRUSKAL 1.1
+    #define TO_KRUSKAL 1.1499999
 
     #ifndef NO_KRUSKAL
     if(polar_camera.x >= rs * FROM_KRUSKAL && is_kruskal)
@@ -1277,7 +1277,11 @@ void do_kruskal_rays(__global struct lightray* schwarzs_rays_in, __global struct
 
             ///https://www.wolframalpha.com/input/?i=%281+-+r%29+*+e%5Er%2C+r+from+0+to+3
             ///if radius >= krus_radius
+            #ifdef VERLET_INTEGRATION
             if(T*T - X*X < T2_m_X2_transition && i > 0)
+            #else
+            if(T*T - X*X < T2_m_X2_transition)
+            #endif // VERLET_INTEGRATION
             {
                 float high_r = TX_to_r_krus_highprecision(position.x, position.y);
 
@@ -1325,9 +1329,9 @@ void do_kruskal_rays(__global struct lightray* schwarzs_rays_in, __global struct
 
         velocity = fix_light_velocity2(velocity, g_metric);
 
-        float4 acceleration = calculate_acceleration(velocity, g_metric, g_partials);
+        float4 lacceleration = calculate_acceleration(velocity, g_metric, g_partials);
 
-        velocity += acceleration * ds;
+        velocity += lacceleration * ds;
 
         position += velocity * ds;
         #endif // EULER_INTEGRATION
@@ -1525,8 +1529,8 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
 
         velocity = fix_light_velocity2(velocity, g_metric);
 
-        float4 acceleration = calculate_acceleration(velocity, g_metric, g_partials);
-        velocity += acceleration * ds;
+        float4 lacceleration = calculate_acceleration(velocity, g_metric, g_partials);
+        velocity += lacceleration * ds;
 
         position += velocity * ds;
         #endif // EULER_INTEGRATION
