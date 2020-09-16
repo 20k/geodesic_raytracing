@@ -1362,6 +1362,9 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
 
     float last_ds = 1000;
 
+    ///results:
+    ///subambient_precision can't go above 0.5 much while in verlet mode without the size of the event horizon changing
+    ///in euler mode this is actually already too low
     float ambient_precision = 0.01;
     float subambient_precision = 0.5;
 
