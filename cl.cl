@@ -973,6 +973,12 @@ struct lightray
 
 #if 1
 
+//#define NO_KRUSKAL
+//#define NO_EVENT_HORIZON_CROSSING
+
+#define EULER_INTEGRATION
+//#define VERLET_INTEGRATION
+
 __kernel
 void init_rays(float4 cartesian_camera_pos, float4 camera_quat, __global struct lightray* schwarzs_rays, __global struct lightray* kruskal_rays, __global int* schwarzs_count, __global int* kruskal_count, int width, int height)
 {
@@ -1095,8 +1101,6 @@ void init_rays(float4 cartesian_camera_pos, float4 camera_quat, __global struct 
 
     //lightray_velocity.y = -lightray_velocity.y;
 
-    //#define NO_KRUSKAL
-
     ///from kruskal > to kruskal
     #define FROM_KRUSKAL 1.15
     #define TO_KRUSKAL 1.1499999
@@ -1160,8 +1164,6 @@ void init_rays(float4 cartesian_camera_pos, float4 camera_quat, __global struct 
     }
 }
 
-//#define NO_EVENT_HORIZON_CROSSING
-
 __kernel
 void do_kruskal_rays(__global struct lightray* schwarzs_rays_in, __global struct lightray* schwarzs_rays_out,
                       __global struct lightray* kruskal_rays_in, __global struct lightray* kruskal_rays_out,
@@ -1199,19 +1201,11 @@ void do_kruskal_rays(__global struct lightray* schwarzs_rays_in, __global struct
     float max_ds = 0.01;
     float min_ds = 0.01;
 
-    //#define NO_EVENT_HORIZON_CROSSING
-
     #ifdef NO_EVENT_HORIZON_CROSSING
     ambient_precision = 0.01;
     max_ds = 0.01;
     min_ds = 0.01;
     #endif // NO_EVENT_HORIZON_CROSSING
-
-    #undef EULER_INTEGRATION
-    #undef VERLET_INTEGRATION
-
-    #define EULER_INTEGRATION
-    //#define VERLET_INTEGRATION
 
     #ifdef VERLET_INTEGRATION
     #ifdef NO_EVENT_HORIZON_CROSSING
@@ -1248,7 +1242,8 @@ void do_kruskal_rays(__global struct lightray* schwarzs_rays_in, __global struct
         float g_partials[16] = {};
 
         #ifdef NO_EVENT_HORIZON_CROSSING
-        if((position.x * position.x - position.y * position.y) >= 0)
+        //if((position.x * position.x - position.y * position.y) >= 0)
+        if(is_radius_leq_than(position, true, rs))
         #else
         if(is_radius_leq_than(position, true, 0.5 * rs))
         #endif // NO_EVENT_HORIZON_CROSSING
@@ -1407,19 +1402,11 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
     float max_ds = 0.01;
     float min_ds = 0.01;
 
-    //#define NO_EVENT_HORIZON_CROSSING
-
     #ifdef NO_EVENT_HORIZON_CROSSING
     ambient_precision = 0.01;
     max_ds = 0.01;
     min_ds = 0.01;
     #endif // NO_EVENT_HORIZON_CROSSING
-
-    #undef EULER_INTEGRATION
-    #undef VERLET_INTEGRATION
-
-    #define EULER_INTEGRATION
-    //#define VERLET_INTEGRATION
 
     #ifdef VERLET_INTEGRATION
     #ifdef NO_EVENT_HORIZON_CROSSING
@@ -1708,7 +1695,7 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
     float rs = 1;
     float r_value = position.y;
 
-    #ifdef NO_EVENT_HORIZON_CROSSINGS
+    #ifdef NO_EVENT_HORIZON_CROSSING
     if(r_value <= rs)
     {
         write_imagef(out, (int2){sx, sy}, (float4)(0, 0, 0, 1));
@@ -1783,8 +1770,7 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
         }
     }*/
 
-    #ifndef NO_EVENT_HORIZON_CROSSINGS
-
+    #ifndef NO_EVENT_HORIZON_CROSSING
     if(r_value <= rs)
     {
         val = (float4)(0,0,0,1);
@@ -1804,7 +1790,6 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
             val.z = 1;
         }
     }
-
     #endif // NO_EVENT_HORIZON_CROSSINGS
 
     write_imagef(out, (int2){sx, sy}, val);
@@ -1977,8 +1962,8 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
     //#define NO_KRUSKAL
 
     ///from kruskal > to kruskal
-    #define FROM_KRUSKAL 1.25
-    #define TO_KRUSKAL 1.2
+    #define FROM_KRUSKAL 1.15
+    #define TO_KRUSKAL 1.1499999
 
     #ifndef NO_KRUSKAL
     if(polar_camera.x >= rs * FROM_KRUSKAL && is_kruskal)
