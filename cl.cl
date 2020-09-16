@@ -481,8 +481,6 @@ void calculate_partial_derivatives_krus(float4 spacetime_position, float g_metri
 
     float f10 = 0;
 
-    float xt = X*X - T*T;
-
     if(fabs(lambert_interior) > 0.00001)
         f10 = (2 * k * X * lambert_interior) / ((X*X - T*T) * (lambert_interior + 1));
 
@@ -920,6 +918,7 @@ float4 calculate_acceleration(float4 lightray_velocity, float g_metric[4], float
 
     float velocity_arr[4] = {lightray_velocity.x, lightray_velocity.y, lightray_velocity.z, lightray_velocity.w};
 
+    ///no performance benefit by unrolling u into a float4
     float christ_result[4] = {0,0,0,0};
 
     for(int uu=0; uu < 4; uu++)
@@ -934,18 +933,12 @@ float4 calculate_acceleration(float4 lightray_velocity, float g_metric[4], float
             }
         }
 
-        /*if(!isfinite(sum))
-        {
-            write_imagef(out, (int2){cx, cy}, (float4){1, 0, 0, 1});
-            return;
-        }*/
-
         christ_result[uu] = sum;
     }
 
-    float4 acceleration = {-christ_result[0], -christ_result[1], -christ_result[2], -christ_result[3]};
+    float4 acceleration = {christ_result[0], christ_result[1], christ_result[2], christ_result[3]};
 
-    return acceleration;
+    return -acceleration;
 }
 
 float linear_mix(float value, float min_val, float max_val)
@@ -973,11 +966,11 @@ struct lightray
 
 #if 1
 
-//#define NO_KRUSKAL
-//#define NO_EVENT_HORIZON_CROSSING
+#define NO_KRUSKAL
+#define NO_EVENT_HORIZON_CROSSING
 
-#define EULER_INTEGRATION
-//#define VERLET_INTEGRATION
+//#define EULER_INTEGRATION
+#define VERLET_INTEGRATION
 
 __kernel
 void init_rays(float4 cartesian_camera_pos, float4 camera_quat, __global struct lightray* schwarzs_rays, __global struct lightray* kruskal_rays, __global int* schwarzs_count, __global int* kruskal_count, int width, int height)

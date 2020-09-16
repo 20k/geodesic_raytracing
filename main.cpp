@@ -208,6 +208,11 @@ int main()
             camera = {0, 0, 0, -1.16};
         }
 
+        if(ImGui::IsKeyPressed(GLFW_KEY_M))
+        {
+            camera = {0, 0, 0, 1.16};
+        }
+
         /*camera.y() += (ImGui::IsKeyDown(GLFW_KEY_D) - ImGui::IsKeyDown(GLFW_KEY_A)) * speed;
         camera.z() += (ImGui::IsKeyDown(GLFW_KEY_W) - ImGui::IsKeyDown(GLFW_KEY_S)) * speed;
         camera.w() += (ImGui::IsKeyDown(GLFW_KEY_E) - ImGui::IsKeyDown(GLFW_KEY_Q)) * speed;*/
@@ -388,8 +393,8 @@ int main()
             clctx.cqueue.exec("render", render_args, {width * height}, {256}, {evt});
         }
 
-        clctx.cqueue.block();
         rtex.unacquire(clctx.cqueue);
+        clctx.cqueue.block();
         #endif
 
         {
