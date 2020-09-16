@@ -1192,8 +1192,7 @@ void do_kruskal_rays(__global struct lightray* schwarzs_rays_in, __global struct
         velocity = fix_light_velocity2(velocity, g_metric);
     }
 
-    float ds = 0.1;
-    float last_ds = ds;
+    float last_ds = 1000;
 
     float ambient_precision = 0.01;
     float subambient_precision = 0.5;
@@ -1210,10 +1209,8 @@ void do_kruskal_rays(__global struct lightray* schwarzs_rays_in, __global struct
 
     for(int i=0; i < 64000/125; i++)
     {
-        float ds = min_ds;
-
         float r_value = TX_to_r_krus(position.x, position.y);
-        ds = linear_val(r_value, 0.5f * rs, 1 * rs, 0.001f, 0.01f);
+        float ds = linear_val(r_value, 0.5f * rs, 1 * rs, 0.001f, 0.01f);
 
         float g_metric[4] = {};
         float g_partials[16] = {};
@@ -1370,8 +1367,7 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
         velocity = fix_light_velocity2(velocity, g_metric);
     }
 
-    float ds = 0.1;
-    float last_ds = ds;
+    float last_ds = 1000;
 
     float ambient_precision = 0.01;
     float subambient_precision = 0.5;
@@ -1389,7 +1385,7 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
 
         float r_value = position.y;
 
-        ds = linear_val(r_value, new_min, new_max, ambient_precision, subambient_precision);
+        float ds = linear_val(r_value, new_min, new_max, ambient_precision, subambient_precision);
 
         #if 1
         if(r_value >= new_max)

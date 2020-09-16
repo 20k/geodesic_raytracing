@@ -170,10 +170,13 @@ int main()
     kruskal_count_2.alloc(sizeof(int));
     finished_count_1.alloc(sizeof(int));
 
+    std::cout << "Supports shared events? " << cl::supports_extension(clctx.ctx, "cl_khr_gl_event") << std::endl;
+
     while(!win.should_close())
     {
         win.poll();
 
+        glFinish();
         rtex.acquire(clctx.cqueue);
 
         float ds = 0.01;
@@ -385,11 +388,8 @@ int main()
             clctx.cqueue.exec("render", render_args, {width * height}, {256}, {evt});
         }
 
-        rtex.unacquire(clctx.cqueue);
-
-        glFinish();
         clctx.cqueue.block();
-        glFinish();
+        rtex.unacquire(clctx.cqueue);
         #endif
 
         {
