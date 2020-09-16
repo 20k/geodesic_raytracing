@@ -213,6 +213,11 @@ int main()
             camera = {0, 0, 0, 1.16};
         }
 
+        if(ImGui::IsKeyPressed(GLFW_KEY_R))
+        {
+            camera = {0, 0, 22, 0};
+        }
+
         /*camera.y() += (ImGui::IsKeyDown(GLFW_KEY_D) - ImGui::IsKeyDown(GLFW_KEY_A)) * speed;
         camera.z() += (ImGui::IsKeyDown(GLFW_KEY_W) - ImGui::IsKeyDown(GLFW_KEY_S)) * speed;
         camera.w() += (ImGui::IsKeyDown(GLFW_KEY_E) - ImGui::IsKeyDown(GLFW_KEY_Q)) * speed;*/
