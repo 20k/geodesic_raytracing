@@ -1102,8 +1102,8 @@ void init_rays(float4 cartesian_camera_pos, float4 camera_quat, __global struct 
     //lightray_velocity.y = -lightray_velocity.y;
 
     ///from kruskal > to kruskal
-    #define FROM_KRUSKAL 1.15
-    #define TO_KRUSKAL 1.1499999
+    #define FROM_KRUSKAL 1.05
+    #define TO_KRUSKAL 1.049999
 
     #ifndef NO_KRUSKAL
     if(polar_camera.x >= rs * FROM_KRUSKAL && is_kruskal)
@@ -1962,8 +1962,8 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
     //#define NO_KRUSKAL
 
     ///from kruskal > to kruskal
-    #define FROM_KRUSKAL 1.15
-    #define TO_KRUSKAL 1.1499999
+    #define FROM_KRUSKAL 1.05
+    #define TO_KRUSKAL 1.049999
 
     #ifndef NO_KRUSKAL
     if(polar_camera.x >= rs * FROM_KRUSKAL && is_kruskal)
