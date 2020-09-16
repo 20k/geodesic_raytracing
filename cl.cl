@@ -1725,8 +1725,8 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
     {
         val = (float4)(0,0,0,1);
 
-        int x_half = fabs(fmod(sxf * 10.f, 1.f)) > 0.5 ? 1 : 0;
-        int y_half = fabs(fmod(syf * 10.f, 1.f)) > 0.5 ? 1 : 0;
+        int x_half = fabs(fmod((sxf + 1) * 10.f, 1.f)) > 0.5 ? 1 : 0;
+        int y_half = fabs(fmod((syf + 1) * 10.f, 1.f)) > 0.5 ? 1 : 0;
 
         //val.x = (x_half + y_half) % 2;
 
@@ -2179,8 +2179,8 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
             {
                 val = (float4)(0,0,0,1);
 
-                int x_half = fabs(fmod(sx * 10, 1)) > 0.5 ? 1 : 0;
-                int y_half = fabs(fmod(sy * 10, 1)) > 0.5 ? 1 : 0;
+                int x_half = fabs(fmod((sx + 1) * 10, 1)) > 0.5 ? 1 : 0;
+                int y_half = fabs(fmod((sy + 1) * 10, 1)) > 0.5 ? 1 : 0;
 
                 //val.x = (x_half + y_half) % 2;
 
