@@ -982,7 +982,7 @@ void init_rays(float4 cartesian_camera_pos, float4 camera_quat, __global struct 
     int cx = get_global_id(0);
     int cy = get_global_id(1);
 
-    if(cx >= width-1 || cy >= height-1)
+    if(cx >= width || cy >= height)
         return;
 
     float nonphysical_plane_half_width = width/2;
@@ -1145,13 +1145,19 @@ void init_rays(float4 cartesian_camera_pos, float4 camera_quat, __global struct 
 
     if(is_kruskal)
     {
-        int id = atomic_inc(kruskal_count);
+        int id = cy * width + cx;
+
+        if(id == 0)
+            *kruskal_count = (height - 1) * width + width - 1;
 
         kruskal_rays[id] = ray;
     }
     else
     {
-        int id = atomic_inc(schwarzs_count);
+        int id = cy * width + cx;
+
+        if(id == 0)
+            *schwarzs_count = (height - 1) * width + width-1;
 
         schwarzs_rays[id] = ray;
     }
