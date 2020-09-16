@@ -27,6 +27,19 @@
 					<Add option="-s" />
 				</Linker>
 			</Target>
+			<Target title="GPUProfile">
+				<Option output="bin/GPUProfile/geodesic_raytracing" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/GPUProfile/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-O2" />
+					<Add option="-DGPU_PROFILE" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+				</Linker>
+			</Target>
 		</Build>
 		<Compiler>
 			<Add option="-Wall" />

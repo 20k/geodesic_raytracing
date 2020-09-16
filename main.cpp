@@ -272,15 +272,17 @@ int main()
         camera.z() += offset.y();
         camera.w() += offset.z();
 
-        //printf("%f camera\n", camera.z());
-
         vec4f scamera = cartesian_to_schwarz(camera);
 
-        printf("Polar vals %f %f %f\n", scamera.y(), scamera.z(), scamera.w());
+        float time = clk.restart().asMicroseconds() / 1000.;
 
-        //printf("scamera %f\n", scamera.y());
+        ImGui::Begin("DBG", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 
-        //glFinish();
+        ImGui::DragFloat3("Pos", &scamera.v[1]);
+
+        ImGui::DragFloat("Time", &time);
+
+        ImGui::End();
 
         int width = win.get_window_size().x();
         int height = win.get_window_size().y();
@@ -424,9 +426,7 @@ int main()
 
         win.display();
 
-        double time = clk.restart().asMicroseconds() / 1000.;
-
-        std::cout << "FRAMETIME " << time << std::endl;
+        //std::cout << "FRAMETIME " << time << std::endl;
     }
 
     return 0;
