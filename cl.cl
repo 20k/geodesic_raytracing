@@ -113,7 +113,9 @@ float4 fix_light_velocity2(float4 v, float g_metric[])
 {
     ///g_metric[1] * v[1]^2 + g_metric[2] * v[2]^2 + g_metric[3] * v[3]^2 = -g_metric[0] * v[0]^2
 
-    float tvl_2 = (g_metric[1] * v.y * v.y + g_metric[2] * v.z * v.z + g_metric[3] * v.w * v.w) / -g_metric[0];
+    float3 vmetric = {g_metric[1], g_metric[2], g_metric[3]};
+
+    float tvl_2 = dot(vmetric, v.yzw * v.yzw) / -g_metric[0];
 
     v.x = native_sqrt(tvl_2);
 

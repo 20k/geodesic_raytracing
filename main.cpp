@@ -37,8 +37,8 @@ struct lightray
 int main()
 {
     render_settings sett;
-    sett.width = 1500;
-    sett.height = 800;
+    sett.width = 1800;
+    sett.height = 900;
     sett.opencl = true;
     sett.no_double_buffer = true;
 
