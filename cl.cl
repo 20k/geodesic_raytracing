@@ -75,40 +75,6 @@ float calculate_ds(float4 velocity, float g_metric[])
 }
 
 ///ds2 = guv dx^u dx^v
-float4 fix_light_velocity(float4 velocity, float g_metric[])
-{
-    //velocity.yzw = fast_normalize(velocity.yzw);
-
-    /*velocity.x = -1/native_sqrt(-g_metric[0]);
-    velocity.y = velocity.y / native_sqrt(g_metric[1]);
-    velocity.z = velocity.z / native_sqrt(g_metric[2]);
-    velocity.w = velocity.w / native_sqrt(g_metric[3]);*/
-
-    float v[4] = {velocity.x, velocity.y, velocity.z, velocity.w};
-
-    ///so. g_metric[0] is negative. velocity_arr[0] is 1
-
-    ///so rewritten, ds2 = Eu Ev dxu * dx v
-
-    ///g_metric[1] * v[1]^2 + g_metric[2] * v[2]^2 + g_metric[3] * v[3]^2 = -g_metric[0] * v[0]^2 * scale
-
-    float time_scale = (g_metric[1] * v[1] * v[1] + g_metric[2] * v[2] * v[2] + g_metric[3] * v[3] * v[3]) / (-g_metric[0] * v[0] * v[0]);
-
-    ///g_metric[1] * v[1]^2 / scale + g_metric[2] * v[2]^2 / scale + g_metric[3] * v[3]^2 / scale = -g_metric[0] * v[0]^2
-
-    /*v[1] /= native_sqrt(time_scale);
-    v[2] /= native_sqrt(time_scale);
-    v[3] /= native_sqrt(time_scale);*/
-
-    v[0] *= native_sqrt(time_scale);
-
-    ///should print 0
-    /*float fds = calculate_ds((float4){v[0], v[1], v[2], v[3]}, g_metric);
-    printf("%f fds\n", fds);*/
-
-    return (float4){v[0], v[1], v[2], v[3]};
-}
-
 float4 fix_light_velocity2(float4 v, float g_metric[])
 {
     ///g_metric[1] * v[1]^2 + g_metric[2] * v[2]^2 + g_metric[3] * v[3]^2 = -g_metric[0] * v[0]^2
