@@ -77,7 +77,7 @@ float calculate_ds(float4 velocity, float g_metric[])
 ///ds2 = guv dx^u dx^v
 float4 fix_light_velocity(float4 velocity, float g_metric[])
 {
-    //velocity.yzw = normalize(velocity.yzw);
+    //velocity.yzw = fast_normalize(velocity.yzw);
 
     /*velocity.x = -1/native_sqrt(-g_metric[0]);
     velocity.y = velocity.y / native_sqrt(g_metric[1]);
@@ -246,10 +246,10 @@ float3 unrotate_vector(float3 bx, float3 by, float3 bz, float3 v)
 
 }*/
 
-///normalized
+///fast_normalized
 float3 rejection(float3 my_vector, float3 basis)
 {
-    return normalize(my_vector - dot(my_vector, basis) * basis);
+    return fast_normalize(my_vector - dot(my_vector, basis) * basis);
 }
 
 float3 srgb_to_lin(float3 C_srgb)
@@ -993,24 +993,24 @@ void init_rays(float4 cartesian_camera_pos, float4 camera_quat, __global struct 
 
     float3 pixel_direction = (float3){cx - width/2, cy - height/2, nonphysical_f_stop};
 
-    pixel_direction = normalize(pixel_direction);
+    pixel_direction = fast_normalize(pixel_direction);
     pixel_direction = rot_quat(pixel_direction, camera_quat);
 
-    float3 cartesian_velocity = normalize(pixel_direction);
+    float3 cartesian_velocity = fast_normalize(pixel_direction);
 
-    float3 new_basis_x = normalize(cartesian_velocity);
-    float3 new_basis_y = normalize(-cartesian_camera_pos.yzw);
+    float3 new_basis_x = fast_normalize(cartesian_velocity);
+    float3 new_basis_y = fast_normalize(-cartesian_camera_pos.yzw);
 
     new_basis_x = rejection(new_basis_x, new_basis_y);
 
-    float3 new_basis_z = -normalize(cross(new_basis_x, new_basis_y));
+    float3 new_basis_z = -fast_normalize(cross(new_basis_x, new_basis_y));
 
     {
         float3 cartesian_camera_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_camera_pos.yzw);
         float3 cartesian_velocity_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_velocity);
 
         cartesian_camera_pos.yzw = cartesian_camera_new_basis;
-        pixel_direction = normalize(cartesian_velocity_new_basis);
+        pixel_direction = fast_normalize(cartesian_velocity_new_basis);
     }
 
     float3 polar_camera = cartesian_to_polar(cartesian_camera_pos.yzw);
@@ -1078,7 +1078,7 @@ void init_rays(float4 cartesian_camera_pos, float4 camera_quat, __global struct 
     float3 cartesian_cy = spherical_velocity_to_cartesian_velocity(polar_camera, sVy);
     float3 cartesian_cz = spherical_velocity_to_cartesian_velocity(polar_camera, sVz);
 
-    pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
+    pixel_direction = unrotate_vector(fast_normalize(cartesian_cx), fast_normalize(cartesian_cy), fast_normalize(cartesian_cz), pixel_direction);
 
     float4 pixel_x = pixel_direction.x * cX;
     float4 pixel_y = pixel_direction.y * cY;
@@ -1669,17 +1669,17 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
 
     float3 pixel_direction = (float3){sx - width/2, sy - height/2, nonphysical_f_stop};
 
-    pixel_direction = normalize(pixel_direction);
+    pixel_direction = fast_normalize(pixel_direction);
     pixel_direction = rot_quat(pixel_direction, camera_quat);
 
-    float3 cartesian_velocity = normalize(pixel_direction);
+    float3 cartesian_velocity = fast_normalize(pixel_direction);
 
-    float3 new_basis_x = normalize(cartesian_velocity);
-    float3 new_basis_y = normalize(-cartesian_camera_pos.yzw);
+    float3 new_basis_x = fast_normalize(cartesian_velocity);
+    float3 new_basis_y = fast_normalize(-cartesian_camera_pos.yzw);
 
     new_basis_x = rejection(new_basis_x, new_basis_y);
 
-    float3 new_basis_z = -normalize(cross(new_basis_x, new_basis_y));
+    float3 new_basis_z = -fast_normalize(cross(new_basis_x, new_basis_y));
 
     cart_here = rotate_vector(new_basis_x, new_basis_y, new_basis_z, cart_here);
 
@@ -1775,24 +1775,24 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
 
     float3 pixel_direction = (float3){cx - width/2, cy - height/2, nonphysical_f_stop};
 
-    pixel_direction = normalize(pixel_direction);
+    pixel_direction = fast_normalize(pixel_direction);
     pixel_direction = rot_quat(pixel_direction, camera_quat);
 
-    float3 cartesian_velocity = normalize(pixel_direction);
+    float3 cartesian_velocity = fast_normalize(pixel_direction);
 
-    float3 new_basis_x = normalize(cartesian_velocity);
-    float3 new_basis_y = normalize(-cartesian_camera_pos.yzw);
+    float3 new_basis_x = fast_normalize(cartesian_velocity);
+    float3 new_basis_y = fast_normalize(-cartesian_camera_pos.yzw);
 
     new_basis_x = rejection(new_basis_x, new_basis_y);
 
-    float3 new_basis_z = -normalize(cross(new_basis_x, new_basis_y));
+    float3 new_basis_z = -fast_normalize(cross(new_basis_x, new_basis_y));
 
     {
         float3 cartesian_camera_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_camera_pos.yzw);
         float3 cartesian_velocity_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_velocity);
 
         cartesian_camera_pos.yzw = cartesian_camera_new_basis;
-        pixel_direction = normalize(cartesian_velocity_new_basis);
+        pixel_direction = fast_normalize(cartesian_velocity_new_basis);
     }
 
     float3 polar_camera = cartesian_to_polar(cartesian_camera_pos.yzw);
@@ -1860,7 +1860,7 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
     float3 cartesian_cy = spherical_velocity_to_cartesian_velocity(polar_camera, sVy);
     float3 cartesian_cz = spherical_velocity_to_cartesian_velocity(polar_camera, sVz);
 
-    pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
+    pixel_direction = unrotate_vector(fast_normalize(cartesian_cx), fast_normalize(cartesian_cy), fast_normalize(cartesian_cz), pixel_direction);
 
     float4 pixel_x = pixel_direction.x * cX;
     float4 pixel_y = pixel_direction.y * cY;
