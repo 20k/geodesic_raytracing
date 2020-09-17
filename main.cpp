@@ -53,9 +53,11 @@ int main()
 
     clctx.ctx.register_program(prog);
 
+    int supersample_mult = 2;
+
     texture_settings tsett;
-    tsett.width = sett.width;
-    tsett.height = sett.height;
+    tsett.width = sett.width*supersample_mult;
+    tsett.height = sett.height*supersample_mult;
     tsett.is_srgb = false;
 
     /*texture tex;
@@ -145,7 +147,7 @@ int main()
     }*/
 
     ///t, x, y, z
-    vec4f camera = {0, 0.01, -0.024, -5};
+    vec4f camera = {0, 0.01, -0.024, -5.5};
     quat camera_quat;
     //camera_quat.load_from_matrix(axis_angle_to_mat({0, 0, 0}, 0));
 
@@ -154,7 +156,7 @@ int main()
 
     sf::Clock clk;
 
-    int ray_count = sett.width * sett.height;
+    int ray_count = sett.width * sett.height * supersample_mult * supersample_mult;
 
     cl::buffer schwarzs_1(clctx.ctx);
     cl::buffer schwarzs_2(clctx.ctx);
@@ -168,11 +170,11 @@ int main()
     cl::buffer kruskal_count_2(clctx.ctx);
     cl::buffer finished_count_1(clctx.ctx);
 
-    schwarzs_1.alloc(sizeof(lightray) * ray_count * 4);
-    schwarzs_2.alloc(sizeof(lightray) * ray_count * 4);
-    kruskal_1.alloc(sizeof(lightray) * ray_count * 4);
-    kruskal_2.alloc(sizeof(lightray) * ray_count * 4);
-    finished_1.alloc(sizeof(lightray) * ray_count * 4);
+    schwarzs_1.alloc(sizeof(lightray) * ray_count * 3);
+    schwarzs_2.alloc(sizeof(lightray) * ray_count * 3);
+    kruskal_1.alloc(sizeof(lightray) * ray_count * 3);
+    kruskal_2.alloc(sizeof(lightray) * ray_count * 3);
+    finished_1.alloc(sizeof(lightray) * ray_count * 3);
 
     schwarzs_count_1.alloc(sizeof(int));
     schwarzs_count_2.alloc(sizeof(int));
@@ -183,6 +185,8 @@ int main()
     std::optional<cl::event> last_event;
 
     std::cout << "Supports shared events? " << cl::supports_extension(clctx.ctx, "cl_khr_gl_event") << std::endl;
+
+    bool supersample = false;
 
     while(!win.should_close())
     {
@@ -294,15 +298,23 @@ int main()
 
         ImGui::DragFloat("Time", &time);
 
+        ImGui::Checkbox("Supersample", &supersample);
+
         ImGui::End();
 
         int width = win.get_window_size().x();
         int height = win.get_window_size().y();
 
+        if(supersample)
+        {
+            width *= supersample_mult;
+            height *= supersample_mult;
+        }
+
         cl::args clr;
         clr.push_back(rtex[which_buffer]);
 
-        clctx.cqueue.exec("clear", clr, {win.get_window_size().x(), win.get_window_size().y()}, {16, 16});
+        clctx.cqueue.exec("clear", clr, {width, height}, {16, 16});
 
         #if 0
         cl::args args;
@@ -443,7 +455,10 @@ int main()
                 br.y += screen_pos.y;
             }
 
-            lst->AddImage((void*)rtex[which_buffer].texture_id, tl, br);
+            if(!supersample)
+                lst->AddImage((void*)rtex[which_buffer].texture_id, tl, br, ImVec2(0, 0), ImVec2(1.f/supersample_mult, 1.f/supersample_mult));
+            else
+                lst->AddImage((void*)rtex[which_buffer].texture_id, tl, br, ImVec2(0, 0), ImVec2(1, 1));
         }
 
         win.display();

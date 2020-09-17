@@ -1362,7 +1362,23 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
         #if 1
         if(r_value >= new_max)
         {
+            //ds = 0.5 * pow(r_value - new_max, 0.8) + subambient_precision;
+
+            //ds = 1 * sqrt(r_value - new_max) + subambient_precision;
+
+            float end_max = 4000000;
+
+            /*float mixd = linear_mix(r_value, new_max, end_max);
+            ds = mix(subambient_precision, end_max/10, mixd);*/
+
+            //ds = linear_val(r_value, new_max, end_max, subambient_precision, end_max/10);
+
             ds = 0.1 * (r_value - new_max) + subambient_precision;
+
+
+
+
+            //ds = 0.1 * pow(r_value - new_max, 0.999) + subambient_precision;
             //ds = 0.05 * (r_value - new_max) + subambient_precision;
         }
         #endif // 0
@@ -1607,7 +1623,7 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
     int sx = ray->sx;
     int sy = ray->sy;
 
-    if(sx >= get_image_width(out) || sy >= get_image_height(out))
+    if(sx >= width || sy >= height)
         return;
 
     if(sx < 0 || sy < 0)
