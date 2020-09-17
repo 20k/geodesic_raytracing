@@ -24,7 +24,7 @@ float spacetime_metric_value(int i, int k, int l, float g_partial[16])
 float3 cartesian_to_polar(float3 in)
 {
     float r = length(in);
-    //float theta = atan2(sqrt(in.x * in.x + in.y * in.y), in.z);
+    //float theta = atan2(native_sqrt(in.x * in.x + in.y * in.y), in.z);
     float theta = acos(in.z / r);
     float phi = atan2(in.y, in.x);
 
@@ -47,11 +47,11 @@ float3 cartesian_velocity_to_polar_velocity(float3 cartesian_position, float3 ca
 
     /*float rdot = (p.x * v.x + p.y * v.y + p.z * v.z) / length(p);
     float tdot = (v.x * p.y - p.x * v.y) / (p.x * p.x + p.y * p.y);
-    float pdot = (p.z * (p.x * v.x + p.y * v.y) - (p.x * p.x + p.y * p.y) * v.z) / ((p.x * p.x + p.y * p.y + p.z * p.z) * sqrt(p.x * p.x + p.y * p.y));*/
+    float pdot = (p.z * (p.x * v.x + p.y * v.y) - (p.x * p.x + p.y * p.y) * v.z) / ((p.x * p.x + p.y * p.y + p.z * p.z) * native_sqrt(p.x * p.x + p.y * p.y));*/
 
     float r = length(p);
 
-    float repeated_eq = r * sqrt(1 - (p.z*p.z / (r * r)));
+    float repeated_eq = r * native_sqrt(1 - (p.z*p.z / (r * r)));
 
     float rdot = (p.x * v.x + p.y * v.y + p.z * v.z) / r;
     float tdot = ((p.z * rdot) / (r*repeated_eq)) - v.z / repeated_eq;
@@ -79,10 +79,10 @@ float4 fix_light_velocity(float4 velocity, float g_metric[])
 {
     //velocity.yzw = normalize(velocity.yzw);
 
-    /*velocity.x = -1/sqrt(-g_metric[0]);
-    velocity.y = velocity.y / sqrt(g_metric[1]);
-    velocity.z = velocity.z / sqrt(g_metric[2]);
-    velocity.w = velocity.w / sqrt(g_metric[3]);*/
+    /*velocity.x = -1/native_sqrt(-g_metric[0]);
+    velocity.y = velocity.y / native_sqrt(g_metric[1]);
+    velocity.z = velocity.z / native_sqrt(g_metric[2]);
+    velocity.w = velocity.w / native_sqrt(g_metric[3]);*/
 
     float v[4] = {velocity.x, velocity.y, velocity.z, velocity.w};
 
@@ -96,11 +96,11 @@ float4 fix_light_velocity(float4 velocity, float g_metric[])
 
     ///g_metric[1] * v[1]^2 / scale + g_metric[2] * v[2]^2 / scale + g_metric[3] * v[3]^2 / scale = -g_metric[0] * v[0]^2
 
-    /*v[1] /= sqrt(time_scale);
-    v[2] /= sqrt(time_scale);
-    v[3] /= sqrt(time_scale);*/
+    /*v[1] /= native_sqrt(time_scale);
+    v[2] /= native_sqrt(time_scale);
+    v[3] /= native_sqrt(time_scale);*/
 
-    v[0] *= sqrt(time_scale);
+    v[0] *= native_sqrt(time_scale);
 
     ///should print 0
     /*float fds = calculate_ds((float4){v[0], v[1], v[2], v[3]}, g_metric);
@@ -115,7 +115,7 @@ float4 fix_light_velocity2(float4 v, float g_metric[])
 
     float tvl_2 = (g_metric[1] * v.y * v.y + g_metric[2] * v.z * v.z + g_metric[3] * v.w * v.w) / -g_metric[0];
 
-    v.x = sqrt(tvl_2);
+    v.x = native_sqrt(tvl_2);
 
     return v;
 }
@@ -261,9 +261,9 @@ float3 srgb_to_lin(float3 C_srgb)
 
 float3 lin_to_srgb(float3 val)
 {
-    float3 S1 = sqrt(val);
-    float3 S2 = sqrt(S1);
-    float3 S3 = sqrt(S2);
+    float3 S1 = native_sqrt(val);
+    float3 S2 = native_sqrt(S1);
+    float3 S3 = native_sqrt(S2);
     float3 sRGB = 0.585122381 * S1 + 0.783140355 * S2 - 0.368262736 * S3;
 
     return sRGB;
@@ -540,9 +540,9 @@ float rt_to_T_krus(float r, float t)
     float k = rs;
 
     if(r > rs)
-        return sqrt(r/k - 1) * exp(0.5 * r/k) * sinh(0.5 * t/k);
+        return native_sqrt(r/k - 1) * exp(0.5 * r/k) * sinh(0.5 * t/k);
     else
-        return sqrt(1 - r/k) * exp(0.5 * r/k) * cosh(0.5 * t/k);
+        return native_sqrt(1 - r/k) * exp(0.5 * r/k) * cosh(0.5 * t/k);
 }
 
 float rt_to_X_krus(float r, float t)
@@ -551,9 +551,9 @@ float rt_to_X_krus(float r, float t)
     float k = rs;
 
     if(r > rs)
-        return sqrt(r/k - 1) * exp(0.5 * r/k) * cosh(0.5 * t/k);
+        return native_sqrt(r/k - 1) * exp(0.5 * r/k) * cosh(0.5 * t/k);
     else
-        return sqrt(1 - r/k) * exp(0.5 * r/k) * sinh(0.5 * t/k);
+        return native_sqrt(1 - r/k) * exp(0.5 * r/k) * sinh(0.5 * t/k);
 }
 
 float TX_to_r_krus(float T, float X)
@@ -580,18 +580,18 @@ float trdtdr_to_dX(float t, float r, float dt, float dr)
     if(r > rs)
     {
         ///https://www.wolframalpha.com/input/?i=D%5B%28r%2Fk+-+1%29%5E0.5+*+%28e%5E%280.5+*+r%2Fk%29%29+*+cosh%280.5+*+t%2Fk%29%2C+r%5D+*+r0+%2B+D%5B%28r%2Fk+-+1%29%5E0.5+*+%28e%5E%280.5+*+r%2Fk%29%29+*+cosh%280.5+*+t%2Fk%29%2C+t%5D+*+t0
-        return exp((0.5 * r)/k) * (r * (2 * dr * cosh((0.5 * t)/k) + dt * (exp((0.5 * t/k)) - exp(-(0.5 * t)/k))) - 2 * k * dt * sinh((0.5 * t)/k)) / (4 * k * k * sqrt((r - k)/k));
+        return exp((0.5 * r)/k) * (r * (2 * dr * cosh((0.5 * t)/k) + dt * (exp((0.5 * t/k)) - exp(-(0.5 * t)/k))) - 2 * k * dt * sinh((0.5 * t)/k)) / (4 * k * k * native_sqrt((r - k)/k));
     }
     else
     {
         ///https://www.wolframalpha.com/input/?i=D%5B%281+-+r%2Fk%29%5E0.5+*+%28e%5E%280.5+*+r%2Fk%29%29+*+sinh%280.5+*+t%2Fk%29%2C+r%5D+*+r0+%2B+D%5B%281+-+r%2Fk%29%5E0.5+*+%28e%5E%280.5+*+r%2Fk%29%29+*+sinh%280.5+*+t%2Fk%29%2C+t%5D+*+t0
-        return exp((0.5 * r)/k) * (dt * (0.5 * k - 0.5 * r) * cosh((0.5 * t) / k) - 0.5 * r * dr * sinh((0.5 * t/k))) / (k * k * sqrt(1-r/k));
+        return exp((0.5 * r)/k) * (dt * (0.5 * k - 0.5 * r) * cosh((0.5 * t) / k) - 0.5 * r * dr * sinh((0.5 * t/k))) / (k * k * native_sqrt(1-r/k));
     }
 
     /*if(r > rs)
-        return exp(0.5 * r/k) * (dt * (0.5 * r - 0.5 * k) * sinh((0.5 * t) / k) + 0.5 * r * dr * cosh((0.5 * t) / k)) / (k * k * sqrt(r/k - 1));
+        return exp(0.5 * r/k) * (dt * (0.5 * r - 0.5 * k) * sinh((0.5 * t) / k) + 0.5 * r * dr * cosh((0.5 * t) / k)) / (k * k * native_sqrt(r/k - 1));
     else
-        return exp(0.5 * r/k) * (dt * (0.5 * k - 0.5 * r) * cosh((0.5 * t) / k) - 0.5 * r * dr * sinh((0.5 * t) / k)) / (k * k * sqrt(1 - k/r));*/
+        return exp(0.5 * r/k) * (dt * (0.5 * k - 0.5 * r) * cosh((0.5 * t) / k) - 0.5 * r * dr * sinh((0.5 * t) / k)) / (k * k * native_sqrt(1 - k/r));*/
 }
 
 float trdtdr_to_dT(float t, float r, float dt, float dr)
@@ -602,18 +602,18 @@ float trdtdr_to_dT(float t, float r, float dt, float dr)
     if(r > rs)
     {
         ///https://www.wolframalpha.com/input/?i=D%5B%28r%2Fk+-+1%29%5E0.5+*+%28e%5E%280.5+*+r%2Fk%29%29+*+sinh%280.5+*+t%2Fk%29%2C+r%5D+*+r0+%2B+D%5B%28r%2Fk+-+1%29%5E0.5+*+%28e%5E%280.5+*+r%2Fk%29%29+*+sinh%280.5+*+t%2Fk%29%2C+t%5D+*+t0
-        return exp((0.5 * r)/k) * (0.5 * r * dr * sinh((0.5 * t)/k) + dt * (0.5 * r - 0.5 * k) * cosh((0.5 * t/k))) / (k * k * sqrt(r/k - 1));
+        return exp((0.5 * r)/k) * (0.5 * r * dr * sinh((0.5 * t)/k) + dt * (0.5 * r - 0.5 * k) * cosh((0.5 * t/k))) / (k * k * native_sqrt(r/k - 1));
     }
     else
     {
         ///https://www.wolframalpha.com/input/?i=D%5B%281+-+r%2Fk%29%5E0.5+*+%28e%5E%280.5+*+r%2Fk%29%29+*+cosh%280.5+*+t%2Fk%29%2C+r%5D+*+r0+%2B+D%5B%281+-+r%2Fk%29%5E0.5+*+%28e%5E%280.5+*+r%2Fk%29%29+*+cosh%280.5+*+t%2Fk%29%2C+t%5D+*+t0
-        return -exp((0.5 * r)/k) * (r * (2 * dr * cosh((0.5 * t)/k) + dt * (exp((0.5 * t)/k) - exp(-(0.5 * t)/k))) - 2 * k * dt * sinh((0.5 * t)/k)) / (4 * k * k * sqrt(-(r-k)/k));
+        return -exp((0.5 * r)/k) * (r * (2 * dr * cosh((0.5 * t)/k) + dt * (exp((0.5 * t)/k) - exp(-(0.5 * t)/k))) - 2 * k * dt * sinh((0.5 * t)/k)) / (4 * k * k * native_sqrt(-(r-k)/k));
     }
 
     /*if(r > rs)
-        return exp(0.5 * r/k) * (dt * (0.5 * r - 0.5 * k) * cosh((0.5 * t) / k) + 0.5 * r * dr * sinh((0.5 * t) / k)) / (k * k * sqrt(r/k - 1));
+        return exp(0.5 * r/k) * (dt * (0.5 * r - 0.5 * k) * cosh((0.5 * t) / k) + 0.5 * r * dr * sinh((0.5 * t) / k)) / (k * k * native_sqrt(r/k - 1));
     else
-        return exp(0.5 * r/k) * (dt * (0.5 * k - 0.5 * r) * sinh((0.5 * t) / k) - 0.5 * r * dr * cosh((0.5 * t) / k)) / (k * k * sqrt(1 - k/r));*/
+        return exp(0.5 * r/k) * (dt * (0.5 * k - 0.5 * r) * sinh((0.5 * t) / k) - 0.5 * r * dr * cosh((0.5 * t) / k)) / (k * k * native_sqrt(1 - k/r));*/
 }
 
 float TX_to_t(float T, float X)
@@ -1039,7 +1039,7 @@ void init_rays(float4 cartesian_camera_pos, float4 camera_quat, __global struct 
     else
         calculate_metric((float4)(0, polar_camera), g_metric);
 
-    float4 co_basis = (float4){sqrt(-g_metric[0]), sqrt(g_metric[1]), sqrt(g_metric[2]), sqrt(g_metric[3])};
+    float4 co_basis = (float4){native_sqrt(-g_metric[0]), native_sqrt(g_metric[1]), native_sqrt(g_metric[2]), native_sqrt(g_metric[3])};
 
     float4 bT = (float4)(1/co_basis.x, 0, 0, 0); ///or bt
     float4 bX = (float4)(0, 1/co_basis.y, 0, 0); ///or br
@@ -1097,6 +1097,8 @@ void init_rays(float4 cartesian_camera_pos, float4 camera_quat, __global struct 
     ///from kruskal > to kruskal
     #define FROM_KRUSKAL 1.05
     #define TO_KRUSKAL 1.049999
+
+    bool dirty = false;
 
     #ifndef NO_KRUSKAL
     if(polar_camera.x >= rs * FROM_KRUSKAL && is_kruskal)
@@ -1481,6 +1483,7 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
         calculate_metric(next_position, g_metric);
         calculate_partial_derivatives(next_position, g_partials);
 
+        ///1ms
         intermediate_next_velocity = fix_light_velocity2(intermediate_next_velocity, g_metric);
 
         float4 next_acceleration = calculate_acceleration(intermediate_next_velocity, g_metric, g_partials);
@@ -1818,7 +1821,7 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
     else
         calculate_metric((float4)(0, polar_camera), g_metric);
 
-    float4 co_basis = (float4){sqrt(-g_metric[0]), sqrt(g_metric[1]), sqrt(g_metric[2]), sqrt(g_metric[3])};
+    float4 co_basis = (float4){native_sqrt(-g_metric[0]), native_sqrt(g_metric[1]), native_sqrt(g_metric[2]), native_sqrt(g_metric[3])};
 
     float4 bT = (float4)(1/co_basis.x, 0, 0, 0); ///or bt
     float4 bX = (float4)(0, 1/co_basis.y, 0, 0); ///or br
