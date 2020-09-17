@@ -58,11 +58,21 @@ int main()
     tsett.height = sett.height;
     tsett.is_srgb = false;
 
-    texture tex;
+    /*texture tex;
     tex.load_from_memory(tsett, nullptr);
 
     cl::gl_rendertexture rtex(clctx.ctx);
-    rtex.create_from_texture(tex.handle);
+    rtex.create_from_texture(tex.handle);*/
+
+    std::array<texture, 2> tex;
+    tex[0].load_from_memory(tsett, nullptr);
+    tex[1].load_from_memory(tsett, nullptr);
+
+    std::array<cl::gl_rendertexture, 2> rtex{clctx.ctx, clctx.ctx};
+    rtex[0].create_from_texture(tex[0].handle);
+    rtex[1].create_from_texture(tex[1].handle);
+
+    int which_buffer = 0;
 
     sf::Image img;
     img.loadFromFile("background_med.png");
@@ -170,6 +180,8 @@ int main()
     kruskal_count_2.alloc(sizeof(int));
     finished_count_1.alloc(sizeof(int));
 
+    std::optional<cl::event> last_event;
+
     std::cout << "Supports shared events? " << cl::supports_extension(clctx.ctx, "cl_khr_gl_event") << std::endl;
 
     while(!win.should_close())
@@ -177,7 +189,7 @@ int main()
         win.poll();
 
         glFinish();
-        rtex.acquire(clctx.cqueue);
+        rtex[which_buffer].acquire(clctx.cqueue);
 
         float ds = 0.01;
 
@@ -288,13 +300,13 @@ int main()
         int height = win.get_window_size().y();
 
         cl::args clr;
-        clr.push_back(rtex);
+        clr.push_back(rtex[which_buffer]);
 
         clctx.cqueue.exec("clear", clr, {win.get_window_size().x(), win.get_window_size().y()}, {16, 16});
 
         #if 0
         cl::args args;
-        args.push_back(rtex);
+        args.push_back(rtex[0]);
         args.push_back(ds);
         args.push_back(camera);
         args.push_back(camera_quat);
@@ -302,7 +314,7 @@ int main()
 
         clctx.cqueue.exec("do_raytracing_multicoordinate", args, {win.get_window_size().x(), win.get_window_size().y()}, {16, 16});
 
-        rtex.unacquire(clctx.cqueue);
+        rtex[0].unacquire(clctx.cqueue);
 
         glFinish();
         clctx.cqueue.block();
@@ -328,6 +340,8 @@ int main()
         cl::buffer* b2 = &schwarzs_2;
         cl::buffer* c1 = &schwarzs_count_1;
         cl::buffer* c2 = &schwarzs_count_2;
+
+        cl::event next;
 
         {
             cl::args init_args;
@@ -392,16 +406,24 @@ int main()
             render_args.push_back(camera_quat);
             render_args.push_back(finished_1);
             render_args.push_back(finished_count_1);
-            render_args.push_back(rtex);
+            render_args.push_back(rtex[which_buffer]);
             render_args.push_back(clbackground);
             render_args.push_back(width);
             render_args.push_back(height);
 
-            clctx.cqueue.exec("render", render_args, {width * height}, {256}, {evt});
+            next = clctx.cqueue.exec("render", render_args, {width * height}, {256}, {evt});
         }
 
-        rtex.unacquire(clctx.cqueue);
-        clctx.cqueue.block();
+        clctx.cqueue.flush();
+
+        rtex[which_buffer].unacquire(clctx.cqueue);
+
+        which_buffer = (which_buffer + 1) % 2;
+
+        if(last_event.has_value())
+            last_event.value().block();
+
+        last_event = next;
         #endif
 
         {
@@ -421,13 +443,15 @@ int main()
                 br.y += screen_pos.y;
             }
 
-            lst->AddImage((void*)rtex.texture_id, tl, br);
+            lst->AddImage((void*)rtex[which_buffer].texture_id, tl, br);
         }
 
         win.display();
-
-        //std::cout << "FRAMETIME " << time << std::endl;
     }
+
+    last_event = std::nullopt;
+
+    clctx.cqueue.block();
 
     return 0;
 }
