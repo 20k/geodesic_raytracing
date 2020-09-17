@@ -1499,28 +1499,6 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
         #endif // VERLET_INTEGRATION
     }
 
-    /*__local int local_mem_id;
-    __local int found_global_offset;
-
-    local_mem_id = 0;
-
-    barrier(CLK_LOCAL_MEM_FENCE);
-
-    int id_offset = atomic_inc(&local_mem_id);
-
-    int local_id = get_local_id(0);
-
-    barrier(CLK_LOCAL_MEM_FENCE);
-
-    if(local_id == 0)
-    {
-        found_global_offset = atomic_add(schwarzs_count_out, local_mem_id);
-    }
-
-    barrier(CLK_LOCAL_MEM_FENCE);
-
-    int out_id = found_global_offset + id_offset;*/
-
     int out_id = atomic_inc(schwarzs_count_out);
 
     struct lightray out_ray;
