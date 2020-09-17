@@ -1,3 +1,17 @@
+/*__kernel
+void generate_mips(__global uchar4* in, int page_width, int page_height, int width, int height, int lower_level)
+{
+    int x = get_global_id(0);
+    int y = get_global_id(1);
+
+    if(x >= width || y >= height)
+        return;
+
+    uint4 avg = 0;
+
+    avg += in[lower_level * ]
+}*/
+
 float spacetime_metric_value(int i, int k, int l, float g_partial[16])
 {
     if(i != k)
@@ -1611,23 +1625,18 @@ void relauncher(__global struct lightray* schwarzs_rays_in, __global struct ligh
 }
 
 __kernel
-void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lightray* finished_rays, __global int* finished_count_in, __write_only image2d_t out, __read_only image2d_t background, int width, int height)
+void calculate_texture_coordinates(__global struct lightray* finished_rays, __global int* finished_count_in, __global float2* texture_coordinates, int width, int height, float4 cartesian_camera_pos, float4 camera_quat)
 {
     int id = get_global_id(0);
 
     if(id >= *finished_count_in)
         return;
 
-    __global struct lightray* ray = &finished_rays[id];
+    struct lightray* ray = &finished_rays[id];
 
+    int pos = ray->sy * width + ray->sx;
     int sx = ray->sx;
     int sy = ray->sy;
-
-    if(sx >= width || sy >= height)
-        return;
-
-    if(sx < 0 || sy < 0)
-        return;
 
     float4 position = ray->position;
 
@@ -1637,7 +1646,6 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
     #ifdef NO_EVENT_HORIZON_CROSSING
     if(r_value <= rs)
     {
-        write_imagef(out, (int2){sx, sy}, (float4)(0, 0, 0, 1));
         return;
     }
     #endif // NO_EVENT_HORIZON_CROSSINGS
@@ -1683,11 +1691,107 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
     float sxf = (phif) / (2 * M_PI);
     float syf = thetaf / M_PI;
 
+    texture_coordinates[pos] = (float2)(sxf, syf);
+}
+
+float4 read_mip(float2 pos, int level, __read_only image2d_t background0,
+            __read_only image2d_t background1,
+            __read_only image2d_t background2,
+            __read_only image2d_t background3)
+{
     sampler_t sam = CLK_NORMALIZED_COORDS_TRUE |
                     CLK_ADDRESS_REPEAT |
                     CLK_FILTER_LINEAR;
 
-    float4 val = read_imagef(background, sam, (float2){sxf, syf});
+    if(level == 0)
+        return read_imagef(background0, sam, pos);
+    if(level == 1)
+        return read_imagef(background1, sam, pos);
+    if(level == 2)
+        return read_imagef(background2, sam, pos);
+    if(level == 3)
+        return read_imagef(background3, sam, pos);
+
+    return (float4)(1, 0, 1, 1);
+}
+
+__kernel
+void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lightray* finished_rays, __global int* finished_count_in, __write_only image2d_t out,
+            __read_only image2d_t mip_background,
+            int width, int height, __global float2* texture_coordinates, sampler_t sam)
+{
+    int id = get_global_id(0);
+
+    if(id >= *finished_count_in)
+        return;
+
+    __global struct lightray* ray = &finished_rays[id];
+
+    int sx = ray->sx;
+    int sy = ray->sy;
+
+    if(sx >= width || sy >= height)
+        return;
+
+    if(sx < 0 || sy < 0)
+        return;
+
+    float4 position = ray->position;
+
+    float rs = 1;
+    float r_value = position.y;
+
+    #ifdef NO_EVENT_HORIZON_CROSSING
+    if(r_value <= rs)
+    {
+        write_imagef(out, (int2){sx, sy}, (float4)(0, 0, 0, 1));
+        return;
+    }
+    #endif // NO_EVENT_HORIZON_CROSSINGS
+
+    /*float3 cart_here = polar_to_cartesian((float3)(r_value, position.zw));
+
+    #define FOV 90
+
+    float fov_rad = (FOV / 360.f) * 2 * M_PI;
+
+    float nonphysical_plane_half_width = width/2;
+    float nonphysical_f_stop = nonphysical_plane_half_width / tan(fov_rad/2);
+
+    float3 pixel_direction = (float3){sx - width/2, sy - height/2, nonphysical_f_stop};
+
+    pixel_direction = fast_normalize(pixel_direction);
+    pixel_direction = rot_quat(pixel_direction, camera_quat);
+
+    float3 cartesian_velocity = fast_normalize(pixel_direction);
+
+    float3 new_basis_x = fast_normalize(cartesian_velocity);
+    float3 new_basis_y = fast_normalize(-cartesian_camera_pos.yzw);
+
+    new_basis_x = rejection(new_basis_x, new_basis_y);
+
+    float3 new_basis_z = -fast_normalize(cross(new_basis_x, new_basis_y));
+
+    cart_here = rotate_vector(new_basis_x, new_basis_y, new_basis_z, cart_here);
+
+    float3 npolar = cartesian_to_polar(cart_here);
+
+    float thetaf = fmod(npolar.y, 2 * M_PI);
+    float phif = npolar.z;
+
+    if(thetaf >= M_PI)
+    {
+        phif += M_PI;
+        thetaf -= M_PI;
+    }
+
+    phif = fmod(phif, 2 * M_PI);
+
+    float sxf = (phif) / (2 * M_PI);
+    float syf = thetaf / M_PI;*/
+
+    float sxf = texture_coordinates[sy * width + sx].x;
+    float syf = texture_coordinates[sy * width + sx].y;
 
     /*if(r_value < 1)
     {
@@ -1731,7 +1835,60 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
     }
     #endif // NO_EVENT_HORIZON_CROSSINGS
 
-    write_imagef(out, (int2){sx, sy}, val);
+    #define MIPMAPPING
+    #ifdef MIPMAPPING
+    int dx = 1;
+    int dy = 1;
+
+    if(sx == width-1)
+        dx = -1;
+
+    if(sy == height-1)
+        dy = -1;
+
+    float2 tl = texture_coordinates[sy * width + sx];
+    float2 tr = texture_coordinates[sy * width + sx + dx];
+    float2 bl = texture_coordinates[(sy + dy) * width + sx];
+
+    float2 dx_vtc = (tr - tl);
+    float2 dy_vtc = (bl - tl);
+
+    dx_vtc.x *= get_image_width(mip_background);
+    dy_vtc.x *= get_image_width(mip_background);
+
+    dx_vtc.y *= get_image_height(mip_background);
+    dy_vtc.y *= get_image_height(mip_background);
+
+    //dx_vtc.x /= 10.f;
+    //dy_vtc.x /= 10.f;
+
+    if(dx == -1)
+        dx_vtc = -dx_vtc;
+
+    if(dy == -1)
+        dy_vtc = -dy_vtc;
+
+    dx_vtc /= 2.f;
+    dy_vtc /= 2.f;
+
+    float delta_max_sqr = max(dot(dx_vtc, dx_vtc), dot(dy_vtc, dy_vtc));
+
+    float mip_level = 0.5 * log2(delta_max_sqr);
+
+    //mip_level -= 0.5;
+
+    float mip_clamped = clamp(mip_level, 0.f, 5.f);
+
+    float4 end_result = read_imagef(mip_background, sam, (float2){sxf, syf}, mip_clamped);
+
+    ///this may be doing anisotropic filtering, but it may not be as well
+    //float4 end_result = read_imagef(mip_background, sam, (float2){sxf, syf}, dx_vtc, dy_vtc);
+
+    #else
+    float4 end_result = read_imagef(mip_background, sam, (float2){sxf, syf}, 0);
+    #endif // MIPMAPPING
+
+    write_imagef(out, (int2){sx, sy}, end_result);
 }
 #endif // 0
 

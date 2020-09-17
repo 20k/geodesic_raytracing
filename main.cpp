@@ -4,6 +4,7 @@
 #include <vec/vec.hpp>
 #include <GLFW/glfw3.h>
 #include <SFML/Graphics.hpp>
+#include <CL/cl_ext.h>
 
 /*struct light_ray
 {
@@ -34,6 +35,20 @@ struct lightray
     int sx, sy;
 };
 
+int get_mipmap_size(int width, int height, int levels)
+{
+    int sum = 0;
+
+    for(int i=levels-1; i >= 0; i--)
+    {
+        sum += width * height * 4;
+        width /= 2;
+        height /= 2;
+    }
+
+    return sum + 1;
+}
+
 int main()
 {
     render_settings sett;
@@ -49,16 +64,20 @@ int main()
     opencl_context& clctx = *win.clctx;
 
     cl::program prog(clctx.ctx, "cl.cl");
-    prog.build(clctx.ctx, "-O3 -cl-std=CL2.0");
+    prog.build(clctx.ctx, "-O3 -cl-std=CL2.2");
 
     clctx.ctx.register_program(prog);
 
     int supersample_mult = 2;
 
+    int supersample_width = sett.width * supersample_mult;
+    int supersample_height = sett.height * supersample_mult;
+
     texture_settings tsett;
-    tsett.width = sett.width*supersample_mult;
-    tsett.height = sett.height*supersample_mult;
+    tsett.width = supersample_width;
+    tsett.height = supersample_height;
     tsett.is_srgb = false;
+
 
     /*texture tex;
     tex.load_from_memory(tsett, nullptr);
@@ -83,6 +102,7 @@ int main()
     //clbackground.alloc(sizeof(uint8_t) * img.getSize().x * img.getSize().y);
 
     std::vector<vec4f> as_float;
+    std::vector<uint8_t> as_uint8;
 
     for(int y=0; y < img.getSize().y; y++)
     {
@@ -93,6 +113,10 @@ int main()
             vec4f val = {col.r / 255.f, col.g / 255.f, col.b / 255.f, col.a / 255.f};
 
             as_float.push_back(val);
+            as_uint8.push_back(col.r);
+            as_uint8.push_back(col.g);
+            as_uint8.push_back(col.b);
+            as_uint8.push_back(col.a);
         }
     }
 
@@ -102,6 +126,71 @@ int main()
     vec<2, size_t> region = {img.getSize().x, img.getSize().y};
 
     clbackground.write(clctx.cqueue, (const char*)&as_float[0], origin, region);
+
+
+    /*cl::image_with_mipmaps clmippedbackground(clctx.ctx);
+    clmippedbackground.alloc((vec2i){img.getSize().x, img.getSize().y}, 4, {CL_RGBA, CL_FLOAT});
+
+    clmippedbackground.write(clctx.cqueue, (const char*)&as_float[0], origin, region, 0);*/
+
+    texture_settings bsett;
+    bsett.width = img.getSize().x;
+    bsett.height = img.getSize().y;
+    bsett.is_srgb = false;
+
+    texture background_with_mips;
+    background_with_mips.load_from_memory(bsett, &as_uint8[0]);
+
+    #define MIP_LEVELS 6
+
+    /*cl::gl_rendertexture background_mipped[4] = {clctx.ctx, clctx.ctx, clctx.ctx, clctx.ctx};
+
+    glFinish();
+
+    for(int i=0; i < MIP_LEVELS; i++)
+    {
+        background_mipped[i].create_from_texture_with_mipmaps(background_with_mips.handle, i);
+
+        background_mipped[i].acquire(clctx.cqueue);
+    }*/
+
+    cl::image_with_mipmaps background_mipped(clctx.ctx);
+    background_mipped.alloc((vec2i){img.getSize().x, img.getSize().y}, 4, {CL_RGBA, CL_FLOAT});
+
+    int swidth = img.getSize().x;
+    int sheight = img.getSize().y;
+
+    for(int i=0; i < MIP_LEVELS; i++)
+    {
+        printf("I is %i\n", i);
+
+        //int cwidth = img.getSize().x / pow(2, i);
+        //int cheight = img.getSize().y / pow(2, i);
+
+        int cwidth = swidth;
+        int cheight = sheight;
+
+        swidth /= 2;
+        sheight /= 2;
+
+        cl::gl_rendertexture temp(clctx.ctx);
+        temp.create_from_texture_with_mipmaps(background_with_mips.handle, i);
+        temp.acquire(clctx.cqueue);
+
+        std::vector<cl_uchar4> res = temp.read<2, cl_uchar4>(clctx.cqueue, (vec<2, size_t>){0,0}, (vec<2, size_t>){cwidth, cheight});
+
+        temp.unacquire(clctx.cqueue);
+
+        std::vector<cl_float4> converted;
+        converted.reserve(res.size());
+
+        for(auto& i : res)
+        {
+            converted.push_back({i.s[0] / 255.f, i.s[1] / 255.f, i.s[2] / 255.f, i.s[3] / 255.f});
+        }
+
+        background_mipped.write(clctx.cqueue, (char*)&converted[0], vec<2, size_t>{0, 0}, vec<2, size_t>{cwidth, cheight}, i);
+    }
 
     cl::command_queue read_queue(clctx.ctx, CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE);
     cl::device_command_queue dqueue(clctx.ctx);
@@ -156,7 +245,7 @@ int main()
 
     sf::Clock clk;
 
-    int ray_count = sett.width * sett.height * supersample_mult * supersample_mult;
+    int ray_count = supersample_width * supersample_height;
 
     cl::buffer schwarzs_1(clctx.ctx);
     cl::buffer schwarzs_2(clctx.ctx);
@@ -170,6 +259,14 @@ int main()
     cl::buffer kruskal_count_2(clctx.ctx);
     cl::buffer finished_count_1(clctx.ctx);
 
+    cl::buffer texture_coordinates[2] = {clctx.ctx, clctx.ctx};
+
+    for(int i=0; i < 2; i++)
+    {
+        texture_coordinates[i].alloc(supersample_width * supersample_height * sizeof(float) * 2);
+        texture_coordinates[i].set_to_zero(clctx.cqueue);
+    }
+
     schwarzs_1.alloc(sizeof(lightray) * ray_count * 3);
     schwarzs_2.alloc(sizeof(lightray) * ray_count * 3);
     kruskal_1.alloc(sizeof(lightray) * ray_count * 3);
@@ -181,6 +278,18 @@ int main()
     kruskal_count_1.alloc(sizeof(int));
     kruskal_count_2.alloc(sizeof(int));
     finished_count_1.alloc(sizeof(int));
+
+    cl_sampler_properties sampler_props[] = {
+    CL_SAMPLER_NORMALIZED_COORDS, CL_TRUE,
+    CL_SAMPLER_ADDRESSING_MODE, CL_ADDRESS_REPEAT,
+    CL_SAMPLER_FILTER_MODE, CL_FILTER_LINEAR,
+    CL_SAMPLER_MIP_FILTER_MODE_KHR, CL_FILTER_LINEAR,
+    //CL_SAMPLER_LOD_MIN_KHR, 0.0f,
+    //CL_SAMPLER_LOD_MAX_KHR, FLT_MAX,
+    0
+    };
+
+    cl_sampler sam = clCreateSamplerWithProperties(clctx.ctx.native_context.data, sampler_props, nullptr);
 
     std::optional<cl::event> last_event;
 
@@ -409,9 +518,20 @@ int main()
             run_args.push_back(height);
             run_args.push_back(fallback);
 
-            cl::event evt = clctx.cqueue.exec("relauncher", run_args, {1}, {1});
+            clctx.cqueue.exec("relauncher", run_args, {1}, {1});
 
             #endif // CPU_CONTROL
+
+            cl::args texture_args;
+            texture_args.push_back(finished_1);
+            texture_args.push_back(finished_count_1);
+            texture_args.push_back(texture_coordinates[which_buffer]);
+            texture_args.push_back(width);
+            texture_args.push_back(height);
+            texture_args.push_back(camera);
+            texture_args.push_back(camera_quat);
+
+            clctx.cqueue.exec("calculate_texture_coordinates", texture_args, {width * height}, {256});
 
             cl::args render_args;
             render_args.push_back(camera);
@@ -419,11 +539,13 @@ int main()
             render_args.push_back(finished_1);
             render_args.push_back(finished_count_1);
             render_args.push_back(rtex[which_buffer]);
-            render_args.push_back(clbackground);
+            render_args.push_back(background_mipped);
             render_args.push_back(width);
             render_args.push_back(height);
+            render_args.push_back(texture_coordinates[which_buffer]);
+            render_args.push_back(sam);
 
-            next = clctx.cqueue.exec("render", render_args, {width * height}, {256}, {evt});
+            next = clctx.cqueue.exec("render", render_args, {width * height}, {256});
         }
 
         clctx.cqueue.flush();
