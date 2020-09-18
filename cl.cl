@@ -1722,6 +1722,14 @@ float4 read_mip(float2 pos, int level, __read_only image2d_t background0,
     return (float4)(1, 0, 1, 1);
 }
 
+float smallest(float f1, float f2)
+{
+    if(fabs(f1) < fabs(f2))
+        return f1;
+
+    return f2;
+}
+
 __kernel
 void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lightray* finished_rays, __global int* finished_count_in, __write_only image2d_t out,
             __read_only image2d_t mip_background,
@@ -1799,48 +1807,29 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
     float2 dx_vtc = (tr - tl);
     float2 dy_vtc = (bl - tl);
 
-    float2 dx_vtc2 = (tr - tl - 1);
-    float2 dy_vtc2 = (bl - tl - 1);
+    float2 tl1m = tl;
+    tl1m.x += 1;
 
-    /*if(any(dx_vtc > 0.001))
-        return;
+    float2 tl2m = tl;
+    tl2m.x -= 1;
 
-    if(any(dy_vtc > 0.001))
-        return;*/
+    float2 dx_vtc2 = (tr - tl1m);
+    float2 dy_vtc2 = (bl - tl1m);
 
-    //dx_vtc = min(tr - tl - 1, dx_vtc);
-    //dy_vtc = min(bl - tl - 1, dy_vtc);
+    float2 dx_vtc3 = (tr - tl2m);
+    float2 dy_vtc3 = (bl - tl2m);
+
+    dx_vtc.x = smallest(dx_vtc.x, dx_vtc2.x);
+    dx_vtc.x = smallest(dx_vtc.x, dx_vtc3.x);
+
+    dy_vtc.x = smallest(dy_vtc.x, dy_vtc2.x);
+    dy_vtc.x = smallest(dy_vtc.x, dy_vtc3.x);
 
     if(dx == -1)
-    {
         dx_vtc = -dx_vtc;
-        dx_vtc2 = -dx_vtc2;
-    }
 
     if(dy == -1)
-    {
         dy_vtc = -dy_vtc;
-        dy_vtc2 = -dy_vtc2;
-    }
-
-    /*if(fabs(dx_vtc2.x) < fabs(dx_vtc.x))
-        dx_vtc.x = dx_vtc2.x;
-
-    if(fabs(dx_vtc2.y) < fabs(dx_vtc.y))
-        dx_vtc.y = dx_vtc2.y;
-
-    if(fabs(dy_vtc2.x) < fabs(dy_vtc.x))
-        dy_vtc.x = dy_vtc2.x;
-
-    if(fabs(dy_vtc2.y) < fabs(dy_vtc.y))
-        dy_vtc.y = dy_vtc2.y;*/
-
-    if(fast_length(dx_vtc) > 0.1 || fast_length(dy_vtc) > 0.1)
-    {
-        return;
-
-        dx_vtc = dx_vtc2;
-    }
 
     //#define TRILINEAR
     #ifdef TRILINEAR
