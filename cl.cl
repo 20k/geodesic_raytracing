@@ -1749,69 +1749,8 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
     }
     #endif // NO_EVENT_HORIZON_CROSSINGS
 
-    /*float3 cart_here = polar_to_cartesian((float3)(r_value, position.zw));
-
-    #define FOV 90
-
-    float fov_rad = (FOV / 360.f) * 2 * M_PI;
-
-    float nonphysical_plane_half_width = width/2;
-    float nonphysical_f_stop = nonphysical_plane_half_width / tan(fov_rad/2);
-
-    float3 pixel_direction = (float3){sx - width/2, sy - height/2, nonphysical_f_stop};
-
-    pixel_direction = fast_normalize(pixel_direction);
-    pixel_direction = rot_quat(pixel_direction, camera_quat);
-
-    float3 cartesian_velocity = fast_normalize(pixel_direction);
-
-    float3 new_basis_x = fast_normalize(cartesian_velocity);
-    float3 new_basis_y = fast_normalize(-cartesian_camera_pos.yzw);
-
-    new_basis_x = rejection(new_basis_x, new_basis_y);
-
-    float3 new_basis_z = -fast_normalize(cross(new_basis_x, new_basis_y));
-
-    cart_here = rotate_vector(new_basis_x, new_basis_y, new_basis_z, cart_here);
-
-    float3 npolar = cartesian_to_polar(cart_here);
-
-    float thetaf = fmod(npolar.y, 2 * M_PI);
-    float phif = npolar.z;
-
-    if(thetaf >= M_PI)
-    {
-        phif += M_PI;
-        thetaf -= M_PI;
-    }
-
-    phif = fmod(phif, 2 * M_PI);
-
-    float sxf = (phif) / (2 * M_PI);
-    float syf = thetaf / M_PI;*/
-
     float sxf = texture_coordinates[sy * width + sx].x;
     float syf = texture_coordinates[sy * width + sx].y;
-
-    /*if(r_value < 1)
-    {
-        val = (float4)(0,0,0,1);
-
-        int x_half = fabs(fmod(sx * 10, 1)) > 0.5 ? 1 : 0;
-        int y_half = fabs(fmod(sy * 10, 1)) > 0.5 ? 1 : 0;
-
-        //val.x = (x_half + y_half) % 2;
-
-        val.x = x_half;
-        val.y = y_half;
-
-        if(sy < 0.1 || sy >= 0.9)
-        {
-            val.x = 0;
-            val.y = 0;
-            val.z = 1;
-        }
-    }*/
 
     #ifndef NO_EVENT_HORIZON_CROSSING
     if(r_value <= rs)
