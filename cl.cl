@@ -1792,6 +1792,14 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
     float2 dx_vtc = (tr - tl);
     float2 dy_vtc = (bl - tl);
 
+    if(dx == -1)
+        dx_vtc = -dx_vtc;
+
+    if(dy == -1)
+        dy_vtc = -dy_vtc;
+
+    //#define TRILINEAR
+    #ifdef TRILINEAR
     dx_vtc.x *= get_image_width(mip_background);
     dy_vtc.x *= get_image_width(mip_background);
 
@@ -1801,11 +1809,6 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
     //dx_vtc.x /= 10.f;
     //dy_vtc.x /= 10.f;
 
-    if(dx == -1)
-        dx_vtc = -dx_vtc;
-
-    if(dy == -1)
-        dy_vtc = -dy_vtc;
 
     dx_vtc /= 2.f;
     dy_vtc /= 2.f;
@@ -1819,8 +1822,133 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
     float mip_clamped = clamp(mip_level, 0.f, 5.f);
 
     float4 end_result = read_imagef(mip_background, sam, (float2){sxf, syf}, mip_clamped);
+    #else
 
-    ///this may be doing anisotropic filtering, but it may not be as well
+    dx_vtc.x *= get_image_width(mip_background);
+    dy_vtc.x *= get_image_width(mip_background);
+
+    dx_vtc.y *= get_image_height(mip_background);
+    dy_vtc.y *= get_image_height(mip_background);
+
+    ///http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.1002.1336&rep=rep1&type=pdf
+    float dv_dx = dx_vtc.y;
+    float dv_dy = dy_vtc.y;
+
+    float du_dx = dx_vtc.x;
+    float du_dy = dy_vtc.x;
+
+    float Ann = dv_dx * dv_dx + dv_dy * dv_dy;
+    float Bnn = -2 * (du_dx * dv_dx + du_dy * dv_dy);
+    float Cnn = du_dx * du_dx + du_dy * du_dy; ///only tells lies
+
+    ///hecc
+    #ifdef HECKBERT
+    Ann = dv_dx * dv_dx + dv_dy * dv_dy + 1;
+    Cnn = du_dx * du_dx + du_dy * du_dy + 1;
+    #endif // HECKBERT
+
+    float F = Ann * Cnn - Bnn * Bnn / 4;
+    float A = Ann / F;
+    float B = Bnn / F;
+    float C = Cnn / F;
+
+    float root = sqrt((A - C) * (A - C) + B*B);
+    float a_prime = (A + C - root) / 2;
+    float c_prime = (A + C + root) / 2;
+
+    float majorRadius = sqrt(1/a_prime);
+    float minorRadius = sqrt(1/c_prime);
+
+    float theta = atan2(B, (A - C)/2);
+
+    majorRadius = max(majorRadius, 1.f);
+    minorRadius = max(minorRadius, 1.f);
+
+    float fProbes = 2 * (majorRadius / minorRadius) - 1;
+    int iProbes = floor(fProbes + 0.5f);
+
+    int maxProbes = 8;
+
+    iProbes = min(iProbes, maxProbes);
+
+    if(iProbes < fProbes)
+        minorRadius = 2 * majorRadius / (iProbes + 1);
+
+    float levelofdetail = log2(minorRadius);
+
+    int maxLod = 9;
+
+    /*if(sx == width/2 && sy == height/2)
+    {
+        printf("HI %f %i\n", levelofdetail, iProbes);
+    }*/
+
+    if(levelofdetail > maxLod)
+    {
+        levelofdetail = maxLod;
+        iProbes = 1;
+    }
+
+    if(iProbes == 1)
+    {
+        float4 end_result = read_imagef(mip_background, sam, (float2){sxf, syf}, levelofdetail);
+        write_imagef(out, (int2){sx, sy}, end_result);
+        return;
+    }
+
+    float lineLength = 2 * (majorRadius - minorRadius);
+    float du = cos(theta) * lineLength / (iProbes - 1);
+    float dv = sin(theta) * lineLength / (iProbes - 1);
+
+    float4 totalWeight = 0;
+    float accumulatedProbes = 0;
+
+    int startN = 0;
+
+    ///odd probes
+    if((iProbes % 2) == 1)
+    {
+        int probeArm = (iProbes - 1) / 2;
+
+        startN = -2 * probeArm;
+    }
+    else
+    {
+        int probeArm = (iProbes / 2);
+
+        startN = -2 * probeArm - 1;
+    }
+
+    int currentN = startN;
+    float alpha = 2;
+
+    float sU = du / get_image_width(mip_background);
+    float sV = dv / get_image_height(mip_background);
+
+    for(int cnt = 0; cnt < iProbes; cnt++)
+    {
+        float d_2 = (currentN * currentN / 4.f) * (du * du + dv * dv) / (majorRadius * majorRadius);
+
+        float relativeWeight = exp(-alpha * d_2);
+
+        float centreu = tl.x;
+        float centrev = tl.y;
+
+        float cu = centreu + (currentN / 2.f) * sU;
+        float cv = centrev + (currentN / 2.f) * sV;
+
+        float4 fval = read_imagef(mip_background, sam, (float2){cu, cv}, levelofdetail);
+
+        totalWeight += relativeWeight * fval;
+        accumulatedProbes += relativeWeight;
+
+        currentN += 2;
+    }
+
+    float4 end_result = totalWeight / accumulatedProbes;
+
+    #endif // TRILINEAR
+
     //float4 end_result = read_imagef(mip_background, sam, (float2){sxf, syf}, dx_vtc, dy_vtc);
 
     #else

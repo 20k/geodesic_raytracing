@@ -141,7 +141,7 @@ int main()
     texture background_with_mips;
     background_with_mips.load_from_memory(bsett, &as_uint8[0]);
 
-    #define MIP_LEVELS 6
+    #define MIP_LEVELS 10
 
     /*cl::gl_rendertexture background_mipped[4] = {clctx.ctx, clctx.ctx, clctx.ctx, clctx.ctx};
 
@@ -160,6 +160,7 @@ int main()
     int swidth = img.getSize().x;
     int sheight = img.getSize().y;
 
+    ///todo: that weird black circular line was the texture edge
     for(int i=0; i < MIP_LEVELS; i++)
     {
         printf("I is %i\n", i);
