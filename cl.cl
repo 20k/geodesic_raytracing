@@ -1691,6 +1691,13 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
     float sxf = (phif) / (2 * M_PI);
     float syf = thetaf / M_PI;
 
+    sxf += 0.5f;
+
+    /*if(sx == width/2 && sy == height/2)
+    {
+        printf("COORD %f %f\n", sxf, syf);
+    }*/
+
     texture_coordinates[pos] = (float2)(sxf, syf);
 }
 
@@ -1792,11 +1799,48 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
     float2 dx_vtc = (tr - tl);
     float2 dy_vtc = (bl - tl);
 
+    float2 dx_vtc2 = (tr - tl - 1);
+    float2 dy_vtc2 = (bl - tl - 1);
+
+    /*if(any(dx_vtc > 0.001))
+        return;
+
+    if(any(dy_vtc > 0.001))
+        return;*/
+
+    //dx_vtc = min(tr - tl - 1, dx_vtc);
+    //dy_vtc = min(bl - tl - 1, dy_vtc);
+
     if(dx == -1)
+    {
         dx_vtc = -dx_vtc;
+        dx_vtc2 = -dx_vtc2;
+    }
 
     if(dy == -1)
+    {
         dy_vtc = -dy_vtc;
+        dy_vtc2 = -dy_vtc2;
+    }
+
+    /*if(fabs(dx_vtc2.x) < fabs(dx_vtc.x))
+        dx_vtc.x = dx_vtc2.x;
+
+    if(fabs(dx_vtc2.y) < fabs(dx_vtc.y))
+        dx_vtc.y = dx_vtc2.y;
+
+    if(fabs(dy_vtc2.x) < fabs(dy_vtc.x))
+        dy_vtc.x = dy_vtc2.x;
+
+    if(fabs(dy_vtc2.y) < fabs(dy_vtc.y))
+        dy_vtc.y = dy_vtc2.y;*/
+
+    if(fast_length(dx_vtc) > 0.1 || fast_length(dy_vtc) > 0.1)
+    {
+        return;
+
+        dx_vtc = dx_vtc2;
+    }
 
     //#define TRILINEAR
     #ifdef TRILINEAR
@@ -1929,7 +1973,7 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
     {
         float d_2 = (currentN * currentN / 4.f) * (du * du + dv * dv) / (majorRadius * majorRadius);
 
-        float relativeWeight = exp(-alpha * d_2);
+        float relativeWeight = native_exp(-alpha * d_2);
 
         float centreu = tl.x;
         float centrev = tl.y;
@@ -1954,6 +1998,9 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
     #else
     float4 end_result = read_imagef(mip_background, sam, (float2){sxf, syf}, 0);
     #endif // MIPMAPPING
+
+    //end_result.x = sxf;
+    //end_result.y = syf;
 
     write_imagef(out, (int2){sx, sy}, end_result);
 }
