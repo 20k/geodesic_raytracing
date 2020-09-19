@@ -141,7 +141,7 @@ int main()
     texture background_with_mips;
     background_with_mips.load_from_memory(bsett, &as_uint8[0]);
 
-    #define MIP_LEVELS 10
+    #define MIP_LEVELS 11
 
     /*cl::gl_rendertexture background_mipped[4] = {clctx.ctx, clctx.ctx, clctx.ctx, clctx.ctx};
 
