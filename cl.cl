@@ -1807,20 +1807,20 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
     if(tl.x >= 0.5)
         tl.x = (0.5 - (tl.x - 0.5));
 
-    if(tl.y >= 0.5)
-        tl.y = (0.5 - (tl.y - 0.5));
+    /*if(tl.y >= 0.5)
+        tl.y = (0.5 - (tl.y - 0.5));*/
 
     if(tr.x >= 0.5)
         tr.x = (0.5 - (tr.x - 0.5));
 
-    if(tr.y >= 0.5)
-        tr.y = (0.5 - (tr.y - 0.5));
+    /*if(tr.y >= 0.5)
+        tr.y = (0.5 - (tr.y - 0.5));*/
 
     if(bl.x >= 0.5)
         bl.x = (0.5 - (bl.x - 0.5));
 
-    if(bl.y >= 0.5)
-        bl.y = (0.5 - (bl.y - 0.5));
+    /*if(bl.y >= 0.5)
+        bl.y = (0.5 - (bl.y - 0.5));*/
 
     float2 dx_vtc = (tr - tl);
     float2 dy_vtc = (bl - tl);
@@ -1921,6 +1921,13 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
     majorRadius = max(majorRadius, 1.f);
     minorRadius = max(minorRadius, 1.f);
 
+    if(minorRadius > majorRadius)
+    {
+        float temp = minorRadius;
+        minorRadius = majorRadius;
+        majorRadius = temp;
+    }
+
     float fProbes = 2 * (majorRadius / minorRadius) - 1;
     int iProbes = floor(fProbes + 0.5f);
 
@@ -1933,7 +1940,7 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
 
     float levelofdetail = log2(minorRadius);
 
-    int maxLod = 9;
+    int maxLod = 4;
 
     /*if(sx == width/2 && sy == height/2)
     {
@@ -1948,10 +1955,30 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
 
     if(iProbes == 1)
     {
-        float4 end_result = read_imagef(mip_background, sam, (float2){sxf, syf}, levelofdetail);
+        //if(levelofdetail == maxLod)
+        //return;
+
+        float delta_max_sqr = max(dot(dx_vtc, dx_vtc), dot(dy_vtc, dy_vtc));
+
+        float mip_level = 0.5 * log2(delta_max_sqr);
+
+        float mip_clamped = clamp(mip_level, 0.f, 5.f);
+
+        float4 end_result = read_imagef(mip_background, sam, (float2){sxf, syf}, mip_clamped);
+
+        //printf("LoD %f\n", levelofdetail);
+
+        /*end_result.x = 1;
+        end_result.y = 0;
+        end_result.z = 1;
+        end_result.w = 1;*/
+
+        //printf("hi %f %f %f %f\n", dx_vtc.x, dx_vtc.y, dy_vtc.x, dy_vtc.y);
+
         write_imagef(out, (int2){sx, sy}, end_result);
         return;
     }
+
 
     float lineLength = 2 * (majorRadius - minorRadius);
     float du = cos(theta) * lineLength / (iProbes - 1);
@@ -2013,8 +2040,13 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
     float4 end_result = read_imagef(mip_background, sam, (float2){sxf, syf}, 0);
     #endif // MIPMAPPING
 
-    //end_result.x = sxf;
-    //end_result.y = syf;
+    /*if(tl.x < 0 || tl.y < 0 || tl.x > 0.5 || tl.y > 1)
+    {
+        printf("Well, shit %f %f\n", tl.x, tl.y);
+    }*/
+
+    //end_result.x = tl.x;
+    //end_result.y = tl.y;
 
     write_imagef(out, (int2){sx, sy}, end_result);
 }
