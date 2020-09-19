@@ -1868,6 +1868,7 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
     float Cnn = du_dx * du_dx + du_dy * du_dy; ///only tells lies
 
     ///hecc
+    #define HECKBERT
     #ifdef HECKBERT
     Ann = dv_dx * dv_dx + dv_dy * dv_dy + 1;
     Cnn = du_dx * du_dx + du_dy * du_dy + 1;
@@ -1890,12 +1891,7 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
     majorRadius = max(majorRadius, 1.f);
     minorRadius = max(minorRadius, 1.f);
 
-    if(minorRadius > majorRadius)
-    {
-        float temp = minorRadius;
-        minorRadius = majorRadius;
-        majorRadius = temp;
-    }
+    majorRadius = max(majorRadius, minorRadius);
 
     float fProbes = 2 * (majorRadius / minorRadius) - 1;
     int iProbes = floor(fProbes + 0.5f);
@@ -1909,7 +1905,7 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
 
     float levelofdetail = log2(minorRadius);
 
-    int maxLod = 9;
+    int maxLod = 8;
 
     if(levelofdetail > maxLod)
     {
@@ -1917,14 +1913,16 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
         iProbes = 1;
     }
 
-    if(iProbes == 1)
+    if(iProbes == 1 || iProbes <= 1)
     {
+        if(iProbes < 1)
+            levelofdetail = maxLod;
+
         float4 end_result = read_imagef(mip_background, sam, (float2){sxf, syf}, levelofdetail);
 
         write_imagef(out, (int2){sx, sy}, end_result);
         return;
     }
-
 
     float lineLength = 2 * (majorRadius - minorRadius);
     float du = cos(theta) * lineLength / (iProbes - 1);
