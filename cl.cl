@@ -1355,6 +1355,9 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
     ///results:
     ///subambient_precision can't go above 0.5 much while in verlet mode without the size of the event horizon changing
     ///in euler mode this is actually already too low
+
+    ///ambient precision however looks way too low at 0.01, testing up to 0.3 showed no noticable difference, needs more precise tests though
+    ///only in the case without kruskals and event horizon crossings however, any precision > 0.01 is insufficient in that case
     float ambient_precision = 0.01;
     float subambient_precision = 0.5;
 
