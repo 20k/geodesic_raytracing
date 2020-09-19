@@ -35,20 +35,6 @@ struct lightray
     int sx, sy;
 };
 
-int get_mipmap_size(int width, int height, int levels)
-{
-    int sum = 0;
-
-    for(int i=levels-1; i >= 0; i--)
-    {
-        sum += width * height * 4;
-        width /= 2;
-        height /= 2;
-    }
-
-    return sum + 1;
-}
-
 int main()
 {
     render_settings sett;

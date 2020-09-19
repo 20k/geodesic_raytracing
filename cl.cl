@@ -1804,6 +1804,8 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
     float2 tr = texture_coordinates[sy * width + sx + dx];
     float2 bl = texture_coordinates[(sy + dy) * width + sx];
 
+    ///the problem with this, is that the derivative is about 0 around the peak, not sure this coordinate
+    ///transform is correct, although its certainly better
     if(tl.x >= 0.5)
         tl.x = (0.5 - (tl.x - 0.5));
 
