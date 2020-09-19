@@ -1825,36 +1825,6 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
     float2 dx_vtc = (tr - tl);
     float2 dy_vtc = (bl - tl);
 
-    /*float2 tl1m = tl;
-    tl1m.x += 1;
-
-    float2 tl2m = tl;
-    tl2m.x -= 1;
-
-    float2 dx_vtc2 = (tr - tl1m);
-    float2 dy_vtc2 = (bl - tl1m);
-
-    float2 dx_vtc3 = (tr - tl2m);
-    float2 dy_vtc3 = (bl - tl2m);
-
-    //int x_pix = sxf * get_image_width()
-
-    if(sxf < 0.01 || sxf >= 0.99)
-    {
-        dx_vtc.x = smallest(dx_vtc.x, dx_vtc2.x);
-        dx_vtc.x = smallest(dx_vtc.x, dx_vtc3.x);
-
-        dy_vtc.x = smallest(dy_vtc.x, dy_vtc2.x);
-        dy_vtc.x = smallest(dy_vtc.x, dy_vtc3.x);
-    }
-
-
-    if(dx == -1)
-        dx_vtc = -dx_vtc;
-
-    if(dy == -1)
-        dy_vtc = -dy_vtc;*/
-
     //#define TRILINEAR
     #ifdef TRILINEAR
     dx_vtc.x *= get_image_width(mip_background);
@@ -1865,7 +1835,6 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
 
     //dx_vtc.x /= 10.f;
     //dy_vtc.x /= 10.f;
-
 
     dx_vtc /= 2.f;
     dy_vtc /= 2.f;
@@ -1942,11 +1911,6 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
 
     int maxLod = 4;
 
-    /*if(sx == width/2 && sy == height/2)
-    {
-        printf("HI %f %i\n", levelofdetail, iProbes);
-    }*/
-
     if(levelofdetail > maxLod)
     {
         levelofdetail = maxLod;
@@ -1955,25 +1919,7 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
 
     if(iProbes == 1)
     {
-        //if(levelofdetail == maxLod)
-        //return;
-
-        float delta_max_sqr = max(dot(dx_vtc, dx_vtc), dot(dy_vtc, dy_vtc));
-
-        float mip_level = 0.5 * log2(delta_max_sqr);
-
-        float mip_clamped = clamp(mip_level, 0.f, 5.f);
-
-        float4 end_result = read_imagef(mip_background, sam, (float2){sxf, syf}, mip_clamped);
-
-        //printf("LoD %f\n", levelofdetail);
-
-        /*end_result.x = 1;
-        end_result.y = 0;
-        end_result.z = 1;
-        end_result.w = 1;*/
-
-        //printf("hi %f %f %f %f\n", dx_vtc.x, dx_vtc.y, dy_vtc.x, dy_vtc.y);
+        float4 end_result = read_imagef(mip_background, sam, (float2){sxf, syf}, levelofdetail);
 
         write_imagef(out, (int2){sx, sy}, end_result);
         return;
@@ -2039,14 +1985,6 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
     #else
     float4 end_result = read_imagef(mip_background, sam, (float2){sxf, syf}, 0);
     #endif // MIPMAPPING
-
-    /*if(tl.x < 0 || tl.y < 0 || tl.x > 0.5 || tl.y > 1)
-    {
-        printf("Well, shit %f %f\n", tl.x, tl.y);
-    }*/
-
-    //end_result.x = tl.x;
-    //end_result.y = tl.y;
 
     write_imagef(out, (int2){sx, sy}, end_result);
 }
