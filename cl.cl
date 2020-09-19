@@ -1804,10 +1804,28 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
     float2 tr = texture_coordinates[sy * width + sx + dx];
     float2 bl = texture_coordinates[(sy + dy) * width + sx];
 
+    if(tl.x >= 0.5)
+        tl.x = (0.5 - (tl.x - 0.5));
+
+    if(tl.y >= 0.5)
+        tl.y = (0.5 - (tl.y - 0.5));
+
+    if(tr.x >= 0.5)
+        tr.x = (0.5 - (tr.x - 0.5));
+
+    if(tr.y >= 0.5)
+        tr.y = (0.5 - (tr.y - 0.5));
+
+    if(bl.x >= 0.5)
+        bl.x = (0.5 - (bl.x - 0.5));
+
+    if(bl.y >= 0.5)
+        bl.y = (0.5 - (bl.y - 0.5));
+
     float2 dx_vtc = (tr - tl);
     float2 dy_vtc = (bl - tl);
 
-    float2 tl1m = tl;
+    /*float2 tl1m = tl;
     tl1m.x += 1;
 
     float2 tl2m = tl;
@@ -1819,17 +1837,23 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
     float2 dx_vtc3 = (tr - tl2m);
     float2 dy_vtc3 = (bl - tl2m);
 
-    dx_vtc.x = smallest(dx_vtc.x, dx_vtc2.x);
-    dx_vtc.x = smallest(dx_vtc.x, dx_vtc3.x);
+    //int x_pix = sxf * get_image_width()
 
-    dy_vtc.x = smallest(dy_vtc.x, dy_vtc2.x);
-    dy_vtc.x = smallest(dy_vtc.x, dy_vtc3.x);
+    if(sxf < 0.01 || sxf >= 0.99)
+    {
+        dx_vtc.x = smallest(dx_vtc.x, dx_vtc2.x);
+        dx_vtc.x = smallest(dx_vtc.x, dx_vtc3.x);
+
+        dy_vtc.x = smallest(dy_vtc.x, dy_vtc2.x);
+        dy_vtc.x = smallest(dy_vtc.x, dy_vtc3.x);
+    }
+
 
     if(dx == -1)
         dx_vtc = -dx_vtc;
 
     if(dy == -1)
-        dy_vtc = -dy_vtc;
+        dy_vtc = -dy_vtc;*/
 
     //#define TRILINEAR
     #ifdef TRILINEAR
@@ -1962,10 +1986,11 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
     {
         float d_2 = (currentN * currentN / 4.f) * (du * du + dv * dv) / (majorRadius * majorRadius);
 
+        ///not a performance issue
         float relativeWeight = native_exp(-alpha * d_2);
 
-        float centreu = tl.x;
-        float centrev = tl.y;
+        float centreu = sxf;
+        float centrev = syf;
 
         float cu = centreu + (currentN / 2.f) * sU;
         float cv = centrev + (currentN / 2.f) * sV;
