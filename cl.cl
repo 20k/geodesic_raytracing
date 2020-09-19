@@ -1807,23 +1807,36 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
     if(tl.x >= 0.5)
         tl.x = (0.5 - (tl.x - 0.5));
 
-    /*if(tl.y >= 0.5)
-        tl.y = (0.5 - (tl.y - 0.5));*/
+    if(tl.y >= 0.5)
+        tl.y = (0.5 - (tl.y - 0.5));
 
     if(tr.x >= 0.5)
         tr.x = (0.5 - (tr.x - 0.5));
 
-    /*if(tr.y >= 0.5)
-        tr.y = (0.5 - (tr.y - 0.5));*/
+    if(tr.y >= 0.5)
+        tr.y = (0.5 - (tr.y - 0.5));
 
     if(bl.x >= 0.5)
         bl.x = (0.5 - (bl.x - 0.5));
 
-    /*if(bl.y >= 0.5)
-        bl.y = (0.5 - (bl.y - 0.5));*/
+    if(bl.y >= 0.5)
+        bl.y = (0.5 - (bl.y - 0.5));
 
-    float2 dx_vtc = (tr - tl);
-    float2 dy_vtc = (bl - tl);
+    ///higher = sharper
+    float bias_frac = 1.5;
+
+    float2 dx_vtc = (tr - tl) / bias_frac;
+    float2 dy_vtc = (bl - tl) / bias_frac;
+
+    if(dx == -1)
+    {
+        dx_vtc = -dx_vtc;
+    }
+
+    if(dy == -1)
+    {
+        dy_vtc = -dy_vtc;
+    }
 
     //#define TRILINEAR
     #ifdef TRILINEAR
@@ -1905,7 +1918,7 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
 
     float levelofdetail = log2(minorRadius);
 
-    int maxLod = 8;
+    int maxLod = get_image_num_mip_levels(mip_background) - 1;
 
     if(levelofdetail > maxLod)
     {
