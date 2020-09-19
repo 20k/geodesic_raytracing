@@ -1730,6 +1730,22 @@ float smallest(float f1, float f2)
     return f2;
 }
 
+float circular_diff(float f1, float f2)
+{
+    float a1 = f1 * M_PI * 2;
+    float a2 = f2 * M_PI * 2;
+
+    float2 v1 = {cos(a1), sin(a1)};
+    float2 v2 = {cos(a2), sin(a2)};
+
+    return atan2(v1.x * v2.y - v1.y * v2.x, v1.x * v2.x + v1.y * v2.y) / (2 * M_PI);
+}
+
+float2 circular_diff2(float2 f1, float2 f2)
+{
+    return (float2)(circular_diff(f1.x, f2.x), circular_diff(f1.y, f2.y));
+}
+
 __kernel
 void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lightray* finished_rays, __global int* finished_count_in, __write_only image2d_t out,
             __read_only image2d_t mip_background,
@@ -1804,33 +1820,12 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
     float2 tr = texture_coordinates[sy * width + sx + dx];
     float2 bl = texture_coordinates[(sy + dy) * width + sx];
 
-    ///the problem with this, is that the derivative is about 0 around the peak, not sure this coordinate
-    ///transform is correct, although its certainly better
-    if(tl.x >= 0.5)
-        tl.x = (0.5 - (tl.x - 0.5));
-
-    if(tl.y >= 0.5)
-        tl.y = (0.5 - (tl.y - 0.5));
-
-    if(tr.x >= 0.5)
-        tr.x = (0.5 - (tr.x - 0.5));
-
-    if(tr.y >= 0.5)
-        tr.y = (0.5 - (tr.y - 0.5));
-
-    if(bl.x >= 0.5)
-        bl.x = (0.5 - (bl.x - 0.5));
-
-    if(bl.y >= 0.5)
-        bl.y = (0.5 - (bl.y - 0.5));
-
     ///higher = sharper
-    float bias_frac = 1.5;
+    float bias_frac = 1.3;
 
-    ///the problem with the rings is that the partial derivatives are super noisy
-    ///which leads to aliasing
-    float2 dx_vtc = (tr - tl) / bias_frac;
-    float2 dy_vtc = (bl - tl) / bias_frac;
+    //TL x 0.435143 TR 0.434950 TD -0.000149, aka (tr.x - tl.x) / 1.3
+    float2 dx_vtc = circular_diff2(tl, tr) / bias_frac;
+    float2 dy_vtc = circular_diff2(tl, bl) / bias_frac;
 
     if(dx == -1)
     {
