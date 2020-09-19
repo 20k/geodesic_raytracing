@@ -160,13 +160,9 @@ int main()
     int swidth = img.getSize().x;
     int sheight = img.getSize().y;
 
-    ///todo: that weird black circular line was the texture edge
     for(int i=0; i < MIP_LEVELS; i++)
     {
         printf("I is %i\n", i);
-
-        //int cwidth = img.getSize().x / pow(2, i);
-        //int cheight = img.getSize().y / pow(2, i);
 
         int cwidth = swidth;
         int cheight = sheight;
