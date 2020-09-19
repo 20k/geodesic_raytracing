@@ -1909,7 +1909,7 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
 
     float levelofdetail = log2(minorRadius);
 
-    int maxLod = 4;
+    int maxLod = 9;
 
     if(levelofdetail > maxLod)
     {
