@@ -1786,7 +1786,7 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
     #ifndef NO_EVENT_HORIZON_CROSSING
     if(r_value <= rs)
     {
-        val = (float4)(0,0,0,1);
+        float4 val = (float4)(0,0,0,1);
 
         int x_half = fabs(fmod((sxf + 1) * 10.f, 1.f)) > 0.5 ? 1 : 0;
         int y_half = fabs(fmod((syf + 1) * 10.f, 1.f)) > 0.5 ? 1 : 0;
@@ -1802,6 +1802,9 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
             val.y = 0;
             val.z = 1;
         }
+
+        write_imagef(out, (int2){sx, sy}, val);
+        return;
     }
     #endif // NO_EVENT_HORIZON_CROSSINGS
 
