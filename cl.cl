@@ -1825,6 +1825,8 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
     ///higher = sharper
     float bias_frac = 1.5;
 
+    ///the problem with the rings is that the partial derivatives are super noisy
+    ///which leads to aliasing
     float2 dx_vtc = (tr - tl) / bias_frac;
     float2 dy_vtc = (bl - tl) / bias_frac;
 
