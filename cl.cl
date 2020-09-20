@@ -935,7 +935,6 @@ float linear_val(float value, float min_val, float max_val, float val_at_min, fl
     float mixd = linear_mix(value, min_val, max_val);
 
     return mix(val_at_min, val_at_max, mixd);
-    //return mix(mixd, val_at_min, val_at_max);
 }
 
 struct lightray

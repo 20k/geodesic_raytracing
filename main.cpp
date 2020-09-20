@@ -6,19 +6,7 @@
 #include <SFML/Graphics.hpp>
 #include <CL/cl_ext.h>
 
-/*struct light_ray
-{
-    vec4f spacetime_velocity;
-    vec4f spacetime_position;
-};
-
-
-vec4f calculate_lightbeam_spacetime_velocity_schwarz(vec3f position)
-{
-
-}*/
-
-///not a good mapping
+///perfectly fine
 vec4f cartesian_to_schwarz(vec4f position)
 {
     vec3f polar = cartesian_to_polar((vec3f){position.y(), position.z(), position.w()});
@@ -64,13 +52,6 @@ int main()
     tsett.height = supersample_height;
     tsett.is_srgb = false;
 
-
-    /*texture tex;
-    tex.load_from_memory(tsett, nullptr);
-
-    cl::gl_rendertexture rtex(clctx.ctx);
-    rtex.create_from_texture(tex.handle);*/
-
     std::array<texture, 2> tex;
     tex[0].load_from_memory(tsett, nullptr);
     tex[1].load_from_memory(tsett, nullptr);
@@ -85,7 +66,6 @@ int main()
     img.loadFromFile("background_med.png");
 
     cl::image clbackground(clctx.ctx);
-    //clbackground.alloc(sizeof(uint8_t) * img.getSize().x * img.getSize().y);
 
     std::vector<vec4f> as_float;
     std::vector<uint8_t> as_uint8;
@@ -113,12 +93,6 @@ int main()
 
     clbackground.write(clctx.cqueue, (const char*)&as_float[0], origin, region);
 
-
-    /*cl::image_with_mipmaps clmippedbackground(clctx.ctx);
-    clmippedbackground.alloc((vec2i){img.getSize().x, img.getSize().y}, 4, {CL_RGBA, CL_FLOAT});
-
-    clmippedbackground.write(clctx.cqueue, (const char*)&as_float[0], origin, region, 0);*/
-
     texture_settings bsett;
     bsett.width = img.getSize().x;
     bsett.height = img.getSize().y;
@@ -128,17 +102,6 @@ int main()
     background_with_mips.load_from_memory(bsett, &as_uint8[0]);
 
     #define MIP_LEVELS 11
-
-    /*cl::gl_rendertexture background_mipped[4] = {clctx.ctx, clctx.ctx, clctx.ctx, clctx.ctx};
-
-    glFinish();
-
-    for(int i=0; i < MIP_LEVELS; i++)
-    {
-        background_mipped[i].create_from_texture_with_mipmaps(background_with_mips.handle, i);
-
-        background_mipped[i].acquire(clctx.cqueue);
-    }*/
 
     cl::image_with_mipmaps background_mipped(clctx.ctx);
     background_mipped.alloc((vec2i){img.getSize().x, img.getSize().y}, 4, {CL_RGBA, CL_FLOAT});
@@ -175,48 +138,7 @@ int main()
         background_mipped.write(clctx.cqueue, (char*)&converted[0], vec<2, size_t>{0, 0}, vec<2, size_t>{cwidth, cheight}, i);
     }
 
-    cl::command_queue read_queue(clctx.ctx, CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE);
     cl::device_command_queue dqueue(clctx.ctx);
-
-    /*int pixels_width = win.get_window_size().x();
-    int pixels_height = win.get_window_size().y();
-
-    cl::buffer rays;
-    rays.alloc(sizeof(light_ray) * pixels_width * pixels_height);
-
-    cl::buffer deltas;
-    deltas.alloc(sizeof(light_ray) * pixels_width * pixels_height);
-
-    {
-        vec3f camera = {0, -10000, 0};
-        vec3f look_vector = {0, 0, 1};
-
-        std::vector<light_ray> rays_data;
-        std::vector<light_ray> deltas_data;
-
-        for(int y=0; y < pixels_height; y++)
-        {
-            for(int x = 0; x < pixels_width; x++)
-            {
-                vec3f pos_3d = camera + (vec3f){x - pixels_width/2, y - pixels_height/2, camera.z};
-
-                light_ray ray;
-                ray.spacetime_position = (vec4f){0, pos_3d.x(), pos_3d.y(), pos_3d.z()};
-                ray.spacetime_velocity = {1, 0, 0, 1};
-
-                rays_data.push_back(ray);
-
-                light_ray delta;
-                delta.spacetime_position = ray.spacetime_position - (vec4f){0, 0, 0, 0};
-                delta.spacetime_velocity = {0, 0, 0, 0};
-
-                deltas_data.push_back(delta);
-            }
-        }
-
-        rays.write(clctx.ctx, rays_data);
-        deltas.write(clctx.ctx, deltas_data);
-    }*/
 
     ///t, x, y, z
     vec4f camera = {0, 0.01, -0.024, -5.5};
@@ -331,10 +253,6 @@ int main()
             camera = {0, 0, 22, 0};
         }
 
-        /*camera.y() += (ImGui::IsKeyDown(GLFW_KEY_D) - ImGui::IsKeyDown(GLFW_KEY_A)) * speed;
-        camera.z() += (ImGui::IsKeyDown(GLFW_KEY_W) - ImGui::IsKeyDown(GLFW_KEY_S)) * speed;
-        camera.w() += (ImGui::IsKeyDown(GLFW_KEY_E) - ImGui::IsKeyDown(GLFW_KEY_Q)) * speed;*/
-
         if(ImGui::IsKeyDown(GLFW_KEY_RIGHT))
         {
             mat3f m = mat3f().ZRot(M_PI/128);
@@ -429,12 +347,6 @@ int main()
         clctx.cqueue.block();
         glFinish();
         #endif // OLD_AND_GOOD
-
-        /*schwarzs_1.set_to_zero(clctx.cqueue);
-        schwarzs_2.set_to_zero(clctx.cqueue);
-        kruskal_1.set_to_zero(clctx.cqueue);
-        kruskal_2.set_to_zero(clctx.cqueue);
-        finished_1.set_to_zero(clctx.cqueue);*/
 
         #if 1
         schwarzs_count_1.set_to_zero(clctx.cqueue);
