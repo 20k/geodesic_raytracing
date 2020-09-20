@@ -1361,6 +1361,12 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
     float ambient_precision = 0.01;
     float subambient_precision = 0.5;
 
+    #ifdef NO_EVENT_HORIZON_CROSSING
+    #ifdef NO_KRUSKAL
+    ambient_precision = 0.5;
+    #endif // NO_KRUSKAL
+    #endif // NO_EVENT_HORIZON_CROSSING
+
     float rs = 1;
 
     float4 last_position = 0;
