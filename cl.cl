@@ -88,6 +88,8 @@ float calculate_ds(float4 velocity, float g_metric[])
     return ds;
 }
 
+#define IS_CONSTANT_THETA
+
 ///ds2 = guv dx^u dx^v
 float4 fix_light_velocity2(float4 v, float g_metric[])
 {
@@ -95,14 +97,16 @@ float4 fix_light_velocity2(float4 v, float g_metric[])
 
     float3 vmetric = {g_metric[1], g_metric[2], g_metric[3]};
 
+    #ifdef IS_CONSTANT_THETA
+    v.z = 0;
+    #endif // IS_CONSTANT_THETA
+
     float tvl_2 = dot(vmetric, v.yzw * v.yzw) / -g_metric[0];
 
     v.x = native_sqrt(tvl_2);
 
     return v;
 }
-
-#define IS_CONSTANT_THETA
 
 void calculate_metric(float4 spacetime_position, float g_metric_out[])
 {
@@ -519,7 +523,7 @@ void calculate_partial_derivatives(float4 spacetime_position, float g_metric_par
     //dr dr
     g_metric_partials[1 * 4 + 1] = -rs / ((rs - r) * (rs - r));
     //dtheta by dr
-    g_metric_partials[2 * 4 + 1] = 2 * r;
+    g_metric_partials[2 * 4 + 1] = 2 * r; //this is irrelevant for constant theta, but i think the compiler figures it out now
     //dphi by dr
     g_metric_partials[3 * 4 + 1] = 2 * r * sin(theta) * sin(theta);
     //dphi by dtheta
@@ -887,6 +891,10 @@ bool is_radius_leq_than(float4 spacetime_position, bool is_kruskal, float radius
 
 float4 calculate_acceleration(float4 lightray_velocity, float g_metric[4], float g_partials[16])
 {
+    #ifdef IS_CONSTANT_THETA
+    lightray_velocity.z = 0;
+    #endif // IS_CONSTANT_THETA
+
     float christoff[64] = {0};
 
     ///diagonal of the metric, because it only has diagonals
@@ -928,9 +936,13 @@ float4 calculate_acceleration(float4 lightray_velocity, float g_metric[4], float
         christ_result[uu] = sum;
     }
 
-    float4 acceleration = {christ_result[0], christ_result[1], christ_result[2], christ_result[3]};
+    float4 acceleration = {-christ_result[0], -christ_result[1], -christ_result[2], -christ_result[3]};
 
-    return -acceleration;
+    #ifdef IS_CONSTANT_THETA
+    acceleration.z = 0;
+    #endif // IS_CONSTANT_THETA
+
+    return acceleration;
 }
 
 float linear_mix(float value, float min_val, float max_val)
@@ -1177,6 +1189,12 @@ void do_kruskal_rays(__global struct lightray* schwarzs_rays_in, __global struct
     int sx = ray->sx;
     int sy = ray->sy;
 
+    #ifdef IS_CONSTANT_THETA
+    position.z = M_PI/2;
+    velocity.z = 0;
+    acceleration.z = 0;
+    #endif // IS_CONSTANT_THETA
+
     {
         float g_metric[4] = {0};
         calculate_metric_krus(position, g_metric);
@@ -1201,6 +1219,13 @@ void do_kruskal_rays(__global struct lightray* schwarzs_rays_in, __global struct
 
     for(int i=0; i < 64000/125; i++)
     {
+        #ifdef IS_CONSTANT_THETA
+        position.z = M_PI/2;
+        velocity.z = 0;
+        intermediate_velocity.z = 0;
+        acceleration.z = 0;
+        #endif // IS_CONSTANT_THETA
+
         float r_value = TX_to_r_krus(position.x, position.y);
         float ds = linear_val(r_value, 0.5f * rs, 1 * rs, 0.001f, 0.01f);
 
@@ -1309,6 +1334,13 @@ void do_kruskal_rays(__global struct lightray* schwarzs_rays_in, __global struct
         float4 next_acceleration = calculate_acceleration(intermediate_next_velocity, g_metric, g_partials);
         float4 next_velocity = velocity + 0.5 * (acceleration + next_acceleration) * ds;
 
+        #ifdef IS_CONSTANT_THETA
+        next_position.z = 0;
+        next_velocity.z = 0;
+        intermediate_next_velocity.z = 0;
+        next_acceleration.z = 0;
+        #endif // IS_CONSTANT_THETA
+
         last_ds = ds;
 
         position = next_position;
@@ -1373,6 +1405,13 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
     float4 position = ray->position;
     float4 velocity = ray->velocity;
     float4 acceleration = ray->acceleration;
+
+    #ifdef IS_CONSTANT_THETA
+    position.z = M_PI/2;
+    velocity.z = 0;
+    acceleration.z = 0;
+    #endif // IS_CONSTANT_THETA
+
     int sx = ray->sx;
     int sy = ray->sy;
 
@@ -1408,6 +1447,13 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
 
     for(int i=0; i < 64000/125; i++)
     {
+        #ifdef IS_CONSTANT_THETA
+        position.z = M_PI/2;
+        velocity.z = 0;
+        intermediate_velocity.z = 0;
+        acceleration.z = 0;
+        #endif // IS_CONSTANT_THETA
+
         float new_max = 6 * rs;
         float new_min = FROM_KRUSKAL * rs;
 
@@ -1526,6 +1572,13 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
 
         float4 next_acceleration = calculate_acceleration(intermediate_next_velocity, g_metric, g_partials);
         float4 next_velocity = velocity + 0.5f * (acceleration + next_acceleration) * ds;
+
+        #ifdef IS_CONSTANT_THETA
+        next_position.z = 0;
+        next_velocity.z = 0;
+        intermediate_next_velocity.z = 0;
+        next_acceleration.z = 0;
+        #endif // IS_CONSTANT_THETA
 
         last_ds = ds;
 
