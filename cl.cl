@@ -498,6 +498,11 @@ void calculate_partial_derivatives_krus(float4 spacetime_position, float g_metri
 
 void calculate_partial_derivatives(float4 spacetime_position, float g_metric_partials[])
 {
+    /*dt
+    dr
+    dtheta
+    dphi*/
+
     float r = spacetime_position.y;
 
     float rs = 1;
@@ -509,10 +514,15 @@ void calculate_partial_derivatives(float4 spacetime_position, float g_metric_par
     float theta = M_PI/2;
     #endif // IS_CONSTANT_THETA
 
+    //dt dr
     g_metric_partials[0 * 4 + 1] = -c*c*rs/(r*r);
+    //dr dr
     g_metric_partials[1 * 4 + 1] = -rs / ((rs - r) * (rs - r));
+    //dtheta by dr
     g_metric_partials[2 * 4 + 1] = 2 * r;
+    //dphi by dr
     g_metric_partials[3 * 4 + 1] = 2 * r * sin(theta) * sin(theta);
+    //dphi by dtheta
     g_metric_partials[3 * 4 + 2] = 2 * r * r * sin(theta) * cos(theta);
 }
 
