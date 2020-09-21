@@ -1331,6 +1331,30 @@ void do_kruskal_rays(__global struct lightray* schwarzs_rays_in, __global struct
     kruskal_rays_out[out_id] = out_ray;
 }
 
+/*float ddt = 0;
+float ddr = 0;
+float ddp = 0;
+
+{
+    float dr = intermediate_next_velocity.y;
+    float r = next_position.y;
+
+    float t = next_position.x;
+    float dt = intermediate_next_velocity.x;
+
+    float p = next_position.w;
+    float dp = intermediate_next_velocity.w;
+
+    float Q = 0;
+    float q = 0;
+
+    ddt = dr * (q * r * Q + 2 * (Q * Q - r) * dt) / (r * ((r - 2) * r + Q * Q));
+    ddr = (((r - 2) * r + Q * Q) * (q * r * Q * dt + r * r * r * r * dp * dp + (Q * Q - r) * dt * dt) / (r * r * r * r * r)) + (r - Q * Q) * dr * dr / (r * ((r - 2) * r + Q * Q));
+    ddp = - 2 * dp * dr / r;
+}
+
+float4 next_acceleration = {ddt, ddr, 0, ddp};*/
+
 __kernel
 void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struct lightray* schwarzs_rays_out,
                       __global struct lightray* kruskal_rays_in, __global struct lightray* kruskal_rays_out,
@@ -1406,8 +1430,6 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
             //ds = linear_val(r_value, new_max, end_max, subambient_precision, end_max/10);
 
             ds = 0.1 * (r_value - new_max) + subambient_precision;
-
-
 
 
             //ds = 0.1 * pow(r_value - new_max, 0.999) + subambient_precision;
