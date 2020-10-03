@@ -730,7 +730,6 @@ float4 evaluate_partial_metric(float4 vel, float g_metric[])
                     g_metric[3] * vel.w * vel.w};
 }
 
-
 float4 lower_index(float4 raised, float g_metric[])
 {
     float4 ret;
@@ -1086,10 +1085,11 @@ void init_rays(float4 cartesian_camera_pos, float4 camera_quat, __global struct 
     float4 pixel_x = pixel_direction.x * cX;
     float4 pixel_y = pixel_direction.y * cY;
     float4 pixel_z = pixel_direction.z * cZ;
+    float4 pixel_t = 1 * bT;
 
-    float4 vec = pixel_x + pixel_y + pixel_z;
+    float4 vec = pixel_x + pixel_y + pixel_z + pixel_t;
 
-    float4 pixel_N = vec / (dot(lower_index(vec, g_metric), vec));
+    float4 pixel_N = vec;
     pixel_N = fix_light_velocity2(pixel_N, g_metric);
 
     lightray_velocity = pixel_N;
@@ -1867,7 +1867,7 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
     float r_value = position.y;
 
     #ifdef NO_EVENT_HORIZON_CROSSING
-    if(r_value <= rs)
+    if(r_value <= rs * 2)
     {
         write_imagef(out, (int2){sx, sy}, (float4)(0, 0, 0, 1));
         return;

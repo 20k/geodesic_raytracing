@@ -104,7 +104,7 @@ int main()
     #define MIP_LEVELS 11
 
     cl::image_with_mipmaps background_mipped(clctx.ctx);
-    background_mipped.alloc((vec2i){img.getSize().x, img.getSize().y}, 4, {CL_RGBA, CL_FLOAT});
+    background_mipped.alloc((vec2i){img.getSize().x, img.getSize().y}, MIP_LEVELS, {CL_RGBA, CL_FLOAT});
 
     int swidth = img.getSize().x;
     int sheight = img.getSize().y;
