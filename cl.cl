@@ -1032,9 +1032,6 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
     float nonphysical_plane_half_width = width/2;
     float nonphysical_f_stop = nonphysical_plane_half_width / tan(fov_rad/2);
 
-    float rs = 1;
-    float c = 1;
-
     float3 pixel_direction = (float3){cx - width/2, cy - height/2, nonphysical_f_stop};
 
     pixel_direction = normalize(pixel_direction);
@@ -1178,11 +1175,13 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
     float ambient_precision = 0.01;
     float subambient_precision = 0.5;
 
-    #ifdef NO_EVENT_HORIZON_CROSSING
-    #ifdef NO_KRUSKAL
-    ambient_precision = 0.5;
-    #endif // NO_KRUSKAL
-    #endif // NO_EVENT_HORIZON_CROSSING
+    //#ifdef NO_EVENT_HORIZON_CROSSING
+    //#ifdef NO_KRUSKAL
+    ambient_precision = 0.005;
+    //#endif // NO_KRUSKAL
+    //#endif // NO_EVENT_HORIZON_CROSSING
+
+    subambient_precision = 0.5;
 
     float rs = 1;
 
@@ -1202,9 +1201,14 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         float g_metric[4] = {};
         float g_partials[16] = {};
 
-        if(position.y >= 20 || position.y <= rs)
+        //if(position.y >= 20 || position.z < M_PI/32 || position.z >= M_PI - M_PI/32)// || position.y <= rs)
+
+        if(fabs(position.y) >= 20)
         {
             int out_id = atomic_inc(finished_count_out);
+
+            if(position.y < 0)
+                position.y = -position.y;
 
             struct lightray out_ray;
             out_ray.sx = sx;
@@ -2236,7 +2240,7 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
     #ifdef NO_EVENT_HORIZON_CROSSING
     if(r_value <= rs * 2)
     {
-        write_imagef(out, (int2){sx, sy}, (float4)(0, 0, 0, 1));
+        write_imagef(out, (int2){sx, sy}, (float4)(0, 1, 0, 1));
         return;
     }
     #endif // NO_EVENT_HORIZON_CROSSINGS

@@ -24,7 +24,7 @@ struct lightray
     int sx, sy;
 };
 
-inline
+/*inline
 std::array<dual, 4> test_metric(dual t, dual r, dual theta, dual phi)
 {
     //theta = make_constant("(M_PI/2)");
@@ -38,7 +38,37 @@ std::array<dual, 4> test_metric(dual t, dual r, dual theta, dual phi)
     dual dphi = r * r * sin(theta) * sin(theta);
 
     return {dt, dr, dtheta, dphi};
+}*/
+
+inline
+std::array<dual, 4> traversible_wormhole(dual t, dual p, dual theta, dual phi)
+{
+    dual c = make_constant("c");
+    dual n = make_constant("1");
+
+    dual dt = -1 * c * c;
+    dual dr = make_constant("1");
+    dual dtheta = (p * p + n * n);
+    dual dphi = (p * p + n * n) * (sin(theta) * sin(theta));
+
+    return {dt, dr, dtheta, dphi};
 }
+
+inline auto test_metric = traversible_wormhole;
+
+/*inline
+std::array<dual, 4> test_metric(dual t, dual p, dual theta, dual phi)
+{
+    dual c = make_constant("c");
+    dual n = make_constant("1");
+
+    dual dt = -make_constant("1");
+    dual dr = make_constant("1");
+    dual dtheta = p * p;
+    dual dphi = p * p * sin(theta) * sin(theta);
+
+    return {dt, dr, dtheta, dphi};
+}*/
 
 #define GENERIC_METRIC
 
@@ -79,7 +109,7 @@ int main()
         }
     }
 
-    argument_string += " -DGENERIC_METRIC -DVERLET_INTEGRATION_GENERIC";
+    argument_string += " -DGENERIC_METRIC -DEULER_INTEGRATION_GENERIC";
 
     argument_string += " -DGENERIC_CONSTANT_THETA";
 
