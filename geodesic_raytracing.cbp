@@ -120,6 +120,7 @@
 		<Unit filename="deps/toolkit/opencl.hpp" />
 		<Unit filename="deps/toolkit/render_window.cpp" />
 		<Unit filename="deps/toolkit/render_window.hpp" />
+		<Unit filename="deps/toolkit/render_window_glfw.cpp" />
 		<Unit filename="deps/toolkit/stacktrace.hpp" />
 		<Unit filename="deps/toolkit/texture.cpp" />
 		<Unit filename="deps/toolkit/texture.hpp" />

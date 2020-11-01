@@ -40,6 +40,7 @@ std::array<dual, 4> test_metric(dual t, dual r, dual theta, dual phi)
     return {dt, dr, dtheta, dphi};
 }*/
 
+////https://arxiv.org/pdf/0904.4184.pdf
 inline
 std::array<dual, 4> traversible_wormhole(dual t, dual p, dual theta, dual phi)
 {
@@ -50,6 +51,90 @@ std::array<dual, 4> traversible_wormhole(dual t, dual p, dual theta, dual phi)
     dual dr = make_constant("1");
     dual dtheta = (p * p + n * n);
     dual dphi = (p * p + n * n) * (sin(theta) * sin(theta));
+
+    return {dt, dr, dtheta, dphi};
+}
+
+/*
+///suffers from event horizonitus
+inline
+std::array<dual, 4> schwarzschild_wormhole(dual t, dual r, dual theta, dual phi)
+{
+    dual c = make_constant("c");
+    dual rs = make_constant("1");
+
+    dual dt = - c * c * (1 - rs/(r * c * c));
+    dual dr = 1/(1 - (rs / (r * c * c)));
+    dual dtheta = r * r;
+    dual dphi = r * r * sin(theta) * sin(theta);
+
+    return {dt, dr, dtheta, dphi};
+}*/
+
+inline
+std::array<dual, 4> cosmic_string(dual t, dual r, dual theta, dual phi)
+{
+    dual c = make_constant("c");
+    dual rs = make_constant("1");
+
+    dual dt = -(1 - rs/r) * c * c;
+    dual dr = 1 / (1 - rs/r);
+    dual dtheta = r * r;
+
+    dual B = make_constant("0.3");
+    dual dphi = r * r * B * B * sin(theta) * sin(theta);
+
+    return {dt, dr, dtheta, dphi};
+}
+
+inline
+std::array<dual, 4> ernst_metric(dual t, dual r, dual theta, dual phi)
+{
+    dual B = make_constant("0.05");
+
+    dual lambda_sq = 1 + B * B * r * r * sin(theta) * sin(theta);
+
+    dual rs = make_constant("1");
+    dual c = make_constant("1");
+
+    dual dt = -lambda_sq * (1 - rs/r);
+    dual dr = lambda_sq * 1/(1 - rs/r);
+    dual dtheta = lambda_sq * r * r;
+    dual dphi = r * r * sin(theta) * sin(theta) / (lambda_sq);
+
+    return {dt, dr, dtheta, dphi};
+}
+
+inline
+std::array<dual, 4> janis_newman_winicour(dual t, dual r, dual theta, dual phi)
+{
+    //dual gamma = make_constant("1");
+    float gamma = 0.1;
+
+    dual rs = make_constant("1");
+    dual c = make_constant("1");
+
+    dual alpha = 1 - rs / (gamma * r);
+
+    dual dt = -pow(alpha, gamma) * c * c;
+    dual dr = pow(alpha, -gamma);
+    dual dtheta = r * r * pow(alpha, -gamma + 1);
+    dual dphi = r * r * pow(alpha, -gamma + 1) * sin(theta) * sin(theta);
+
+    return {dt, dr, dtheta, dphi};
+}
+
+inline
+std::array<dual, 4> de_sitter(dual t, dual r, dual theta, dual phi)
+{
+    float cosmo = 0.01;
+
+    dual c = make_constant("1");
+
+    dual dt = -(1 - cosmo * r * r/3) * c * c;
+    dual dr = 1/(1 - cosmo * r * r / 3);
+    dual dtheta = r * r;
+    dual dphi = r * r * sin(theta) * sin(theta);
 
     return {dt, dr, dtheta, dphi};
 }
@@ -109,9 +194,10 @@ int main()
         }
     }
 
-    argument_string += " -DGENERIC_METRIC -DEULER_INTEGRATION_GENERIC";
+    argument_string += " -DGENERIC_METRIC -DVERLET_INTEGRATION_GENERIC";
 
     argument_string += " -DGENERIC_CONSTANT_THETA";
+    //argument_string += " -DSINGULAR";
 
     std::cout << "ASTRING " << argument_string << std::endl;
 

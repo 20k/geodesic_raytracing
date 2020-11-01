@@ -222,7 +222,8 @@ dual sqrt(const dual& d1)
 inline
 dual pow(const dual& d1, float v)
 {
-    return make_value(outer(d1.real, to_string_s(v), "pow"), "(" + to_string_s(v) + "*" + d1.dual + "*" + outer(d1.real, infix(to_string_s(v), "1", "-"), "pow"));
+    return make_value(outer(d1.real, to_string_s(v), "pow"), infix(to_string_s(v), infix(d1.dual, outer(d1.real, to_string_s(v - 1), "pow"), "*"), "*"));
+    //return make_value(outer(d1.real, to_string_s(v), "pow"), "(" + to_string_s(v) + "*" + d1.dual + "*" + outer(d1.real, infix(to_string_s(v), "1", "-"), "pow"));
 }
 
 inline

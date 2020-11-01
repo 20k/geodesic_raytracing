@@ -1164,6 +1164,12 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         velocity = fix_light_velocity2(velocity, g_metric);
     }
 
+    #ifdef IS_CONSTANT_THETA
+    position.z = M_PI/2;
+    velocity.z = 0;
+    acceleration.z = 0;
+    #endif // IS_CONSTANT_THETA
+
     float last_ds = 1000;
 
     ///results:
@@ -1191,6 +1197,13 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
     for(int i=0; i < 64000/125; i++)
     {
+        #ifdef IS_CONSTANT_THETA
+        position.z = M_PI/2;
+        velocity.z = 0;
+        intermediate_velocity.z = 0;
+        acceleration.z = 0;
+        #endif // IS_CONSTANT_THETA
+
         float new_max = 6 * rs;
         float new_min = 1.5 * rs;
 
@@ -1203,7 +1216,11 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
         //if(position.y >= 20 || position.z < M_PI/32 || position.z >= M_PI - M_PI/32)// || position.y <= rs)
 
-        if(fabs(position.y) >= 20)
+        #ifndef SINGULAR
+        if(fabs(position.y) >= 6000)
+        #else
+        if(fabs(position.y) < rs || fabs(position.y) >= 6000)
+        #endif // SINGULAR
         {
             int out_id = atomic_inc(finished_count_out);
 
@@ -1250,6 +1267,13 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
         float4 next_acceleration = calculate_acceleration(intermediate_next_velocity, g_metric, g_partials);
         float4 next_velocity = velocity + 0.5f * (acceleration + next_acceleration) * ds;
+
+        #ifdef IS_CONSTANT_THETA
+        next_position.z = 0;
+        next_velocity.z = 0;
+        intermediate_next_velocity.z = 0;
+        next_acceleration.z = 0;
+        #endif // IS_CONSTANT_THETA
 
         last_ds = ds;
 
@@ -2240,7 +2264,7 @@ void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lig
     #ifdef NO_EVENT_HORIZON_CROSSING
     if(r_value <= rs * 2)
     {
-        write_imagef(out, (int2){sx, sy}, (float4)(0, 1, 0, 1));
+        write_imagef(out, (int2){sx, sy}, (float4)(0, 0, 0, 1));
         return;
     }
     #endif // NO_EVENT_HORIZON_CROSSINGS
