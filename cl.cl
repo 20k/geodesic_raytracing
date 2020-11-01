@@ -994,22 +994,22 @@ void calculate_partial_derivatives_generic(float4 spacetime_position, float g_me
     float rs = RS_IMPL;
     float c = C_IMPL;
 
-    g_metric_out[0] = F1_P;
-    g_metric_out[1] = F2_P;
-    g_metric_out[2] = F3_P;
-    g_metric_out[3] = F4_P;
-    g_metric_out[4] = F5_P;
-    g_metric_out[5] = F6_P;
-    g_metric_out[6] = F7_P;
-    g_metric_out[7] = F8_P;
-    g_metric_out[8] = F9_P;
-    g_metric_out[9] = F10_P;
-    g_metric_out[10] = F11_P;
-    g_metric_out[11] = F12_P;
-    g_metric_out[12] = F13_P;
-    g_metric_out[13] = F14_P;
-    g_metric_out[14] = F15_P;
-    g_metric_out[15] = F16_P;
+    g_metric_partials[0] = F1_P;
+    g_metric_partials[1] = F2_P;
+    g_metric_partials[2] = F3_P;
+    g_metric_partials[3] = F4_P;
+    g_metric_partials[4] = F5_P;
+    g_metric_partials[5] = F6_P;
+    g_metric_partials[6] = F7_P;
+    g_metric_partials[7] = F8_P;
+    g_metric_partials[8] = F9_P;
+    g_metric_partials[9] = F10_P;
+    g_metric_partials[10] = F11_P;
+    g_metric_partials[11] = F12_P;
+    g_metric_partials[12] = F13_P;
+    g_metric_partials[13] = F14_P;
+    g_metric_partials[14] = F15_P;
+    g_metric_partials[15] = F16_P;
 }
 
 __kernel
@@ -1062,10 +1062,7 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
 
     float4 camera = (float4)(0, polar_camera);
 
-    if(is_kruskal)
-        calculate_metric_krus_with_r(camera, polar_camera.x, g_metric);
-    else
-        calculate_metric((float4)(0, polar_camera), g_metric);
+    calculate_metric_generic((float4)(0, polar_camera), g_metric);
 
     float4 co_basis = (float4){native_sqrt(-g_metric[0]), native_sqrt(g_metric[1]), native_sqrt(g_metric[2]), native_sqrt(g_metric[3])};
 
@@ -1199,7 +1196,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         float g_metric[4] = {};
         float g_partials[16] = {};
 
-        if(position.y >= 4000000)// || position.y <= rs)
+        if(position.y >= 20 || position.y <= rs)
         {
             int out_id = atomic_inc(finished_count_out);
 
@@ -1214,12 +1211,12 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
             return;
         }
 
-        #ifdef VERLET_INTEGRATION
+        #ifdef VERLET_INTEGRATION_GENERIC
         last_position = position;
         last_velocity = velocity;
         #endif // VERLET_INTEGRATION
 
-        #ifdef EULER_INTEGRATION
+        #ifdef EULER_INTEGRATION_GENERIC
         calculate_metric_generic(position, g_metric);
         calculate_partial_derivatives_generic(position, g_partials);
 
@@ -1231,7 +1228,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         position += velocity * ds;
         #endif // EULER_INTEGRATION
 
-        #ifdef VERLET_INTEGRATION
+        #ifdef VERLET_INTEGRATION_GENERIC
         float4 next_position = position + velocity * ds + 0.5f * acceleration * ds * ds;
         float4 intermediate_next_velocity = velocity + acceleration * ds;
 
@@ -1255,7 +1252,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         #endif // VERLET_INTEGRATION
     }
 
-    int out_id = atomic_inc(generic_count_in);
+    int out_id = atomic_inc(generic_count_out);
 
     struct lightray out_ray;
     out_ray.sx = sx;
@@ -1269,7 +1266,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
 
 __kernel
-void generic_relauncher(__global struct lightray* generic_rays_in, __global struct lightray* generic_rays_out,
+void relauncher_generic(__global struct lightray* generic_rays_in, __global struct lightray* generic_rays_out,
                         __global struct lightray* finished_rays,
                         __global int* generic_count_in, __global int* generic_count_out,
                         __global int* finished_count_out,
@@ -1302,7 +1299,7 @@ void generic_relauncher(__global struct lightray* generic_rays_in, __global stru
     clk_event_t f3;
 
     enqueue_kernel(get_default_queue(), CLK_ENQUEUE_FLAGS_NO_WAIT,
-                   ndrange_1D(offset, schwarzs_count, loffset),
+                   ndrange_1D(offset, generic_count, loffset),
                    1, &f1, &f3,
                    ^{
                         do_generic_rays (generic_rays_in, generic_rays_out,
@@ -1317,7 +1314,7 @@ void generic_relauncher(__global struct lightray* generic_rays_in, __global stru
                    ndrange_1D(offset, one, oneoffset),
                    1, &f3, NULL,
                    ^{
-                        generic_relauncher(generic_rays_out, schwarzs_rays_in,
+                        relauncher_generic(generic_rays_out, generic_rays_in,
                                            finished_rays,
                                            generic_count_out, generic_count_in,
                                            finished_count_out, width, height, fallback + 1);

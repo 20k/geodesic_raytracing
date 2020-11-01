@@ -5,6 +5,7 @@
 #include <GLFW/glfw3.h>
 #include <SFML/Graphics.hpp>
 #include <CL/cl_ext.h>
+#include "dual.hpp"
 
 ///perfectly fine
 vec4f cartesian_to_schwarz(vec4f position)
@@ -23,11 +24,27 @@ struct lightray
     int sx, sy;
 };
 
+inline
+std::array<dual, 4> test_metric(dual t, dual r, dual theta, dual phi)
+{
+    dual rs = make_constant("rs");
+    dual c = make_constant("c");
+
+    dual dt = -(1 - rs / r) * c * c;
+    dual dr = 1/(1 - rs / r);
+    dual dtheta = r * r;
+    dual dphi = r * r * sin(theta) * sin(theta);
+
+    return {dt, dr, dtheta, dphi};
+}
+
+#define GENERIC_METRIC
+
 int main()
 {
     render_settings sett;
-    sett.width = 1800;
-    sett.height = 900;
+    sett.width = 1000;
+    sett.height = 800;
     sett.opencl = true;
     sett.no_double_buffer = true;
 
@@ -37,8 +54,37 @@ int main()
 
     opencl_context& clctx = *win.clctx;
 
+    std::string argument_string = "-O5 -cl-std=CL2.2 ";
+
+    #ifdef GENERIC_METRIC
+    auto [real_eq, derivatives] = evaluate_metric(test_metric, "v1", "v2", "v3", "v4");
+
+    argument_string += "-DRS_IMPL=1 -DC_IMPL=1 ";
+
+    for(int i=0; i < (int)real_eq.size(); i++)
+    {
+        argument_string += "-DF" + std::to_string(i + 1) + "_I=" + real_eq[i] + " ";
+    }
+
+    for(int j=0; j < 4; j++)
+    {
+        for(int i=0; i < 4; i++)
+        {
+            int script_idx = j * 4 + i + 1;
+            int my_idx = i * 4 + j;
+
+            argument_string += "-DF" + std::to_string(script_idx) + "_P=" + derivatives[my_idx] + " ";
+        }
+    }
+
+    argument_string += " -DGENERIC_METRIC -DVERLET_INTEGRATION_GENERIC";
+
+    std::cout << "ASTRING " << argument_string << std::endl;
+
+    #endif // GENERIC_METRIC
+
     cl::program prog(clctx.ctx, "cl.cl");
-    prog.build(clctx.ctx, "-O3 -cl-std=CL2.2");
+    prog.build(clctx.ctx, argument_string);
 
     clctx.ctx.register_program(prog);
 
@@ -63,7 +109,7 @@ int main()
     int which_buffer = 0;
 
     sf::Image img;
-    img.loadFromFile("background_med.png");
+    img.loadFromFile("background.png");
 
     cl::image clbackground(clctx.ctx);
 
@@ -365,6 +411,7 @@ int main()
         cl::event next;
 
         {
+            #ifndef GENERIC_METRIC
             cl::args init_args;
             init_args.push_back(camera);
             init_args.push_back(camera_quat);
@@ -376,32 +423,6 @@ int main()
             init_args.push_back(height);
 
             clctx.cqueue.exec("init_rays", init_args, {width, height}, {16, 16});
-
-            //#define CPU_CONTROL
-            #ifdef CPU_CONTROL
-            for(int i=0; i < 100; i++)
-            {
-                c2->set_to_zero(clctx.cqueue);
-
-                cl::args run_args;
-                run_args.push_back(*b1);
-                run_args.push_back(*b2);
-                run_args.push_back(kruskal_1);
-                run_args.push_back(kruskal_2);
-                run_args.push_back(finished_1);
-                run_args.push_back(*c1);
-                run_args.push_back(*c2);
-                run_args.push_back(kruskal_count_1);
-                run_args.push_back(kruskal_count_2);
-                run_args.push_back(finished_count_1);
-
-                clctx.cqueue.exec("do_schwarzs_rays", run_args, {width * height}, {256});
-
-                std::swap(b1, b2);
-                std::swap(c1, c2);
-            }
-
-            #else
 
             cl::args run_args;
             run_args.push_back(*b1);
@@ -419,8 +440,32 @@ int main()
             run_args.push_back(fallback);
 
             clctx.cqueue.exec("relauncher", run_args, {1}, {1});
+            #else
 
-            #endif // CPU_CONTROL
+            cl::args init_args;
+            init_args.push_back(camera);
+            init_args.push_back(camera_quat);
+            init_args.push_back(*b1);
+            init_args.push_back(*c1);
+            init_args.push_back(width);
+            init_args.push_back(height);
+
+            clctx.cqueue.exec("init_rays_generic", init_args, {width, height}, {16, 16});
+
+            cl::args run_args;
+            run_args.push_back(*b1);
+            run_args.push_back(*b2);
+            run_args.push_back(finished_1);
+            run_args.push_back(*c1);
+            run_args.push_back(*c2);
+            run_args.push_back(finished_count_1);
+            run_args.push_back(width);
+            run_args.push_back(height);
+            run_args.push_back(fallback);
+
+            clctx.cqueue.exec("relauncher_generic", run_args, {1}, {1});
+
+            #endif // GENERIC_METRIC
 
             cl::args texture_args;
             texture_args.push_back(finished_1);
