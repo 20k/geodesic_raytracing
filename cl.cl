@@ -88,7 +88,11 @@ float calculate_ds(float4 velocity, float g_metric[])
     return ds;
 }
 
+//#define IS_CONSTANT_THETA
+
+#if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC)
 #define IS_CONSTANT_THETA
+#endif
 
 ///ds2 = guv dx^u dx^v
 float4 fix_light_velocity2(float4 v, float g_metric[])
@@ -1045,6 +1049,7 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
 
     float3 new_basis_z = -normalize(cross(new_basis_x, new_basis_y));
 
+    #ifdef GENERIC_CONSTANT_THETA
     {
         float3 cartesian_camera_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_camera_pos.yzw);
         float3 cartesian_velocity_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_velocity);
@@ -1052,6 +1057,7 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
         cartesian_camera_pos.yzw = cartesian_camera_new_basis;
         pixel_direction = normalize(cartesian_velocity_new_basis);
     }
+    #endif // GENERIC_CONSTANT_THETA
 
     float3 polar_camera = cartesian_to_polar(cartesian_camera_pos.yzw);
 
@@ -2126,7 +2132,9 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
 
     float3 new_basis_z = -normalize(cross(new_basis_x, new_basis_y));
 
+    #if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC)
     cart_here = rotate_vector(new_basis_x, new_basis_y, new_basis_z, cart_here);
+    #endif // GENERIC_CONSTANT_THETA
 
     float3 npolar = cartesian_to_polar(cart_here);
 

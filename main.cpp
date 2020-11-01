@@ -27,6 +27,8 @@ struct lightray
 inline
 std::array<dual, 4> test_metric(dual t, dual r, dual theta, dual phi)
 {
+    //theta = make_constant("(M_PI/2)");
+
     dual rs = make_constant("rs");
     dual c = make_constant("c");
 
@@ -78,6 +80,8 @@ int main()
     }
 
     argument_string += " -DGENERIC_METRIC -DVERLET_INTEGRATION_GENERIC";
+
+    argument_string += " -DGENERIC_CONSTANT_THETA";
 
     std::cout << "ASTRING " << argument_string << std::endl;
 
