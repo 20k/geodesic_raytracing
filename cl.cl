@@ -966,6 +966,368 @@ struct lightray
     int sx, sy;
 };
 
+#ifdef GENERIC_METRIC
+
+void calculate_metric_generic(float4 spacetime_position, float g_metric_out[])
+{
+    float v1 = spacetime_position.x;
+    float v2 = spacetime_position.y;
+    float v3 = spacetime_position.z;
+    float v4 = spacetime_position.w;
+
+    float rs = RS_IMPL;
+    float c = C_IMPL;
+
+    g_metric_out[0] = F1_I;
+    g_metric_out[1] = F2_I;
+    g_metric_out[2] = F3_I;
+    g_metric_out[3] = F4_I;
+}
+
+void calculate_partial_derivatives_generic(float4 spacetime_position, float g_metric_partials[])
+{
+    float v1 = spacetime_position.x;
+    float v2 = spacetime_position.y;
+    float v3 = spacetime_position.z;
+    float v4 = spacetime_position.w;
+
+    float rs = RS_IMPL;
+    float c = C_IMPL;
+
+    g_metric_out[0] = F1_P;
+    g_metric_out[1] = F2_P;
+    g_metric_out[2] = F3_P;
+    g_metric_out[3] = F4_P;
+    g_metric_out[4] = F5_P;
+    g_metric_out[5] = F6_P;
+    g_metric_out[6] = F7_P;
+    g_metric_out[7] = F8_P;
+    g_metric_out[8] = F9_P;
+    g_metric_out[9] = F10_P;
+    g_metric_out[10] = F11_P;
+    g_metric_out[11] = F12_P;
+    g_metric_out[12] = F13_P;
+    g_metric_out[13] = F14_P;
+    g_metric_out[14] = F15_P;
+    g_metric_out[15] = F16_P;
+}
+
+__kernel
+void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global struct lightray* metric_rays, __global int* metric_ray_count, int width, int height)
+{
+    #define FOV 90
+
+    float fov_rad = (FOV / 360.f) * 2 * M_PI;
+
+    int cx = get_global_id(0);
+    int cy = get_global_id(1);
+
+    if(cx >= width || cy >= height)
+        return;
+
+    float nonphysical_plane_half_width = width/2;
+    float nonphysical_f_stop = nonphysical_plane_half_width / tan(fov_rad/2);
+
+    float rs = 1;
+    float c = 1;
+
+    float3 pixel_direction = (float3){cx - width/2, cy - height/2, nonphysical_f_stop};
+
+    pixel_direction = normalize(pixel_direction);
+    pixel_direction = rot_quat(pixel_direction, camera_quat);
+
+    float3 cartesian_velocity = normalize(pixel_direction);
+
+    float3 new_basis_x = normalize(cartesian_velocity);
+    float3 new_basis_y = normalize(-cartesian_camera_pos.yzw);
+
+    new_basis_x = rejection(new_basis_x, new_basis_y);
+
+    float3 new_basis_z = -normalize(cross(new_basis_x, new_basis_y));
+
+    {
+        float3 cartesian_camera_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_camera_pos.yzw);
+        float3 cartesian_velocity_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_velocity);
+
+        cartesian_camera_pos.yzw = cartesian_camera_new_basis;
+        pixel_direction = normalize(cartesian_velocity_new_basis);
+    }
+
+    float3 polar_camera = cartesian_to_polar(cartesian_camera_pos.yzw);
+
+    float4 lightray_velocity;
+    float4 lightray_spacetime_position;
+
+    float g_metric[4] = {};
+
+    float4 camera = (float4)(0, polar_camera);
+
+    if(is_kruskal)
+        calculate_metric_krus_with_r(camera, polar_camera.x, g_metric);
+    else
+        calculate_metric((float4)(0, polar_camera), g_metric);
+
+    float4 co_basis = (float4){native_sqrt(-g_metric[0]), native_sqrt(g_metric[1]), native_sqrt(g_metric[2]), native_sqrt(g_metric[3])};
+
+    float4 bT = (float4)(1/co_basis.x, 0, 0, 0); ///or bt
+    float4 bX = (float4)(0, 1/co_basis.y, 0, 0); ///or br
+    float4 btheta = (float4)(0, 0, 1/co_basis.z, 0);
+    float4 bphi = (float4)(0, 0, 0, 1/co_basis.w);
+
+    float lorenz[16] = {};
+    get_lorenz_coeff(bT, g_metric, lorenz);
+
+    float4 cX = tensor_contract(lorenz, btheta);
+    float4 cY = tensor_contract(lorenz, bphi);
+    float4 cZ = tensor_contract(lorenz, bX);
+
+    float3 sVx;
+    float3 sVy;
+    float3 sVz;
+
+    sVx = cX.yzw;
+    sVy = cY.yzw;
+    sVz = cZ.yzw;
+
+    float3 cartesian_cx = spherical_velocity_to_cartesian_velocity(polar_camera, sVx);
+    float3 cartesian_cy = spherical_velocity_to_cartesian_velocity(polar_camera, sVy);
+    float3 cartesian_cz = spherical_velocity_to_cartesian_velocity(polar_camera, sVz);
+
+    pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
+
+    float4 pixel_x = pixel_direction.x * cX;
+    float4 pixel_y = pixel_direction.y * cY;
+    float4 pixel_z = pixel_direction.z * cZ;
+    float4 pixel_t = 1 * bT;
+
+    float4 vec = pixel_x + pixel_y + pixel_z + pixel_t;
+
+    float4 pixel_N = vec;
+    pixel_N = fix_light_velocity2(pixel_N, g_metric);
+
+    lightray_velocity = pixel_N;
+    lightray_spacetime_position = camera;
+
+    float4 lightray_acceleration = (float4)(0,0,0,0);
+
+    {
+        float g_partials[16] = {0};
+
+
+        calculate_metric_generic(lightray_spacetime_position, g_metric);
+        calculate_partial_derivatives_generic(lightray_spacetime_position, g_partials);
+
+        lightray_velocity = fix_light_velocity2(lightray_velocity, g_metric);
+        lightray_acceleration = calculate_acceleration(lightray_velocity, g_metric, g_partials);
+    }
+
+    struct lightray ray;
+    ray.sx = cx;
+    ray.sy = cy;
+    ray.position = lightray_spacetime_position;
+    ray.velocity = lightray_velocity;
+    ray.acceleration = lightray_acceleration;
+
+    int id = cy * width + cx;
+
+    if(id == 0)
+        *metric_ray_count = (height - 1) * width + width - 1;
+
+    metric_rays[id] = ray;
+}
+
+
+__kernel
+void do_generic_rays (__global struct lightray* generic_rays_in, __global struct lightray* generic_rays_out,
+                      __global struct lightray* finished_rays,
+                      __global int* generic_count_in, __global int* generic_count_out,
+                      __global int* finished_count_out)
+{
+    int id = get_global_id(0);
+
+    if(id >= *generic_count_in)
+        return;
+
+    __global struct lightray* ray = &generic_rays_in[id];
+
+    float4 position = ray->position;
+    float4 velocity = ray->velocity;
+    float4 acceleration = ray->acceleration;
+
+    int sx = ray->sx;
+    int sy = ray->sy;
+
+    {
+        float g_metric[4] = {0};
+        calculate_metric_generic(position, g_metric);
+
+        velocity = fix_light_velocity2(velocity, g_metric);
+    }
+
+    float last_ds = 1000;
+
+    ///results:
+    ///subambient_precision can't go above 0.5 much while in verlet mode without the size of the event horizon changing
+    ///in euler mode this is actually already too low
+
+    ///ambient precision however looks way too low at 0.01, testing up to 0.3 showed no noticable difference, needs more precise tests though
+    ///only in the case without kruskals and event horizon crossings however, any precision > 0.01 is insufficient in that case
+    float ambient_precision = 0.01;
+    float subambient_precision = 0.5;
+
+    #ifdef NO_EVENT_HORIZON_CROSSING
+    #ifdef NO_KRUSKAL
+    ambient_precision = 0.5;
+    #endif // NO_KRUSKAL
+    #endif // NO_EVENT_HORIZON_CROSSING
+
+    float rs = 1;
+
+    float4 last_position = 0;
+    float4 last_velocity = 0;
+    float4 intermediate_velocity = 0;
+
+    for(int i=0; i < 64000/125; i++)
+    {
+        float new_max = 6 * rs;
+        float new_min = 1.5 * rs;
+
+        float r_value = position.y;
+
+        float ds = linear_val(r_value, new_min, new_max, ambient_precision, subambient_precision);
+
+        float g_metric[4] = {};
+        float g_partials[16] = {};
+
+        if(position.y >= 4000000)// || position.y <= rs)
+        {
+            int out_id = atomic_inc(finished_count_out);
+
+            struct lightray out_ray;
+            out_ray.sx = sx;
+            out_ray.sy = sy;
+            out_ray.position = position;
+            out_ray.velocity = velocity;
+            out_ray.acceleration = 0;
+
+            finished_rays[out_id] = out_ray;
+            return;
+        }
+
+        #ifdef VERLET_INTEGRATION
+        last_position = position;
+        last_velocity = velocity;
+        #endif // VERLET_INTEGRATION
+
+        #ifdef EULER_INTEGRATION
+        calculate_metric_generic(position, g_metric);
+        calculate_partial_derivatives_generic(position, g_partials);
+
+        velocity = fix_light_velocity2(velocity, g_metric);
+
+        float4 lacceleration = calculate_acceleration(velocity, g_metric, g_partials);
+        velocity += lacceleration * ds;
+
+        position += velocity * ds;
+        #endif // EULER_INTEGRATION
+
+        #ifdef VERLET_INTEGRATION
+        float4 next_position = position + velocity * ds + 0.5f * acceleration * ds * ds;
+        float4 intermediate_next_velocity = velocity + acceleration * ds;
+
+        calculate_metric_generic(next_position, g_metric);
+        calculate_partial_derivatives_generic(next_position, g_partials);
+
+        ///1ms
+        intermediate_next_velocity = fix_light_velocity2(intermediate_next_velocity, g_metric);
+
+        float4 next_acceleration = calculate_acceleration(intermediate_next_velocity, g_metric, g_partials);
+        float4 next_velocity = velocity + 0.5f * (acceleration + next_acceleration) * ds;
+
+        last_ds = ds;
+
+        position = next_position;
+        //velocity = fix_light_velocity2(next_velocity, g_metric);
+        velocity = next_velocity;
+        intermediate_velocity = intermediate_next_velocity;
+        acceleration = next_acceleration;
+
+        #endif // VERLET_INTEGRATION
+    }
+
+    int out_id = atomic_inc(generic_count_in);
+
+    struct lightray out_ray;
+    out_ray.sx = sx;
+    out_ray.sy = sy;
+    out_ray.position = position;
+    out_ray.velocity = velocity;
+    out_ray.acceleration = acceleration;
+
+    generic_rays_out[out_id] = out_ray;
+}
+
+
+__kernel
+void generic_relauncher(__global struct lightray* generic_rays_in, __global struct lightray* generic_rays_out,
+                        __global struct lightray* finished_rays,
+                        __global int* generic_count_in, __global int* generic_count_out,
+                        __global int* finished_count_out,
+                        int width, int height, int fallback)
+{
+    ///failed to converge
+    if(fallback > 125)
+        return;
+
+    if((*generic_count_in) == 0)
+        return;
+
+    int generic_count = *generic_count_in;
+
+    int offset = 0;
+    int loffset = 256;
+
+    int one = 1;
+    int oneoffset = 1;
+
+    clk_event_t f1;
+
+    enqueue_kernel(get_default_queue(),CLK_ENQUEUE_FLAGS_NO_WAIT,
+                   ndrange_1D(offset, one, oneoffset),
+                   0, NULL, &f1,
+                   ^{
+                       *generic_count_out = 0;
+                   });
+
+    clk_event_t f3;
+
+    enqueue_kernel(get_default_queue(), CLK_ENQUEUE_FLAGS_NO_WAIT,
+                   ndrange_1D(offset, schwarzs_count, loffset),
+                   1, &f1, &f3,
+                   ^{
+                        do_generic_rays (generic_rays_in, generic_rays_out,
+                                         finished_rays,
+                                         generic_count_in, generic_count_out,
+                                         finished_count_out);
+                   });
+
+    release_event(f1);
+
+    enqueue_kernel(get_default_queue(), CLK_ENQUEUE_FLAGS_WAIT_KERNEL,
+                   ndrange_1D(offset, one, oneoffset),
+                   1, &f3, NULL,
+                   ^{
+                        generic_relauncher(generic_rays_out, schwarzs_rays_in,
+                                           finished_rays,
+                                           generic_count_out, generic_count_in,
+                                           finished_count_out, width, height, fallback + 1);
+                   });
+
+    release_event(f3);
+}
+
+#endif // GENERIC_METRIC
+
 #if 1
 
 #define NO_KRUSKAL
