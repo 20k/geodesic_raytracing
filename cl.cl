@@ -972,6 +972,41 @@ struct lightray
 
 #ifdef GENERIC_METRIC
 
+float4 lower_index_big(float4 vec, float g_metric_big[])
+{
+    float vecarray[4] = {vec.x, vec.y, vec.z, vec.w};
+    float ret[4] = {0,0,0,0};
+
+    for(int i=0; i < 4; i++)
+    {
+        float sum = 0;
+
+        for(int j=0; j < 4; j++)
+        {
+            sum += g_metric_big[i * 4 + j] * vecarray[j];
+        }
+
+        ret[i] = sum;
+    }
+
+    return (float4)(ret[0], ret[1], ret[2], ret[3]);
+}
+
+float dot_product_big(float4 u, float4 v, float g_metric_big[])
+{
+    float4 lowered = lower_index_big(u, g_metric_big);
+
+    return dot(lowered, v);
+}
+
+void small_to_big_metric(float g_metric[], float g_metric_big[])
+{
+    g_metric_big[0]         = g_metric[0];
+    g_metric_big[1 * 4 + 1] = g_metric[1];
+    g_metric_big[2 * 4 + 2] = g_metric[2];
+    g_metric_big[3 * 4 + 3] = g_metric[3];
+}
+
 void calculate_metric_generic(float4 spacetime_position, float g_metric_out[])
 {
     float v1 = spacetime_position.x;
@@ -1014,6 +1049,45 @@ void calculate_partial_derivatives_generic(float4 spacetime_position, float g_me
     g_metric_partials[13] = F14_P;
     g_metric_partials[14] = F15_P;
     g_metric_partials[15] = F16_P;
+}
+
+struct frame_basis
+{
+    float4 v1;
+    float4 v2;
+    float4 v3;
+    float4 v4;
+};
+
+float4 gram_proj(float4 u, float4 v, float big_metric[])
+{
+    float top = dot_product_big(u, v, big_metric);
+    float bottom = dot_product_big(u, u, big_metric);
+
+    return (top / bottom) * u;
+}
+
+struct frame_basis calculate_frame_basis(float big_metric[])
+{
+    ///while really i think it should be columns, the metric tensor is always symmetric
+    ///this seems better for memory ordering
+    float4 i1 = (float4)(big_metric[0], big_metric[1], big_metric[2], big_metric[3]);
+    float4 i2 = (float4)(big_metric[4], big_metric[5], big_metric[6], big_metric[7]);
+    float4 i3 = (float4)(big_metric[8], big_metric[9], big_metric[10], big_metric[11]);
+    float4 i4 = (float4)(big_metric[12], big_metric[13], big_metric[14], big_metric[15]);
+
+    float4 u1 = i1;
+    float4 u2 = i2 - gram_proj(u1, i2, big_metric);
+    float4 u3 = i3 - gram_proj(u1, i3, big_metric) - gram_proj(u2, i3, big_metric);
+    float4 u4 = i4 - gram_proj(u1, i4, big_metric) - gram_proj(u2, i4, big_metric) - gram_proj(u3, i4, big_metric);
+
+    struct frame_basis ret;
+    ret.v1 = u1 / dot_product_big(u1, u1, big_metric);
+    ret.v2 = u2 / dot_product_big(u1, u1, big_metric);
+    ret.v3 = u3 / dot_product_big(u1, u1, big_metric);
+    ret.v4 = u4 / dot_product_big(u1, u1, big_metric);
+
+    return ret;
 }
 
 __kernel
