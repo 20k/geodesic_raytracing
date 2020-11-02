@@ -10,7 +10,6 @@ struct dual
 {
     std::string real = "0";
     std::string dual = "0";
-    int e = 0;
 };
 
 inline
@@ -29,7 +28,6 @@ dual make_value(std::string val)
     dual ret;
     ret.real = val;
     ret.dual = "d" + val;
-    ret.e = 1;
 
     return ret;
 }
@@ -40,7 +38,6 @@ dual make_value(std::string val, std::string diff)
     dual ret;
     ret.real = val;
     ret.dual = diff;
-    ret.e = 1;
 
     return ret;
 }
