@@ -1203,13 +1203,9 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
     float4 cY = tensor_contract(lorenz, bphi);
     float4 cZ = tensor_contract(lorenz, bX);
 
-    float3 sVx;
-    float3 sVy;
-    float3 sVz;
-
-    sVx = cX.yzw;
-    sVy = cY.yzw;
-    sVz = cZ.yzw;
+    float3 sVx = cX.yzw;
+    float3 sVy = cY.yzw;
+    float3 sVz = cZ.yzw;
 
     float3 cartesian_cx = spherical_velocity_to_cartesian_velocity(polar_camera, sVx);
     float3 cartesian_cy = spherical_velocity_to_cartesian_velocity(polar_camera, sVy);
