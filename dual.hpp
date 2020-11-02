@@ -8,8 +8,8 @@
 
 struct dual
 {
-    std::string real = "x";
-    std::string dual = "dx";
+    std::string real = "0";
+    std::string dual = "0";
     int e = 0;
 };
 
@@ -386,6 +386,46 @@ std::pair<std::vector<std::string>, std::vector<std::string>> evaluate_metric(Fu
         }
 
         printf("\n");
+    }
+
+    return {raw_eq, raw_derivatives};
+}
+
+template<typename Func, typename... T>
+inline
+std::pair<std::vector<std::string>, std::vector<std::string>> evaluate_metric2D(Func&& f, T... raw_variables)
+{
+    std::array<std::string, sizeof...(T)> variable_names{raw_variables...};
+    constexpr int N = sizeof...(T);
+
+    std::vector<std::string> raw_eq;
+    std::vector<std::string> raw_derivatives;
+
+    for(int i=0; i < (int)variable_names.size(); i++)
+    {
+        std::array<dual, variable_names.size()> variables;
+
+        for(int j=0; j < (int)variable_names.size(); j++)
+        {
+            variables[j] = make_variable(variable_names[j], i == j);
+        }
+
+        std::array eqs = array_apply(std::forward<Func>(f), variables);
+
+        static_assert(eqs.size() == N * N);
+
+        if(i == 0)
+        {
+            for(auto& kk : eqs)
+            {
+                raw_eq.push_back(kk.real);
+            }
+        }
+
+        for(auto& kk : eqs)
+        {
+            raw_derivatives.push_back(kk.dual);
+        }
     }
 
     return {raw_eq, raw_derivatives};

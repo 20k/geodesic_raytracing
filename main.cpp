@@ -141,6 +141,25 @@ std::array<dual, 4> de_sitter(dual t, dual r, dual theta, dual phi)
 
 inline auto test_metric = traversible_wormhole;
 
+inline std::array<dual, 16> big_metric_test(dual t, dual p, dual theta, dual phi)
+{
+    dual c = make_constant("c");
+    dual n = make_constant("1");
+
+    dual dt = -1 * c * c;
+    dual dr = make_constant("1");
+    dual dtheta = (p * p + n * n);
+    dual dphi = (p * p + n * n) * (sin(theta) * sin(theta));
+
+    std::array<dual, 16> ret;
+    ret[0] = dt;
+    ret[1 * 4 + 1] = dr;
+    ret[2 * 4 + 2] = dtheta;
+    ret[3 * 4 + 3] = dphi;
+
+    return ret;
+}
+
 /*inline
 std::array<dual, 4> test_metric(dual t, dual p, dual theta, dual phi)
 {
@@ -174,7 +193,9 @@ int main()
     std::string argument_string = "-O5 -cl-std=CL2.2 ";
 
     #ifdef GENERIC_METRIC
-    auto [real_eq, derivatives] = evaluate_metric(test_metric, "v1", "v2", "v3", "v4");
+    //auto [real_eq, derivatives] = evaluate_metric(test_metric, "v1", "v2", "v3", "v4");
+
+    auto [real_eq, derivatives] = evaluate_metric2D(big_metric_test, "v1", "v2", "v3", "v4");
 
     argument_string += "-DRS_IMPL=1 -DC_IMPL=1 ";
 
@@ -183,15 +204,26 @@ int main()
         argument_string += "-DF" + std::to_string(i + 1) + "_I=" + real_eq[i] + " ";
     }
 
-    for(int j=0; j < 4; j++)
+    if(derivatives.size() == 16)
     {
-        for(int i=0; i < 4; i++)
+        for(int j=0; j < 4; j++)
         {
-            int script_idx = j * 4 + i + 1;
-            int my_idx = i * 4 + j;
+            for(int i=0; i < 4; i++)
+            {
+                int script_idx = j * 4 + i + 1;
+                int my_idx = i * 4 + j;
 
-            argument_string += "-DF" + std::to_string(script_idx) + "_P=" + derivatives[my_idx] + " ";
+                argument_string += "-DF" + std::to_string(script_idx) + "_P=" + derivatives[my_idx] + " ";
+            }
         }
+    }
+
+    if(derivatives.size() == 64)
+    {
+        for(int i=0; i < 64; i++)
+            argument_string += "-DF" + std::to_string(i + 1) + "_P=" + derivatives[i] + " ";
+
+        argument_string += " -DGENERIC_BIG_METRIC";
     }
 
     argument_string += " -DGENERIC_METRIC -DVERLET_INTEGRATION_GENERIC";
