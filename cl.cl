@@ -1067,6 +1067,13 @@ float4 gram_proj(float4 u, float4 v, float big_metric[])
     return (top / bottom) * u;
 }
 
+float4 normalize_big_metric(float4 in, float big_metric[])
+{
+    float dot = dot_product_big(in, in, big_metric);
+
+    return in / sqrt(fabs(dot));
+}
+
 struct frame_basis calculate_frame_basis(float big_metric[])
 {
     ///while really i think it should be columns, the metric tensor is always symmetric
@@ -1081,11 +1088,21 @@ struct frame_basis calculate_frame_basis(float big_metric[])
     float4 u3 = i3 - gram_proj(u1, i3, big_metric) - gram_proj(u2, i3, big_metric);
     float4 u4 = i4 - gram_proj(u1, i4, big_metric) - gram_proj(u2, i4, big_metric) - gram_proj(u3, i4, big_metric);
 
+    u1 = -normalize(u1);
+    u2 = normalize(u2);
+    u3 = normalize(u3);
+    u4 = normalize(u4);
+
+    u1 = normalize_big_metric(u1, big_metric);
+    u2 = normalize_big_metric(u2, big_metric);
+    u3 = normalize_big_metric(u3, big_metric);
+    u4 = normalize_big_metric(u4, big_metric);
+
     struct frame_basis ret;
-    ret.v1 = u1 / dot_product_big(u1, u1, big_metric);
-    ret.v2 = u2 / dot_product_big(u1, u1, big_metric);
-    ret.v3 = u3 / dot_product_big(u1, u1, big_metric);
-    ret.v4 = u4 / dot_product_big(u1, u1, big_metric);
+    ret.v1 = u1;
+    ret.v2 = u2;
+    ret.v3 = u3;
+    ret.v4 = u4;
 
     return ret;
 }
@@ -1141,12 +1158,43 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
 
     calculate_metric_generic((float4)(0, polar_camera), g_metric);
 
-    float4 co_basis = (float4){native_sqrt(-g_metric[0]), native_sqrt(g_metric[1]), native_sqrt(g_metric[2]), native_sqrt(g_metric[3])};
+    /*float4 co_basis = (float4){native_sqrt(-g_metric[0]), native_sqrt(g_metric[1]), native_sqrt(g_metric[2]), native_sqrt(g_metric[3])};
 
-    float4 bT = (float4)(1/co_basis.x, 0, 0, 0); ///or bt
-    float4 bX = (float4)(0, 1/co_basis.y, 0, 0); ///or br
-    float4 btheta = (float4)(0, 0, 1/co_basis.z, 0);
-    float4 bphi = (float4)(0, 0, 0, 1/co_basis.w);
+    float4 obT = (float4)(1/co_basis.x, 0, 0, 0); ///or bt
+    float4 obX = (float4)(0, 1/co_basis.y, 0, 0); ///or br
+    float4 obtheta = (float4)(0, 0, 1/co_basis.z, 0);
+    float4 obphi = (float4)(0, 0, 0, 1/co_basis.w);*/
+
+    float4 bT;
+    float4 bX;
+    float4 btheta;
+    float4 bphi;
+
+    {
+        float big_metric[16] = {0};
+
+        small_to_big_metric(g_metric, big_metric);
+
+        struct frame_basis basis = calculate_frame_basis(big_metric);
+
+        bT = basis.v1;
+        bX = basis.v2;
+        btheta = basis.v3;
+        bphi = basis.v4;
+    }
+
+    /*if(cx == 0 && cy == 0)
+    {
+        printf("BT %f %f %f %f\n", bT.x, bT.y, bT.z, bT.w);
+        printf("bX %f %f %f %f\n", bX.x, bX.y, bX.z, bX.w);
+        printf("btheta %f %f %f %f\n", btheta.x, btheta.y, btheta.z, btheta.w);
+        printf("bphi %f %f %f %f\n", bphi.x, bphi.y, bphi.z, bphi.w);
+
+        printf("oBT %f %f %f %f\n", obT.x, obT.y, obT.z, obT.w);
+        printf("obX %f %f %f %f\n", obX.x, obX.y, obX.z, obX.w);
+        printf("obtheta %f %f %f %f\n", obtheta.x, obtheta.y, obtheta.z, obtheta.w);
+        printf("obphi %f %f %f %f\n", obphi.x, obphi.y, obphi.z, obphi.w);
+    }*/
 
     float lorenz[16] = {};
     get_lorenz_coeff(bT, g_metric, lorenz);
