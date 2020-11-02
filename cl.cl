@@ -1007,6 +1007,18 @@ void small_to_big_metric(float g_metric[], float g_metric_big[])
     g_metric_big[3 * 4 + 3] = g_metric[3];
 }
 
+void small_to_big_partials(float g_metric_partials[], float g_metric_partials_big[])
+{
+    ///with respect to, ie the differentiating variable
+    for(int wrt = 0; wrt < 4; wrt++)
+    {
+        for(int variable = 0; variable < 4; variable++)
+        {
+            g_metric_partials_big[wrt * 16 + variable * 4 + variable] = g_metric_partials[variable * 4 + wrt];
+        }
+    }
+}
+
 void calculate_metric_generic(float4 spacetime_position, float g_metric_out[])
 {
     float v1 = spacetime_position.x;
