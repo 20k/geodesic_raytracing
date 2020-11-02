@@ -141,7 +141,8 @@ std::array<dual, 4> de_sitter(dual t, dual r, dual theta, dual phi)
 
 inline auto test_metric = traversible_wormhole;
 
-inline std::array<dual, 16> big_metric_test(dual t, dual p, dual theta, dual phi)
+inline
+std::array<dual, 16> big_metric_test(dual t, dual p, dual theta, dual phi)
 {
     dual c = make_constant("c");
     dual n = make_constant("1");
@@ -156,6 +157,29 @@ inline std::array<dual, 16> big_metric_test(dual t, dual p, dual theta, dual phi
     ret[1 * 4 + 1] = dr;
     ret[2 * 4 + 2] = dtheta;
     ret[3 * 4 + 3] = dphi;
+
+    return ret;
+}
+
+inline
+std::array<dual, 16> kerr_metric(dual t, dual r, dual theta, dual phi)
+{
+    dual rs = make_constant("1");
+
+    dual a = make_constant("0.2");
+    dual E = r * r + a * a * cos(theta) * cos(theta);
+    dual D = r * r  - rs * r + a * a;
+
+    dual c = make_constant("1");
+
+    std::array<dual, 16> ret;
+
+    ret[0] = -(1 - rs * r / E) * c * c;
+    ret[1 * 4 + 1] = E / D;
+    ret[2 * 4 + 2] = E;
+    ret[3 * 4 + 3] = (r * r + a * a + (rs * r * a * a / E) * sin(theta) * sin(theta)) * sin(theta) * sin(theta);
+    ret[0 * 4 + 3] = -2 * rs * r * a * sin(theta) * sin(theta) * c / E;
+    ret[3 * 4 + 0] = ret[0 * 4 + 3];
 
     return ret;
 }
@@ -195,7 +219,8 @@ int main()
     #ifdef GENERIC_METRIC
     //auto [real_eq, derivatives] = evaluate_metric(test_metric, "v1", "v2", "v3", "v4");
 
-    auto [real_eq, derivatives] = evaluate_metric2D(big_metric_test, "v1", "v2", "v3", "v4");
+    auto [real_eq, derivatives] = evaluate_metric2D(kerr_metric, "v1", "v2", "v3", "v4");
+    //auto [real_eq, derivatives] = evaluate_metric2D(big_metric_test, "v1", "v2", "v3", "v4");
 
     argument_string += "-DRS_IMPL=1 -DC_IMPL=1 ";
 
@@ -228,8 +253,8 @@ int main()
 
     argument_string += " -DGENERIC_METRIC -DVERLET_INTEGRATION_GENERIC";
 
-    argument_string += " -DGENERIC_CONSTANT_THETA";
-    //argument_string += " -DSINGULAR";
+    //argument_string += " -DGENERIC_CONSTANT_THETA";
+    argument_string += " -DSINGULAR";
 
     std::cout << "ASTRING " << argument_string << std::endl;
 

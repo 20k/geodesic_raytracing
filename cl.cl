@@ -1638,7 +1638,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
     float4 last_velocity = 0;
     float4 intermediate_velocity = 0;
 
-    for(int i=0; i < 64000/125; i++)
+    for(int i=0; i < 6400/125; i++)
     {
         #ifdef IS_CONSTANT_THETA
         position.z = M_PI/2;
@@ -1674,7 +1674,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         #ifndef SINGULAR
         if(fabs(position.y) >= 6000)
         #else
-        if(fabs(position.y) < rs || fabs(position.y) >= 6000)
+        if(fabs(position.y) < rs*1.0001 || fabs(position.y) >= 6000)
         #endif // SINGULAR
         {
             int out_id = atomic_inc(finished_count_out);
