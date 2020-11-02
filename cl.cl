@@ -2675,27 +2675,6 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
     texture_coordinates[pos] = (float2)(sxf, syf);
 }
 
-float4 read_mip(float2 pos, int level, __read_only image2d_t background0,
-            __read_only image2d_t background1,
-            __read_only image2d_t background2,
-            __read_only image2d_t background3)
-{
-    sampler_t sam = CLK_NORMALIZED_COORDS_TRUE |
-                    CLK_ADDRESS_REPEAT |
-                    CLK_FILTER_LINEAR;
-
-    if(level == 0)
-        return read_imagef(background0, sam, pos);
-    if(level == 1)
-        return read_imagef(background1, sam, pos);
-    if(level == 2)
-        return read_imagef(background2, sam, pos);
-    if(level == 3)
-        return read_imagef(background3, sam, pos);
-
-    return (float4)(1, 0, 1, 1);
-}
-
 float smallest(float f1, float f2)
 {
     if(fabs(f1) < fabs(f2))
