@@ -2700,7 +2700,7 @@ float2 circular_diff2(float2 f1, float2 f2)
 }
 
 __kernel
-void render(float4 cartesian_camera_pos, float4 camera_quat, __global struct lightray* finished_rays, __global int* finished_count_in, __write_only image2d_t out,
+void render(__global struct lightray* finished_rays, __global int* finished_count_in, __write_only image2d_t out,
             __read_only image2d_t mip_background,
             int width, int height, __global float2* texture_coordinates, sampler_t sam)
 {

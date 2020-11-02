@@ -217,9 +217,9 @@ int main()
     std::string argument_string = "-O5 -cl-std=CL2.2 ";
 
     #ifdef GENERIC_METRIC
-    //auto [real_eq, derivatives] = evaluate_metric(test_metric, "v1", "v2", "v3", "v4");
+    auto [real_eq, derivatives] = evaluate_metric(test_metric, "v1", "v2", "v3", "v4");
 
-    auto [real_eq, derivatives] = evaluate_metric2D(kerr_metric, "v1", "v2", "v3", "v4");
+    //auto [real_eq, derivatives] = evaluate_metric2D(kerr_metric, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D(big_metric_test, "v1", "v2", "v3", "v4");
 
     argument_string += "-DRS_IMPL=1 -DC_IMPL=1 ";
@@ -253,8 +253,8 @@ int main()
 
     argument_string += " -DGENERIC_METRIC -DVERLET_INTEGRATION_GENERIC";
 
-    //argument_string += " -DGENERIC_CONSTANT_THETA";
-    argument_string += " -DSINGULAR";
+    argument_string += " -DGENERIC_CONSTANT_THETA";
+    //argument_string += " -DSINGULAR";
 
     std::cout << "ASTRING " << argument_string << std::endl;
 
@@ -656,8 +656,6 @@ int main()
             clctx.cqueue.exec("calculate_texture_coordinates", texture_args, {width * height}, {256});
 
             cl::args render_args;
-            render_args.push_back(camera);
-            render_args.push_back(camera_quat);
             render_args.push_back(finished_1);
             render_args.push_back(finished_count_1);
             render_args.push_back(rtex[which_buffer]);
