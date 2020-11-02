@@ -229,13 +229,13 @@ dual pow(const dual& d1, float v)
 inline
 dual sin(const dual& d1)
 {
-    return make_value(unary(d1.real, "sin"), infix(d1.dual, unary(d1.real, "cos"), "*"));
+    return make_value(unary(d1.real, "native_sin"), infix(d1.dual, unary(d1.real, "native_cos"), "*"));
 }
 
 inline
 dual cos(const dual& d1)
 {
-    return make_value(unary(d1.real, "cos"), unary(infix(d1.dual, unary(d1.real, "sin"), "*"), "-"));
+    return make_value(unary(d1.real, "native_cos"), unary(infix(d1.dual, unary(d1.real, "native_sin"), "*"), "-"));
 }
 
 inline

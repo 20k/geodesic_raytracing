@@ -1577,7 +1577,6 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
     metric_rays[id] = ray;
 }
 
-
 __kernel
 void do_generic_rays (__global struct lightray* generic_rays_in, __global struct lightray* generic_rays_out,
                       __global struct lightray* finished_rays,
@@ -1661,6 +1660,22 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
             ds = 0.1 * (fabs(r_value) - new_max) + subambient_precision;
         }
 
+        #define ERR_BOUND (M_PI/4)
+        #define TERMINATE_ERROR_BOUND (M_PI/32)
+
+        #ifndef GENERIC_CONSTANT_THETA
+        if(position.z < ERR_BOUND)
+        {
+            ds = mix(0.05, ds, position.z / ERR_BOUND);
+        }
+
+        if(position.z >= (M_PI - ERR_BOUND))
+        {
+            float ffrac = (M_PI - position.z) / ERR_BOUND;
+            ds = mix(0.05, ds, ffrac);
+        }
+        #endif // GENERIC_CONSTANT_THETA
+
         #ifndef GENERIC_BIG_METRIC
         float g_metric[4] = {};
         float g_partials[16] = {};
@@ -1669,12 +1684,16 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         float g_partials_big[64] = {};
         #endif // GENERIC_BIG_METRIC
 
-        //if(position.y >= 20 || position.z < M_PI/32 || position.z >= M_PI - M_PI/32)// || position.y <= rs)
+        bool singularity = false;
+
+        #ifndef GENERIC_CONSTANT_THETA
+        singularity = position.z < TERMINATE_ERROR_BOUND || position.z >= M_PI - TERMINATE_ERROR_BOUND;
+        #endif // GENERIC_CONSTANT_THETA
 
         #ifndef SINGULAR
-        if(fabs(position.y) >= 6000)
+        if(fabs(position.y) >= 200000 || singularity)
         #else
-        if(fabs(position.y) < rs*1.0001 || fabs(position.y) >= 6000)
+        if(fabs(position.y) < rs*1.000001 || fabs(position.y) >= 200000 || singularity)
         #endif // SINGULAR
         {
             int out_id = atomic_inc(finished_count_out);

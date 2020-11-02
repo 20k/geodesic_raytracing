@@ -166,7 +166,7 @@ std::array<dual, 16> kerr_metric(dual t, dual r, dual theta, dual phi)
 {
     dual rs = make_constant("1");
 
-    dual a = make_constant("0.2");
+    dual a = make_constant("0.1");
     dual E = r * r + a * a * cos(theta) * cos(theta);
     dual D = r * r  - rs * r + a * a;
 
