@@ -1183,7 +1183,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
     //#ifdef NO_EVENT_HORIZON_CROSSING
     //#ifdef NO_KRUSKAL
-    ambient_precision = 0.005;
+    ambient_precision = 0.05;
     //#endif // NO_KRUSKAL
     //#endif // NO_EVENT_HORIZON_CROSSING
 
@@ -1209,7 +1209,14 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
         float r_value = position.y;
 
-        float ds = linear_val(r_value, new_min, new_max, ambient_precision, subambient_precision);
+        float ds = linear_val(fabs(r_value), new_min, new_max, ambient_precision, subambient_precision);
+
+        if(fabs(r_value) >= new_max)
+        {
+            float end_max = 4000000;
+
+            ds = 0.1 * (fabs(r_value) - new_max) + subambient_precision;
+        }
 
         float g_metric[4] = {};
         float g_partials[16] = {};
