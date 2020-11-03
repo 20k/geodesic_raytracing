@@ -202,6 +202,22 @@ std::string unary(std::string v1, std::string op)
             return to_string_s(sqrt(c1.value()));
     }
 
+    if(op == "sinh")
+    {
+        auto c1 = get_value(v1);
+
+        if(c1.has_value())
+            return to_string_s(sinh(c1.value()));
+    }
+
+    if(op == "cosh")
+    {
+        auto c1 = get_value(v1);
+
+        if(c1.has_value())
+            return to_string_s(cosh(c1.value()));
+    }
+
     return op + "(" + v1 + ")";
 }
 

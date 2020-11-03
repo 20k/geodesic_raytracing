@@ -6,6 +6,7 @@
 #include <SFML/Graphics.hpp>
 #include <CL/cl_ext.h>
 #include "dual.hpp"
+#include "dual_complex.hpp"
 
 ///perfectly fine
 vec4f cartesian_to_schwarz(vec4f position)
@@ -201,7 +202,7 @@ std::array<dual, 16> kerr_metric(dual t, dual r, dual theta, dual phi)
 {
     dual rs = make_constant("1");
 
-    dual a = make_constant("0.9");
+    dual a = make_constant("0.1");
     dual E = r * r + a * a * cos(theta) * cos(theta);
     dual D = r * r  - rs * r + a * a;
 
@@ -217,6 +218,32 @@ std::array<dual, 16> kerr_metric(dual t, dual r, dual theta, dual phi)
     ret[3 * 4 + 0] = ret[0 * 4 + 3];
 
     return ret;
+}
+
+inline
+std::array<dual_complex_v, 16> big_imaginary_metric_test(dual_complex_v t, dual_complex_v p, dual_complex_v theta, dual_complex_v phi)
+{
+    dual_complex_v c = dual_complex::make_real_constant("c");
+    dual_complex_v n = dual_complex::make_real_constant("1");
+
+    dual_complex_v dt = -c * c;
+    dual_complex_v dr = dual_complex::make_real_constant("1");
+    dual_complex_v dtheta = (p * p + n * n);
+    dual_complex_v dphi = (p * p + n * n) * (sin(theta) * sin(theta));
+
+    std::array<dual_complex_v, 16> ret_fat;
+    ret_fat[0] = dt;
+    ret_fat[1 * 4 + 1] = dr;
+    ret_fat[2 * 4 + 2] = dtheta;
+    ret_fat[3 * 4 + 3] = dphi;
+
+    if(phi.dual.real == "1")
+    {
+        std::cout << "PHI? " << dphi.dual.real << std::endl;
+        std::cout << "Theta? " << n.dual.real << std::endl;
+    }
+
+    return ret_fat;
 }
 
 /*inline
@@ -254,7 +281,10 @@ int main()
     #ifdef GENERIC_METRIC
     //auto [real_eq, derivatives] = evaluate_metric(test_metric, "v1", "v2", "v3", "v4");
 
-    auto [real_eq, derivatives] = evaluate_metric2D(ellis_drainhole, "v1", "v2", "v3", "v4");
+    auto [real_eq, derivatives] = evaluate_metric2D_DC(big_imaginary_metric_test, "v1", "v2", "v3", "v4");
+
+    //auto [real_eq, derivatives] = evaluate_metric2D(kerr_metric, "v1", "v2", "v3", "v4");
+    //auto [real_eq, derivatives] = evaluate_metric2D(ellis_drainhole, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D(big_metric_test, "v1", "v2", "v3", "v4");
 
     argument_string += "-DRS_IMPL=1 -DC_IMPL=1 ";
@@ -288,8 +318,8 @@ int main()
 
     argument_string += " -DGENERIC_METRIC -DVERLET_INTEGRATION_GENERIC";
 
-    argument_string += " -DGENERIC_CONSTANT_THETA";
-    //argument_string += " -DSINGULAR";
+    //argument_string += " -DGENERIC_CONSTANT_THETA";
+    argument_string += " -DSINGULAR";
 
     std::cout << "ASTRING " << argument_string << std::endl;
 
