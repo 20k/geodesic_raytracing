@@ -992,9 +992,31 @@ float4 lower_index_big(float4 vec, float g_metric_big[])
     return (float4)(ret[0], ret[1], ret[2], ret[3]);
 }
 
+float4 raise_index_big(float4 vec, float g_metric_big_inv[])
+{
+    float vecarray[4] = {vec.x, vec.y, vec.z, vec.w};
+    float ret[4] = {0,0,0,0};
+
+    for(int i=0; i < 4; i++)
+    {
+        float sum = 0;
+
+        for(int j=0; j < 4; j++)
+        {
+            sum += g_metric_big_inv[i * 4 + j] * vecarray[j];
+        }
+
+        ret[i] = sum;
+    }
+
+    return (float4)(ret[0], ret[1], ret[2], ret[3]);
+}
+
 float dot_product_big(float4 u, float4 v, float g_metric_big[])
 {
     float4 lowered = lower_index_big(u, g_metric_big);
+
+    //return dot(tensor_contract(g_metric_big, u), v);
 
     return dot(lowered, v);
 }
@@ -1390,12 +1412,29 @@ struct frame_basis calculate_frame_basis(float big_metric[])
     float4 i3 = (float4)(big_metric[8], big_metric[9], big_metric[10], big_metric[11]);
     float4 i4 = (float4)(big_metric[12], big_metric[13], big_metric[14], big_metric[15]);
 
-    float4 u1 = i1;
-    float4 u2 = i2 - gram_proj(u1, i2, big_metric);
-    float4 u3 = i3 - gram_proj(u1, i3, big_metric) - gram_proj(u2, i3, big_metric);
-    float4 u4 = i4 - gram_proj(u1, i4, big_metric) - gram_proj(u2, i4, big_metric) - gram_proj(u3, i4, big_metric);
+    float g_big_metric_inverse[16] = {};
+    metric_inverse(big_metric, g_big_metric_inverse);
 
-    u1 = -normalize(u1);
+    i1 = raise_index_big(i1, g_big_metric_inverse);
+    i2 = raise_index_big(i2, g_big_metric_inverse);
+    i3 = raise_index_big(i3, g_big_metric_inverse);
+    i4 = raise_index_big(i4, g_big_metric_inverse);
+
+    float4 u1 = i1;
+
+    float4 u2 = i2;
+    u2 = u2 - gram_proj(u1, u2, big_metric);
+
+    float4 u3 = i3;
+    u3 = u3 - gram_proj(u1, u3, big_metric);
+    u3 = u3 - gram_proj(u2, u3, big_metric);
+
+    float4 u4 = i4;
+    u4 = u4 - gram_proj(u1, u4, big_metric);
+    u4 = u4 - gram_proj(u2, u4, big_metric);
+    u4 = u4 - gram_proj(u3, u4, big_metric);
+
+    u1 = normalize(u1);
     u2 = normalize(u2);
     u3 = normalize(u3);
     u4 = normalize(u4);
@@ -1484,6 +1523,11 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
     {
         struct frame_basis basis = calculate_frame_basis(g_metric_big);
 
+        //float4 my_vec = basis.v1 + basis.v2 + basis.v3 + basis.v4;
+
+        //if(cx == 500 && cy == 400)
+        //printf("DS %f\n", dot_product_big(my_vec, my_vec, g_metric_big));
+
         bT = basis.v1;
         bX = basis.v2;
         btheta = basis.v3;
@@ -1525,6 +1569,8 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
 
     pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
 
+    pixel_direction = normalize(pixel_direction);
+
     float4 pixel_x = pixel_direction.x * btheta;
     float4 pixel_y = pixel_direction.y * bphi;
     float4 pixel_z = pixel_direction.z * bX;
@@ -1561,6 +1607,9 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
         lightray_acceleration = calculate_acceleration_big(lightray_velocity, g_metric_big, g_partials_big);
         #endif // GENERIC_BIG_METRIC
     }
+
+    //if(cx == 500 && cy == 400)
+    //printf("DS %f\n", dot_product_big(lightray_velocity, lightray_velocity, g_metric_big));
 
     struct lightray ray;
     ray.sx = cx;

@@ -24,13 +24,13 @@ struct lightray
     int sx, sy;
 };
 
-/*inline
-std::array<dual, 4> test_metric(dual t, dual r, dual theta, dual phi)
+inline
+std::array<dual, 4> schwarzschild_blackhole(dual t, dual r, dual theta, dual phi)
 {
-    //theta = make_constant("(M_PI/2)");
-
     dual rs = make_constant("rs");
     dual c = make_constant("c");
+
+    theta = make_constant("(M_PI/2)");
 
     dual dt = -(1 - rs / r) * c * c;
     dual dr = 1/(1 - rs / r);
@@ -38,7 +38,7 @@ std::array<dual, 4> test_metric(dual t, dual r, dual theta, dual phi)
     dual dphi = r * r * sin(theta) * sin(theta);
 
     return {dt, dr, dtheta, dphi};
-}*/
+}
 
 ////https://arxiv.org/pdf/0904.4184.pdf
 inline
@@ -217,9 +217,9 @@ int main()
     std::string argument_string = "-O5 -cl-std=CL2.2 ";
 
     #ifdef GENERIC_METRIC
-    auto [real_eq, derivatives] = evaluate_metric(test_metric, "v1", "v2", "v3", "v4");
+    //auto [real_eq, derivatives] = evaluate_metric(test_metric, "v1", "v2", "v3", "v4");
 
-    //auto [real_eq, derivatives] = evaluate_metric2D(kerr_metric, "v1", "v2", "v3", "v4");
+    auto [real_eq, derivatives] = evaluate_metric2D(kerr_metric, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D(big_metric_test, "v1", "v2", "v3", "v4");
 
     argument_string += "-DRS_IMPL=1 -DC_IMPL=1 ";
@@ -253,8 +253,8 @@ int main()
 
     argument_string += " -DGENERIC_METRIC -DVERLET_INTEGRATION_GENERIC";
 
-    argument_string += " -DGENERIC_CONSTANT_THETA";
-    //argument_string += " -DSINGULAR";
+    //argument_string += " -DGENERIC_CONSTANT_THETA";
+    argument_string += " -DSINGULAR";
 
     std::cout << "ASTRING " << argument_string << std::endl;
 
