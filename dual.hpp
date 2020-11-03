@@ -102,6 +102,9 @@ std::string infix(std::string v1, std::string v2, std::string op)
 
         if(v2 == "0")
             return v1;
+
+        if(v1 == v2)
+            return "0";
     }
 
     if(op == "/")
@@ -124,6 +127,18 @@ std::string unary(std::string v1, std::string op)
 {
     if(op == "-" && v1 == "0")
         return "0";
+
+    if(op == "native_exp" && v1 == "0")
+        return "1";
+
+    if(op == "native_sqrt")
+    {
+        if(v1 == "1")
+            return "1";
+
+        if(v1 == "0")
+            return "0";
+    }
 
     return op + "(" + v1 + ")";
 }
@@ -213,14 +228,19 @@ dual operator/(float v, const dual& d1)
 inline
 dual sqrt(const dual& d1)
 {
-    return make_value(unary(d1.real, "sqrt"), infix(infix("0.5f", d1.dual, "*"), unary(d1.real, "sqrt"), "/"));
+    return make_value(unary(d1.real, "native_sqrt"), infix(infix("0.5f", d1.dual, "*"), unary(d1.real, "native_sqrt"), "/"));
 }
 
 inline
 dual pow(const dual& d1, float v)
 {
     return make_value(outer(d1.real, to_string_s(v), "pow"), infix(to_string_s(v), infix(d1.dual, outer(d1.real, to_string_s(v - 1), "pow"), "*"), "*"));
-    //return make_value(outer(d1.real, to_string_s(v), "pow"), "(" + to_string_s(v) + "*" + d1.dual + "*" + outer(d1.real, infix(to_string_s(v), "1", "-"), "pow"));
+}
+
+inline
+dual exp(const dual& d1)
+{
+    return make_value(unary(d1.real, "native_exp"), infix(d1.dual, unary(d1.real, "native_exp"), "*"));
 }
 
 inline
@@ -246,7 +266,7 @@ dual tan(const dual& d1)
 inline
 dual atan(const dual& d1)
 {
-    return make_value(unary(d1.real, "atan"), infix(d1.dual, "(1+" + infix(d1.real, d1.real, "*") + ")", "/"));
+    return make_value(unary(d1.real, "atan"), infix(d1.dual, infix("1", infix(d1.real, d1.real, "*"), "+"), "/"));
 }
 
 inline

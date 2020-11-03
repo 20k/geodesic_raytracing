@@ -142,6 +142,41 @@ std::array<dual, 4> de_sitter(dual t, dual r, dual theta, dual phi)
 inline auto test_metric = traversible_wormhole;
 
 inline
+std::array<dual, 16> ellis_drainhole(dual t, dual r, dual theta, dual phi)
+{
+    dual c = make_constant("1");
+
+    dual m = make_constant("0");
+    dual n = make_constant("1");
+
+    dual alpha = sqrt(n * n - m * m);
+
+    dual pseudophi = (n / alpha) * (M_PI/2 - atan((r - m) / alpha));
+
+    dual Fp = -sqrt(1 - exp(-(2 * m/n) * pseudophi));
+
+    dual Rp = sqrt(((r - m) * (r - m) + alpha * alpha) / (1 - Fp * Fp));
+
+    dual dt1 = - c * c;
+    dual dp = make_constant("1") * make_constant("1");
+    dual dt = dt1 - Fp * Fp * c * c;
+    dual dpdt = -2 * Fp * c;
+
+    dual dtheta = Rp * Rp;
+    dual dphi = Rp * Rp * sin(theta) * sin(theta);
+
+    std::array<dual, 16> ret;
+    ret[0] = dt;
+    ret[1 * 4 + 1] = dp;
+    ret[2 * 4 + 2] = dtheta;
+    ret[3 * 4 + 3] = dphi;
+    ret[0 * 4 + 1] = dpdt;
+    ret[1 * 4 + 0] = dpdt;
+
+    return ret;
+}
+
+inline
 std::array<dual, 16> big_metric_test(dual t, dual p, dual theta, dual phi)
 {
     dual c = make_constant("c");
@@ -166,7 +201,7 @@ std::array<dual, 16> kerr_metric(dual t, dual r, dual theta, dual phi)
 {
     dual rs = make_constant("1");
 
-    dual a = make_constant("0.1");
+    dual a = make_constant("0.9");
     dual E = r * r + a * a * cos(theta) * cos(theta);
     dual D = r * r  - rs * r + a * a;
 
@@ -219,7 +254,7 @@ int main()
     #ifdef GENERIC_METRIC
     //auto [real_eq, derivatives] = evaluate_metric(test_metric, "v1", "v2", "v3", "v4");
 
-    auto [real_eq, derivatives] = evaluate_metric2D(kerr_metric, "v1", "v2", "v3", "v4");
+    auto [real_eq, derivatives] = evaluate_metric2D(ellis_drainhole, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D(big_metric_test, "v1", "v2", "v3", "v4");
 
     argument_string += "-DRS_IMPL=1 -DC_IMPL=1 ";
@@ -253,8 +288,8 @@ int main()
 
     argument_string += " -DGENERIC_METRIC -DVERLET_INTEGRATION_GENERIC";
 
-    //argument_string += " -DGENERIC_CONSTANT_THETA";
-    argument_string += " -DSINGULAR";
+    argument_string += " -DGENERIC_CONSTANT_THETA";
+    //argument_string += " -DSINGULAR";
 
     std::cout << "ASTRING " << argument_string << std::endl;
 
