@@ -57,6 +57,32 @@ dual make_variable(std::string val, bool is_variable)
 }
 
 inline
+std::optional<float> get_value(std::string in)
+{
+    if(in.size() == 0)
+        throw std::runtime_error("Bad in size, 0");
+
+    if(in.size() > 2)
+    {
+        if(in.front() == '(' && in.back() == ')')
+        {
+            std::cout << "hi " << in << std::endl;
+
+            in.erase(in.begin());
+            in.pop_back();
+        }
+    }
+
+    char* ptr = nullptr;
+    float val = std::strtof(in.c_str(), &ptr);
+
+    if(ptr == in.c_str() + in.size())
+        return val;
+
+    return std::nullopt;
+}
+
+inline
 std::string to_string_s(float v)
 {
     std::ostringstream oss;
@@ -74,6 +100,14 @@ std::string infix(std::string v1, std::string v2, std::string op)
         if(v1 == "0" || v2 == "0")
             return "0";
 
+        {
+            auto c1 = get_value(v1);
+            auto c2 = get_value(v2);
+
+            if(c1.has_value() && c2.has_value())
+                return to_string_s(c1.value() * c2.value());
+        }
+
         if(v1 == "1")
             return v2;
 
@@ -88,6 +122,14 @@ std::string infix(std::string v1, std::string v2, std::string op)
 
         if(v2 == "0")
             return v1;
+
+        {
+            auto c1 = get_value(v1);
+            auto c2 = get_value(v2);
+
+            if(c1.has_value() && c2.has_value())
+                return to_string_s(c1.value() + c2.value());
+        }
     }
 
     if(op == "-")
@@ -105,12 +147,28 @@ std::string infix(std::string v1, std::string v2, std::string op)
 
         if(v1 == v2)
             return "0";
+
+        {
+            auto c1 = get_value(v1);
+            auto c2 = get_value(v2);
+
+            if(c1.has_value() && c2.has_value())
+                return to_string_s(c1.value() - c2.value());
+        }
     }
 
     if(op == "/")
     {
         if(v1 == "0")
             return "0";
+
+        {
+            auto c1 = get_value(v1);
+            auto c2 = get_value(v2);
+
+            if(c1.has_value() && c2.has_value())
+                return to_string_s(c1.value() / c2.value());
+        }
     }
 
     return "(" + v1 + "" + op + "" + v2 + ")";
@@ -128,16 +186,20 @@ std::string unary(std::string v1, std::string op)
     if(op == "-" && v1 == "0")
         return "0";
 
-    if(op == "native_exp" && v1 == "0")
-        return "1";
+    if(op == "native_exp")
+    {
+        auto c1 = get_value(v1);
+
+        if(c1.has_value())
+            return to_string_s(exp(c1.value()));
+    }
 
     if(op == "native_sqrt")
     {
-        if(v1 == "1")
-            return "1";
+        auto c1 = get_value(v1);
 
-        if(v1 == "0")
-            return "0";
+        if(c1.has_value())
+            return to_string_s(sqrt(c1.value()));
     }
 
     return op + "(" + v1 + ")";

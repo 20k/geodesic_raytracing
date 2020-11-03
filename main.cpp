@@ -146,7 +146,7 @@ std::array<dual, 16> ellis_drainhole(dual t, dual r, dual theta, dual phi)
 {
     dual c = make_constant("1");
 
-    dual m = make_constant("0");
+    dual m = make_constant("0.5");
     dual n = make_constant("1");
 
     dual alpha = sqrt(n * n - m * m);
