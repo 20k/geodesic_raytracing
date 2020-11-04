@@ -237,14 +237,95 @@ std::array<dual_complex_v, 16> big_imaginary_metric_test(dual_complex_v t, dual_
     ret_fat[2 * 4 + 2] = dtheta;
     ret_fat[3 * 4 + 3] = dphi;
 
-    if(phi.dual.real == "1")
+    /*if(phi.dual.real == "1")
     {
         std::cout << "PHI? " << dphi.dual.real << std::endl;
         std::cout << "Theta? " << n.dual.real << std::endl;
-    }
+    }*/
 
     return ret_fat;
 }
+
+inline
+std::array<dual_complex_v, 16> minkowski_space(dual_complex_v t, dual_complex_v x, dual_complex_v y, dual_complex_v z)
+{
+    std::array<dual_complex_v, 16> ret_fat;
+    ret_fat[0] = dual_complex::make_real_constant("-1");
+    ret_fat[1 * 4 + 1] = dual_complex::make_real_constant("1");
+    ret_fat[2 * 4 + 2] = dual_complex::make_real_constant("1");
+    ret_fat[3 * 4 + 3] = dual_complex::make_real_constant("1");
+
+    return ret_fat;
+}
+
+///we're in inclination
+inline
+std::array<dual_complex_v, 16> cylinder_test(dual_complex_v t, dual_complex_v r, dual_complex_v phi, dual_complex_v z)
+{
+    std::array<dual_complex_v, 16> ret_fat;
+    ret_fat[0] = -dual_complex::make_real_constant("1");
+    ret_fat[1 * 4 + 1] = dual_complex::make_real_constant("1");
+    ret_fat[2 * 4 + 2] = r * r;
+    ret_fat[3 * 4 + 3] = dual_complex::make_real_constant("1");
+
+    return ret_fat;
+}
+
+inline
+std::array<dual, 3> cylindrical_to_polar(dual p, dual phi, dual z)
+{
+    dual rr = sqrt(p * p + z * z);
+    dual rtheta = atan2(p, z);
+    //dual rtheta = atan(p / z);
+    dual rphi = phi;
+
+    return {rr, rtheta, rphi};
+}
+
+inline
+std::array<dual, 3> polar_to_cylindrical(dual r, dual theta, dual phi)
+{
+    dual rp = r * sin(theta);
+    dual rphi = phi;
+    dual rz = r * cos(theta);
+
+    return {rp, rphi, rz};
+}
+
+inline
+std::array<dual, 3> polar_to_cartesian_dual(dual r, dual theta, dual phi)
+{
+    dual x = r * sin(theta) * cos(phi);
+    dual y = r * sin(theta) * sin(phi);
+    dual z = r * cos(theta);
+
+    return {x, y, z};
+}
+
+inline
+std::array<dual, 3> cartesian_to_polar_dual(dual x, dual y, dual z)
+{
+    dual r = sqrt(x * x + y * y + z * z);
+    dual theta = atan2(sqrt(x * x + y * y), z);
+    dual phi = atan2(y, x);
+
+    return {r, theta, phi};
+}
+
+inline
+std::array<dual, 3> polar_to_polar(dual r, dual theta, dual phi)
+{
+    return {r, theta, phi};
+}
+
+inline auto coordinate_transform_to = cylindrical_to_polar;
+inline auto coordinate_transform_from = polar_to_cylindrical;
+
+//inline auto coordinate_transform_to = polar_to_polar;
+//inline auto coordinate_transform_from = polar_to_polar;
+
+//inline auto coordinate_transform_to = cartesian_to_polar_dual;
+//inline auto coordinate_transform_from = polar_to_cartesian_dual;
 
 /*inline
 std::array<dual, 4> test_metric(dual t, dual p, dual theta, dual phi)
@@ -281,11 +362,27 @@ int main()
     #ifdef GENERIC_METRIC
     //auto [real_eq, derivatives] = evaluate_metric(test_metric, "v1", "v2", "v3", "v4");
 
-    auto [real_eq, derivatives] = evaluate_metric2D_DC(big_imaginary_metric_test, "v1", "v2", "v3", "v4");
+    auto [real_eq, derivatives] = evaluate_metric2D_DC(cylinder_test, "v1", "v2", "v3", "v4");
+    //auto [real_eq, derivatives] = evaluate_metric2D_DC(big_imaginary_metric_test, "v1", "v2", "v3", "v4");
+    //auto [real_eq, derivatives] = evaluate_metric2D_DC(minkowski_space, "v1", "v2", "v3", "v4");
 
     //auto [real_eq, derivatives] = evaluate_metric2D(kerr_metric, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D(ellis_drainhole, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D(big_metric_test, "v1", "v2", "v3", "v4");
+
+    /*{
+        auto [spherical_eq, totals] = total_diff(spherical_to_cartesian, "v1", "v2", "v3");
+
+        for(auto& i : spherical_eq)
+        {
+            std::cout << "IB " << i << std::endl;
+        }
+
+        for(auto& i : totals)
+        {
+            std::cout << "TOTAL " << i << std::endl;
+        }
+    }*/
 
     argument_string += "-DRS_IMPL=1 -DC_IMPL=1 ";
 
@@ -313,12 +410,38 @@ int main()
         for(int i=0; i < 64; i++)
             argument_string += "-DF" + std::to_string(i + 1) + "_P=" + derivatives[i] + " ";
 
-        argument_string += " -DGENERIC_BIG_METRIC";
+        argument_string += " -DGENERIC_BIG_METRIC ";
+    }
+
+    {
+        auto [to_polar, dt_to_spherical] = total_diff(coordinate_transform_to, "v1", "v2", "v3");
+        auto [from_polar, dt_from_spherical] = total_diff(coordinate_transform_from, "v1", "v2", "v3");
+
+        for(int i=0; i < to_polar.size(); i++)
+        {
+            argument_string += "-DTO_COORD" + std::to_string(i + 1) + "=" + to_polar[i] + " ";
+        }
+
+        for(int i=0; i < dt_to_spherical.size(); i++)
+        {
+            argument_string += "-DTO_DCOORD" + std::to_string(i + 1) + "=" + dt_to_spherical[i] + " ";
+        }
+
+        for(int i=0; i < from_polar.size(); i++)
+        {
+            argument_string += "-DFROM_COORD" + std::to_string(i + 1) + "=" + from_polar[i] + " ";
+        }
+
+        for(int i=0; i < dt_from_spherical.size(); i++)
+        {
+            argument_string += "-DFROM_DCOORD" + std::to_string(i + 1) + "=" + dt_from_spherical[i] + " ";
+        }
     }
 
     argument_string += " -DGENERIC_METRIC -DVERLET_INTEGRATION_GENERIC";
 
     //argument_string += " -DGENERIC_CONSTANT_THETA";
+    //argument_string += " -DPOLE_SINGULAIRTY";
     argument_string += " -DSINGULAR";
 
     std::cout << "ASTRING " << argument_string << std::endl;

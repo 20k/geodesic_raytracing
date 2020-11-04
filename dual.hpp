@@ -342,6 +342,16 @@ dual tan(const dual& d1)
 }
 
 inline
+dual atan2(const dual& d1, const dual& d2)
+{
+    std::string denom = infix(infix(d1.real, d1.real, "*"), infix(d2.real, d2.real, "*"), "+");
+
+    std::string derivative = infix(unary(infix(infix(d2.real, d1.dual, "*"), denom, "/"), "-"), infix(infix(d1.real, d2.dual, "*"), denom, "/"), "+");
+
+    return make_value(outer(d1.real, d2.real, "atan2"), derivative);
+}
+
+inline
 dual atan(const dual& d1)
 {
     return make_value(unary(d1.real, "atan"), infix(d1.dual, infix("1", infix(d1.real, d1.real, "*"), "+"), "/"));
@@ -507,7 +517,7 @@ std::pair<std::vector<std::string>, std::vector<std::string>> evaluate_metric2D(
 
         std::array eqs = array_apply(std::forward<Func>(f), variables);
 
-        static_assert(eqs.size() == N * N);
+        //static_assert(eqs.size() == N * N);
 
         if(i == 0)
         {
@@ -524,6 +534,36 @@ std::pair<std::vector<std::string>, std::vector<std::string>> evaluate_metric2D(
     }
 
     return {raw_eq, raw_derivatives};
+}
+
+template<typename Func, typename... T>
+inline
+std::pair<std::vector<std::string>, std::vector<std::string>> total_diff(Func&& f, T... raw_variables)
+{
+    std::array<std::string, sizeof...(T)> variable_names{raw_variables...};
+
+    auto [full_eqs, partial_differentials] = evaluate_metric2D(f, raw_variables...);
+
+    constexpr int N = sizeof...(T);
+
+    std::vector<std::string> total_differentials;
+
+    for(int i=0; i < N; i++)
+    {
+        std::string accum;
+
+        for(int j=0; j < N; j++)
+        {
+            accum += partial_differentials[j * N + i] + "*d" + variable_names[j];
+
+            if(j != N-1)
+                accum += "+";
+        }
+
+        total_differentials.push_back(accum);
+    }
+
+    return {full_eqs, total_differentials};
 }
 
 #endif // DUAL_HPP_INCLUDED
