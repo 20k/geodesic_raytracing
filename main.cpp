@@ -273,6 +273,39 @@ std::array<dual_complex, 16> cylinder_test(dual_complex t, dual_complex r, dual_
 }
 
 inline
+std::array<dual, 16> alcubierre_metric(dual t, dual x, dual y, dual z)
+{
+    dual rs = 1;
+
+    dual xs_t = 0;
+    dual dxs_t = 0.9;
+    dual vs_t = dxs_t;
+
+    dual rs_t = sqrt((x - xs_t) * (x - xs_t) + y * y + z * z);
+
+    dual sigma = 0.1;
+    dual R = 1;
+
+    dual f_rs = (tanh(sigma * (rs + R)) - tanh(sigma * (rs - R))) / (2 * tanh(sigma * R));
+
+    dual dt = (vs_t * vs_t * f_rs * f_rs - 1);
+    dual dxdt = 2 * vs_t * f_rs;
+    dual dx = 1;
+    dual dy = 1;
+    dual dz = 1;
+
+    std::array<dual, 16> ret;
+    ret[0 * 4 + 0] = dt;
+    ret[1 * 4 + 0] = dxdt;
+    ret[0 * 4 + 1] = dxdt;
+    ret[1 * 4 + 1] = dx;
+    ret[2 * 4 + 2] = dy;
+    ret[3 * 4 + 3] = dz;
+
+    return ret;
+}
+
+inline
 std::array<dual, 3> cylindrical_to_polar(dual p, dual phi, dual z)
 {
     dual rr = sqrt(p * p + z * z);
@@ -322,11 +355,11 @@ std::array<dual, 3> polar_to_polar(dual r, dual theta, dual phi)
 //inline auto coordinate_transform_to = cylindrical_to_polar;
 //inline auto coordinate_transform_from = polar_to_cylindrical;
 
-inline auto coordinate_transform_to = polar_to_polar;
-inline auto coordinate_transform_from = polar_to_polar;
+//inline auto coordinate_transform_to = polar_to_polar;
+//inline auto coordinate_transform_from = polar_to_polar;
 
-//inline auto coordinate_transform_to = cartesian_to_polar_dual;
-//inline auto coordinate_transform_from = polar_to_cartesian_dual;
+inline auto coordinate_transform_to = cartesian_to_polar_dual;
+inline auto coordinate_transform_from = polar_to_cartesian_dual;
 
 /*inline
 std::array<dual, 4> test_metric(dual t, dual p, dual theta, dual phi)
@@ -365,11 +398,12 @@ int main()
     //auto [real_eq, derivatives] = evaluate_metric(schwarzschild_blackhole, "v1", "v2", "v3", "v4");
 
     //auto [real_eq, derivatives] = evaluate_metric2D_DC(cylinder_test, "v1", "v2", "v3", "v4");
-    auto [real_eq, derivatives] = evaluate_metric2D_DC(big_imaginary_metric_test, "v1", "v2", "v3", "v4");
+    //auto [real_eq, derivatives] = evaluate_metric2D_DC(big_imaginary_metric_test, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D_DC(minkowski_space, "v1", "v2", "v3", "v4");
 
     //auto [real_eq, derivatives] = evaluate_metric2D(kerr_metric, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D(ellis_drainhole, "v1", "v2", "v3", "v4");
+    auto [real_eq, derivatives] = evaluate_metric2D(alcubierre_metric, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D(big_metric_test, "v1", "v2", "v3", "v4");
 
     /*{
@@ -442,7 +476,7 @@ int main()
 
     argument_string += " -DGENERIC_METRIC -DVERLET_INTEGRATION_GENERIC";
 
-    argument_string += " -DGENERIC_CONSTANT_THETA";
+    //argument_string += " -DGENERIC_CONSTANT_THETA";
     //argument_string += " -DPOLE_SINGULAIRTY";
     //argument_string += " -DSINGULAR";
 

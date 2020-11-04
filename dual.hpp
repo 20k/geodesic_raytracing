@@ -246,6 +246,14 @@ std::string unary(std::string v1, std::string op)
             return to_string_s(cosh(c1.value()));
     }
 
+    if(op == "tanh")
+    {
+        auto c1 = get_value(v1);
+
+        if(c1.has_value())
+            return to_string_s(tanh(c1.value()));
+    }
+
     if(op == "-")
     {
         return "(" + op + "(" + v1 + "))";
@@ -378,6 +386,12 @@ inline
 dual_types::symbol cosh(const dual_types::symbol& d1)
 {
     return dual_types::symbol(unary(d1.sym, "cosh"));
+}
+
+inline
+dual_types::symbol tanh(const dual_types::symbol& d1)
+{
+    return dual_types::symbol(unary(d1.sym, "tanh"));
 }
 
 inline
@@ -581,6 +595,27 @@ inline
 dual_types::dual_v<T> tan(const dual_types::dual_v<T>& d1)
 {
     return dual_types::dual_v<T>(tan(d1.real), d1.dual / (cos(d1.real) * cos(d1.real)));
+}
+
+template<typename T>
+inline
+dual_types::dual_v<T> sinh(const dual_types::dual_v<T>& d1)
+{
+    return dual_types::dual_v<T>(sinh(d1.real), d1.dual * cosh(d1.real));
+}
+
+template<typename T>
+inline
+dual_types::dual_v<T> cosh(const dual_types::dual_v<T>& d1)
+{
+    return dual_types::dual_v<T>(cosh(d1.real), d1.dual * sinh(d1.real));
+}
+
+template<typename T>
+inline
+dual_types::dual_v<T> tanh(const dual_types::dual_v<T>& d1)
+{
+    return dual_types::dual_v<T>(tanh(d1.real), d1.dual * (1 - tanh(d1.real) * tanh(d1.real)));
 }
 
 template<typename T>
