@@ -37,6 +37,30 @@ namespace dual_types
         }
     };
 
+    struct symbol_complex
+    {
+        symbol real;
+        symbol imaginary;
+
+        symbol_complex(){}
+        symbol_complex(const std::string& v1, const std::string& v2) : real(v1), imaginary(v2) {}
+        symbol_complex(float v1, float v2) : real(v1), imaginary(v2) {}
+        symbol_complex(float v1) : real(v1), imaginary(0) {}
+        symbol_complex(symbol v1, symbol v2) : real(v1), imaginary(v2) {}
+
+        void set_dual_constant()
+        {
+            real.set_dual_constant();
+            imaginary.set_dual_constant();
+        }
+
+        void set_dual_variable()
+        {
+            real.set_dual_variable();
+            imaginary.set_dual_variable();
+        }
+    };
+
     template<typename T>
     struct dual_v
     {
@@ -69,7 +93,6 @@ namespace dual_types
         }
     };
 };
-
 
 inline
 std::optional<float> get_value(std::string in)
@@ -346,6 +369,18 @@ dual_types::symbol tan(const dual_types::symbol& d1)
 }
 
 inline
+dual_types::symbol sinh(const dual_types::symbol& d1)
+{
+    return dual_types::symbol(unary(d1.sym, "sinh"));
+}
+
+inline
+dual_types::symbol cosh(const dual_types::symbol& d1)
+{
+    return dual_types::symbol(unary(d1.sym, "cosh"));
+}
+
+inline
 dual_types::symbol atan(const dual_types::symbol& d1)
 {
     return dual_types::symbol(unary(d1.sym, "atan"));
@@ -361,6 +396,58 @@ inline
 dual_types::symbol conjugate(const dual_types::symbol& d1)
 {
     return d1;
+}
+
+using complex_v = dual_types::symbol_complex;
+
+inline
+complex_v operator+(const complex_v& c1, const complex_v& c2)
+{
+    return complex_v(c1.real + c2.real, c1.imaginary + c2.imaginary);
+}
+
+inline
+complex_v operator-(const complex_v& c1, const complex_v& c2)
+{
+    return complex_v(c1.real - c2.real, c1.imaginary - c2.imaginary);
+}
+
+inline
+complex_v operator-(const complex_v& c1)
+{
+    return complex_v(-c1.real, -c1.imaginary);
+}
+
+inline
+complex_v operator*(const complex_v& c1, const complex_v& c2)
+{
+    return complex_v(c1.real * c2.real - c1.imaginary * c2.imaginary, c1.imaginary * c2.real + c1.real * c2.imaginary);
+}
+
+inline
+complex_v operator/(const complex_v& c1, const complex_v& c2)
+{
+    dual_types::symbol divisor = c2.real * c2.real + c2.imaginary * c2.imaginary;
+
+    return complex_v((c1.real * c2.real + c1.imaginary * c2.imaginary) / divisor, (c1.imaginary * c2.real - c1.real * c2.imaginary));
+}
+
+inline
+complex_v sin(const complex_v& c1)
+{
+    return complex_v(sin(c1.real) * cosh(c1.imaginary), cos(c1.real) * sinh(c1.imaginary));
+}
+
+inline
+complex_v cos(const complex_v& c1)
+{
+    return complex_v(cos(c1.real) * cosh(c1.imaginary), -sin(c1.real) * sinh(c1.imaginary));
+}
+
+inline
+complex_v conjugate(const complex_v& c1)
+{
+    return complex_v(c1.real, -c1.imaginary);
 }
 
 template<typename T>
@@ -526,6 +613,7 @@ std::string pad(std::string in, int len)
 }
 
 using dual = dual_types::dual_v<dual_types::symbol>;
+using dual_complex = dual_types::dual_v<dual_types::symbol_complex>;
 
 inline
 std::array<dual, 4> schwarzschild_metric(dual t, dual r, dual theta, dual phi)
@@ -736,6 +824,70 @@ std::pair<std::vector<std::string>, std::vector<std::string>> total_diff(Func&& 
     }
 
     return {full_eqs, total_differentials};
+}
+
+
+template<typename T, size_t N, size_t... Is>
+inline
+auto array_apply(T&& func, const std::array<dual_complex, N>& arr, std::index_sequence<Is...>)
+{
+    return func(arr[Is]...);
+}
+
+template <typename T, size_t N>
+inline
+auto array_apply(T&& func, const std::array<dual_complex, N>& arr)
+{
+    return array_apply(std::forward<T>(func), arr, std::make_index_sequence<N>{});
+}
+
+template<typename Func, typename... T>
+inline
+std::pair<std::vector<std::string>, std::vector<std::string>> evaluate_metric2D_DC(Func&& f, T... raw_variables)
+{
+    std::array<std::string, sizeof...(T)> variable_names{raw_variables...};
+    constexpr int N = sizeof...(T);
+
+    std::vector<std::string> raw_eq;
+    std::vector<std::string> raw_derivatives;
+
+    for(int i=0; i < (int)variable_names.size(); i++)
+    {
+        std::array<dual_complex, variable_names.size()> variables;
+
+        for(int j=0; j < (int)variable_names.size(); j++)
+        {
+            if(i == j)
+            {
+                variables[j] = complex_v(variable_names[j], "0");
+                variables[j].set_dual_variable();
+            }
+            else
+            {
+                variables[j] = complex_v(variable_names[j], "0");
+                variables[j].set_dual_constant();
+            }
+        }
+
+        std::array eqs = array_apply(std::forward<Func>(f), variables);
+
+        static_assert(eqs.size() == N * N);
+
+        if(i == 0)
+        {
+            for(auto& kk : eqs)
+            {
+                raw_eq.push_back(kk.real.real);
+            }
+        }
+
+        for(auto& kk : eqs)
+        {
+            raw_derivatives.push_back(kk.dual.real);
+        }
+    }
+
+    return {raw_eq, raw_derivatives};
 }
 
 #endif // DUAL_HPP_INCLUDED

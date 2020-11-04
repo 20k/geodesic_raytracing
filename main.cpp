@@ -6,7 +6,7 @@
 #include <SFML/Graphics.hpp>
 #include <CL/cl_ext.h>
 #include "dual.hpp"
-#include "dual_complex.hpp"
+//#include "dual_complex.hpp"
 
 ///perfectly fine
 vec4f cartesian_to_schwarz(vec4f position)
@@ -222,17 +222,17 @@ std::array<dual, 16> kerr_metric(dual t, dual r, dual theta, dual phi)
 }
 
 inline
-std::array<dual_complex_v, 16> big_imaginary_metric_test(dual_complex_v t, dual_complex_v p, dual_complex_v theta, dual_complex_v phi)
+std::array<dual_complex, 16> big_imaginary_metric_test(dual_complex t, dual_complex p, dual_complex theta, dual_complex phi)
 {
-    dual_complex_v c = dual_complex::make_real_constant("c");
-    dual_complex_v n = dual_complex::make_real_constant("1");
+    dual_complex c = 1;
+    dual_complex n = 1;
 
-    dual_complex_v dt = -c * c;
-    dual_complex_v dr = dual_complex::make_real_constant("1");
-    dual_complex_v dtheta = (p * p + n * n);
-    dual_complex_v dphi = (p * p + n * n) * (sin(theta) * sin(theta));
+    dual_complex dt = -c * c;
+    dual_complex dr = 1;
+    dual_complex dtheta = (p * p + n * n);
+    dual_complex dphi = (p * p + n * n) * (sin(theta) * sin(theta));
 
-    std::array<dual_complex_v, 16> ret_fat;
+    std::array<dual_complex, 16> ret_fat;
     ret_fat[0] = dt;
     ret_fat[1 * 4 + 1] = dr;
     ret_fat[2 * 4 + 2] = dtheta;
@@ -248,26 +248,26 @@ std::array<dual_complex_v, 16> big_imaginary_metric_test(dual_complex_v t, dual_
 }
 
 inline
-std::array<dual_complex_v, 16> minkowski_space(dual_complex_v t, dual_complex_v x, dual_complex_v y, dual_complex_v z)
+std::array<dual_complex, 16> minkowski_space(dual_complex t, dual_complex x, dual_complex y, dual_complex z)
 {
-    std::array<dual_complex_v, 16> ret_fat;
-    ret_fat[0] = dual_complex::make_real_constant("-1");
-    ret_fat[1 * 4 + 1] = dual_complex::make_real_constant("1");
-    ret_fat[2 * 4 + 2] = dual_complex::make_real_constant("1");
-    ret_fat[3 * 4 + 3] = dual_complex::make_real_constant("1");
+    std::array<dual_complex, 16> ret_fat;
+    ret_fat[0] = -1;
+    ret_fat[1 * 4 + 1] = 1;
+    ret_fat[2 * 4 + 2] = 1;
+    ret_fat[3 * 4 + 3] = 1;
 
     return ret_fat;
 }
 
 ///we're in inclination
 inline
-std::array<dual_complex_v, 16> cylinder_test(dual_complex_v t, dual_complex_v r, dual_complex_v phi, dual_complex_v z)
+std::array<dual_complex, 16> cylinder_test(dual_complex t, dual_complex r, dual_complex phi, dual_complex z)
 {
-    std::array<dual_complex_v, 16> ret_fat;
-    ret_fat[0] = -dual_complex::make_real_constant("1");
-    ret_fat[1 * 4 + 1] = dual_complex::make_real_constant("1");
+    std::array<dual_complex, 16> ret_fat;
+    ret_fat[0] = -1;
+    ret_fat[1 * 4 + 1] = 1;
     ret_fat[2 * 4 + 2] = r * r;
-    ret_fat[3 * 4 + 3] = dual_complex::make_real_constant("1");
+    ret_fat[3 * 4 + 3] = 1;
 
     return ret_fat;
 }
