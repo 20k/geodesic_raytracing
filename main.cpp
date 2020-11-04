@@ -362,10 +362,10 @@ int main()
 
     #ifdef GENERIC_METRIC
     //auto [real_eq, derivatives] = evaluate_metric(test_metric, "v1", "v2", "v3", "v4");
-    auto [real_eq, derivatives] = evaluate_metric(schwarzschild_blackhole, "v1", "v2", "v3", "v4");
+    //auto [real_eq, derivatives] = evaluate_metric(schwarzschild_blackhole, "v1", "v2", "v3", "v4");
 
     //auto [real_eq, derivatives] = evaluate_metric2D_DC(cylinder_test, "v1", "v2", "v3", "v4");
-    //auto [real_eq, derivatives] = evaluate_metric2D_DC(big_imaginary_metric_test, "v1", "v2", "v3", "v4");
+    auto [real_eq, derivatives] = evaluate_metric2D_DC(big_imaginary_metric_test, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D_DC(minkowski_space, "v1", "v2", "v3", "v4");
 
     //auto [real_eq, derivatives] = evaluate_metric2D(kerr_metric, "v1", "v2", "v3", "v4");
@@ -444,7 +444,7 @@ int main()
 
     argument_string += " -DGENERIC_CONSTANT_THETA";
     //argument_string += " -DPOLE_SINGULAIRTY";
-    argument_string += " -DSINGULAR";
+    //argument_string += " -DSINGULAR";
 
     std::cout << "ASTRING " << argument_string << std::endl;
 

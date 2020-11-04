@@ -859,13 +859,11 @@ std::pair<std::vector<std::string>, std::vector<std::string>> evaluate_metric2D_
         {
             if(i == j)
             {
-                variables[j] = complex_v(variable_names[j], "0");
-                variables[j].set_dual_variable();
+                variables[j].make_variable(complex_v(variable_names[j], "0"));
             }
             else
             {
-                variables[j] = complex_v(variable_names[j], "0");
-                variables[j].set_dual_constant();
+                variables[j].make_constant(complex_v(variable_names[j], "0"));
             }
         }
 
@@ -877,13 +875,13 @@ std::pair<std::vector<std::string>, std::vector<std::string>> evaluate_metric2D_
         {
             for(auto& kk : eqs)
             {
-                raw_eq.push_back(kk.real.real);
+                raw_eq.push_back(kk.real.real.sym);
             }
         }
 
         for(auto& kk : eqs)
         {
-            raw_derivatives.push_back(kk.dual.real);
+            raw_derivatives.push_back(kk.dual.real.sym);
         }
     }
 
