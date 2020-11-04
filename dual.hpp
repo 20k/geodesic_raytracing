@@ -6,55 +6,70 @@
 #include <iomanip>
 #include <vector>
 
-struct dual
+inline
+std::string to_string_s(float v)
 {
-    std::string real = "0";
-    std::string dual = "0";
+    std::ostringstream oss;
+    oss << std::setprecision(8) << std::noshowpoint << v;
+    std::string str = oss.str();
+
+    return str;
+}
+
+namespace dual_types
+{
+    struct symbol
+    {
+        std::string sym = "0";
+
+        symbol(){}
+        symbol(const std::string& value){sym = value;}
+        symbol(float v){sym = to_string_s(v);}
+
+        void set_dual_constant()
+        {
+            sym = "0";
+        }
+
+        void set_dual_variable()
+        {
+            sym = "1";
+        }
+    };
+
+    template<typename T>
+    struct dual_v
+    {
+        T real = T();
+        T dual = T();
+
+        dual_v(){}
+        dual_v(const T& _real, const T& _dual)
+        {
+            real = _real;
+            dual = _dual;
+        }
+
+        template<typename U>
+        dual_v(const U& _real) : real(_real)
+        {
+            dual = T();
+        }
+
+        void make_constant(T val)
+        {
+            real = val;
+            dual.set_dual_constant();
+        }
+
+        void make_variable(T val)
+        {
+            real = val;
+            dual.set_dual_variable();
+        }
+    };
 };
 
-inline
-dual make_constant(std::string val)
-{
-    dual ret;
-    ret.dual = "0";
-    ret.real = val;
-
-    return ret;
-}
-
-inline
-dual make_value(std::string val)
-{
-    dual ret;
-    ret.real = val;
-    ret.dual = "d" + val;
-
-    return ret;
-}
-
-inline
-dual make_value(std::string val, std::string diff)
-{
-    dual ret;
-    ret.real = val;
-    ret.dual = diff;
-
-    return ret;
-}
-
-inline
-dual make_variable(std::string val, bool is_variable)
-{
-    dual ret;
-    ret.real = val;
-
-    if(is_variable)
-        ret.dual = "1";
-    else
-        ret.dual = "0";
-
-    return ret;
-}
 
 inline
 std::optional<float> get_value(std::string in)
@@ -80,16 +95,6 @@ std::optional<float> get_value(std::string in)
         return val;
 
     return std::nullopt;
-}
-
-inline
-std::string to_string_s(float v)
-{
-    std::ostringstream oss;
-    oss << std::setprecision(8) << std::noshowpoint << v;
-    std::string str = oss.str();
-
-    return str;
 }
 
 inline
@@ -218,149 +223,298 @@ std::string unary(std::string v1, std::string op)
             return to_string_s(cosh(c1.value()));
     }
 
+    if(op == "-")
+    {
+        return "(" + op + "(" + v1 + "))";
+    }
+
     return op + "(" + v1 + ")";
 }
 
 inline
-dual operator+(const dual& d1, const dual& d2)
+dual_types::symbol operator+(const dual_types::symbol& d1, const dual_types::symbol& d2)
 {
-    return make_value(infix(d1.real, d2.real, "+"), infix(d1.dual, d2.dual, "+"));
+    return dual_types::symbol(infix(d1.sym, d2.sym, "+"));
 }
 
 inline
-dual operator+(const dual& d1, float v)
+dual_types::symbol operator+(const dual_types::symbol& d1, float v)
 {
-    return d1 + make_constant(to_string_s(v));
+    return d1 + dual_types::symbol(to_string_s(v));
 }
 
 inline
-dual operator+(float v, const dual& d1)
+dual_types::symbol operator+(float v, const dual_types::symbol& d1)
 {
-    return make_constant(to_string_s(v)) + d1;
+    return dual_types::symbol(to_string_s(v)) + d1;
 }
 
 inline
-dual operator-(const dual& d1, const dual& d2)
+dual_types::symbol operator-(const dual_types::symbol& d1, const dual_types::symbol& d2)
 {
-    return make_value(infix(d1.real, d2.real, "-"), infix(d1.dual, d2.dual, "-"));
+    return dual_types::symbol(infix(d1.sym, d2.sym, "-"));
 }
 
 inline
-dual operator-(const dual& d1, float v)
+dual_types::symbol operator-(const dual_types::symbol& d1, float v)
 {
-    return d1 - make_constant(to_string_s(v));
+    return d1 - dual_types::symbol(to_string_s(v));
 }
 
 inline
-dual operator-(float v, const dual& d1)
+dual_types::symbol operator-(float v, const dual_types::symbol& d1)
 {
-    return make_constant(to_string_s(v)) - d1;
+    return dual_types::symbol(to_string_s(v)) - d1;
 }
 
 inline
-dual operator-(const dual& d1)
+dual_types::symbol operator-(const dual_types::symbol& d1)
 {
-    return make_value(unary(d1.real, "-"), unary(d1.dual, "-"));
+    return dual_types::symbol(unary(d1.sym, "-"));
 }
 
 inline
-dual operator*(const dual& d1, const dual& d2)
+dual_types::symbol operator*(const dual_types::symbol& d1, const dual_types::symbol& d2)
 {
-    std::string dual_str = infix(infix(d1.real, d2.dual, "*"), infix(d1.dual, d2.real, "*"), "+");
-
-    return make_value(infix(d1.real, d2.real, "*"), dual_str);
+    return dual_types::symbol(infix(d1.sym, d2.sym, "*"));
 }
 
 inline
-dual operator*(const dual& d1, float v)
+dual_types::symbol operator*(const dual_types::symbol& d1, float v)
 {
-    return d1 * make_constant(to_string_s(v));
+    return d1 * dual_types::symbol(to_string_s(v));
 }
 
 inline
-dual operator*(float v, const dual& d1)
+dual_types::symbol operator*(float v, const dual_types::symbol& d1)
 {
-    return make_constant(to_string_s(v)) * d1;
+    return dual_types::symbol(to_string_s(v)) * d1;
 }
 
 inline
-dual operator/(const dual& d1, const dual& d2)
+dual_types::symbol operator/(const dual_types::symbol& d1, const dual_types::symbol& d2)
 {
-    std::string dual_str = infix(infix(infix(d1.dual, d2.real, "*"), infix(d1.real, d2.dual, "*"), "-"), infix(d2.real, d2.real, "*"), "/");
-
-    return make_value(infix(d1.real, d2.real, "/"), dual_str);
+    return dual_types::symbol(infix(d1.sym, d2.sym, "/"));
 }
 
 inline
-dual operator/(const dual& d1, float v)
+dual_types::symbol operator/(const dual_types::symbol& d1, float v)
 {
-    return d1 / make_constant(to_string_s(v));
+    return d1 / dual_types::symbol(to_string_s(v));
 }
 
 inline
-dual operator/(float v, const dual& d1)
+dual_types::symbol operator/(float v, const dual_types::symbol& d1)
 {
-    return make_constant(to_string_s(v)) / d1;
+    return dual_types::symbol(to_string_s(v)) / d1;
 }
 
 inline
-dual sqrt(const dual& d1)
+dual_types::symbol sqrt(const dual_types::symbol& d1)
 {
-    return make_value(unary(d1.real, "native_sqrt"), infix(infix("0.5f", d1.dual, "*"), unary(d1.real, "native_sqrt"), "/"));
+    return dual_types::symbol(unary(d1.sym, "native_sqrt"));
 }
 
 inline
-dual pow(const dual& d1, float v)
+dual_types::symbol pow(const dual_types::symbol& d1, float v)
 {
-    return make_value(outer(d1.real, to_string_s(v), "pow"), infix(to_string_s(v), infix(d1.dual, outer(d1.real, to_string_s(v - 1), "pow"), "*"), "*"));
+    return dual_types::symbol(outer(d1.sym, to_string_s(v), "pow"));
 }
 
 inline
-dual exp(const dual& d1)
+dual_types::symbol exp(const dual_types::symbol& d1)
 {
-    return make_value(unary(d1.real, "native_exp"), infix(d1.dual, unary(d1.real, "native_exp"), "*"));
+    return dual_types::symbol(unary(d1.sym, "native_exp"));
 }
 
 inline
-dual sin(const dual& d1)
+dual_types::symbol sin(const dual_types::symbol& d1)
 {
-    return make_value(unary(d1.real, "native_sin"), infix(d1.dual, unary(d1.real, "native_cos"), "*"));
+    return dual_types::symbol(unary(d1.sym, "native_sin"));
 }
 
 inline
-dual cos(const dual& d1)
+dual_types::symbol cos(const dual_types::symbol& d1)
 {
-    return make_value(unary(d1.real, "native_cos"), unary(infix(d1.dual, unary(d1.real, "native_sin"), "*"), "-"));
+    return dual_types::symbol(unary(d1.sym, "native_cos"));
 }
 
 inline
-dual tan(const dual& d1)
+dual_types::symbol tan(const dual_types::symbol& d1)
 {
-    std::string cos_real = unary(d1.real, "cos");
-
-    return make_value(unary(d1.real, "tan"), infix(d1.dual, infix(cos_real, cos_real, "*"), "/"));
+    return dual_types::symbol(unary(d1.sym, "native_tan"));
 }
 
 inline
-dual atan2(const dual& d1, const dual& d2)
+dual_types::symbol atan(const dual_types::symbol& d1)
 {
-    std::string denom = infix(infix(d1.real, d1.real, "*"), infix(d2.real, d2.real, "*"), "+");
-
-    std::string derivative = infix(unary(infix(infix(d2.real, d1.dual, "*"), denom, "/"), "-"), infix(infix(d1.real, d2.dual, "*"), denom, "/"), "+");
-
-    return make_value(outer(d1.real, d2.real, "atan2"), derivative);
+    return dual_types::symbol(unary(d1.sym, "atan"));
 }
 
 inline
-dual atan(const dual& d1)
+dual_types::symbol atan2(const dual_types::symbol& d1, const dual_types::symbol& d2)
 {
-    return make_value(unary(d1.real, "atan"), infix(d1.dual, infix("1", infix(d1.real, d1.real, "*"), "+"), "/"));
+    return dual_types::symbol(outer(d1.sym, d2.sym, "atan2"));
 }
 
 inline
-dual smoothstep(dual x)
+dual_types::symbol conjugate(const dual_types::symbol& d1)
 {
-    return x * x * (3.f - 2.f * x);
+    return d1;
+}
+
+template<typename T>
+inline
+dual_types::dual_v<T> operator+(const dual_types::dual_v<T>& d1, const dual_types::dual_v<T>& d2)
+{
+    return dual_types::dual_v<T>(d1.real + d2.real, d1.dual + d2.dual);
+}
+
+template<typename T, typename U>
+inline
+dual_types::dual_v<T> operator+(const dual_types::dual_v<T>& d1, const U& v)
+{
+    return dual_types::dual_v<T>(d1.real + T(v), d1.dual);
+}
+
+template<typename T, typename U>
+inline
+dual_types::dual_v<T> operator+(const U& v, const dual_types::dual_v<T>& d1)
+{
+    return dual_types::dual_v<T>(T(v) + d1.real, d1.dual);
+}
+
+template<typename T>
+inline
+dual_types::dual_v<T> operator-(const dual_types::dual_v<T>& d1, const dual_types::dual_v<T>& d2)
+{
+    return dual_types::dual_v<T>(d1.real - d2.real, d1.dual - d2.dual);
+}
+
+template<typename T, typename U>
+inline
+dual_types::dual_v<T> operator-(const dual_types::dual_v<T>& d1, const U& v)
+{
+    return dual_types::dual_v<T>(d1.real - T(v), d1.dual);
+}
+
+template<typename T, typename U>
+inline
+dual_types::dual_v<T> operator-(const U& v, const dual_types::dual_v<T>& d1)
+{
+    return dual_types::dual_v<T>(T(v) - d1.real, -d1.dual);
+}
+
+template<typename T>
+inline
+dual_types::dual_v<T> operator-(const dual_types::dual_v<T>& d1)
+{
+    return dual_types::dual_v<T>(-d1.real, -d1.dual);
+}
+
+template<typename T>
+inline
+dual_types::dual_v<T> operator*(const dual_types::dual_v<T>& d1, const dual_types::dual_v<T>& d2)
+{
+    return dual_types::dual_v<T>(d1.real * d2.real, d1.real * d2.dual + d2.real * d1.dual);
+}
+
+template<typename T, typename U>
+inline
+dual_types::dual_v<T> operator*(const dual_types::dual_v<T>& d1, const U& v)
+{
+    return d1 * dual_types::dual_v<T>(T(v), T());
+}
+
+template<typename T, typename U>
+inline
+dual_types::dual_v<T> operator*(const U& v, const dual_types::dual_v<T>& d1)
+{
+    return dual_types::dual_v<T>(T(v), T()) * d1;
+}
+
+template<typename T>
+inline
+dual_types::dual_v<T> operator/(const dual_types::dual_v<T>& d1, const dual_types::dual_v<T>& d2)
+{
+    return dual_types::dual_v<T>(d1.real / d2.real, (d1.dual * d2.real - d1.real * d2.dual) / (d2.real * d2.real));
+}
+
+template<typename T, typename U>
+inline
+dual_types::dual_v<T> operator/(const dual_types::dual_v<T>& d1, const U& v)
+{
+    return d1 / dual_types::dual_v<T>(T(v), T());
+}
+
+template<typename T, typename U>
+inline
+dual_types::dual_v<T> operator/(const U& v, const dual_types::dual_v<T>& d1)
+{
+    return dual_types::dual_v<T>(T(v), T()) / d1;
+}
+
+template<typename T>
+inline
+dual_types::dual_v<T> sqrt(const dual_types::dual_v<T>& d1)
+{
+    return dual_types::dual_v<T>(sqrt(d1.real), 0.5f * d1.dual / sqrt(d1.real));
+}
+
+/*template<typename T>
+inline
+dual_types::dual_v<T> pow(const dual_types::dual_v<T>& d1, const T& v)
+{
+    return dual_types::dual_v<T>(pow(d1.real, v), )
+}*/
+
+template<typename T>
+inline
+dual_types::dual_v<T> exp(const dual_types::dual_v<T>& d1)
+{
+    return dual_types::dual_v<T>(exp(d1.real), d1.dual * exp(d1.real));
+}
+
+template<typename T>
+inline
+dual_types::dual_v<T> sin(const dual_types::dual_v<T>& d1)
+{
+    return dual_types::dual_v<T>(sin(d1.real), d1.dual * cos(d1.real));
+}
+
+template<typename T>
+inline
+dual_types::dual_v<T> cos(const dual_types::dual_v<T>& d1)
+{
+    return dual_types::dual_v<T>(cos(d1.real), -d1.dual * sin(d1.real));
+}
+
+template<typename T>
+inline
+dual_types::dual_v<T> tan(const dual_types::dual_v<T>& d1)
+{
+    return dual_types::dual_v<T>(tan(d1.real), d1.dual / (cos(d1.real) * cos(d1.real)));
+}
+
+template<typename T>
+inline
+dual_types::dual_v<T> atan(const dual_types::dual_v<T>& d1)
+{
+    return dual_types::dual_v<T>(atan(d1.real), d1.dual / (1 + d1.real * d1.real));
+}
+
+template<typename T>
+inline
+dual_types::dual_v<T> atan2(const dual_types::dual_v<T>& d1, const dual_types::dual_v<T>& d2)
+{
+    return dual_types::dual_v<T>(atan2(d1.real, d2.real), (-d1.real * d2.dual / (d2.real * d2.real + d1.real * d1.real)) + d1.dual * d2.real / (d2.real * d2.real + d1.real * d1.real));
+}
+
+template<typename T>
+inline
+dual_types::dual_v<T> conjugate(const dual_types::dual_v<T>& d1)
+{
+    return dual_types::dual_v<T>(conjugate(d1.real), conjugate(d1.dual));
 }
 
 inline
@@ -371,11 +525,13 @@ std::string pad(std::string in, int len)
     return in;
 }
 
+using dual = dual_types::dual_v<dual_types::symbol>;
+
 inline
 std::array<dual, 4> schwarzschild_metric(dual t, dual r, dual theta, dual phi)
 {
-    dual rs = make_constant("rs");
-    dual c = make_constant("c");
+    dual rs("rs");
+    dual c("c");
 
     dual dt = -(1 - rs / r) * c * c;
     dual dr = 1/(1 - rs / r);
@@ -388,8 +544,8 @@ std::array<dual, 4> schwarzschild_metric(dual t, dual r, dual theta, dual phi)
 inline
 std::array<dual, 3> schwarzschild_reduced(dual t, dual r, dual omega)
 {
-    dual rs = make_constant("rs");
-    dual c = make_constant("c");
+    dual rs("rs");
+    dual c("c");
 
     dual dt = -(1 - rs / r) * c * c;
     dual dr = 1/(1 - rs / r);
@@ -436,7 +592,14 @@ std::pair<std::vector<std::string>, std::vector<std::string>> evaluate_metric(Fu
 
         for(int j=0; j < (int)variable_names.size(); j++)
         {
-            variables[j] = make_variable(variable_names[j], i == j);
+            if(i == j)
+            {
+                variables[j].make_variable(variable_names[j]);
+            }
+            else
+            {
+                variables[j].make_constant(variable_names[j]);
+            }
         }
 
         std::array eqs = array_apply(std::forward<Func>(f), variables);
@@ -445,25 +608,25 @@ std::pair<std::vector<std::string>, std::vector<std::string>> evaluate_metric(Fu
         {
             for(auto& kk : eqs)
             {
-                raw_eq.push_back(kk.real);
+                raw_eq.push_back(kk.real.sym);
             }
         }
 
         for(auto& kk : eqs)
         {
-            raw_derivatives.push_back(kk.dual);
+            raw_derivatives.push_back(kk.dual.sym);
         }
 
         for(auto& kk : eqs)
         {
-            all_equations.push_back(kk.real);
+            all_equations.push_back(kk.real.sym);
         }
 
         all_derivatives.push_back("d" + variable_names[i]);
 
         for(auto& kk : eqs)
         {
-            all_derivatives.push_back(kk.dual);
+            all_derivatives.push_back(kk.dual.sym);
         }
 
         //std::cout << "var " << dphi.real << std::endl;
@@ -512,7 +675,16 @@ std::pair<std::vector<std::string>, std::vector<std::string>> evaluate_metric2D(
 
         for(int j=0; j < (int)variable_names.size(); j++)
         {
-            variables[j] = make_variable(variable_names[j], i == j);
+            if(i == j)
+            {
+                variables[j].make_variable(variable_names[j]);
+            }
+            else
+            {
+                variables[j].make_constant(variable_names[j]);
+            }
+
+            //variables[j] = make_variable(variable_names[j], i == j);
         }
 
         std::array eqs = array_apply(std::forward<Func>(f), variables);
@@ -523,13 +695,13 @@ std::pair<std::vector<std::string>, std::vector<std::string>> evaluate_metric2D(
         {
             for(auto& kk : eqs)
             {
-                raw_eq.push_back(kk.real);
+                raw_eq.push_back(kk.real.sym);
             }
         }
 
         for(auto& kk : eqs)
         {
-            raw_derivatives.push_back(kk.dual);
+            raw_derivatives.push_back(kk.dual.sym);
         }
     }
 

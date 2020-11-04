@@ -28,12 +28,13 @@ struct lightray
 inline
 std::array<dual, 4> schwarzschild_blackhole(dual t, dual r, dual theta, dual phi)
 {
-    dual rs = make_constant("rs");
-    dual c = make_constant("c");
+    dual rs("rs");
+    dual c("c");
 
-    theta = make_constant("(M_PI/2)");
+    theta = "M_PI/2";
 
     dual dt = -(1 - rs / r) * c * c;
+
     dual dr = 1/(1 - rs / r);
     dual dtheta = r * r;
     dual dphi = r * r * sin(theta) * sin(theta);
@@ -45,11 +46,11 @@ std::array<dual, 4> schwarzschild_blackhole(dual t, dual r, dual theta, dual phi
 inline
 std::array<dual, 4> traversible_wormhole(dual t, dual p, dual theta, dual phi)
 {
-    dual c = make_constant("c");
-    dual n = make_constant("1");
+    dual c = "c";
+    dual n = 1;
 
     dual dt = -1 * c * c;
-    dual dr = make_constant("1");
+    dual dr = 1;
     dual dtheta = (p * p + n * n);
     dual dphi = (p * p + n * n) * (sin(theta) * sin(theta));
 
@@ -75,14 +76,14 @@ std::array<dual, 4> schwarzschild_wormhole(dual t, dual r, dual theta, dual phi)
 inline
 std::array<dual, 4> cosmic_string(dual t, dual r, dual theta, dual phi)
 {
-    dual c = make_constant("c");
-    dual rs = make_constant("1");
+    dual c = "c";
+    dual rs = 1;
 
     dual dt = -(1 - rs/r) * c * c;
     dual dr = 1 / (1 - rs/r);
     dual dtheta = r * r;
 
-    dual B = make_constant("0.3");
+    dual B = 0.3;
     dual dphi = r * r * B * B * sin(theta) * sin(theta);
 
     return {dt, dr, dtheta, dphi};
@@ -91,12 +92,12 @@ std::array<dual, 4> cosmic_string(dual t, dual r, dual theta, dual phi)
 inline
 std::array<dual, 4> ernst_metric(dual t, dual r, dual theta, dual phi)
 {
-    dual B = make_constant("0.05");
+    dual B = 0.05;
 
     dual lambda_sq = 1 + B * B * r * r * sin(theta) * sin(theta);
 
-    dual rs = make_constant("1");
-    dual c = make_constant("1");
+    dual rs = 1;
+    dual c = 1;
 
     dual dt = -lambda_sq * (1 - rs/r);
     dual dr = lambda_sq * 1/(1 - rs/r);
@@ -106,14 +107,14 @@ std::array<dual, 4> ernst_metric(dual t, dual r, dual theta, dual phi)
     return {dt, dr, dtheta, dphi};
 }
 
-inline
+/*inline
 std::array<dual, 4> janis_newman_winicour(dual t, dual r, dual theta, dual phi)
 {
     //dual gamma = make_constant("1");
     float gamma = 0.1;
 
-    dual rs = make_constant("1");
-    dual c = make_constant("1");
+    dual rs = 1;
+    dual c = 1;
 
     dual alpha = 1 - rs / (gamma * r);
 
@@ -123,14 +124,14 @@ std::array<dual, 4> janis_newman_winicour(dual t, dual r, dual theta, dual phi)
     dual dphi = r * r * pow(alpha, -gamma + 1) * sin(theta) * sin(theta);
 
     return {dt, dr, dtheta, dphi};
-}
+}*/
 
 inline
 std::array<dual, 4> de_sitter(dual t, dual r, dual theta, dual phi)
 {
     float cosmo = 0.01;
 
-    dual c = make_constant("1");
+    dual c = 1;
 
     dual dt = -(1 - cosmo * r * r/3) * c * c;
     dual dr = 1/(1 - cosmo * r * r / 3);
@@ -145,10 +146,10 @@ inline auto test_metric = traversible_wormhole;
 inline
 std::array<dual, 16> ellis_drainhole(dual t, dual r, dual theta, dual phi)
 {
-    dual c = make_constant("1");
+    dual c = 1;
 
-    dual m = make_constant("0.5");
-    dual n = make_constant("1");
+    dual m = 0.5;
+    dual n = 1;
 
     dual alpha = sqrt(n * n - m * m);
 
@@ -159,7 +160,7 @@ std::array<dual, 16> ellis_drainhole(dual t, dual r, dual theta, dual phi)
     dual Rp = sqrt(((r - m) * (r - m) + alpha * alpha) / (1 - Fp * Fp));
 
     dual dt1 = - c * c;
-    dual dp = make_constant("1") * make_constant("1");
+    dual dp = 1 * 1;
     dual dt = dt1 - Fp * Fp * c * c;
     dual dpdt = -2 * Fp * c;
 
@@ -180,11 +181,11 @@ std::array<dual, 16> ellis_drainhole(dual t, dual r, dual theta, dual phi)
 inline
 std::array<dual, 16> big_metric_test(dual t, dual p, dual theta, dual phi)
 {
-    dual c = make_constant("c");
-    dual n = make_constant("1");
+    dual c = "c";
+    dual n = 1;
 
     dual dt = -1 * c * c;
-    dual dr = make_constant("1");
+    dual dr = 1;
     dual dtheta = (p * p + n * n);
     dual dphi = (p * p + n * n) * (sin(theta) * sin(theta));
 
@@ -200,13 +201,13 @@ std::array<dual, 16> big_metric_test(dual t, dual p, dual theta, dual phi)
 inline
 std::array<dual, 16> kerr_metric(dual t, dual r, dual theta, dual phi)
 {
-    dual rs = make_constant("1");
+    dual rs = 1;
 
-    dual a = make_constant("0.1");
+    dual a = 0.1;
     dual E = r * r + a * a * cos(theta) * cos(theta);
     dual D = r * r  - rs * r + a * a;
 
-    dual c = make_constant("1");
+    dual c = 1;
 
     std::array<dual, 16> ret;
 
@@ -318,11 +319,11 @@ std::array<dual, 3> polar_to_polar(dual r, dual theta, dual phi)
     return {r, theta, phi};
 }
 
-inline auto coordinate_transform_to = cylindrical_to_polar;
-inline auto coordinate_transform_from = polar_to_cylindrical;
+//inline auto coordinate_transform_to = cylindrical_to_polar;
+//inline auto coordinate_transform_from = polar_to_cylindrical;
 
-//inline auto coordinate_transform_to = polar_to_polar;
-//inline auto coordinate_transform_from = polar_to_polar;
+inline auto coordinate_transform_to = polar_to_polar;
+inline auto coordinate_transform_from = polar_to_polar;
 
 //inline auto coordinate_transform_to = cartesian_to_polar_dual;
 //inline auto coordinate_transform_from = polar_to_cartesian_dual;
@@ -361,8 +362,9 @@ int main()
 
     #ifdef GENERIC_METRIC
     //auto [real_eq, derivatives] = evaluate_metric(test_metric, "v1", "v2", "v3", "v4");
+    auto [real_eq, derivatives] = evaluate_metric(schwarzschild_blackhole, "v1", "v2", "v3", "v4");
 
-    auto [real_eq, derivatives] = evaluate_metric2D_DC(cylinder_test, "v1", "v2", "v3", "v4");
+    //auto [real_eq, derivatives] = evaluate_metric2D_DC(cylinder_test, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D_DC(big_imaginary_metric_test, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D_DC(minkowski_space, "v1", "v2", "v3", "v4");
 
@@ -440,7 +442,7 @@ int main()
 
     argument_string += " -DGENERIC_METRIC -DVERLET_INTEGRATION_GENERIC";
 
-    //argument_string += " -DGENERIC_CONSTANT_THETA";
+    argument_string += " -DGENERIC_CONSTANT_THETA";
     //argument_string += " -DPOLE_SINGULAIRTY";
     argument_string += " -DSINGULAR";
 
