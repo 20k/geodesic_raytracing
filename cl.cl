@@ -1438,9 +1438,9 @@ struct frame_basis calculate_frame_basis(float big_metric[])
     ///while really i think it should be columns, the metric tensor is always symmetric
     ///this seems better for memory ordering
     float4 i1 = (float4)(big_metric[0], big_metric[1], big_metric[2], big_metric[3]);
-    float4 i2 = (float4)(big_metric[4], big_metric[5], big_metric[6], big_metric[7]);
-    float4 i3 = (float4)(big_metric[8], big_metric[9], big_metric[10], big_metric[11]);
-    float4 i4 = (float4)(big_metric[12], big_metric[13], big_metric[14], big_metric[15]);
+    float4 i2 = (float4)(big_metric[1], big_metric[5], big_metric[6], big_metric[7]);
+    float4 i3 = (float4)(big_metric[2], big_metric[6], big_metric[10], big_metric[11]);
+    float4 i4 = (float4)(big_metric[3], big_metric[7], big_metric[11], big_metric[15]);
 
     float g_big_metric_inverse[16] = {};
     metric_inverse(big_metric, g_big_metric_inverse);
