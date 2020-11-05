@@ -42,6 +42,12 @@ std::array<dual, 4> schwarzschild_blackhole(dual t, dual r, dual theta, dual phi
     return {dt, dr, dtheta, dphi};
 }
 
+/*inline
+std::array<dual, 4> schwarzschild_blackhole_lemaitre(dual T, dual p, dual theta, dual phi)
+{
+
+}*/
+
 ////https://arxiv.org/pdf/0904.4184.pdf
 inline
 std::array<dual, 4> traversible_wormhole(dual t, dual p, dual theta, dual phi)
@@ -129,7 +135,7 @@ std::array<dual, 4> janis_newman_winicour(dual t, dual r, dual theta, dual phi)
 std::array<dual, 4> janis_newman_winicour(dual t, dual r, dual theta, dual phi)
 {
     dual r0 = 1;
-    dual mu = 2;
+    dual mu = 4;
 
     dual Ar = pow((2 * r - r0 * (mu - 1)) / (2 * r + r0 * (mu + 1)), 1/mu);
     dual Br = (1/4.f) * pow(2 * r + r0 * (mu + 1), (1/mu) + 1) / pow(2 * r - r0 * (mu - 1), (1/mu) - 1);
@@ -325,50 +331,50 @@ std::array<dual, 16> alcubierre_metric(dual t, dual x, dual y, dual z)
 }
 
 inline
-std::array<dual, 3> cylindrical_to_polar(dual p, dual phi, dual z)
+std::array<dual, 4> cylindrical_to_polar(dual t, dual p, dual phi, dual z)
 {
     dual rr = sqrt(p * p + z * z);
     dual rtheta = atan2(p, z);
     //dual rtheta = atan(p / z);
     dual rphi = phi;
 
-    return {rr, rtheta, rphi};
+    return {t, rr, rtheta, rphi};
 }
 
 inline
-std::array<dual, 3> polar_to_cylindrical(dual r, dual theta, dual phi)
+std::array<dual, 4> polar_to_cylindrical(dual t, dual r, dual theta, dual phi)
 {
     dual rp = r * sin(theta);
     dual rphi = phi;
     dual rz = r * cos(theta);
 
-    return {rp, rphi, rz};
+    return {t, rp, rphi, rz};
 }
 
 inline
-std::array<dual, 3> polar_to_cartesian_dual(dual r, dual theta, dual phi)
+std::array<dual, 4> polar_to_cartesian_dual(dual t, dual r, dual theta, dual phi)
 {
     dual x = r * sin(theta) * cos(phi);
     dual y = r * sin(theta) * sin(phi);
     dual z = r * cos(theta);
 
-    return {x, y, z};
+    return {t, x, y, z};
 }
 
 inline
-std::array<dual, 3> cartesian_to_polar_dual(dual x, dual y, dual z)
+std::array<dual, 4> cartesian_to_polar_dual(dual t, dual x, dual y, dual z)
 {
     dual r = sqrt(x * x + y * y + z * z);
     dual theta = atan2(sqrt(x * x + y * y), z);
     dual phi = atan2(y, x);
 
-    return {r, theta, phi};
+    return {t, r, theta, phi};
 }
 
 inline
-std::array<dual, 3> polar_to_polar(dual r, dual theta, dual phi)
+std::array<dual, 4> polar_to_polar(dual t, dual r, dual theta, dual phi)
 {
-    return {r, theta, phi};
+    return {t, r, theta, phi};
 }
 
 //inline auto coordinate_transform_to = cylindrical_to_polar;
@@ -414,7 +420,7 @@ int main()
 
     #ifdef GENERIC_METRIC
     //auto [real_eq, derivatives] = evaluate_metric(test_metric, "v1", "v2", "v3", "v4");
-    //auto [real_eq, derivatives] = evaluate_metric(schwarzschild_blackhole, "v1", "v2", "v3", "v4");
+    auto [real_eq, derivatives] = evaluate_metric(schwarzschild_blackhole, "v1", "v2", "v3", "v4");
 
     //auto [real_eq, derivatives] = evaluate_metric2D_DC(cylinder_test, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D_DC(big_imaginary_metric_test, "v1", "v2", "v3", "v4");
@@ -422,7 +428,7 @@ int main()
 
     //auto [real_eq, derivatives] = evaluate_metric2D(kerr_metric, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D(ellis_drainhole, "v1", "v2", "v3", "v4");
-    auto [real_eq, derivatives] = evaluate_metric2D(janis_newman_winicour, "v1", "v2", "v3", "v4");
+    //auto [real_eq, derivatives] = evaluate_metric2D(janis_newman_winicour, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D(alcubierre_metric, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D(big_metric_test, "v1", "v2", "v3", "v4");
 
@@ -470,8 +476,8 @@ int main()
     }
 
     {
-        auto [to_polar, dt_to_spherical] = total_diff(coordinate_transform_to, "v1", "v2", "v3");
-        auto [from_polar, dt_from_spherical] = total_diff(coordinate_transform_from, "v1", "v2", "v3");
+        auto [to_polar, dt_to_spherical] = total_diff(coordinate_transform_to, "v1", "v2", "v3", "v4");
+        auto [from_polar, dt_from_spherical] = total_diff(coordinate_transform_from, "v1", "v2", "v3", "v4");
 
         for(int i=0; i < to_polar.size(); i++)
         {

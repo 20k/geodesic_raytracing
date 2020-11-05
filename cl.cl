@@ -1197,64 +1197,74 @@ void calculate_partial_derivatives_generic_big(float4 spacetime_position, float 
 }
 #endif // GENERIC_BIG_METRIC
 
-float3 generic_to_spherical(float3 in)
+float4 generic_to_spherical(float4 in)
 {
     float v1 = in.x;
     float v2 = in.y;
     float v3 = in.z;
+    float v4 = in.w;
 
     float o1 = TO_COORD1;
     float o2 = TO_COORD2;
     float o3 = TO_COORD3;
+    float o4 = TO_COORD4;
 
-    return (float3)(o1, o2, o3);
+    return (float4)(o1, o2, o3, o4);
 }
 
-float3 generic_velocity_to_spherical_velocity(float3 in, float3 inv)
+float4 generic_velocity_to_spherical_velocity(float4 in, float4 inv)
 {
     float v1 = in.x;
     float v2 = in.y;
     float v3 = in.z;
+    float v4 = in.w;
 
     float dv1 = inv.x;
     float dv2 = inv.y;
     float dv3 = inv.z;
+    float dv4 = inv.w;
 
     float o1 = TO_DCOORD1;
     float o2 = TO_DCOORD2;
     float o3 = TO_DCOORD3;
+    float o4 = TO_DCOORD4;
 
-    return (float3)(o1, o2, o3);
+    return (float4)(o1, o2, o3, o4);
 }
 
-float3 spherical_to_generic(float3 in)
+float4 spherical_to_generic(float4 in)
 {
     float v1 = in.x;
     float v2 = in.y;
     float v3 = in.z;
+    float v4 = in.w;
 
     float o1 = FROM_COORD1;
     float o2 = FROM_COORD2;
     float o3 = FROM_COORD3;
+    float o4 = FROM_COORD4;
 
-    return (float3)(o1, o2, o3);
+    return (float4)(o1, o2, o3, o4);
 }
 
-float3 spherical_velocity_to_generic_velocity(float3 in, float3 inv)
+float4 spherical_velocity_to_generic_velocity(float4 in, float4 inv)
 {
     float v1 = in.x;
     float v2 = in.y;
     float v3 = in.z;
+    float v4 = in.w;
 
     float dv1 = inv.x;
     float dv2 = inv.y;
     float dv3 = inv.z;
+    float dv4 = inv.w;
 
     float o1 = FROM_DCOORD1;
     float o2 = FROM_DCOORD2;
     float o3 = FROM_DCOORD3;
+    float o4 = FROM_DCOORD4;
 
-    return (float3)(o1, o2, o3);
+    return (float4)(o1, o2, o3, o4);
 }
 
 ///[0, 1, 2, 3]
@@ -1527,12 +1537,12 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
     }
     #endif // GENERIC_CONSTANT_THETA
 
-    float3 polar_camera = cartesian_to_polar(cartesian_camera_pos.yzw);
+    float4 polar_camera = (float4)(cartesian_camera_pos.x, cartesian_to_polar(cartesian_camera_pos.yzw));
 
     float4 lightray_velocity;
     float4 lightray_spacetime_position;
 
-    float4 at_metric = (float4)(cartesian_camera_pos.x, spherical_to_generic(polar_camera));
+    float4 at_metric = spherical_to_generic(polar_camera);
 
     /*if(cx == 500 && cy == 400)
     {
@@ -1599,30 +1609,30 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
     float3 sVy = cY.yzw;
     float3 sVz = cZ.yzw;*/
 
-    float3 sVx = btheta.yzw;
-    float3 sVy = bphi.yzw;
-    float3 sVz = bX.yzw;
+    float4 sVx = btheta;
+    float4 sVy = bphi;
+    float4 sVz = bX;
 
-    float3 polar_x = generic_velocity_to_spherical_velocity(at_metric.yzw, sVx);
-    float3 polar_y = generic_velocity_to_spherical_velocity(at_metric.yzw, sVy);
-    float3 polar_z = generic_velocity_to_spherical_velocity(at_metric.yzw, sVz);
+    float4 polar_x = generic_velocity_to_spherical_velocity(at_metric, sVx);
+    float4 polar_y = generic_velocity_to_spherical_velocity(at_metric, sVy);
+    float4 polar_z = generic_velocity_to_spherical_velocity(at_metric, sVz);
 
-    float3 cartesian_cx = spherical_velocity_to_cartesian_velocity(polar_camera, polar_x);
-    float3 cartesian_cy = spherical_velocity_to_cartesian_velocity(polar_camera, polar_y);
-    float3 cartesian_cz = spherical_velocity_to_cartesian_velocity(polar_camera, polar_z);
+    float3 cartesian_cx = spherical_velocity_to_cartesian_velocity(polar_camera.yzw, polar_x.yzw);
+    float3 cartesian_cy = spherical_velocity_to_cartesian_velocity(polar_camera.yzw, polar_y.yzw);
+    float3 cartesian_cz = spherical_velocity_to_cartesian_velocity(polar_camera.yzw, polar_z.yzw);
 
     pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
 
     pixel_direction = normalize(pixel_direction);
 
-    float4 pixel_x = (float4)(0, pixel_direction.x * polar_x);
-    float4 pixel_y = (float4)(0, pixel_direction.y * polar_y);
-    float4 pixel_z = (float4)(0, pixel_direction.z * polar_z);
+    float4 pixel_x = (float4)(polar_x.x, pixel_direction.x * polar_x.yzw);
+    float4 pixel_y = (float4)(polar_y.x, pixel_direction.y * polar_y.yzw);
+    float4 pixel_z = (float4)(polar_z.x, pixel_direction.z * polar_z.yzw);
     float4 pixel_t = 1 * bT;
 
-    pixel_x = (float4)(btheta.x, spherical_velocity_to_generic_velocity(polar_camera, pixel_x.yzw));
-    pixel_y = (float4)(bphi.x, spherical_velocity_to_generic_velocity(polar_camera, pixel_y.yzw));
-    pixel_z = (float4)(bX.x, spherical_velocity_to_generic_velocity(polar_camera, pixel_z.yzw));
+    pixel_x = spherical_velocity_to_generic_velocity(polar_camera, pixel_x);
+    pixel_y = spherical_velocity_to_generic_velocity(polar_camera, pixel_y);
+    pixel_z = spherical_velocity_to_generic_velocity(polar_camera, pixel_z);
 
     float4 vec = pixel_x + pixel_y + pixel_z + pixel_t;
 
@@ -1746,9 +1756,9 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         float new_max = 6 * rs;
         float new_min = 1.5 * rs;
 
-        float3 polar_position = generic_to_spherical(position.yzw);
+        float4 polar_position = generic_to_spherical(position);
 
-        float r_value = polar_position.x;
+        float r_value = polar_position.y;
 
         float ds = linear_val(fabs(r_value), new_min, new_max, ambient_precision, subambient_precision);
 
@@ -1763,14 +1773,14 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         #define TERMINATE_ERROR_BOUND (M_PI/32)
 
         #ifdef POLE_SINGULARITY
-        if(polar_position.y < ERR_BOUND)
+        if(polar_position.z < ERR_BOUND)
         {
-            ds = mix(0.05, ds, polar_position.y / ERR_BOUND);
+            ds = mix(0.05, ds, polar_position.z / ERR_BOUND);
         }
 
-        if(polar_position.y >= (M_PI - ERR_BOUND))
+        if(polar_position.z >= (M_PI - ERR_BOUND))
         {
-            float ffrac = (M_PI - polar_position.y) / ERR_BOUND;
+            float ffrac = (M_PI - polar_position.z) / ERR_BOUND;
             ds = mix(0.05, ds, ffrac);
         }
         #endif // GENERIC_CONSTANT_THETA
@@ -1786,27 +1796,27 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         bool singularity = false;
 
         #ifdef POLE_SINGULARITY
-        singularity = polar_position.y < TERMINATE_ERROR_BOUND || polar_position.y >= M_PI - TERMINATE_ERROR_BOUND;
+        singularity = polar_position.z < TERMINATE_ERROR_BOUND || polar_position.z >= M_PI - TERMINATE_ERROR_BOUND;
         #endif
 
         #ifndef SINGULAR
-        if(fabs(polar_position.x) >= 200000 || singularity)
+        if(fabs(polar_position.y) >= 200000 || singularity)
         #else
-        if(fabs(polar_position.x) < rs*1.000001 || fabs(polar_position.x) >= 200000 || singularity)
+        if(fabs(polar_position.y) < rs*1.000001 || fabs(polar_position.y) >= 200000 || singularity)
         #endif // SINGULAR
         {
             int out_id = atomic_inc(finished_count_out);
 
-            if(polar_position.x < 0)
-                polar_position.x = -polar_position.x;
+            if(polar_position.y < 0)
+                polar_position.y = -polar_position.y;
 
-            float3 polar_velocity = generic_velocity_to_spherical_velocity(position.yzw, velocity.yzw);
+            float4 polar_velocity = generic_velocity_to_spherical_velocity(position, velocity);
 
             struct lightray out_ray;
             out_ray.sx = sx;
             out_ray.sy = sy;
-            out_ray.position = (float4)(0, polar_position);
-            out_ray.velocity = (float4)(0, polar_velocity);
+            out_ray.position = polar_position;
+            out_ray.velocity = polar_velocity;
             out_ray.acceleration = 0;
 
             finished_rays[out_id] = out_ray;
