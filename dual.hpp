@@ -581,6 +581,13 @@ dual_types::dual_v<T> pow(const dual_types::dual_v<T>& d1, const dual_types::dua
     return dual_types::dual_v<T>(pow(d1.real, d2.real), pow(d1.real, d2.real) * (d1.dual * (d2.real / d1.real) + d2.dual * log(d1.real)));
 }
 
+template<typename T, typename U>
+inline
+dual_types::dual_v<T> pow(const dual_types::dual_v<T>& d1, const U& d2)
+{
+    return pow(d1, dual_types::dual_v<T>(T(d2), T()));
+}
+
 template<typename T>
 inline
 dual_types::dual_v<T> exp(const dual_types::dual_v<T>& d1)

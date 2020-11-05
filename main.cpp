@@ -107,7 +107,7 @@ std::array<dual, 4> ernst_metric(dual t, dual r, dual theta, dual phi)
     return {dt, dr, dtheta, dphi};
 }
 
-/*inline
+inline
 std::array<dual, 4> janis_newman_winicour(dual t, dual r, dual theta, dual phi)
 {
     //dual gamma = make_constant("1");
@@ -124,7 +124,7 @@ std::array<dual, 4> janis_newman_winicour(dual t, dual r, dual theta, dual phi)
     dual dphi = r * r * pow(alpha, -gamma + 1) * sin(theta) * sin(theta);
 
     return {dt, dr, dtheta, dphi};
-}*/
+}
 
 inline
 std::array<dual, 4> de_sitter(dual t, dual r, dual theta, dual phi)
