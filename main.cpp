@@ -272,6 +272,9 @@ std::array<dual_complex, 16> cylinder_test(dual_complex t, dual_complex r, dual_
     return ret_fat;
 }
 
+///rendering alcubierre nicely is very hard: the shell is extremely thin, and flat on both sides
+///this means that a naive timestepping method results in a lot of distortion
+///need to crank down subambient_precision, and crank up new_max to about 20 * rs
 inline
 std::array<dual, 16> alcubierre_metric(dual t, dual x, dual y, dual z)
 {
@@ -281,7 +284,7 @@ std::array<dual, 16> alcubierre_metric(dual t, dual x, dual y, dual z)
 
     dual rs_t = sqrt((x - xs_t) * (x - xs_t) + y * y + z * z);
 
-    dual sigma = 0.9;
+    dual sigma = 20;
     dual R = 1;
 
     dual f_rs = (tanh(sigma * (rs_t + R)) - tanh(sigma * (rs_t - R))) / (2 * tanh(sigma * R));
