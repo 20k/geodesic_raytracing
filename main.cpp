@@ -698,6 +698,11 @@ int main()
             camera = {0, 0, 0, 1.03};
         }
 
+        if(ImGui::IsKeyPressed(GLFW_KEY_C))
+        {
+            camera = {0, 0, 0, 0};
+        }
+
         if(ImGui::IsKeyPressed(GLFW_KEY_R))
         {
             camera = {0, 0, 22, 0};
