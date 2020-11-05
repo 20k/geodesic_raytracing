@@ -1558,7 +1558,7 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
     float4 lightray_velocity;
     float4 lightray_spacetime_position;
 
-    float4 at_metric = (float4)(0, spherical_to_generic(polar_camera));
+    float4 at_metric = (float4)(cartesian_camera_pos.x, spherical_to_generic(polar_camera));
 
     /*if(cx == 500 && cy == 400)
     {
@@ -1743,7 +1743,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
     ///ambient precision however looks way too low at 0.01, testing up to 0.3 showed no noticable difference, needs more precise tests though
     ///only in the case without kruskals and event horizon crossings however, any precision > 0.01 is insufficient in that case
-    float ambient_precision = 0.01;
+    float ambient_precision = 0.1;
     float subambient_precision = 0.5;
 
     //#ifdef NO_EVENT_HORIZON_CROSSING
@@ -1752,7 +1752,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
     //#endif // NO_KRUSKAL
     //#endif // NO_EVENT_HORIZON_CROSSING
 
-    subambient_precision = 0.5;
+    subambient_precision = 0.05;
 
     float rs = 1;
 
@@ -1760,7 +1760,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
     float4 last_velocity = 0;
     float4 intermediate_velocity = 0;
 
-    for(int i=0; i < 6400/125; i++)
+    for(int i=0; i < 64000/125; i++)
     {
         #ifdef IS_CONSTANT_THETA
         position.z = M_PI/2;
@@ -1769,7 +1769,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         acceleration.z = 0;
         #endif // IS_CONSTANT_THETA
 
-        float new_max = 6 * rs;
+        float new_max = 10 * rs;
         float new_min = 1.5 * rs;
 
         float3 polar_position = generic_to_spherical(position.yzw);

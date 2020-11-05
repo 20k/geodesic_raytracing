@@ -283,8 +283,8 @@ std::array<dual, 16> alcubierre_metric(dual t, dual x, dual y, dual z)
 
     dual rs_t = sqrt((x - xs_t) * (x - xs_t) + y * y + z * z);
 
-    dual sigma = 0.99;
-    dual R = 1;
+    dual sigma = 0.5;
+    dual R = 0.1;
 
     dual f_rs = (tanh(sigma * (rs_t + R)) - tanh(sigma * (rs_t - R))) / (2 * tanh(sigma * R));
 
@@ -761,6 +761,8 @@ int main()
         ImGui::DragFloat("Time", &time);
 
         ImGui::Checkbox("Supersample", &supersample);
+
+        ImGui::SliderFloat("CTime", &camera.v[0], 0.f, 100.f);
 
         ImGui::End();
 

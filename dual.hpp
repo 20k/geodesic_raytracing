@@ -10,7 +10,7 @@ inline
 std::string to_string_s(float v)
 {
     std::ostringstream oss;
-    oss << std::setprecision(8) << std::noshowpoint << v;
+    oss << std::setprecision(16) << std::noshowpoint << v;
     std::string str = oss.str();
 
     return str;
