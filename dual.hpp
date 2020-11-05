@@ -203,6 +203,18 @@ std::string infix(std::string v1, std::string v2, std::string op)
 inline
 std::string outer(std::string v1, std::string v2, std::string op)
 {
+    if(op == "pow")
+    {
+        if(v2 == "0")
+            return "1";
+
+        auto c1 = get_value(v1);
+        auto c2 = get_value(v2);
+
+        if(c1.has_value() && c2.has_value())
+            return to_string_s(pow(c1.value(), c2.value()));
+    }
+
     return op + "(" + v1 + "," + v2 + ")";
 }
 
