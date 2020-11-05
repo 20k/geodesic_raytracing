@@ -1087,6 +1087,10 @@ void calculate_partial_derivatives_generic(float4 spacetime_position, float g_me
 }
 #endif // GENERIC_BIG_METRIC
 
+///[0, 1, 2, 3]
+///[4, 5, 6, 7]
+///[8, 9, 10,11]
+///[12,13,14,15]
 #ifdef GENERIC_BIG_METRIC
 void calculate_metric_generic_big(float4 spacetime_position, float g_metric_out[])
 {
@@ -1102,17 +1106,17 @@ void calculate_metric_generic_big(float4 spacetime_position, float g_metric_out[
     g_metric_out[1] = F2_I;
     g_metric_out[2] = F3_I;
     g_metric_out[3] = F4_I;
-    g_metric_out[4] = F5_I;
+    g_metric_out[4] = g_metric_out[1];
     g_metric_out[5] = F6_I;
     g_metric_out[6] = F7_I;
     g_metric_out[7] = F8_I;
-    g_metric_out[8] = F9_I;
-    g_metric_out[9] = F10_I;
+    g_metric_out[8] = g_metric_out[2];
+    g_metric_out[9] = g_metric_out[6];
     g_metric_out[10] = F11_I;
     g_metric_out[11] = F12_I;
-    g_metric_out[12] = F13_I;
-    g_metric_out[13] = F14_I;
-    g_metric_out[14] = F15_I;
+    g_metric_out[12] = g_metric_out[3];
+    g_metric_out[13] = g_metric_out[7];
+    g_metric_out[14] = g_metric_out[11];
     g_metric_out[15] = F16_I;
 }
 
