@@ -107,11 +107,11 @@ std::array<dual, 4> ernst_metric(dual t, dual r, dual theta, dual phi)
     return {dt, dr, dtheta, dphi};
 }
 
-inline
+/*inline
 std::array<dual, 4> janis_newman_winicour(dual t, dual r, dual theta, dual phi)
 {
     //dual gamma = make_constant("1");
-    float gamma = 0.1;
+    float gamma = 0.51;
 
     dual rs = 1;
     dual c = 1;
@@ -122,6 +122,22 @@ std::array<dual, 4> janis_newman_winicour(dual t, dual r, dual theta, dual phi)
     dual dr = pow(alpha, -gamma);
     dual dtheta = r * r * pow(alpha, -gamma + 1);
     dual dphi = r * r * pow(alpha, -gamma + 1) * sin(theta) * sin(theta);
+
+    return {dt, dr, dtheta, dphi};
+}*/
+
+std::array<dual, 4> janis_newman_winicour(dual t, dual r, dual theta, dual phi)
+{
+    dual r0 = 1;
+    dual mu = 2;
+
+    dual Ar = pow((2 * r - r0 * (mu - 1)) / (2 * r + r0 * (mu + 1)), 1/mu);
+    dual Br = (1/4.f) * pow(2 * r + r0 * (mu + 1), (1/mu) + 1) / pow(2 * r - r0 * (mu - 1), (1/mu) - 1);
+
+    dual dt = -Ar;
+    dual dr = 1/Ar;
+    dual dtheta = Br;
+    dual dphi = Br * sin(theta) * sin(theta);
 
     return {dt, dr, dtheta, dphi};
 }
@@ -358,11 +374,11 @@ std::array<dual, 3> polar_to_polar(dual r, dual theta, dual phi)
 //inline auto coordinate_transform_to = cylindrical_to_polar;
 //inline auto coordinate_transform_from = polar_to_cylindrical;
 
-//inline auto coordinate_transform_to = polar_to_polar;
-//inline auto coordinate_transform_from = polar_to_polar;
+inline auto coordinate_transform_to = polar_to_polar;
+inline auto coordinate_transform_from = polar_to_polar;
 
-inline auto coordinate_transform_to = cartesian_to_polar_dual;
-inline auto coordinate_transform_from = polar_to_cartesian_dual;
+//inline auto coordinate_transform_to = cartesian_to_polar_dual;
+//inline auto coordinate_transform_from = polar_to_cartesian_dual;
 
 /*inline
 std::array<dual, 4> test_metric(dual t, dual p, dual theta, dual phi)
@@ -406,7 +422,8 @@ int main()
 
     //auto [real_eq, derivatives] = evaluate_metric2D(kerr_metric, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D(ellis_drainhole, "v1", "v2", "v3", "v4");
-    auto [real_eq, derivatives] = evaluate_metric2D(alcubierre_metric, "v1", "v2", "v3", "v4");
+    auto [real_eq, derivatives] = evaluate_metric2D(janis_newman_winicour, "v1", "v2", "v3", "v4");
+    //auto [real_eq, derivatives] = evaluate_metric2D(alcubierre_metric, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D(big_metric_test, "v1", "v2", "v3", "v4");
 
     /*{
@@ -479,7 +496,7 @@ int main()
 
     argument_string += " -DGENERIC_METRIC -DVERLET_INTEGRATION_GENERIC";
 
-    //argument_string += " -DGENERIC_CONSTANT_THETA";
+    argument_string += " -DGENERIC_CONSTANT_THETA";
     //argument_string += " -DPOLE_SINGULAIRTY";
     //argument_string += " -DSINGULAR";
 
