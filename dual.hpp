@@ -353,9 +353,9 @@ dual_types::symbol sqrt(const dual_types::symbol& d1)
 }
 
 inline
-dual_types::symbol pow(const dual_types::symbol& d1, float v)
+dual_types::symbol pow(const dual_types::symbol& d1, const dual_types::symbol& d2)
 {
-    return dual_types::symbol(outer(d1.sym, to_string_s(v), "pow"));
+    return dual_types::symbol(outer(d1.sym, d2.sym, "pow"));
 }
 
 inline
