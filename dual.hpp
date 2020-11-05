@@ -252,6 +252,14 @@ std::string unary(std::string v1, std::string op)
             return to_string_s(tanh(c1.value()));
     }
 
+    if(op == "log")
+    {
+        auto c1 = get_value(v1);
+
+        if(c1.has_value())
+            return to_string_s(log(c1.value()));
+    }
+
     if(op == "-")
     {
         return "(" + op + "(" + v1 + "))";
@@ -348,6 +356,12 @@ inline
 dual_types::symbol pow(const dual_types::symbol& d1, float v)
 {
     return dual_types::symbol(outer(d1.sym, to_string_s(v), "pow"));
+}
+
+inline
+dual_types::symbol log(const dual_types::symbol& d1)
+{
+    return dual_types::symbol(unary(d1.sym, "log"));
 }
 
 inline
@@ -560,12 +574,12 @@ dual_types::dual_v<T> sqrt(const dual_types::dual_v<T>& d1)
     return dual_types::dual_v<T>(sqrt(d1.real), 0.5f * d1.dual / sqrt(d1.real));
 }
 
-/*template<typename T>
+template<typename T>
 inline
-dual_types::dual_v<T> pow(const dual_types::dual_v<T>& d1, const T& v)
+dual_types::dual_v<T> pow(const dual_types::dual_v<T>& d1, const dual_types::dual_v<T>& d2)
 {
-    return dual_types::dual_v<T>(pow(d1.real, v), )
-}*/
+    return dual_types::dual_v<T>(pow(d1.real, d2.real), pow(d1.real, d2.real) * (d1.dual * (d2.real / d1.real) + d2.dual * log(d1.real)));
+}
 
 template<typename T>
 inline
