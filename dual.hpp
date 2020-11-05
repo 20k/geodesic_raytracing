@@ -104,8 +104,6 @@ std::optional<float> get_value(std::string in)
     {
         if(in.front() == '(' && in.back() == ')')
         {
-            std::cout << "hi " << in << std::endl;
-
             in.erase(in.begin());
             in.pop_back();
         }
