@@ -1802,7 +1802,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         #ifndef SINGULAR
         if(fabs(polar_position.y) >= 200000 || singularity)
         #else
-        if(fabs(polar_position.y) < rs*1.000001 || fabs(polar_position.y) >= 200000 || singularity)
+        if(fabs(polar_position.y) < rs*SINGULAR_TERMINATOR || fabs(polar_position.y) >= 200000 || singularity)
         #endif // SINGULAR
         {
             int out_id = atomic_inc(finished_count_out);
@@ -2726,12 +2726,12 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
     float rs = 1;
     float r_value = position.y;
 
-    #ifdef NO_EVENT_HORIZON_CROSSING
+    #if !defined(TRAVERSABLE_EVENT_HORIZON) || (defined(NO_EVENT_HORIZON_CROSSING) && !defined(GENERIC_METRIC))
     if(r_value <= rs)
     {
         return;
     }
-    #endif // NO_EVENT_HORIZON_CROSSINGS
+    #endif
 
     float3 cart_here = polar_to_cartesian((float3)(r_value, position.zw));
 
@@ -2836,18 +2836,18 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
     float rs = 1;
     float r_value = position.y;
 
-    #ifdef NO_EVENT_HORIZON_CROSSING
+    #if !defined(TRAVERSABLE_EVENT_HORIZON) || (defined(NO_EVENT_HORIZON_CROSSING) && !defined(GENERIC_METRIC))
     if(r_value <= rs * 2)
     {
         write_imagef(out, (int2){sx, sy}, (float4)(0, 0, 0, 1));
         return;
     }
-    #endif // NO_EVENT_HORIZON_CROSSINGS
+    #endif
 
     float sxf = texture_coordinates[sy * width + sx].x;
     float syf = texture_coordinates[sy * width + sx].y;
 
-    #ifndef NO_EVENT_HORIZON_CROSSING
+    ///we actually do have an event horizon
     if(r_value <= rs)
     {
         float4 val = (float4)(0,0,0,1);
@@ -2870,7 +2870,6 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
         write_imagef(out, (int2){sx, sy}, val);
         return;
     }
-    #endif // NO_EVENT_HORIZON_CROSSINGS
 
     #define MIPMAPPING
     #ifdef MIPMAPPING

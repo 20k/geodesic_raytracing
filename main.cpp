@@ -42,11 +42,20 @@ std::array<dual, 4> schwarzschild_blackhole(dual t, dual r, dual theta, dual phi
     return {dt, dr, dtheta, dphi};
 }
 
-/*inline
+inline
 std::array<dual, 4> schwarzschild_blackhole_lemaitre(dual T, dual p, dual theta, dual phi)
 {
+    dual rs = 1;
 
-}*/
+    dual r = pow(((3/2.f) * (p - T)), 2.f/3.f) * pow(rs, 1.f/3.f);
+
+    dual dT = -1;
+    dual dp = (rs / r);
+    dual dtheta = r * r;
+    dual dphi = r * r * sin(theta) * sin(theta);
+
+    return {dT, dp, dtheta, dphi};
+}
 
 ////https://arxiv.org/pdf/0904.4184.pdf
 inline
@@ -331,6 +340,28 @@ std::array<dual, 16> alcubierre_metric(dual t, dual x, dual y, dual z)
 }
 
 inline
+std::array<dual, 4> lemaitre_to_polar(dual T, dual p, dual theta, dual phi)
+{
+    dual rs = 1;
+
+    dual r = pow((3/2.f) * (p - T), 2.f/3.f) * pow(rs, 1/3.f);
+
+    ///T is incorrect here, but i can't find the correct version, and we need T anyway for polar to lemaitre
+    ///because... i can't find the correct equations. Ah well
+    return {T, r, theta, phi};
+}
+
+inline
+std::array<dual, 4> polar_to_lemaitre(dual T, dual r, dual theta, dual phi)
+{
+    dual rs = 1;
+
+    dual p = (pow((r / pow(rs, 1/3.f)), 3/2.f) * 2/3.f) + T;
+
+    return {T, p, theta, phi};
+}
+
+inline
 std::array<dual, 4> cylindrical_to_polar(dual t, dual p, dual phi, dual z)
 {
     dual rr = sqrt(p * p + z * z);
@@ -380,11 +411,14 @@ std::array<dual, 4> polar_to_polar(dual t, dual r, dual theta, dual phi)
 //inline auto coordinate_transform_to = cylindrical_to_polar;
 //inline auto coordinate_transform_from = polar_to_cylindrical;
 
-inline auto coordinate_transform_to = polar_to_polar;
-inline auto coordinate_transform_from = polar_to_polar;
+//inline auto coordinate_transform_to = polar_to_polar;
+//inline auto coordinate_transform_from = polar_to_polar;
 
 //inline auto coordinate_transform_to = cartesian_to_polar_dual;
 //inline auto coordinate_transform_from = polar_to_cartesian_dual;
+
+inline auto coordinate_transform_to = lemaitre_to_polar;
+inline auto coordinate_transform_from = polar_to_lemaitre;
 
 /*inline
 std::array<dual, 4> test_metric(dual t, dual p, dual theta, dual phi)
@@ -420,7 +454,8 @@ int main()
 
     #ifdef GENERIC_METRIC
     //auto [real_eq, derivatives] = evaluate_metric(test_metric, "v1", "v2", "v3", "v4");
-    auto [real_eq, derivatives] = evaluate_metric(schwarzschild_blackhole, "v1", "v2", "v3", "v4");
+    //auto [real_eq, derivatives] = evaluate_metric(schwarzschild_blackhole, "v1", "v2", "v3", "v4");
+    auto [real_eq, derivatives] = evaluate_metric(schwarzschild_blackhole_lemaitre, "v1", "v2", "v3", "v4");
 
     //auto [real_eq, derivatives] = evaluate_metric2D_DC(cylinder_test, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D_DC(big_imaginary_metric_test, "v1", "v2", "v3", "v4");
@@ -504,7 +539,10 @@ int main()
 
     argument_string += " -DGENERIC_CONSTANT_THETA";
     //argument_string += " -DPOLE_SINGULAIRTY";
-    //argument_string += " -DSINGULAR";
+    argument_string += " -DSINGULAR";
+    argument_string += " -DTRAVERSABLE_EVENT_HORIZON";
+    argument_string += " -DSINGULAR_TERMINATOR=0.75";
+    //argument_string += " -DSINGULAR_TERMINATOR=1.000001";
 
     std::cout << "ASTRING " << argument_string << std::endl;
 
