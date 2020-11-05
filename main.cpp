@@ -275,16 +275,14 @@ std::array<dual_complex, 16> cylinder_test(dual_complex t, dual_complex r, dual_
 inline
 std::array<dual, 16> alcubierre_metric(dual t, dual x, dual y, dual z)
 {
-    //dual rs = 1;
-
     dual dxs_t = 0.9;
     dual xs_t = dxs_t * t;
     dual vs_t = dxs_t;
 
     dual rs_t = sqrt((x - xs_t) * (x - xs_t) + y * y + z * z);
 
-    dual sigma = 0.5;
-    dual R = 0.1;
+    dual sigma = 0.9;
+    dual R = 1;
 
     dual f_rs = (tanh(sigma * (rs_t + R)) - tanh(sigma * (rs_t - R))) / (2 * tanh(sigma * R));
 

@@ -1752,7 +1752,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
     //#endif // NO_KRUSKAL
     //#endif // NO_EVENT_HORIZON_CROSSING
 
-    subambient_precision = 0.05;
+    subambient_precision = 0.5;
 
     float rs = 1;
 
@@ -1769,7 +1769,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         acceleration.z = 0;
         #endif // IS_CONSTANT_THETA
 
-        float new_max = 10 * rs;
+        float new_max = 6 * rs;
         float new_min = 1.5 * rs;
 
         float3 polar_position = generic_to_spherical(position.yzw);
