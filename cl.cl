@@ -1803,6 +1803,8 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
     float last_ds = 1000;
 
+    float next_ds = 0.01;
+
     ///results:
     ///subambient_precision can't go above 0.5 much while in verlet mode without the size of the event horizon changing
     ///in euler mode this is actually already too low
@@ -1814,11 +1816,13 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
     //#ifdef NO_EVENT_HORIZON_CROSSING
     //#ifdef NO_KRUSKAL
-    ambient_precision = 0.0001;
+    //ambient_precision = 0.0001;
     //#endif // NO_KRUSKAL
     //#endif // NO_EVENT_HORIZON_CROSSING
 
     subambient_precision = 0.1;
+
+    ambient_precision = 0.5;
 
     float rs = 1;
 
@@ -1842,12 +1846,23 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
         float r_value = polar_position.y;
 
-        float ds = linear_val(fabs(r_value), new_min, new_max, ambient_precision, subambient_precision);
+        //float ds = linear_val(fabs(r_value), new_min, new_max, ambient_precision, subambient_precision);
 
-        if(fabs(r_value) >= new_max)
+        float ds = next_ds;
+
+        /*if(fabs(r_value) >= new_max)
         {
             float end_max = 4000000;
 
+            ds = 0.1 * (fabs(r_value) - new_max) + subambient_precision;
+        }*/
+
+        if(fabs(r_value) < new_max)
+        {
+            ds = min(ds, subambient_precision);
+        }
+        else
+        {
             ds = 0.1 * (fabs(r_value) - new_max) + subambient_precision;
         }
 
@@ -1882,7 +1897,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         #endif
 
         ///hack for the kerr metric
-        //if(position.y * position.y + position.z * position.z - 4 * 4 < 0.001 && fabs(position.w) < 0.001)
+        //if((position.y * position.y + position.z * position.z - 4 * 4) < 0.001 && fabs(position.w) < 0.001)
         //    return;
 
         #ifndef SINGULAR
@@ -1958,6 +1973,40 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         #endif // GENERIC_BIG_METRIC
 
         float4 next_velocity = velocity + 0.5f * (acceleration + next_acceleration) * ds;
+
+        if(sx == 500 && sy == 400)
+        {
+            //float len = fast_length(next_acceleration);
+
+            //float err = length(((next_acceleration - acceleration) / ds) + (acceleration / (next_velocity - velocity)) * acceleration);
+
+            //float err = ds * ds * fast_length(next_acceleration - acceleration);
+
+            //printf("Len %f %f r %f\n", err, ds, r_value);
+        }
+
+        //float err = ds * ds * fast_length(next_acceleration - acceleration);
+
+        float err = 0.00001;
+        float i_hate_computers = 100;
+
+        float max_timestep = 100000;
+
+        float diff = fast_length(next_acceleration * i_hate_computers - acceleration * i_hate_computers);
+
+        if(diff < err * i_hate_computers / pow(max_timestep, 2))
+            diff = err * i_hate_computers / pow(max_timestep, 2);
+
+        next_ds = sqrt(((err * i_hate_computers) / diff));
+
+        next_ds = max(next_ds, 0.00001);
+
+        /*if(sx == 500 && sy == 400)
+        {
+            printf("NDS %f\n", next_ds);
+        }
+
+        next_ds = 100000;*/
 
         #ifdef IS_CONSTANT_THETA
         next_position.z = 0;

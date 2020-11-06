@@ -256,7 +256,7 @@ std::array<dual, 16> kerr_metric(dual t, dual r, dual theta, dual phi)
 inline
 std::array<dual, 16> kerr_schild_metric(dual t, dual x, dual y, dual z)
 {
-    dual a = 4;
+    dual a = 2;
 
     dual R2 = x * x + y * y + z * z;
 
@@ -693,7 +693,8 @@ int main()
     cl::device_command_queue dqueue(clctx.ctx);
 
     ///t, x, y, z
-    vec4f camera = {0, 0, -8, 0};
+    vec4f camera = {0, -2, -8, 0};
+    //vec4f camera = {0, 0, -8, 0};
     //vec4f camera = {0, 0.01, -0.024, -5.5};
     quat camera_quat;
 
