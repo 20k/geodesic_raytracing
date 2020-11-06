@@ -35,6 +35,7 @@ float spacetime_metric_value(int i, int k, int l, float g_partial[16])
 
 */
 
+
 float3 cartesian_to_polar(float3 in)
 {
     float r = length(in);
@@ -190,6 +191,54 @@ float3 spherical_velocity_to_cartesian_velocity(float3 p, float3 dp)
     float v3 = cos(x) * dr - r * sin(x) * dx;
 
     return (float3){v1, v2, v3};
+}
+
+float3 fix_ray_position(float3 polar_pos, float3 polar_velocity, float sphere_radius)
+{
+    float3 cartesian_pos = polar_to_cartesian(polar_pos);
+    float3 cartesian_velocity = spherical_velocity_to_cartesian_velocity(polar_pos, polar_velocity);
+
+    float3 C = (float3){0,0,0};
+
+    float3 L = C - cartesian_pos;
+    float tca = dot(L, cartesian_velocity);
+
+    //if(tca < 0)
+    //    return polar_pos;
+
+    float d2 = dot(L, L) - tca * tca;
+
+    if(d2 > sphere_radius * sphere_radius)
+        return polar_pos;
+
+    float thc = sqrt(sphere_radius * sphere_radius - d2);
+
+    float t0 = tca - thc;
+    float t1 = tca + thc;
+
+    if(t0 > 0 && t1 > 0)
+        return polar_pos;
+
+    float my_t = 0;
+
+    if(t0 < 0 && t1 < 0)
+    {
+        my_t = max(t0, t1);
+    }
+
+    if(t0 < 0 && t1 > 0)
+    {
+        my_t = t0;
+    }
+
+    if(t0 > 0 && t1 < 0)
+    {
+        my_t = t1;
+    }
+
+    float3 new_cart = cartesian_pos + my_t * cartesian_velocity;
+
+    return cartesian_to_polar(new_cart);
 }
 
 float3 rotate_vector(float3 bx, float3 by, float3 bz, float3 v)
@@ -1811,6 +1860,11 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
                 polar_position.y = -polar_position.y;
 
             float4 polar_velocity = generic_velocity_to_spherical_velocity(position, velocity);
+
+            if(fabs(polar_position.y) >= 200000)
+            {
+                polar_position.yzw = fix_ray_position(polar_position.yzw, polar_velocity.yzw, 200000);
+            }
 
             struct lightray out_ray;
             out_ray.sx = sx;
