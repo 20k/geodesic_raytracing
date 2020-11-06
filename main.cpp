@@ -234,7 +234,7 @@ std::array<dual, 16> kerr_metric(dual t, dual r, dual theta, dual phi)
 {
     dual rs = 1;
 
-    dual a = 0.1;
+    dual a = 2;
     dual E = r * r + a * a * cos(theta) * cos(theta);
     dual D = r * r  - rs * r + a * a;
 
@@ -287,6 +287,29 @@ std::array<dual, 16> kerr_schild_metric(dual t, dual x, dual y, dual z)
     }
 
     return g;
+}
+
+inline
+std::array<dual, 16> kerr_rational_polynomial(dual t, dual r, dual X, dual phi)
+{
+    dual m = 0.5;
+    dual a = 2;
+
+    dual dt = -(1 - 2 * m * r / (r * r + a * a * X * X));
+    dual dphidt = - (4 * a * m * r * (1 - X * X))/(r * r + a * a * X * X);
+    dual dr = (r * r + a * a * X * X) / (r * r - 2 * m * r + a * a);
+    dual dX = (r * r + a * a * X * X) / (1 - X * X);
+    dual dphi = (1 - X * X) * (r * r + a * a + (2 * m * a * a * r * (1 - X * X)) / (r * r + a * a * X * X));
+
+    std::array<dual, 16> ret;
+    ret[0 * 4 + 0] = dt;
+    ret[1 * 4 + 1] = dr;
+    ret[2 * 4 + 2] = dX;
+    ret[3 * 4 + 3] = dphi;
+    ret[0 * 4 + 3] = dphidt;
+    ret[3 * 4 + 0] = dphidt;
+
+    return ret;
 }
 
 inline
@@ -445,17 +468,32 @@ std::array<dual, 4> polar_to_polar(dual t, dual r, dual theta, dual phi)
     return {t, r, theta, phi};
 }
 
+inline
+std::array<dual, 4> rational_to_polar(dual t, dual r, dual X, dual phi)
+{
+    return {t, r, acos(X), phi};
+}
+
+inline
+std::array<dual, 4> polar_to_rational(dual t, dual r, dual theta, dual phi)
+{
+    return {t, r, cos(theta), phi};
+}
+
 //inline auto coordinate_transform_to = cylindrical_to_polar;
 //inline auto coordinate_transform_from = polar_to_cylindrical;
 
-//inline auto coordinate_transform_to = polar_to_polar;
-//inline auto coordinate_transform_from = polar_to_polar;
+inline auto coordinate_transform_to = polar_to_polar;
+inline auto coordinate_transform_from = polar_to_polar;
 
-inline auto coordinate_transform_to = cartesian_to_polar_dual;
-inline auto coordinate_transform_from = polar_to_cartesian_dual;
+//inline auto coordinate_transform_to = cartesian_to_polar_dual;
+//inline auto coordinate_transform_from = polar_to_cartesian_dual;
 
 //inline auto coordinate_transform_to = lemaitre_to_polar;
 //inline auto coordinate_transform_from = polar_to_lemaitre;
+
+//inline auto coordinate_transform_to = rational_to_polar;
+//inline auto coordinate_transform_from = polar_to_rational;
 
 /*inline
 std::array<dual, 4> test_metric(dual t, dual p, dual theta, dual phi)
@@ -491,7 +529,9 @@ int main()
 
     #ifdef GENERIC_METRIC
     //auto [real_eq, derivatives] = evaluate_metric(test_metric, "v1", "v2", "v3", "v4");
-    auto [real_eq, derivatives] = evaluate_metric2D(kerr_schild_metric, "v1", "v2", "v3", "v4");
+    auto [real_eq, derivatives] = evaluate_metric2D(kerr_metric, "v1", "v2", "v3", "v4");
+    //auto [real_eq, derivatives] = evaluate_metric2D(kerr_rational_polynomial, "v1", "v2", "v3", "v4");
+    //auto [real_eq, derivatives] = evaluate_metric2D(kerr_schild_metric, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric(schwarzschild_blackhole, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric(schwarzschild_blackhole_lemaitre, "v1", "v2", "v3", "v4");
 
