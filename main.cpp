@@ -256,22 +256,25 @@ std::array<dual, 16> kerr_metric(dual t, dual r, dual theta, dual phi)
 inline
 std::array<dual, 16> kerr_schild_metric(dual t, dual x, dual y, dual z)
 {
-    dual a = 1;
+    dual a = 4;
 
     dual R2 = x * x + y * y + z * z;
 
-    dual r = sqrt((R2 - a*a + sqrt((R2 - a*a) * (R2 - a*a) + 4 * a*a * z*z))/2);
+    dual r2 = (R2 - a*a + sqrt((R2 - a*a) * (R2 - a*a) + 4 * a*a * z*z))/2;
+
+    dual r = sqrt(r2);
 
     std::array<dual, 16> minkowski = {-1, 0, 0, 0,
                                        0, 1, 0, 0,
                                        0, 0, 1, 0,
                                        0, 0, 0, 1};
 
-    std::array<dual, 4> lv = {1, (r*x + a*y) / (r*r + a*a), (r*y - a*x) / (r*r + a*a), z/r};
+    std::array<dual, 4> lv = {1, (r*x + a*y) / (r2 + a*a), (r*y - a*x) / (r2 + a*a), z/r};
 
     dual rs = 1;
 
-    dual f = rs * r*r*r / (r*r*r*r + a*a * z*z);
+    dual f = rs * r2 * r / (r2 * r2 + a*a * z*z);
+    //dual f = rs * r*r*r / (r*r*r*r + a*a * z*z);
 
     std::array<dual, 16> g;
 
@@ -488,7 +491,7 @@ int main()
 
     #ifdef GENERIC_METRIC
     //auto [real_eq, derivatives] = evaluate_metric(test_metric, "v1", "v2", "v3", "v4");
-    auto [real_eq, derivatives] = evaluate_metric(kerr_schild_metric, "v1", "v2", "v3", "v4");
+    auto [real_eq, derivatives] = evaluate_metric2D(kerr_schild_metric, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric(schwarzschild_blackhole, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric(schwarzschild_blackhole_lemaitre, "v1", "v2", "v3", "v4");
 
@@ -570,7 +573,9 @@ int main()
         }
     }
 
-    argument_string += " -DGENERIC_METRIC -DVERLET_INTEGRATION_GENERIC";
+    argument_string += " -DGENERIC_METRIC";
+    //argument_string += " -DEULER_INTEGRATION_GENERIC";
+    argument_string += " -DVERLET_INTEGRATION_GENERIC";
 
     //argument_string += " -DGENERIC_CONSTANT_THETA";
     //argument_string += " -DPOLE_SINGULAIRTY";

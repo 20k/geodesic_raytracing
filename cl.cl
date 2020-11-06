@@ -1809,16 +1809,16 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
     ///ambient precision however looks way too low at 0.01, testing up to 0.3 showed no noticable difference, needs more precise tests though
     ///only in the case without kruskals and event horizon crossings however, any precision > 0.01 is insufficient in that case
-    float ambient_precision = 0.1;
+    float ambient_precision = 0.001;
     float subambient_precision = 0.5;
 
     //#ifdef NO_EVENT_HORIZON_CROSSING
     //#ifdef NO_KRUSKAL
-    ambient_precision = 0.5;
+    ambient_precision = 0.0001;
     //#endif // NO_KRUSKAL
     //#endif // NO_EVENT_HORIZON_CROSSING
 
-    subambient_precision = 0.5;
+    subambient_precision = 0.1;
 
     float rs = 1;
 
@@ -1835,8 +1835,8 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         acceleration.z = 0;
         #endif // IS_CONSTANT_THETA
 
-        float new_max = 6 * rs;
-        float new_min = 1.5 * rs;
+        float new_max = 10 * rs;
+        float new_min = 3 * rs;
 
         float4 polar_position = generic_to_spherical(position);
 
@@ -1881,6 +1881,10 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         singularity = polar_position.z < TERMINATE_ERROR_BOUND || polar_position.z >= M_PI - TERMINATE_ERROR_BOUND;
         #endif
 
+        ///hack for the kerr metric
+        //if(position.y * position.y + position.z * position.z - 4 * 4 < 0.001 && fabs(position.w) < 0.001)
+        //    return;
+
         #ifndef SINGULAR
         if(fabs(polar_position.y) >= UNIVERSE_SIZE || singularity)
         #else
@@ -1911,12 +1915,21 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         #endif // VERLET_INTEGRATION
 
         #ifdef EULER_INTEGRATION_GENERIC
+
+        #ifndef GENERIC_BIG_METRIC
         calculate_metric_generic(position, g_metric);
         calculate_partial_derivatives_generic(position, g_partials);
 
         velocity = fix_light_velocity2(velocity, g_metric);
 
         float4 lacceleration = calculate_acceleration(velocity, g_metric, g_partials);
+        #else
+        calculate_metric_generic_big(position, g_metric_big);
+        calculate_partial_derivatives_generic_big(position, g_partials_big);
+
+        float4 lacceleration = calculate_acceleration_big(velocity, g_metric_big, g_partials_big);
+        #endif // GENERIC_BIG_METRIC
+
         velocity += lacceleration * ds;
 
         position += velocity * ds;
