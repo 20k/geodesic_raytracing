@@ -252,6 +252,40 @@ std::array<dual, 16> kerr_metric(dual t, dual r, dual theta, dual phi)
     return ret;
 }
 
+///https://arxiv.org/pdf/0706.0622.pdf
+inline
+std::array<dual, 16> kerr_schild_metric(dual t, dual x, dual y, dual z)
+{
+    dual a = 1;
+
+    dual R2 = x * x + y * y + z * z;
+
+    dual r = sqrt((R2 - a*a + sqrt((R2 - a*a) * (R2 - a*a) + 4 * a*a * z*z))/2);
+
+    std::array<dual, 16> minkowski = {-1, 0, 0, 0,
+                                       0, 1, 0, 0,
+                                       0, 0, 1, 0,
+                                       0, 0, 0, 1};
+
+    std::array<dual, 4> lv = {1, (r*x + a*y) / (r*r + a*a), (r*y - a*x) / (r*r + a*a), z/r};
+
+    dual rs = 1;
+
+    dual f = rs * r*r*r / (r*r*r*r + a*a * z*z);
+
+    std::array<dual, 16> g;
+
+    for(int a=0; a < 4; a++)
+    {
+        for(int b=0; b < 4; b++)
+        {
+            g[a * 4 + b] = minkowski[a * 4 + b] + f * lv[a] * lv[b];
+        }
+    }
+
+    return g;
+}
+
 inline
 std::array<dual_complex, 16> big_imaginary_metric_test(dual_complex t, dual_complex p, dual_complex theta, dual_complex phi)
 {
@@ -411,11 +445,11 @@ std::array<dual, 4> polar_to_polar(dual t, dual r, dual theta, dual phi)
 //inline auto coordinate_transform_to = cylindrical_to_polar;
 //inline auto coordinate_transform_from = polar_to_cylindrical;
 
-inline auto coordinate_transform_to = polar_to_polar;
-inline auto coordinate_transform_from = polar_to_polar;
+//inline auto coordinate_transform_to = polar_to_polar;
+//inline auto coordinate_transform_from = polar_to_polar;
 
-//inline auto coordinate_transform_to = cartesian_to_polar_dual;
-//inline auto coordinate_transform_from = polar_to_cartesian_dual;
+inline auto coordinate_transform_to = cartesian_to_polar_dual;
+inline auto coordinate_transform_from = polar_to_cartesian_dual;
 
 //inline auto coordinate_transform_to = lemaitre_to_polar;
 //inline auto coordinate_transform_from = polar_to_lemaitre;
@@ -454,7 +488,8 @@ int main()
 
     #ifdef GENERIC_METRIC
     //auto [real_eq, derivatives] = evaluate_metric(test_metric, "v1", "v2", "v3", "v4");
-    auto [real_eq, derivatives] = evaluate_metric(schwarzschild_blackhole, "v1", "v2", "v3", "v4");
+    auto [real_eq, derivatives] = evaluate_metric(kerr_schild_metric, "v1", "v2", "v3", "v4");
+    //auto [real_eq, derivatives] = evaluate_metric(schwarzschild_blackhole, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric(schwarzschild_blackhole_lemaitre, "v1", "v2", "v3", "v4");
 
     //auto [real_eq, derivatives] = evaluate_metric2D_DC(cylinder_test, "v1", "v2", "v3", "v4");
@@ -537,13 +572,13 @@ int main()
 
     argument_string += " -DGENERIC_METRIC -DVERLET_INTEGRATION_GENERIC";
 
-    argument_string += " -DGENERIC_CONSTANT_THETA";
+    //argument_string += " -DGENERIC_CONSTANT_THETA";
     //argument_string += " -DPOLE_SINGULAIRTY";
-    argument_string += " -DSINGULAR";
+    //argument_string += " -DSINGULAR";
     //argument_string += " -DTRAVERSABLE_EVENT_HORIZON";
     //argument_string += " -DSINGULAR_TERMINATOR=0.75";
     argument_string += " -DUNIVERSE_SIZE=200000";
-    argument_string += " -DSINGULAR_TERMINATOR=1.000001";
+    //argument_string += " -DSINGULAR_TERMINATOR=1.000001";
 
     std::cout << "ASTRING " << argument_string << std::endl;
 
@@ -653,8 +688,15 @@ int main()
     cl::device_command_queue dqueue(clctx.ctx);
 
     ///t, x, y, z
-    vec4f camera = {0, 0.01, -0.024, -5.5};
+    vec4f camera = {0, 0, -8, 0};
+    //vec4f camera = {0, 0.01, -0.024, -5.5};
     quat camera_quat;
+
+    quat q;
+    q.load_from_axis_angle({1, 0, 0, -M_PI/2});
+
+    camera_quat = q * camera_quat;
+
     //camera_quat.load_from_matrix(axis_angle_to_mat({0, 0, 0}, 0));
 
     vec3f forward_axis = {0, 0, 1};

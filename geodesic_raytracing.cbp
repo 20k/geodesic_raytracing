@@ -105,9 +105,6 @@
 		<Unit filename="deps/imgui/imgui_draw.cpp" />
 		<Unit filename="deps/imgui/imgui_widgets.cpp" />
 		<Unit filename="deps/imgui/misc/freetype/imgui_freetype.cpp" />
-		<Unit filename="deps/networking/beast_compilation_unit.cpp" />
-		<Unit filename="deps/networking/networking.cpp" />
-		<Unit filename="deps/networking/serialisable.cpp" />
 		<Unit filename="deps/toolkit/base_serialisables.cpp" />
 		<Unit filename="deps/toolkit/base_serialisables.hpp" />
 		<Unit filename="deps/toolkit/clipboard.cpp" />
