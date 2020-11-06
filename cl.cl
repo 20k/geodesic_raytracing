@@ -1814,7 +1814,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
     //#ifdef NO_EVENT_HORIZON_CROSSING
     //#ifdef NO_KRUSKAL
-    ambient_precision = 0.05;
+    ambient_precision = 0.5;
     //#endif // NO_KRUSKAL
     //#endif // NO_EVENT_HORIZON_CROSSING
 

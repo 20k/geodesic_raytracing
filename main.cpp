@@ -411,14 +411,14 @@ std::array<dual, 4> polar_to_polar(dual t, dual r, dual theta, dual phi)
 //inline auto coordinate_transform_to = cylindrical_to_polar;
 //inline auto coordinate_transform_from = polar_to_cylindrical;
 
-//inline auto coordinate_transform_to = polar_to_polar;
-//inline auto coordinate_transform_from = polar_to_polar;
+inline auto coordinate_transform_to = polar_to_polar;
+inline auto coordinate_transform_from = polar_to_polar;
 
 //inline auto coordinate_transform_to = cartesian_to_polar_dual;
 //inline auto coordinate_transform_from = polar_to_cartesian_dual;
 
-inline auto coordinate_transform_to = lemaitre_to_polar;
-inline auto coordinate_transform_from = polar_to_lemaitre;
+//inline auto coordinate_transform_to = lemaitre_to_polar;
+//inline auto coordinate_transform_from = polar_to_lemaitre;
 
 /*inline
 std::array<dual, 4> test_metric(dual t, dual p, dual theta, dual phi)
@@ -454,8 +454,8 @@ int main()
 
     #ifdef GENERIC_METRIC
     //auto [real_eq, derivatives] = evaluate_metric(test_metric, "v1", "v2", "v3", "v4");
-    //auto [real_eq, derivatives] = evaluate_metric(schwarzschild_blackhole, "v1", "v2", "v3", "v4");
-    auto [real_eq, derivatives] = evaluate_metric(schwarzschild_blackhole_lemaitre, "v1", "v2", "v3", "v4");
+    auto [real_eq, derivatives] = evaluate_metric(schwarzschild_blackhole, "v1", "v2", "v3", "v4");
+    //auto [real_eq, derivatives] = evaluate_metric(schwarzschild_blackhole_lemaitre, "v1", "v2", "v3", "v4");
 
     //auto [real_eq, derivatives] = evaluate_metric2D_DC(cylinder_test, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D_DC(big_imaginary_metric_test, "v1", "v2", "v3", "v4");
@@ -540,10 +540,10 @@ int main()
     argument_string += " -DGENERIC_CONSTANT_THETA";
     //argument_string += " -DPOLE_SINGULAIRTY";
     argument_string += " -DSINGULAR";
-    argument_string += " -DTRAVERSABLE_EVENT_HORIZON";
-    argument_string += " -DSINGULAR_TERMINATOR=0.75";
+    //argument_string += " -DTRAVERSABLE_EVENT_HORIZON";
+    //argument_string += " -DSINGULAR_TERMINATOR=0.75";
     argument_string += " -DUNIVERSE_SIZE=200000";
-    //argument_string += " -DSINGULAR_TERMINATOR=1.000001";
+    argument_string += " -DSINGULAR_TERMINATOR=1.000001";
 
     std::cout << "ASTRING " << argument_string << std::endl;
 
