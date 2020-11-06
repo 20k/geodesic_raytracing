@@ -419,6 +419,12 @@ dual_types::symbol tanh(const dual_types::symbol& d1)
 }
 
 inline
+dual_types::symbol acos(const dual_types::symbol& d1)
+{
+    return dual_types::symbol(unary(d1.sym, "acos"));
+}
+
+inline
 dual_types::symbol atan(const dual_types::symbol& d1)
 {
     return dual_types::symbol(unary(d1.sym, "atan"));
@@ -647,6 +653,13 @@ inline
 dual_types::dual_v<T> tanh(const dual_types::dual_v<T>& d1)
 {
     return dual_types::dual_v<T>(tanh(d1.real), d1.dual * (1 - tanh(d1.real) * tanh(d1.real)));
+}
+
+template<typename T>
+inline
+dual_types::dual_v<T> acos(const dual_types::dual_v<T>& d1)
+{
+    return dual_types::dual_v<T>(acos(d1.real), -d1.dual / sqrt(1 - d1.real * d1.real));
 }
 
 template<typename T>
