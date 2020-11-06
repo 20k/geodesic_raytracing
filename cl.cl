@@ -2812,6 +2812,7 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
             position.yzw = fix_ray_position(position.yzw, ray->velocity.yzw, UNIVERSE_SIZE, true);
         }
 
+        ///I'm not 100% sure this is working as well as it could be
         #if defined(SINGULAR) && defined(TRAVERSABLE_EVENT_HORIZON)
         if(fabs(position.y) < SINGULAR_TERMINATOR)
         {
