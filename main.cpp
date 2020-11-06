@@ -540,9 +540,10 @@ int main()
     argument_string += " -DGENERIC_CONSTANT_THETA";
     //argument_string += " -DPOLE_SINGULAIRTY";
     argument_string += " -DSINGULAR";
-    //argument_string += " -DTRAVERSABLE_EVENT_HORIZON";
-    //argument_string += " -DSINGULAR_TERMINATOR=0.75";
-    argument_string += " -DSINGULAR_TERMINATOR=1.000001";
+    argument_string += " -DTRAVERSABLE_EVENT_HORIZON";
+    argument_string += " -DSINGULAR_TERMINATOR=0.75";
+    argument_string += " -DUNIVERSE_SIZE=200000";
+    //argument_string += " -DSINGULAR_TERMINATOR=1.000001";
 
     std::cout << "ASTRING " << argument_string << std::endl;
 

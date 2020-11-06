@@ -193,10 +193,12 @@ float3 spherical_velocity_to_cartesian_velocity(float3 p, float3 dp)
     return (float3){v1, v2, v3};
 }
 
-float3 fix_ray_position(float3 polar_pos, float3 polar_velocity, float sphere_radius)
+float3 fix_ray_position(float3 polar_pos, float3 polar_velocity, float sphere_radius, bool outwards_facing)
 {
-    float3 cartesian_pos = polar_to_cartesian(polar_pos);
     float3 cartesian_velocity = spherical_velocity_to_cartesian_velocity(polar_pos, polar_velocity);
+
+    //polar_pos = polar_pos - polar_velocity;
+    float3 cartesian_pos = polar_to_cartesian(polar_pos);
 
     float3 C = (float3){0,0,0};
 
@@ -216,29 +218,60 @@ float3 fix_ray_position(float3 polar_pos, float3 polar_velocity, float sphere_ra
     float t0 = tca - thc;
     float t1 = tca + thc;
 
-    if(t0 > 0 && t1 > 0)
-        return polar_pos;
+    //printf("PPR %f\n", polar_pos.x);
+
+
+    //if(t0 < 0 && t1 < 0)
+    //    return polar_pos;
 
     float my_t = 0;
 
-    if(t0 < 0 && t1 < 0)
+    if(outwards_facing)
     {
-        my_t = max(t0, t1);
+        if(t0 > 0 && t1 > 0)
+            return polar_pos;
+
+        if(t0 < 0 && t1 < 0)
+            my_t = max(t0, t1);
+
+        if(t0 < 0 && t1 > 0)
+            my_t = t0;
+
+        if(t0 > 0 && t1 < 0)
+            my_t = t1;
+    }
+    else
+    {
+        if(t0 < 0 && t1 < 0)
+            return polar_pos;
+
+        if(t0 < 0 && t1 > 0)
+            my_t = t1;
+
+        if(t0 > 0 && t1 > 0)
+            my_t = min(t0, t1);
     }
 
-    if(t0 < 0 && t1 > 0)
+    /*if(t0 > 0 && t1 > 0)
     {
-        my_t = t0;
-    }
+        my_t = min(t0, t1);
+    }*/
 
-    if(t0 > 0 && t1 < 0)
+
+    /*if(t0 < 0 && t1 > 0)
     {
         my_t = t1;
-    }
+    }*/
+
+    //printf("Hithere %f %f %f\n", my_t, t0, t1);
 
     float3 new_cart = cartesian_pos + my_t * cartesian_velocity;
 
-    return cartesian_to_polar(new_cart);
+    float3 new_polar = cartesian_to_polar(new_cart);
+
+    //printf("NPR %f\n", new_polar.x);
+
+    return new_polar;
 }
 
 float3 rotate_vector(float3 bx, float3 by, float3 bz, float3 v)
@@ -1849,9 +1882,9 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         #endif
 
         #ifndef SINGULAR
-        if(fabs(polar_position.y) >= 200000 || singularity)
+        if(fabs(polar_position.y) >= UNIVERSE_SIZE || singularity)
         #else
-        if(fabs(polar_position.y) < rs*SINGULAR_TERMINATOR || fabs(polar_position.y) >= 200000 || singularity)
+        if(fabs(polar_position.y) < rs*SINGULAR_TERMINATOR || fabs(polar_position.y) >= UNIVERSE_SIZE || singularity)
         #endif // SINGULAR
         {
             int out_id = atomic_inc(finished_count_out);
@@ -1860,11 +1893,6 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
                 polar_position.y = -polar_position.y;
 
             float4 polar_velocity = generic_velocity_to_spherical_velocity(position, velocity);
-
-            if(fabs(polar_position.y) >= 200000)
-            {
-                polar_position.yzw = fix_ray_position(polar_position.yzw, polar_velocity.yzw, 200000);
-            }
 
             struct lightray out_ray;
             out_ray.sx = sx;
@@ -2777,6 +2805,22 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
 
     float4 position = ray->position;
 
+    #if defined(UNIVERSE_SIZE)
+    {
+        if(fabs(position.y) >= UNIVERSE_SIZE)
+        {
+            position.yzw = fix_ray_position(position.yzw, ray->velocity.yzw, UNIVERSE_SIZE, true);
+        }
+
+        #if defined(SINGULAR) && defined(TRAVERSABLE_EVENT_HORIZON)
+        if(fabs(position.y) < SINGULAR_TERMINATOR)
+        {
+            position.yzw = fix_ray_position(position.yzw, ray->velocity.yzw, SINGULAR_TERMINATOR, true);
+        }
+        #endif
+    }
+    #endif
+
     float rs = 1;
     float r_value = position.y;
 
@@ -2886,6 +2930,22 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
         return;
 
     float4 position = ray->position;
+
+    #if defined(UNIVERSE_SIZE)
+    {
+        if(fabs(position.y) >= UNIVERSE_SIZE)
+        {
+            position.yzw = fix_ray_position(position.yzw, ray->velocity.yzw, UNIVERSE_SIZE, true);
+        }
+
+        #if defined(SINGULAR) && defined(TRAVERSABLE_EVENT_HORIZON)
+        if(fabs(position.y) < SINGULAR_TERMINATOR)
+        {
+            position.yzw = fix_ray_position(position.yzw, ray->velocity.yzw, SINGULAR_TERMINATOR, true);
+        }
+        #endif
+    }
+    #endif
 
     float rs = 1;
     float r_value = position.y;
