@@ -1445,6 +1445,31 @@ void metric_inverse(const float m[16], float invOut[16])
         invOut[i] = inv[i] * det;
 }
 
+float4 fix_light_velocity_big(float4 v, float g_metric_big[])
+{
+    float4 c = tensor_contract(g_metric_big, v);
+
+    ///dot(c, v) = 0
+    ///c.x * v.x + c.y * v.y + c.z * v.z + c.w * v.w = 0
+    float4 r = v;
+
+    ///c.x * v.x = -c.y * v.y + c.z * v.z + c.w * v.w
+    ///so, tensor contracting the t component to get c is
+    ///g_metric_big[0] * v.x + g_metric_big[1] * v.y + g_metric_big[2] * v.z + g_metric_big[3] * v.w
+
+    //(g_metric_big[0] * v.x + g_metric_big[1] * v.y + g_metric_big[2] * v.z + g_metric_big[3] * v.w) * v.x = -(c.y * v.y + c.z * v.z + c.w * v.w)
+
+    float k = g_metric_big[1] * v.y + g_metric_big[2] * v.z + g_metric_big[3] * v.w;
+    float d = -(c.y * v.y + c.z * v.z + c.w * v.w);
+    float a = g_metric_big[0];
+
+    float nx = (-sqrt(4 * a * d + k * k) - k) / (2 * a);
+
+    r.x = nx;
+
+    return r;
+}
+
 float4 calculate_acceleration_big(float4 lightray_velocity, float g_metric_big[16], float g_partials_big[64])
 {
     #ifdef IS_CONSTANT_THETA
@@ -1660,6 +1685,17 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
         //if(cx == 500 && cy == 400)
         //printf("DS %f\n", dot_product_big(my_vec, my_vec, g_metric_big));
 
+        /*if(cx == 500 && cy == 400)
+        {
+            float d1 = dot_product_big(basis.v1, basis.v2, g_metric_big);
+            float d2 = dot_product_big(basis.v1, basis.v3, g_metric_big);
+            float d3 = dot_product_big(basis.v1, basis.v4, g_metric_big);
+            float d4 = dot_product_big(basis.v2, basis.v3, g_metric_big);
+            float d5 = dot_product_big(basis.v3, basis.v4, g_metric_big);
+
+            printf("ORTHONORMAL? %f %f %f %f %f\n", d1, d2, d3, d4, d5);
+        }*/
+
         bT = basis.v1;
         bX = basis.v2;
         btheta = basis.v3;
@@ -1667,18 +1703,18 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
     }
     #endif // GENERIC_BIG_METRIC
 
-    /*if(cx == 0 && cy == 0)
+    if(cx == 500 && cy == 400)
     {
         printf("BT %f %f %f %f\n", bT.x, bT.y, bT.z, bT.w);
         printf("bX %f %f %f %f\n", bX.x, bX.y, bX.z, bX.w);
         printf("btheta %f %f %f %f\n", btheta.x, btheta.y, btheta.z, btheta.w);
         printf("bphi %f %f %f %f\n", bphi.x, bphi.y, bphi.z, bphi.w);
 
-        printf("oBT %f %f %f %f\n", obT.x, obT.y, obT.z, obT.w);
+        /*printf("oBT %f %f %f %f\n", obT.x, obT.y, obT.z, obT.w);
         printf("obX %f %f %f %f\n", obX.x, obX.y, obX.z, obX.w);
         printf("obtheta %f %f %f %f\n", obtheta.x, obtheta.y, obtheta.z, obtheta.w);
-        printf("obphi %f %f %f %f\n", obphi.x, obphi.y, obphi.z, obphi.w);
-    }*/
+        printf("obphi %f %f %f %f\n", obphi.x, obphi.y, obphi.z, obphi.w);*/
+    }
 
     /*float lorenz[16] = {};
     get_lorenz_coeff(bT, g_metric, lorenz);
@@ -1707,10 +1743,10 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
 
     pixel_direction = normalize(pixel_direction);
 
-    float4 pixel_x = (float4)(polar_x.x, pixel_direction.x * polar_x.yzw);
-    float4 pixel_y = (float4)(polar_y.x, pixel_direction.y * polar_y.yzw);
-    float4 pixel_z = (float4)(polar_z.x, pixel_direction.z * polar_z.yzw);
-    float4 pixel_t = 1 * bT;
+    float4 pixel_x = pixel_direction.x * polar_x;
+    float4 pixel_y = pixel_direction.y * polar_y;
+    float4 pixel_z = pixel_direction.z * polar_z;
+    float4 pixel_t = bT;
 
     pixel_x = spherical_velocity_to_generic_velocity(polar_camera, pixel_x);
     pixel_y = spherical_velocity_to_generic_velocity(polar_camera, pixel_y);
@@ -1740,7 +1776,7 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
         #else
         float g_partials_big[64] = {0};
 
-        calculate_metric_generic_big(lightray_spacetime_position, g_metric_big);
+        //calculate_metric_generic_big(lightray_spacetime_position, g_metric_big);
         calculate_partial_derivatives_generic_big(lightray_spacetime_position, g_partials_big);
 
         //lightray_velocity = fix_light_velocity2(lightray_velocity, g_metric);
@@ -1846,9 +1882,9 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
         float r_value = polar_position.y;
 
-        //float ds = linear_val(fabs(r_value), new_min, new_max, ambient_precision, subambient_precision);
+        float ds = linear_val(fabs(r_value), new_min, new_max, ambient_precision, subambient_precision);
 
-        float ds = next_ds;
+        //float ds = next_ds;
 
         /*if(fabs(r_value) >= new_max)
         {
@@ -1969,6 +2005,8 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         ///1ms
         //intermediate_next_velocity = fix_light_velocity2(intermediate_next_velocity, g_metric);
 
+        velocity = fix_light_velocity_big(velocity, g_metric_big);
+
         float4 next_acceleration = calculate_acceleration_big(intermediate_next_velocity, g_metric_big, g_partials_big);
         #endif // GENERIC_BIG_METRIC
 
@@ -2022,8 +2060,11 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         velocity = next_velocity;
         intermediate_velocity = intermediate_next_velocity;
         acceleration = next_acceleration;
-
         #endif // VERLET_INTEGRATION
+
+        if(sx == 500 && sy == 400)
+        printf("DS %f\n", dot_product_big(velocity, velocity, g_metric_big));
+
     }
 
     int out_id = atomic_inc(generic_count_out);

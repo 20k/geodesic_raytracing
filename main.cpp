@@ -31,7 +31,7 @@ std::array<dual, 4> schwarzschild_blackhole(dual t, dual r, dual theta, dual phi
     dual rs("rs");
     dual c("c");
 
-    theta = "M_PI/2";
+    //theta = "M_PI/2";
 
     dual dt = -(1 - rs / r) * c * c;
 
