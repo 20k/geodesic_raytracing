@@ -229,6 +229,8 @@ std::array<dual, 16> big_metric_test(dual t, dual p, dual theta, dual phi)
     return ret;
 }
 
+///nanning derivatives: 21, 31, 16, 37, 44 47 35 19 28 5 15 21
+///((((v2+v2)*(((v2*v2)-v2)+4))-(((v2*v2)+((4*native_cos(v3))*native_cos(v3)))*((v2+v2)-1)))/((((v2*v2)-v2)+4)*(((v2*v2)-v2)+4)))
 inline
 std::array<dual, 16> kerr_metric(dual t, dual r, dual theta, dual phi)
 {
@@ -246,7 +248,7 @@ std::array<dual, 16> kerr_metric(dual t, dual r, dual theta, dual phi)
     ret[1 * 4 + 1] = E / D;
     ret[2 * 4 + 2] = E;
     ret[3 * 4 + 3] = (r * r + a * a + (rs * r * a * a / E) * sin(theta) * sin(theta)) * sin(theta) * sin(theta);
-    ret[0 * 4 + 3] = -2 * rs * r * a * sin(theta) * sin(theta) * c / E;
+    ret[0 * 4 + 3] = -1 * rs * r * a * sin(theta) * sin(theta) * c / E;
     ret[3 * 4 + 0] = ret[0 * 4 + 3];
 
     return ret;
