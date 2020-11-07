@@ -1445,8 +1445,18 @@ void metric_inverse(const float m[16], float invOut[16])
         invOut[i] = inv[i] * det;
 }
 
+float stable_quad(float a, float d, float k)
+{
+    if(k <= 4.38072748497961 * pow(10.f, 16.f))
+        return -(k + sqrt((4 * a) * d + k * k)) / (a * 2);
+
+    return -k / a;
+}
+
 float4 fix_light_velocity_big(float4 v, float g_metric_big[])
 {
+    //return v;
+
     float4 c = tensor_contract(g_metric_big, v);
 
     ///dot(c, v) = 0
@@ -1463,7 +1473,22 @@ float4 fix_light_velocity_big(float4 v, float g_metric_big[])
     float d = -(c.y * v.y + c.z * v.z + c.w * v.w);
     float a = g_metric_big[0];
 
-    float nx = (-sqrt(4 * a * d + k * k) - k) / (2 * a);
+    float nx = r.x;
+
+    float inner = 4 * a * d + k * k;
+
+    if(inner < 0)
+        return v;
+
+    if(fabs(a) > 0.1)
+        nx = stable_quad(a, d, k);
+    else
+        return v;
+
+    /*if(isnan(nx) && !(any(isnan(v))))
+    {
+        printf("A %f d %f k %f %f %f %f %f  %f %f %f %f", a, d, k, c.x, c.y, c.z, c.w, g_metric_big[0], g_metric_big[5], g_metric_big[10], g_metric_big[15]);
+    }*/
 
     r.x = nx;
 
@@ -1651,11 +1676,11 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
 
     float4 at_metric = spherical_to_generic(polar_camera);
 
-    if(cx == 500 && cy == 400)
+    /*if(cx == 500 && cy == 400)
     {
         printf("At %f %f %f %f\n", at_metric.x, at_metric.y, at_metric.z, at_metric.w);
         printf("was %f %f %f %f\n", cartesian_camera_pos.x, cartesian_camera_pos.y, cartesian_camera_pos.z, cartesian_camera_pos.w);
-    }
+    }*/
 
     #ifndef GENERIC_BIG_METRIC
     float g_metric[4] = {};
@@ -1705,10 +1730,10 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
 
     if(cx == 500 && cy == 400)
     {
-        printf("BT %f %f %f %f\n", bT.x, bT.y, bT.z, bT.w);
+        /*printf("BT %f %f %f %f\n", bT.x, bT.y, bT.z, bT.w);
         printf("bX %f %f %f %f\n", bX.x, bX.y, bX.z, bX.w);
         printf("btheta %f %f %f %f\n", btheta.x, btheta.y, btheta.z, btheta.w);
-        printf("bphi %f %f %f %f\n", bphi.x, bphi.y, bphi.z, bphi.w);
+        printf("bphi %f %f %f %f\n", bphi.x, bphi.y, bphi.z, bphi.w);*/
 
         /*printf("oBT %f %f %f %f\n", obT.x, obT.y, obT.z, obT.w);
         printf("obX %f %f %f %f\n", obX.x, obX.y, obX.z, obX.w);
@@ -1839,7 +1864,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
     float last_ds = 1000;
 
-    float next_ds = 0.01;
+    float next_ds = 0.00001;
 
     ///results:
     ///subambient_precision can't go above 0.5 much while in verlet mode without the size of the event horizon changing
@@ -1882,9 +1907,9 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
         float r_value = polar_position.y;
 
-        float ds = linear_val(fabs(r_value), new_min, new_max, ambient_precision, subambient_precision);
+        //float ds = linear_val(fabs(r_value), new_min, new_max, ambient_precision, subambient_precision);
 
-        //float ds = next_ds;
+        float ds = next_ds;
 
         /*if(fabs(r_value) >= new_max)
         {
@@ -2005,9 +2030,47 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         ///1ms
         //intermediate_next_velocity = fix_light_velocity2(intermediate_next_velocity, g_metric);
 
-        velocity = fix_light_velocity_big(velocity, g_metric_big);
+        intermediate_next_velocity = fix_light_velocity_big(intermediate_next_velocity, g_metric_big);
+
+        {
+            float spacetime_ds = dot_product_big(velocity, velocity, g_metric_big);
+
+            /*if(sx == 500 && sy == 400)
+            {
+                printf("DS %f\n", spacetime_ds);
+
+                printf("dt %f dr %f da %f dp %f dtdp %f\n", g_metric_big[0], g_metric_big[5], g_metric_big[10], g_metric_big[15], g_metric_big[3]);
+
+                printf("Rcoord %f %f %f %f\n", position.x, position.y, position.z, position.w);
+                printf("Velocity %f %f %f %f\n", intermediate_next_velocity.x, intermediate_next_velocity.y, intermediate_next_velocity.z, intermediate_next_velocity.w);
+
+                for(int i=0; i < 64; i++)
+                {
+                        //printf("Partials %f %i\n", g_partials_big[i], i);
+                }
+            }*/
+        }
+
+        //bool any_nan = any(isnan(intermediate_next_velocity));
 
         float4 next_acceleration = calculate_acceleration_big(intermediate_next_velocity, g_metric_big, g_partials_big);
+
+        /*if(!any_nan && any(isnan(next_acceleration)))
+        {
+            printf("Isnanhere\n");
+
+            for(int i=0; i < 16; i++)
+            {
+                if(isnan(g_metric_big[i]))
+                    printf("Met %f %i\n", g_metric_big[i], i);
+            }
+
+            for(int i=0; i < 64; i++)
+            {
+                if(isnan(g_partials_big[i]))
+                    printf("Partials %f %i\n", g_partials_big[i], i);
+            }
+        }*/
         #endif // GENERIC_BIG_METRIC
 
         float4 next_velocity = velocity + 0.5f * (acceleration + next_acceleration) * ds;
@@ -2025,7 +2088,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
         //float err = ds * ds * fast_length(next_acceleration - acceleration);
 
-        float err = 0.00001;
+        float err = 0.0001;
         float i_hate_computers = 100;
 
         float max_timestep = 100000;
@@ -2037,7 +2100,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
         next_ds = sqrt(((err * i_hate_computers) / diff));
 
-        next_ds = max(next_ds, 0.000001);
+        next_ds = max(next_ds, 0.0000001);
 
         /*if(sx == 500 && sy == 400)
         {
@@ -2062,8 +2125,15 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         acceleration = next_acceleration;
         #endif // VERLET_INTEGRATION
 
-        if(sx == 500 && sy == 400)
-        printf("DS %f\n", dot_product_big(velocity, velocity, g_metric_big));
+        /*float spacetime_ds = dot_product_big(velocity, velocity, g_metric_big);
+
+        if(isnan(spacetime_ds))
+        {
+            printf("BATMAN %f\n", g_metric_big[0]);
+        }*/
+
+        //if(sx == 500 && sy == 400)
+        //printf("DS %f\n", dot_product_big(velocity, velocity, g_metric_big));
 
     }
 

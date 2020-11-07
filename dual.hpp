@@ -219,6 +219,25 @@ std::string outer(std::string v1, std::string v2, std::string op)
 }
 
 inline
+std::string threearg(std::string v1, std::string v2, std::string v3, std::string op)
+{
+    if(op == "select")
+    {
+        auto c1 = get_value(v1);
+        auto c2 = get_value(v2);
+        auto c3 = get_value(v3);
+
+        if(c1 && c2 && c3)
+            return c3.value() != 0 ? to_string_s(c2.value()) : to_string_s(c1.value());
+
+        if(c3)
+            return c3.value() != 0 ? v2 : v1;
+    }
+
+    return op + "(" + v1 + "," + v2 + "," + v3 + ")";
+}
+
+inline
 std::string unary(std::string v1, std::string op)
 {
     if(op == "-" && v1 == "0")
@@ -270,6 +289,14 @@ std::string unary(std::string v1, std::string op)
 
         if(c1.has_value())
             return to_string_s(log(c1.value()));
+    }
+
+    if(op == "isfinite")
+    {
+        auto c1 = get_value(v1);
+
+        if(c1.has_value())
+            return to_string_s(isfinite(c1.value()));
     }
 
     if(op == "-")
@@ -448,6 +475,13 @@ dual_types::symbol conjugate(const dual_types::symbol& d1)
     return d1;
 }
 
+inline
+dual_types::symbol makefinite(const dual_types::symbol& d1)
+{
+    //return d1.sym;
+    return dual_types::symbol(threearg("0.f", d1.sym, unary(d1.sym, "isfinite"), "select"));
+}
+
 using complex_v = dual_types::symbol_complex;
 
 inline
@@ -574,7 +608,7 @@ template<typename T>
 inline
 dual_types::dual_v<T> operator/(const dual_types::dual_v<T>& d1, const dual_types::dual_v<T>& d2)
 {
-    return dual_types::dual_v<T>(d1.real / d2.real, (d1.dual * d2.real - d1.real * d2.dual) / (d2.real * d2.real));
+    return dual_types::dual_v<T>(d1.real / d2.real, makefinite((d1.dual * d2.real - d1.real * d2.dual) / (d2.real * d2.real)));
 }
 
 template<typename T, typename U>
