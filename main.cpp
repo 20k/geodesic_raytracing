@@ -480,11 +480,47 @@ std::array<dual, 4> polar_to_rational(dual t, dual r, dual theta, dual phi)
     return {t, r, cos(theta), phi};
 }
 
+inline
+std::array<dual, 4> oblate_to_polar(dual t, dual r, dual theta, dual phi)
+{
+    dual a = 2;
+
+    dual cx = sqrt(r * r + a * a) * sin(theta) * cos(phi);
+    dual cy = sqrt(r * r + a * a) * sin(theta) * sin(phi);
+    dual cz = r * cos(theta);
+
+    return cartesian_to_polar_dual(t, cx, cy, cz);
+}
+
+inline
+std::array<dual, 4> polar_to_oblate(dual t, dual in_r, dual in_theta, dual in_phi)
+{
+    dual a = 2;
+
+    std::array<dual, 4> as_cart = polar_to_cartesian_dual(t, in_r, in_theta, in_phi);
+
+    dual x = as_cart[1];
+    dual y = as_cart[2];
+    dual z = as_cart[3];
+
+    dual tphi = in_phi;
+    dual secp = sec(tphi);
+
+    dual tr = sqrt(-a*a - pow(secp, 2) * -sqrt(a*a*a*a * pow(cos(tphi), 4) - 2*a*a*x*x*pow(cos(tphi), 2) + 2*a*a*z*z*pow(cos(tphi),4) + x*x*x*x + 2*x*x*z*z*pow(cos(tphi), 2) + z*z*z*z*pow(cos(tphi), 4)) + x*x*pow(secp, 2) + z*z) / sqrt(2);
+
+    dual ttheta = asin(x * sec(tphi) / sqrt(a * a + tr * tr));
+
+    return {t, tr, ttheta, tphi};
+}
+
 //inline auto coordinate_transform_to = cylindrical_to_polar;
 //inline auto coordinate_transform_from = polar_to_cylindrical;
 
-inline auto coordinate_transform_to = polar_to_polar;
-inline auto coordinate_transform_from = polar_to_polar;
+//inline auto coordinate_transform_to = polar_to_polar;
+//inline auto coordinate_transform_from = polar_to_polar;
+
+inline auto coordinate_transform_to = oblate_to_polar;
+inline auto coordinate_transform_from = polar_to_oblate;
 
 //inline auto coordinate_transform_to = cartesian_to_polar_dual;
 //inline auto coordinate_transform_from = polar_to_cartesian_dual;

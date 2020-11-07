@@ -1626,11 +1626,11 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
 
     float4 at_metric = spherical_to_generic(polar_camera);
 
-    /*if(cx == 500 && cy == 400)
+    if(cx == 500 && cy == 400)
     {
         printf("At %f %f %f %f\n", at_metric.x, at_metric.y, at_metric.z, at_metric.w);
         printf("was %f %f %f %f\n", cartesian_camera_pos.x, cartesian_camera_pos.y, cartesian_camera_pos.z, cartesian_camera_pos.w);
-    }*/
+    }
 
     #ifndef GENERIC_BIG_METRIC
     float g_metric[4] = {};
@@ -1999,7 +1999,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
         next_ds = sqrt(((err * i_hate_computers) / diff));
 
-        next_ds = max(next_ds, 0.00001);
+        next_ds = max(next_ds, 0.000001);
 
         /*if(sx == 500 && sy == 400)
         {

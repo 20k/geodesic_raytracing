@@ -419,6 +419,12 @@ dual_types::symbol tanh(const dual_types::symbol& d1)
 }
 
 inline
+dual_types::symbol asin(const dual_types::symbol& d1)
+{
+    return dual_types::symbol(unary(d1.sym, "asin"));
+}
+
+inline
 dual_types::symbol acos(const dual_types::symbol& d1)
 {
     return dual_types::symbol(unary(d1.sym, "acos"));
@@ -629,6 +635,13 @@ dual_types::dual_v<T> cos(const dual_types::dual_v<T>& d1)
 
 template<typename T>
 inline
+dual_types::dual_v<T> sec(const dual_types::dual_v<T>& d1)
+{
+    return 1/cos(d1);
+}
+
+template<typename T>
+inline
 dual_types::dual_v<T> tan(const dual_types::dual_v<T>& d1)
 {
     return dual_types::dual_v<T>(tan(d1.real), d1.dual / (cos(d1.real) * cos(d1.real)));
@@ -653,6 +666,13 @@ inline
 dual_types::dual_v<T> tanh(const dual_types::dual_v<T>& d1)
 {
     return dual_types::dual_v<T>(tanh(d1.real), d1.dual * (1 - tanh(d1.real) * tanh(d1.real)));
+}
+
+template<typename T>
+inline
+dual_types::dual_v<T> asin(const dual_types::dual_v<T>& d1)
+{
+    return dual_types::dual_v<T>(asin(d1.real), d1.dual / sqrt(1 - d1.real * d1.real));
 }
 
 template<typename T>
