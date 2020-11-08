@@ -1864,7 +1864,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
     float last_ds = 1000;
 
-    float next_ds = 0.00001;
+    float next_ds = 0.0000001;
 
     ///results:
     ///subambient_precision can't go above 0.5 much while in verlet mode without the size of the event horizon changing
@@ -2030,7 +2030,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         ///1ms
         //intermediate_next_velocity = fix_light_velocity2(intermediate_next_velocity, g_metric);
 
-        intermediate_next_velocity = fix_light_velocity_big(intermediate_next_velocity, g_metric_big);
+        //intermediate_next_velocity = fix_light_velocity_big(intermediate_next_velocity, g_metric_big);
 
         {
             float spacetime_ds = dot_product_big(velocity, velocity, g_metric_big);
@@ -2088,7 +2088,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
         //float err = ds * ds * fast_length(next_acceleration - acceleration);
 
-        float err = 0.0001;
+        float err = 0.00001;
         float i_hate_computers = 100;
 
         float max_timestep = 100000;
@@ -2100,7 +2100,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
         next_ds = sqrt(((err * i_hate_computers) / diff));
 
-        next_ds = max(next_ds, 0.0000001);
+        next_ds = max(next_ds, 0.000001);
 
         /*if(sx == 500 && sy == 400)
         {
