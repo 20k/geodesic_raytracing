@@ -50,6 +50,13 @@ https://en.wikipedia.org/wiki/Kerr%E2%80%93Newman_metric - kerr-newman (charged 
 
 https://en.wikipedia.org/wiki/Cash%E2%80%93Karp_method - runge-kutta with adaptive error
 https://drum.lib.umd.edu/bitstream/handle/1903/2202/2004-berry-healy-jas.pdf;jsessionid=B20F478B9DB479C86B9DD179A24331F3?sequence=7 - integration
+
+https://www.pp.rhul.ac.uk/~cowan/ph2150/kepler_xy.pdf - good explanation of integration
+
+https://core.ac.uk/download/pdf/1321518.pdf - numerical relativity phd
+https://arxiv.org/pdf/gr-qc/9509020.pdf - numerical relativity
+
+https://www.cec.uchile.cl/cinetica/pcordero/MC_libros/NumericalRecipesinC.pdf - 710
 */
 
 ///perfectly fine
@@ -223,7 +230,7 @@ std::array<dual, 16> ellis_drainhole(dual t, dual r, dual theta, dual phi)
 {
     dual c = 1;
 
-    dual m = 0.5;
+    dual m = 0;
     dual n = 1;
 
     dual alpha = sqrt(n * n - m * m);
@@ -700,7 +707,8 @@ int main()
 
     argument_string += " -DGENERIC_METRIC";
     //argument_string += " -DEULER_INTEGRATION_GENERIC";
-    argument_string += " -DVERLET_INTEGRATION_GENERIC";
+    argument_string += " -DRK4_GENERIC";
+    //argument_string += " -DVERLET_INTEGRATION_GENERIC";
 
     //argument_string += " -DGENERIC_CONSTANT_THETA";
     //argument_string += " -DPOLE_SINGULAIRTY";
