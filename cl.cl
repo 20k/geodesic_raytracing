@@ -1862,9 +1862,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
     acceleration.z = 0;
     #endif // IS_CONSTANT_THETA
 
-    float last_ds = 1000;
-
-    float next_ds = 0.0000001;
+    float next_ds = 0.00001;
 
     ///results:
     ///subambient_precision can't go above 0.5 much while in verlet mode without the size of the event horizon changing
@@ -1886,6 +1884,8 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
     ambient_precision = 0.5;
 
     float rs = 1;
+
+    bool forward_progress = true;
 
     for(int i=0; i < 64000/125; i++)
     {
@@ -2029,12 +2029,12 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         float4 next_acceleration = calculate_acceleration_big(intermediate_next_velocity, g_metric_big, g_partials_big);
         float4 next_velocity = velocity + 0.5f * (acceleration + next_acceleration) * ds;
 
-        {
+        /*{
             float spacetime_ds = dot_product_big(velocity, velocity, g_metric_big);
 
             if(sx == 500 && sy == 400)
             {
-                printf("DS %f\n", spacetime_ds);
+                printf("spacetime_DS %f DT %f\n", spacetime_ds, ds);
 
                 printf("dt %f dr %f da %f dp %f dtdp %f\n", g_metric_big[0], g_metric_big[5], g_metric_big[10], g_metric_big[15], g_metric_big[3]);
 
@@ -2047,8 +2047,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
                         //printf("Partials %f %i\n", g_partials_big[i], i);
                 }
             }
-        }
-
+        }*/
 
         /*if(!any_nan && any(isnan(next_acceleration)))
         {
@@ -2084,6 +2083,8 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         float err = 0.00001;
         float i_hate_computers = 100;
 
+        #define MIN_STEP 0.000001f
+
         float max_timestep = 100000;
 
         float diff = fast_length(next_acceleration * i_hate_computers - acceleration * i_hate_computers);
@@ -2093,7 +2094,43 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
         next_ds = sqrt(((err * i_hate_computers) / diff));
 
-        next_ds = max(next_ds, 0.000001);
+        next_ds = max(next_ds * 0.1, MIN_STEP);
+
+        if(i == 0)
+            continue;
+
+        //next_ds = mix(next_ds, ds, 0.5);
+
+        /*{
+            if(next_ds < ds * 0.9)
+            {
+                //printf("NDS %.12f %.12f\n", next_ds, ds);
+
+                if(!forward_progress)
+                    return;
+
+                forward_progress = false;
+
+                continue;
+            }
+        }
+
+        forward_progress = true;*/
+
+        /*if(diff > 100 * i_hate_computers)
+        {
+            if(ds >= MIN_STEP)
+            {
+                next_ds = min(next_ds, ds/2);
+                next_ds = max(next_ds, MIN_STEP);
+
+                continue;
+            }
+            else
+            {
+                //return;
+            }
+        }*/
 
         /*if(sx == 500 && sy == 400)
         {
@@ -2113,8 +2150,6 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         intermediate_next_velocity.z = 0;
         next_acceleration.z = 0;
         #endif // IS_CONSTANT_THETA
-
-        last_ds = ds;
 
         position = next_position;
         //velocity = fix_light_velocity2(next_velocity, g_metric);
