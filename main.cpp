@@ -8,6 +8,49 @@
 #include "dual.hpp"
 //#include "dual_complex.hpp"
 
+/**
+Big list of general relativity references so i can shut some browser tabs
+https://arxiv.org/pdf/1601.02063.pdf - GPU renderer
+https://arxiv.org/pdf/1511.06025.pdf - CPU renderer - primary source from which this raytracer is derived
+https://en.wikipedia.org/wiki/Frame_fields_in_general_relativity#Example:_Static_observers_in_Schwarzschild_vacuum - frame fields
+https://www.spacetimetravel.org/wurmlochflug/wurmlochflug.html - renderings of wormholes
+https://www.damtp.cam.ac.uk/user/hsr1000/lecturenotes_2012.pdf - lecture notes for relativity, misc everything
+https://arxiv.org/pdf/0904.4184.pdf - spacetime catalogue, contains a bunch of metrics and tetrads
+https://arxiv.org/pdf/1104.4829.pdf - gram schmidt orthonormalisation in a relativistic context
+https://arxiv.org/pdf/1702.05802.pdf - double kerr (massless strut)
+https://arxiv.org/ftp/arxiv/papers/1008/1008.3244.pdf - double kerr (massles strut)
+https://arxiv.org/pdf/1702.02209.pdf - rotating double kerr with a massless strut
+https://arxiv.org/pdf/1905.05273.pdf - janis-newmian-winicour + accretion disk
+http://www.roma1.infn.it/teongrav/VALERIA/TEACHING/ONDE_GRAV_STELLE_BUCHINERI/AA2012_13/Kerr.pdf - kerr info
+http://cloud.yukterez.net/relativistic.raytracer/kerr.90.1720.png - kerr reference picture
+https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods - runge kutta
+https://physics.stackexchange.com/questions/409106/finding-the-metric-tensor-from-a-line-element - line element / metric tensor
+https://arxiv.org/pdf/0706.0622.pdf - kerr spacetime coordinate systems
+http://www.roma1.infn.it/teongrav/leonardo/bh/bhcap3.pdf - kerr, again
+https://www.wolframalpha.com/input/?i=%28x%5E2+%2B+y%5E2%29+%2F+%28r%5E2+%2B+a%5E2%29+%2B+z%5E2%2Fr%5E2+%3D+1%2C+solve+for+r - solving for r in kerr-schild
+https://arxiv.org/pdf/0807.0734.pdf - symplectic integrators
+https://iopscience.iop.org/article/10.1088/0067-0049/184/2/387/pdf - radiative transport
+https://javierrubioblog.files.wordpress.com/2015/12/chapter4.pdf - coordinate transforms
+
+https://www.reed.edu/physics/courses/Physics411/html/page2/page2.html - some useful info
+https://www.uio.no/studier/emner/matnat/astro/nedlagte-emner/AST1100/h11/undervisningsmateriale/lecture15.pdf - useful basic info
+https://theconfused.me/blog/numerical-integration-of-light-paths-in-a-schwarzschild-metric/ - simple schwarzschild raytracer
+
+https://github.com/stranger80/GraviRayTraceSharp/blob/master/GraviRayTraceSharp/ - raytracer with runge kutta integrator
+https://en.wikipedia.org/wiki/Interior_Schwarzschild_metric - metric for the inside of a body
+https://en.wikipedia.org/wiki/Vaidya_metric - radiating metric
+https://en.wikipedia.org/wiki/Category:Exact_solutions_in_general_relativity - more exact solutions
+
+https://en.wikipedia.org/wiki/Tetrad_formalism - tetrads/coordinate basis
+https://arxiv.org/abs/gr-qc/0507014v1 - numerical relativity
+https://arxiv.org/pdf/gr-qc/0104063.pdf - numerical relativity
+
+https://en.wikipedia.org/wiki/Two-body_problem_in_general_relativity#Schwarzschild_solution - useful references on numerical relativity
+https://en.wikipedia.org/wiki/Kerr%E2%80%93Newman_metric - kerr-newman (charged + rotating)
+
+https://en.wikipedia.org/wiki/Cash%E2%80%93Karp_method - runge-kutta with adaptive error
+*/
+
 ///perfectly fine
 vec4f cartesian_to_schwarz(vec4f position)
 {
