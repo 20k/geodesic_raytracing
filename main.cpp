@@ -248,7 +248,7 @@ std::array<dual, 16> kerr_metric(dual t, dual r, dual theta, dual phi)
     ret[1 * 4 + 1] = E / D;
     ret[2 * 4 + 2] = E;
     ret[3 * 4 + 3] = (r * r + a * a + (rs * r * a * a / E) * sin(theta) * sin(theta)) * sin(theta) * sin(theta);
-    ret[0 * 4 + 3] = -1 * rs * r * a * sin(theta) * sin(theta) * c / E;
+    ret[0 * 4 + 3] = 0.5 * -2 * rs * r * a * sin(theta) * sin(theta) * c / E;
     ret[3 * 4 + 0] = ret[0 * 4 + 3];
 
     return ret;
@@ -311,8 +311,8 @@ std::array<dual, 16> kerr_rational_polynomial(dual t, dual r, dual X, dual phi)
     ret[1 * 4 + 1] = dr;
     ret[2 * 4 + 2] = dX;
     ret[3 * 4 + 3] = dphi;
-    ret[0 * 4 + 3] = dphidt;
-    ret[3 * 4 + 0] = dphidt;
+    ret[0 * 4 + 3] = dphidt * 0.5;
+    ret[3 * 4 + 0] = dphidt * 0.5;
 
     return ret;
 }
@@ -395,8 +395,8 @@ std::array<dual, 16> alcubierre_metric(dual t, dual x, dual y, dual z)
 
     std::array<dual, 16> ret;
     ret[0 * 4 + 0] = dt;
-    ret[1 * 4 + 0] = dxdt;
-    ret[0 * 4 + 1] = dxdt;
+    ret[1 * 4 + 0] = dxdt * 0.5;
+    ret[0 * 4 + 1] = dxdt * 0.5;
     ret[1 * 4 + 1] = dx;
     ret[2 * 4 + 2] = dy;
     ret[3 * 4 + 3] = dz;
