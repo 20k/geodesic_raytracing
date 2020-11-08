@@ -572,14 +572,14 @@ std::array<dual, 4> polar_to_oblate(dual t, dual in_r, dual in_theta, dual in_ph
 //inline auto coordinate_transform_to = cylindrical_to_polar;
 //inline auto coordinate_transform_from = polar_to_cylindrical;
 
-inline auto coordinate_transform_to = polar_to_polar;
-inline auto coordinate_transform_from = polar_to_polar;
+//inline auto coordinate_transform_to = polar_to_polar;
+//inline auto coordinate_transform_from = polar_to_polar;
 
 //inline auto coordinate_transform_to = oblate_to_polar;
 //inline auto coordinate_transform_from = polar_to_oblate;
 
-//inline auto coordinate_transform_to = cartesian_to_polar_dual;
-//inline auto coordinate_transform_from = polar_to_cartesian_dual;
+inline auto coordinate_transform_to = cartesian_to_polar_dual;
+inline auto coordinate_transform_from = polar_to_cartesian_dual;
 
 //inline auto coordinate_transform_to = lemaitre_to_polar;
 //inline auto coordinate_transform_from = polar_to_lemaitre;
@@ -624,7 +624,7 @@ int main()
     //auto [real_eq, derivatives] = evaluate_metric2D(kerr_metric, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D(kerr_rational_polynomial, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D(kerr_schild_metric, "v1", "v2", "v3", "v4");
-    auto [real_eq, derivatives] = evaluate_metric(schwarzschild_blackhole, "v1", "v2", "v3", "v4");
+    //auto [real_eq, derivatives] = evaluate_metric(schwarzschild_blackhole, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric(schwarzschild_blackhole_lemaitre, "v1", "v2", "v3", "v4");
 
     //auto [real_eq, derivatives] = evaluate_metric2D_DC(cylinder_test, "v1", "v2", "v3", "v4");
@@ -634,7 +634,7 @@ int main()
     //auto [real_eq, derivatives] = evaluate_metric2D(kerr_metric, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D(ellis_drainhole, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D(janis_newman_winicour, "v1", "v2", "v3", "v4");
-    //auto [real_eq, derivatives] = evaluate_metric2D(alcubierre_metric, "v1", "v2", "v3", "v4");
+    auto [real_eq, derivatives] = evaluate_metric2D(alcubierre_metric, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D(big_metric_test, "v1", "v2", "v3", "v4");
 
     /*{
@@ -710,23 +710,24 @@ int main()
     //argument_string += " -DRK4_GENERIC";
     argument_string += " -DVERLET_INTEGRATION_GENERIC";
 
-    argument_string += " -DGENERIC_CONSTANT_THETA";
+    //argument_string += " -DGENERIC_CONSTANT_THETA";
     //argument_string += " -DPOLE_SINGULAIRTY";
-    argument_string += " -DSINGULAR";
+    //argument_string += " -DSINGULAR";
     //argument_string += " -DTRAVERSABLE_EVENT_HORIZON";
     //argument_string += " -DSINGULAR_TERMINATOR=0.75";
     argument_string += " -DUNIVERSE_SIZE=200000";
-    argument_string += " -DSINGULAR_TERMINATOR=1.000001";
+    //argument_string += " -DSINGULAR_TERMINATOR=1.000001";
 
     argument_string += " -DADAPTIVE_PRECISION";
+    argument_string += " -DCURVATURE_LIMIT=1";
 
     ///coordinate weights
     ///singular polar
     //argument_string += " -DW_V1=1 -DW_V2=1 -DW_V3=8 -DW_V4=32";
     ///non singular polar
-    argument_string += " -DW_V1=1 -DW_V2=1 -DW_V3=8 -DW_V4=8";
+    //argument_string += " -DW_V1=1 -DW_V2=1 -DW_V3=8 -DW_V4=8";
     ///cartesian
-    //argument_string += " -DW_V1=1 -DW_V2=1 -DW_V3=1 -DW_V4=1"
+    argument_string += " -DW_V1=1 -DW_V2=1 -DW_V3=1 -DW_V4=1";
 
     std::cout << "ASTRING " << argument_string << std::endl;
 

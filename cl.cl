@@ -2068,15 +2068,8 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
     float ambient_precision = 0.001;
     float subambient_precision = 0.5;
 
-    //#ifdef NO_EVENT_HORIZON_CROSSING
-    //#ifdef NO_KRUSKAL
-    //ambient_precision = 0.0001;
-    //#endif // NO_KRUSKAL
-    //#endif // NO_EVENT_HORIZON_CROSSING
-
-    subambient_precision = 0.1;
-
-    ambient_precision = 0.5;
+    subambient_precision = 0.5;
+    ambient_precision = 0.1;
 
     float rs = 1;
 
@@ -2212,7 +2205,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         //if(ds == 0.00001f && curvature_ps >= 10000000)
         //    return;
 
-        float allowed_ps = 10;
+        float allowed_ps = CURVATURE_LIMIT;
 
         next_ds = clamp(allowed_ps / curvature_ps, 0.00001f, 10000.f);
 
@@ -2220,105 +2213,6 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
         if(!isfinite(next_ds))
             next_ds = 1000;
-
-        #if 0
-        {
-            float4 np1, np2, nv1, nv2, na1, na2;
-
-            step_verlet(position, velocity, acceleration, ds/2, &np1, &nv1, &na1);
-            step_verlet(np1, nv1, na1, ds/2, &np2, &nv2, &na2);
-
-            float4 extra = next_position + next_velocity * ds + next_acceleration * ds * ds;
-            float4 nextra = np2 + nv2 * (ds/2) + na2 * (ds/2) * (ds/2);
-
-            float err = fast_length(extra - nextra);
-
-            float emax = 0.5;
-            float eh = (8 / 7.f) * fabs(err);
-
-            emax = pow(emax, 0.25);
-            eh = pow(eh, 0.25);
-
-            //eh = pow(eh, 0.75);
-
-            //float dmax = pow(emax / eh, 0.25);
-            float hmax = pow(emax / eh, 0.25) * ds;
-
-            #define MIN_DS 0.00001
-
-            //if(ds < MIN_DS)
-            //    ds = MIN_DS;
-
-            next_ds = ds;
-
-            /*if(hmax < ds/2 && ds > MIN_DS && fabs(r_value) < new_max)
-            {
-                next_ds = 0.9 * 2 * hmax;
-
-                next_ds = max(next_ds, MIN_DS);
-
-                if(sx == 500 && sy == 400)
-                {
-                    printf("NDS %f %f %f r:%f\n", next_ds, hmax, ds, position.y);
-
-                    if(fabs(r_value) < new_min)
-                        continue;
-                }
-            }
-
-            if(hmax > ds * 2)
-            {
-                next_ds = 1.9 * hmax;
-            }*/
-
-            next_ds = 0.9 * ds * clamp(pow(emax / (eh), 1), 0.3, 2.f);
-
-            //next_ds = 0.9 * ds * clamp(pow(dmax / ds, 0.5), 0.3, 2.f);
-            //next_ds = 0.9 * ds * clamp(pow(hmax / ds, 0.5), 0.3, 2.f);
-
-            next_ds = max(next_ds, MIN_DS);
-
-            next_position = np2;
-            next_velocity = nv2;
-            next_acceleration = na2;
-
-            /*if(sx == 500 && sy == 400)
-            {
-                printf("NDS %f %f %f\n", next_ds, hmax, ds);
-            }*/
-        }
-        #endif // 0
-
-        #if 0
-        {
-
-            float err = fast_length(next_next_position - full_next_position);
-
-            float emax = 100;
-            float eh = (8 / 7) * fabs(err);
-
-            float hmax = pow(emax / eh, 0.25) * ds;
-
-            next_ds = ds;
-
-            if(hmax < ds/2)
-            {
-                next_ds = 0.9 * 2 * hmax;
-            }
-
-            if(hmax > ds * 2)
-            {
-                next_ds = 2.1 * hmax;
-            }
-
-            next_ds = max(next_ds, MIN_STEP);
-
-            /*if(sx == 500 && sy == 400)
-            {
-                printf("NDS %f %f %f\n", next_ds, hmax, ds);
-            }*/
-        }
-        #endif // 0
 
         #ifdef IS_CONSTANT_THETA
         next_position.z = 0;
