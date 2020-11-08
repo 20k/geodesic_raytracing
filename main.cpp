@@ -246,8 +246,8 @@ std::array<dual, 16> ellis_drainhole(dual t, dual r, dual theta, dual phi)
     ret[1 * 4 + 1] = dp;
     ret[2 * 4 + 2] = dtheta;
     ret[3 * 4 + 3] = dphi;
-    ret[0 * 4 + 1] = dpdt;
-    ret[1 * 4 + 0] = dpdt;
+    ret[0 * 4 + 1] = dpdt * 0.5;
+    ret[1 * 4 + 0] = dpdt * 0.5;
 
     return ret;
 }
