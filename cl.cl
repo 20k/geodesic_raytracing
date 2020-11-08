@@ -1887,16 +1887,11 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
     float rs = 1;
 
-    float4 last_position = 0;
-    float4 last_velocity = 0;
-    float4 intermediate_velocity = 0;
-
     for(int i=0; i < 64000/125; i++)
     {
         #ifdef IS_CONSTANT_THETA
         position.z = M_PI/2;
         velocity.z = 0;
-        intermediate_velocity.z = 0;
         acceleration.z = 0;
         #endif // IS_CONSTANT_THETA
 
@@ -1961,6 +1956,9 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         //if((position.y * position.y + position.z * position.z - 4 * 4) < 0.001 && fabs(position.w) < 0.001)
         //    return;
 
+        //if(fabs(position.y * position.y - rs * position.y + 1 * 1) < 0.7)
+        //    return;
+
         #ifndef SINGULAR
         if(fabs(polar_position.y) >= UNIVERSE_SIZE || singularity)
         #else
@@ -1985,11 +1983,6 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
             return;
         }
 
-        #ifdef VERLET_INTEGRATION_GENERIC
-        last_position = position;
-        last_velocity = velocity;
-        #endif // VERLET_INTEGRATION
-
         #ifdef EULER_INTEGRATION_GENERIC
 
         #ifndef GENERIC_BIG_METRIC
@@ -2007,6 +2000,8 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         #endif // GENERIC_BIG_METRIC
 
         velocity += lacceleration * ds;
+
+        acceleration = lacceleration;
 
         position += velocity * ds;
         #endif // EULER_INTEGRATION
@@ -2027,15 +2022,17 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         calculate_metric_generic_big(next_position, g_metric_big);
         calculate_partial_derivatives_generic_big(next_position, g_partials_big);
 
-        ///1ms
-        //intermediate_next_velocity = fix_light_velocity2(intermediate_next_velocity, g_metric);
-
         //intermediate_next_velocity = fix_light_velocity_big(intermediate_next_velocity, g_metric_big);
+
+        //bool any_nan = any(isnan(intermediate_next_velocity));
+
+        float4 next_acceleration = calculate_acceleration_big(intermediate_next_velocity, g_metric_big, g_partials_big);
+        float4 next_velocity = velocity + 0.5f * (acceleration + next_acceleration) * ds;
 
         {
             float spacetime_ds = dot_product_big(velocity, velocity, g_metric_big);
 
-            /*if(sx == 500 && sy == 400)
+            if(sx == 500 && sy == 400)
             {
                 printf("DS %f\n", spacetime_ds);
 
@@ -2043,17 +2040,15 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
                 printf("Rcoord %f %f %f %f\n", position.x, position.y, position.z, position.w);
                 printf("Velocity %f %f %f %f\n", intermediate_next_velocity.x, intermediate_next_velocity.y, intermediate_next_velocity.z, intermediate_next_velocity.w);
+                printf("Accel %f %f %f %f\n", next_acceleration.x, next_acceleration.y, next_acceleration.z, next_acceleration.w);
 
                 for(int i=0; i < 64; i++)
                 {
                         //printf("Partials %f %i\n", g_partials_big[i], i);
                 }
-            }*/
+            }
         }
 
-        //bool any_nan = any(isnan(intermediate_next_velocity));
-
-        float4 next_acceleration = calculate_acceleration_big(intermediate_next_velocity, g_metric_big, g_partials_big);
 
         /*if(!any_nan && any(isnan(next_acceleration)))
         {
@@ -2072,8 +2067,6 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
             }
         }*/
         #endif // GENERIC_BIG_METRIC
-
-        float4 next_velocity = velocity + 0.5f * (acceleration + next_acceleration) * ds;
 
         if(sx == 500 && sy == 400)
         {
@@ -2109,6 +2102,11 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
         next_ds = 100000;*/
 
+        /*if(sx == 500 && sy == 400)
+        {
+            printf("Error %f timestep %f\n", diff, ds);
+        }*/
+
         #ifdef IS_CONSTANT_THETA
         next_position.z = 0;
         next_velocity.z = 0;
@@ -2121,16 +2119,8 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         position = next_position;
         //velocity = fix_light_velocity2(next_velocity, g_metric);
         velocity = next_velocity;
-        intermediate_velocity = intermediate_next_velocity;
         acceleration = next_acceleration;
         #endif // VERLET_INTEGRATION
-
-        /*float spacetime_ds = dot_product_big(velocity, velocity, g_metric_big);
-
-        if(isnan(spacetime_ds))
-        {
-            printf("BATMAN %f\n", g_metric_big[0]);
-        }*/
 
         //if(sx == 500 && sy == 400)
         //printf("DS %f\n", dot_product_big(velocity, velocity, g_metric_big));

@@ -49,6 +49,7 @@ https://en.wikipedia.org/wiki/Two-body_problem_in_general_relativity#Schwarzschi
 https://en.wikipedia.org/wiki/Kerr%E2%80%93Newman_metric - kerr-newman (charged + rotating)
 
 https://en.wikipedia.org/wiki/Cash%E2%80%93Karp_method - runge-kutta with adaptive error
+https://drum.lib.umd.edu/bitstream/handle/1903/2202/2004-berry-healy-jas.pdf;jsessionid=B20F478B9DB479C86B9DD179A24331F3?sequence=7 - integration
 */
 
 ///perfectly fine
