@@ -621,10 +621,10 @@ int main()
 
     #ifdef GENERIC_METRIC
     //auto [real_eq, derivatives] = evaluate_metric(test_metric, "v1", "v2", "v3", "v4");
-    auto [real_eq, derivatives] = evaluate_metric2D(kerr_metric, "v1", "v2", "v3", "v4");
+    //auto [real_eq, derivatives] = evaluate_metric2D(kerr_metric, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D(kerr_rational_polynomial, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D(kerr_schild_metric, "v1", "v2", "v3", "v4");
-    //auto [real_eq, derivatives] = evaluate_metric(schwarzschild_blackhole, "v1", "v2", "v3", "v4");
+    auto [real_eq, derivatives] = evaluate_metric(schwarzschild_blackhole, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric(schwarzschild_blackhole_lemaitre, "v1", "v2", "v3", "v4");
 
     //auto [real_eq, derivatives] = evaluate_metric2D_DC(cylinder_test, "v1", "v2", "v3", "v4");
@@ -707,16 +707,26 @@ int main()
 
     argument_string += " -DGENERIC_METRIC";
     //argument_string += " -DEULER_INTEGRATION_GENERIC";
-    argument_string += " -DRK4_GENERIC";
-    //argument_string += " -DVERLET_INTEGRATION_GENERIC";
+    //argument_string += " -DRK4_GENERIC";
+    argument_string += " -DVERLET_INTEGRATION_GENERIC";
 
-    //argument_string += " -DGENERIC_CONSTANT_THETA";
+    argument_string += " -DGENERIC_CONSTANT_THETA";
     //argument_string += " -DPOLE_SINGULAIRTY";
-    //argument_string += " -DSINGULAR";
+    argument_string += " -DSINGULAR";
     //argument_string += " -DTRAVERSABLE_EVENT_HORIZON";
     //argument_string += " -DSINGULAR_TERMINATOR=0.75";
     argument_string += " -DUNIVERSE_SIZE=200000";
-    //argument_string += " -DSINGULAR_TERMINATOR=1.000001";
+    argument_string += " -DSINGULAR_TERMINATOR=1.000001";
+
+    argument_string += " -DADAPTIVE_PRECISION";
+
+    ///coordinate weights
+    ///singular polar
+    //argument_string += " -DW_V1=1 -DW_V2=1 -DW_V3=8 -DW_V4=32";
+    ///non singular polar
+    argument_string += " -DW_V1=1 -DW_V2=1 -DW_V3=8 -DW_V4=8";
+    ///cartesian
+    //argument_string += " -DW_V1=1 -DW_V2=1 -DW_V3=1 -DW_V4=1"
 
     std::cout << "ASTRING " << argument_string << std::endl;
 

@@ -1861,6 +1861,7 @@ void rk4_evaluate_position_at(float4 position, float4 velocity, float* out_k_pos
 ///so x(t) is exact position, ideally analytic but here produced by our approximation
 ///and z(t) is exact velocity
 
+#ifdef GENERIC_BIG_METRIC
 ///velocity
 float4 rk4_g(float t, float4 position, float4 velocity)
 {
@@ -1891,7 +1892,7 @@ float4 rk4_f(float t, float4 position, float4 velocity)
     return calculate_acceleration_big(velocity, g_metric_big, g_partials_big);
 }
 
-void rk4_generic_big(float4* position, float4* velocity, float* step)
+/*void rk4_generic_big(float4* position, float4* velocity, float* step)
 {
     float g_metric[16] = {0};
 
@@ -1927,6 +1928,98 @@ void rk4_generic_big(float4* position, float4* velocity, float* step)
 
     *position = xt_t;
     *velocity = zt_t;
+}*/
+
+
+/*void rk4_generic_big(float4* position, float4* velocity, float* step)
+{
+    float g_metric[16] = {0};
+
+    float ds = *step;
+
+    ///its important to remember here that dt is nothing to do with coordinate time
+    ///its the affine parameter ds
+
+    float a21 = 1/5.f;
+    float a31 = 3/40.f;
+    float a32 = 9/40.f;
+    float a41 = 3/10.f;
+    float a42 = -9/10.f;
+    float a43 = 6/5.f;
+    float a51 = -11/54.f;
+    float a52 = 5/2.f;
+    float a53 = -70/27.f;
+    float a54 = 35/27.f;
+    float a61 = 1631/55296.f;
+    float a62 = 175/512.f;
+    float a63 = 575/13824.f;
+    float a64 = 44275/110592.f;
+    float a65 = 253/4096.f;
+
+    ///so
+    //x(tn + 1) approx x(tn) + dt * dx(tn)
+    //y(tn + 1) approx y(tn) + dt * dy(tn)
+
+    //vx(tn + 1) approx vx(tn) + dt * dvx(tn)
+    //vy(tn + 1) approx vy(tn) + dt * dvy(tn)
+
+    float4 x = *position;
+    float4 z = *velocity;
+
+    float4 k1 = ds * rk4_g(0, x, z);
+    float4 l1 = ds * rk4_f(0, x, z);
+
+    float4 k2 = ds * rk4_g(ds/2, x + k1 * a21, z + l1 * a21);
+    float4 l2 = ds * rk4_f(ds/2, x + k1 * a21, z + l1 * a21);
+
+    float4 k3 = ds * rk4_g(ds/2, x + k1 * a31 + k2 * a32, z + k1 * a31 + k2 * a32);
+    float4 l3 = ds * rk4_f(ds/2, x + k1 * a31 + k2 * a32, z + k1 * a31 + k2 * a32);
+
+    float4 k4 = ds * rk4_g(ds/2, x + k3/2, z + l3/2);
+    float4 l4 = ds * rk4_f(ds/2, x + k3/2, z + l3/2);
+
+    float4 xt_t = x + (k1 + 2 * k2 + 2 * k3 + k4) / 6;
+    float4 zt_t = z + (l1 + 2 * l2 + 2 * l3 + l4) / 6;
+
+    *position = xt_t;
+    *velocity = zt_t;
+}*/
+#endif // GENERIC_BIG_METRIC
+
+void step_verlet(float4 position, float4 velocity, float4 acceleration, float ds, float4* position_out, float4* velocity_out, float4* acceleration_out)
+{
+    #ifndef GENERIC_BIG_METRIC
+    float g_metric[4] = {};
+    float g_partials[16] = {};
+    #else
+    float g_metric_big[16] = {};
+    float g_partials_big[64] = {};
+    #endif // GENERIC_BIG_METRIC
+
+    float4 next_position = position + velocity * ds + 0.5f * acceleration * ds * ds;
+    float4 intermediate_next_velocity = velocity + acceleration * ds;
+
+    #ifndef GENERIC_BIG_METRIC
+    calculate_metric_generic(next_position, g_metric);
+    calculate_partial_derivatives_generic(next_position, g_partials);
+
+    ///1ms
+    intermediate_next_velocity = fix_light_velocity2(intermediate_next_velocity, g_metric);
+
+    float4 next_acceleration = calculate_acceleration(intermediate_next_velocity, g_metric, g_partials);
+    #else
+    calculate_metric_generic_big(next_position, g_metric_big);
+    calculate_partial_derivatives_generic_big(next_position, g_partials_big);
+
+    //intermediate_next_velocity = fix_light_velocity_big(intermediate_next_velocity, g_metric_big);
+    float4 next_acceleration = calculate_acceleration_big(intermediate_next_velocity, g_metric_big, g_partials_big);
+    #endif // GENERIC_BIG_METRIC
+
+    float4 next_velocity = velocity + 0.5f * (acceleration + next_acceleration) * ds;
+
+    *position_out = next_position;
+    *velocity_out = next_velocity;
+    *acceleration_out = next_acceleration;
 }
 
 __kernel
@@ -2009,12 +2102,14 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         float ds = linear_val(fabs(r_value), new_min, new_max, ambient_precision, subambient_precision);
 
         #ifndef RK4_GENERIC
+        #ifdef ADAPTIVE_PRECISION
         ds = next_ds;
+        #endif // ADAPTIVE_PRECISION
         #endif // RK4_GENERIC
 
         if(fabs(r_value) < new_max)
         {
-            ds = min(ds, subambient_precision);
+            ds = min(ds, ambient_precision);
         }
         else
         {
@@ -2099,50 +2194,135 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         #endif // EULER_INTEGRATsION
 
         #ifdef VERLET_INTEGRATION_GENERIC
-        float4 next_position = position + velocity * ds + 0.5f * acceleration * ds * ds;
-        float4 intermediate_next_velocity = velocity + acceleration * ds;
 
-        #ifndef GENERIC_BIG_METRIC
-        calculate_metric_generic(next_position, g_metric);
-        calculate_partial_derivatives_generic(next_position, g_partials);
+        float4 next_position, next_velocity, next_acceleration;
 
-        ///1ms
-        intermediate_next_velocity = fix_light_velocity2(intermediate_next_velocity, g_metric);
+        step_verlet(position, velocity, acceleration, ds, &next_position, &next_velocity, &next_acceleration);
 
-        float4 next_acceleration = calculate_acceleration(intermediate_next_velocity, g_metric, g_partials);
-        #else
-        calculate_metric_generic_big(next_position, g_metric_big);
-        calculate_partial_derivatives_generic_big(next_position, g_partials_big);
+        float err = 0.00001;
 
-        //intermediate_next_velocity = fix_light_velocity_big(intermediate_next_velocity, g_metric_big);
+        float4 curve4 = next_acceleration - acceleration;
 
-        float4 next_acceleration = calculate_acceleration_big(intermediate_next_velocity, g_metric_big, g_partials_big);
-        float4 next_velocity = velocity + 0.5f * (acceleration + next_acceleration) * ds;
+        ///need to operate in normalised coordinates, this isn't good for angles
+        float spatial_curvature = max(max(fabs(curve4.x * W_V1), fabs(curve4.y * W_V2)), max(fabs(curve4.z * W_V3), fabs(curve4.w * W_V4)));
+        //float spatial_curvature = fast_length(next_acceleration - acceleration);
 
-        #endif // GENERIC_BIG_METRIC
+        float curvature_ps = spatial_curvature / ds;
 
-        //float err = ds * ds * fast_length(next_acceleration - acceleration);
+        //if(ds == 0.00001f && curvature_ps >= 10000000)
+        //    return;
 
-        float err = 0.0000001;
-        float i_hate_computers = 100;
+        float allowed_ps = 10;
 
-        #define MIN_STEP 0.000001f
+        next_ds = clamp(allowed_ps / curvature_ps, 0.00001f, 10000.f);
 
-        float max_timestep = 100000;
+        next_ds = 0.9 * ds * clamp(next_ds / ds, 0.3, 2.f);
 
-        float diff = fast_length(next_acceleration * i_hate_computers - acceleration * i_hate_computers);
+        if(!isfinite(next_ds))
+            next_ds = 1000;
 
-        if(diff < err * i_hate_computers / pow(max_timestep, 2))
-            diff = err * i_hate_computers / pow(max_timestep, 2);
+        #if 0
+        {
+            float4 np1, np2, nv1, nv2, na1, na2;
 
-        next_ds = sqrt(((err * i_hate_computers) / diff));
+            step_verlet(position, velocity, acceleration, ds/2, &np1, &nv1, &na1);
+            step_verlet(np1, nv1, na1, ds/2, &np2, &nv2, &na2);
 
-        next_ds = max(next_ds, MIN_STEP);
+            float4 extra = next_position + next_velocity * ds + next_acceleration * ds * ds;
+            float4 nextra = np2 + nv2 * (ds/2) + na2 * (ds/2) * (ds/2);
+
+            float err = fast_length(extra - nextra);
+
+            float emax = 0.5;
+            float eh = (8 / 7.f) * fabs(err);
+
+            emax = pow(emax, 0.25);
+            eh = pow(eh, 0.25);
+
+            //eh = pow(eh, 0.75);
+
+            //float dmax = pow(emax / eh, 0.25);
+            float hmax = pow(emax / eh, 0.25) * ds;
+
+            #define MIN_DS 0.00001
+
+            //if(ds < MIN_DS)
+            //    ds = MIN_DS;
+
+            next_ds = ds;
+
+            /*if(hmax < ds/2 && ds > MIN_DS && fabs(r_value) < new_max)
+            {
+                next_ds = 0.9 * 2 * hmax;
+
+                next_ds = max(next_ds, MIN_DS);
+
+                if(sx == 500 && sy == 400)
+                {
+                    printf("NDS %f %f %f r:%f\n", next_ds, hmax, ds, position.y);
+
+                    if(fabs(r_value) < new_min)
+                        continue;
+                }
+            }
+
+            if(hmax > ds * 2)
+            {
+                next_ds = 1.9 * hmax;
+            }*/
+
+            next_ds = 0.9 * ds * clamp(pow(emax / (eh), 1), 0.3, 2.f);
+
+            //next_ds = 0.9 * ds * clamp(pow(dmax / ds, 0.5), 0.3, 2.f);
+            //next_ds = 0.9 * ds * clamp(pow(hmax / ds, 0.5), 0.3, 2.f);
+
+            next_ds = max(next_ds, MIN_DS);
+
+            next_position = np2;
+            next_velocity = nv2;
+            next_acceleration = na2;
+
+            /*if(sx == 500 && sy == 400)
+            {
+                printf("NDS %f %f %f\n", next_ds, hmax, ds);
+            }*/
+        }
+        #endif // 0
+
+        #if 0
+        {
+
+            float err = fast_length(next_next_position - full_next_position);
+
+            float emax = 100;
+            float eh = (8 / 7) * fabs(err);
+
+            float hmax = pow(emax / eh, 0.25) * ds;
+
+            next_ds = ds;
+
+            if(hmax < ds/2)
+            {
+                next_ds = 0.9 * 2 * hmax;
+            }
+
+            if(hmax > ds * 2)
+            {
+                next_ds = 2.1 * hmax;
+            }
+
+            next_ds = max(next_ds, MIN_STEP);
+
+            /*if(sx == 500 && sy == 400)
+            {
+                printf("NDS %f %f %f\n", next_ds, hmax, ds);
+            }*/
+        }
+        #endif // 0
 
         #ifdef IS_CONSTANT_THETA
         next_position.z = 0;
         next_velocity.z = 0;
-        intermediate_next_velocity.z = 0;
         next_acceleration.z = 0;
         #endif // IS_CONSTANT_THETA
 
