@@ -24,6 +24,7 @@ namespace metric
         float singular_terminator = 1;
 
         bool adaptive_precision = true;
+        bool detect_singularities = false;
         float max_acceleration_change = 0.0000001f;
 
         coordinate_system system = coordinate_system::X_Y_THETA_PHI;
@@ -153,6 +154,11 @@ namespace metric
         {
             argument_string += " -DADAPTIVE_PRECISION";
             argument_string += " -DMAX_ACCELERATION_CHANGE=" + to_string_s(in.max_acceleration_change);
+
+            if(in.detect_singularities)
+            {
+                argument_string += " -DSINGULARITY_DETECTION";
+            }
         }
 
         if(in.system == X_Y_THETA_PHI)

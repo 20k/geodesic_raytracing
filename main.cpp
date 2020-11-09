@@ -639,13 +639,15 @@ int main()
     simple_wormhole.adaptive_precision = false;
 
     metric::metric<cosmic_string, polar_to_polar, polar_to_polar> cosmic_string_obj;
-    cosmic_string_obj.adaptive_precision = false;
+    cosmic_string_obj.adaptive_precision = true;
+    cosmic_string_obj.detect_singularities = true;
 
     ///todo: i forgot what this is and what parameters it might need
     metric::metric<ernst_metric, polar_to_polar, polar_to_polar> ernst_metric_obj;
     ernst_metric_obj.adaptive_precision = false;
 
     metric::metric<janis_newman_winicour, polar_to_polar, polar_to_polar> janis_newman_winicour_obj;
+    janis_newman_winicour_obj.detect_singularities = true;
 
     metric::metric<ellis_drainhole, polar_to_polar, polar_to_polar> ellis_drainhole_obj;
     ellis_drainhole_obj.adaptive_precision = false;
@@ -666,7 +668,7 @@ int main()
 
     metric::config cfg;
 
-    argument_string += build_argument_string(alcubierre_metric_obj, cfg);
+    argument_string += build_argument_string(cosmic_string_obj, cfg);
 
     #if 0
     //auto [real_eq, derivatives] = evaluate_metric(test_metric, "v1", "v2", "v3", "v4");
