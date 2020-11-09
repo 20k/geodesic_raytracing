@@ -165,7 +165,7 @@ std::string infix(std::string v1, std::string v2, std::string op)
             if(v2 == "0")
                 return "0";
 
-            return "(-" + v2 + ")";
+            return "(-(" + v2 + "))";
         }
 
         if(v2 == "0")
@@ -181,6 +181,8 @@ std::string infix(std::string v1, std::string v2, std::string op)
             if(c1.has_value() && c2.has_value())
                 return to_string_s(c1.value() - c2.value());
         }
+
+        return "(" + v1 + op + "(" + v2 + "))";
     }
 
     if(op == "/")
