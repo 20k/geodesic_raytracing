@@ -2212,6 +2212,9 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
         next_ds = sqrt(((err * i_hate_computers) / diff));
 
+        ///produces strictly worse results for kerr
+        //next_ds = 0.9 * ds * clamp(next_ds / ds, 0.3, 2.f);
+
         next_ds = max(next_ds, MIN_STEP);
 
         #ifdef IS_CONSTANT_THETA
