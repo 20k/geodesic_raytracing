@@ -2217,6 +2217,9 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
         next_ds = max(next_ds, MIN_STEP);
 
+        //if(next_ds == MIN_STEP && (diff/i_hate_computers) > err * 10000)
+        //    return;
+
         #ifdef IS_CONSTANT_THETA
         next_position.z = 0;
         next_velocity.z = 0;
