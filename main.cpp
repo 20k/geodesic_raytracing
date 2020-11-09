@@ -653,6 +653,20 @@ int main()
     metric::metric<ellis_drainhole, polar_to_polar, polar_to_polar> ellis_drainhole_obj;
     ellis_drainhole_obj.adaptive_precision = false;
 
+    ///kerr family
+    metric::metric<kerr_metric, polar_to_polar, polar_to_polar> kerr_obj;
+    kerr_obj.adaptive_precision = true;
+    //kerr_obj.detect_singularities = true;
+
+    metric::metric<kerr_schild_metric, cartesian_to_polar_dual, polar_to_cartesian_dual> kerr_schild_obj;
+    kerr_schild_obj.adaptive_precision = true;
+    kerr_schild_obj.detect_singularities = true;
+    kerr_schild_obj.system = metric::coordinate_system::CARTESIAN;
+
+    metric::metric<kerr_rational_polynomial, rational_to_polar, polar_to_rational> kerr_rational_polynomial_obj;
+    kerr_rational_polynomial_obj.adaptive_precision = true;
+    kerr_rational_polynomial_obj.detect_singularities = true;
+
     metric::metric<de_sitter, polar_to_polar, polar_to_polar> de_sitter_obj;
     de_sitter_obj.adaptive_precision = false;
 
@@ -668,6 +682,7 @@ int main()
     alcubierre_metric_obj.system = metric::coordinate_system::CARTESIAN;
 
     metric::config cfg;
+    cfg.error_override = 100.f;
 
     argument_string += build_argument_string(ellis_drainhole_obj, cfg);
 

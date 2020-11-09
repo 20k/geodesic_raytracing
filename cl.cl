@@ -2075,8 +2075,6 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
     bool forward_progress = true;
 
-    float ds = 0.001;
-
     for(int i=0; i < 64000/125; i++)
     {
         #ifdef IS_CONSTANT_THETA

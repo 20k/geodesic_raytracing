@@ -40,6 +40,7 @@ namespace metric
     {
         float universe_size = 200000;
         integration_type type = integration_type::VERLET;
+        std::optional<float> error_override = std::nullopt;
     };
 
     template<auto T, auto U, auto V>
@@ -63,21 +64,21 @@ namespace metric
 
         if(real_eq.size() == 16)
         {
-            bool no_offdiagonal_theta_components = true;
+            bool no_offdiagonal_phi_components = true;
 
             for(int i=0; i < 4; i++)
             {
-                ///theta
-                int j = 2;
+                ///phi
+                int j = 3;
 
                 if(j == i)
                     continue;
 
                 if(real_eq[j * 4 + i] != "0")
-                    no_offdiagonal_theta_components = false;
+                    no_offdiagonal_phi_components = false;
             }
 
-            is_polar_spherically_symmetric = no_offdiagonal_theta_components && in.system == X_Y_THETA_PHI;
+            is_polar_spherically_symmetric = no_offdiagonal_phi_components && in.system == X_Y_THETA_PHI;
         }
 
         if(derivatives.size() == 16)
@@ -153,7 +154,11 @@ namespace metric
         if(in.adaptive_precision)
         {
             argument_string += " -DADAPTIVE_PRECISION";
-            argument_string += " -DMAX_ACCELERATION_CHANGE=" + to_string_s(in.max_acceleration_change);
+
+            if(!cfg.error_override)
+                argument_string += " -DMAX_ACCELERATION_CHANGE=" + to_string_s(in.max_acceleration_change);
+            else
+                argument_string += " -DMAX_ACCELERATION_CHANGE=" + to_string_s(cfg.error_override.value());
 
             if(in.detect_singularities)
             {
