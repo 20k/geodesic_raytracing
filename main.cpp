@@ -20,7 +20,7 @@ https://arxiv.org/pdf/1104.4829.pdf - gram schmidt orthonormalisation in a relat
 https://arxiv.org/pdf/1702.05802.pdf - double kerr (massless strut)
 https://arxiv.org/ftp/arxiv/papers/1008/1008.3244.pdf - double kerr (massles strut)
 https://arxiv.org/pdf/1702.02209.pdf - rotating double kerr with a massless strut
-https://arxiv.org/pdf/1905.05273.pdf - janis-newmian-winicour + accretion disk
+https://arxiv.org/pdf/1905.05273.pdf - janis-newmian-winicour rendering + accretion disk
 http://www.roma1.infn.it/teongrav/VALERIA/TEACHING/ONDE_GRAV_STELLE_BUCHINERI/AA2012_13/Kerr.pdf - kerr info
 http://cloud.yukterez.net/relativistic.raytracer/kerr.90.1720.png - kerr reference picture
 https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods - runge kutta
@@ -57,6 +57,8 @@ https://core.ac.uk/download/pdf/1321518.pdf - numerical relativity phd
 https://arxiv.org/pdf/gr-qc/9509020.pdf - numerical relativity
 
 https://www.cec.uchile.cl/cinetica/pcordero/MC_libros/NumericalRecipesinC.pdf - 710
+
+
 */
 
 ///perfectly fine
@@ -194,7 +196,7 @@ std::array<dual, 4> janis_newman_winicour(dual t, dual r, dual theta, dual phi)
 
 std::array<dual, 4> janis_newman_winicour(dual t, dual r, dual theta, dual phi)
 {
-    dual r0 = 1;
+    /*dual r0 = 1;
     dual mu = 4;
 
     dual Ar = pow((2 * r - r0 * (mu - 1)) / (2 * r + r0 * (mu + 1)), 1/mu);
@@ -204,6 +206,19 @@ std::array<dual, 4> janis_newman_winicour(dual t, dual r, dual theta, dual phi)
     dual dr = 1/Ar;
     dual dtheta = Br;
     dual dphi = Br * sin(theta) * sin(theta);
+
+    return {dt, dr, dtheta, dphi};*/
+
+    dual q = 1;
+    dual M = 1;
+    dual b = 2 * sqrt(M * M + q * q);
+
+    dual gamma = 2*M/b;
+
+    dual dt = -pow(1 - b/r, gamma);
+    dual dr = pow(1 - b/r, -gamma);
+    dual dtheta = pow(1 - b/r, 1-gamma) * r * r;
+    dual dphi = pow(1 - b/r, 1-gamma) * r * r * sin(theta) * sin(theta);
 
     return {dt, dr, dtheta, dphi};
 }
@@ -621,7 +636,7 @@ int main()
 
     #ifdef GENERIC_METRIC
     //auto [real_eq, derivatives] = evaluate_metric(test_metric, "v1", "v2", "v3", "v4");
-    auto [real_eq, derivatives] = evaluate_metric2D(kerr_metric, "v1", "v2", "v3", "v4");
+    //auto [real_eq, derivatives] = evaluate_metric2D(kerr_metric, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D(kerr_rational_polynomial, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D(kerr_schild_metric, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric(schwarzschild_blackhole, "v1", "v2", "v3", "v4");
@@ -633,7 +648,7 @@ int main()
 
     //auto [real_eq, derivatives] = evaluate_metric2D(kerr_metric, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D(ellis_drainhole, "v1", "v2", "v3", "v4");
-    //auto [real_eq, derivatives] = evaluate_metric2D(janis_newman_winicour, "v1", "v2", "v3", "v4");
+    auto [real_eq, derivatives] = evaluate_metric2D(janis_newman_winicour, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D(alcubierre_metric, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D(big_metric_test, "v1", "v2", "v3", "v4");
 
@@ -710,7 +725,7 @@ int main()
     //argument_string += " -DRK4_GENERIC";
     argument_string += " -DVERLET_INTEGRATION_GENERIC";
 
-    //argument_string += " -DGENERIC_CONSTANT_THETA";
+    argument_string += " -DGENERIC_CONSTANT_THETA";
     //argument_string += " -DPOLE_SINGULAIRTY";
     //argument_string += " -DSINGULAR";
     //argument_string += " -DTRAVERSABLE_EVENT_HORIZON";
@@ -718,14 +733,16 @@ int main()
     argument_string += " -DUNIVERSE_SIZE=200000";
     //argument_string += " -DSINGULAR_TERMINATOR=1.000001";
 
+    argument_string += " -DSINGULARITY_DETECTION";
+
     argument_string += " -DADAPTIVE_PRECISION";
     argument_string += " -DMAX_ACCELERATION_CHANGE=0.0000001f";
 
     ///coordinate weights
     ///singular polar
-    argument_string += " -DW_V1=1 -DW_V2=1 -DW_V3=8 -DW_V4=32";
+    //argument_string += " -DW_V1=1 -DW_V2=1 -DW_V3=8 -DW_V4=32";
     ///non singular polar
-    //argument_string += " -DW_V1=1 -DW_V2=1 -DW_V3=8 -DW_V4=8";
+    argument_string += " -DW_V1=1 -DW_V2=1 -DW_V3=8 -DW_V4=8";
     ///cartesian
     //argument_string += " -DW_V1=1 -DW_V2=1 -DW_V3=1 -DW_V4=1";
 
