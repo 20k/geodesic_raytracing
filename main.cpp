@@ -20,7 +20,8 @@ https://arxiv.org/pdf/1104.4829.pdf - gram schmidt orthonormalisation in a relat
 https://arxiv.org/pdf/1702.05802.pdf - double kerr (massless strut)
 https://arxiv.org/ftp/arxiv/papers/1008/1008.3244.pdf - double kerr (massles strut)
 https://arxiv.org/pdf/1702.02209.pdf - rotating double kerr with a massless strut
-https://arxiv.org/pdf/1905.05273.pdf - janis-newmian-winicour rendering + accretion disk
+https://arxiv.org/pdf/1905.05273.pdf - janis-newman-winicour rendering + accretion disk
+https://arxiv.org/pdf/1408.6041.pdf - alternative formulation of janis-newman-winicour line element that's less singularity inducing
 http://www.roma1.infn.it/teongrav/VALERIA/TEACHING/ONDE_GRAV_STELLE_BUCHINERI/AA2012_13/Kerr.pdf - kerr info
 http://cloud.yukterez.net/relativistic.raytracer/kerr.90.1720.png - kerr reference picture
 https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods - runge kutta
@@ -175,29 +176,11 @@ std::array<dual, 4> ernst_metric(dual t, dual r, dual theta, dual phi)
     return {dt, dr, dtheta, dphi};
 }
 
-/*inline
+///https://arxiv.org/pdf/1408.6041.pdf is where this formulation comes from
 std::array<dual, 4> janis_newman_winicour(dual t, dual r, dual theta, dual phi)
 {
-    //dual gamma = make_constant("1");
-    float gamma = 0.51;
-
-    dual rs = 1;
-    dual c = 1;
-
-    dual alpha = 1 - rs / (gamma * r);
-
-    dual dt = -pow(alpha, gamma) * c * c;
-    dual dr = pow(alpha, -gamma);
-    dual dtheta = r * r * pow(alpha, -gamma + 1);
-    dual dphi = r * r * pow(alpha, -gamma + 1) * sin(theta) * sin(theta);
-
-    return {dt, dr, dtheta, dphi};
-}*/
-
-std::array<dual, 4> janis_newman_winicour(dual t, dual r, dual theta, dual phi)
-{
-    /*dual r0 = 1;
-    dual mu = 4;
+    dual r0 = 1;
+    dual mu = 1;
 
     dual Ar = pow((2 * r - r0 * (mu - 1)) / (2 * r + r0 * (mu + 1)), 1/mu);
     dual Br = (1/4.f) * pow(2 * r + r0 * (mu + 1), (1/mu) + 1) / pow(2 * r - r0 * (mu - 1), (1/mu) - 1);
@@ -207,9 +190,10 @@ std::array<dual, 4> janis_newman_winicour(dual t, dual r, dual theta, dual phi)
     dual dtheta = Br;
     dual dphi = Br * sin(theta) * sin(theta);
 
-    return {dt, dr, dtheta, dphi};*/
+    return {dt, dr, dtheta, dphi};
 
-    dual q = 1;
+    ///this formulation has coordinate singularities coming out of its butt
+    /*dual q = sqrt(3) * 1.1;
     dual M = 1;
     dual b = 2 * sqrt(M * M + q * q);
 
@@ -220,7 +204,7 @@ std::array<dual, 4> janis_newman_winicour(dual t, dual r, dual theta, dual phi)
     dual dtheta = pow(1 - b/r, 1-gamma) * r * r;
     dual dphi = pow(1 - b/r, 1-gamma) * r * r * sin(theta) * sin(theta);
 
-    return {dt, dr, dtheta, dphi};
+    return {dt, dr, dtheta, dphi};*/
 }
 
 inline
@@ -733,7 +717,7 @@ int main()
     argument_string += " -DUNIVERSE_SIZE=200000";
     //argument_string += " -DSINGULAR_TERMINATOR=1.000001";
 
-    argument_string += " -DSINGULARITY_DETECTION";
+    //argument_string += " -DSINGULARITY_DETECTION";
 
     argument_string += " -DADAPTIVE_PRECISION";
     argument_string += " -DMAX_ACCELERATION_CHANGE=0.0000001f";
