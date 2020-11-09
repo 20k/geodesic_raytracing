@@ -719,7 +719,7 @@ int main()
     //argument_string += " -DSINGULAR_TERMINATOR=1.000001";
 
     argument_string += " -DADAPTIVE_PRECISION";
-    argument_string += " -DCURVATURE_LIMIT=1";
+    argument_string += " -DMAX_ACCELERATION_CHANGE=0.0000001f";
 
     ///coordinate weights
     ///singular polar

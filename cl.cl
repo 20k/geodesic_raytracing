@@ -2192,29 +2192,27 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
         step_verlet(position, velocity, acceleration, ds, &next_position, &next_velocity, &next_acceleration);
 
-        float err = 0.00001;
-
         float4 curve4 = next_acceleration - acceleration;
 
-        ///need to operate in normalised coordinates, this isn't good for angles
-        float spatial_curvature = max(max(fabs(curve4.x * W_V1), fabs(curve4.y * W_V2)), max(fabs(curve4.z * W_V3), fabs(curve4.w * W_V4)));
-        //float spatial_curvature = fast_length(next_acceleration - acceleration);
+        float experienced_acceleration_change = max(max(fabs(curve4.x * W_V1), fabs(curve4.y * W_V2)), max(fabs(curve4.z * W_V3), fabs(curve4.w * W_V4)));
 
-        float curvature_ps = spatial_curvature / ds;
+        float err = MAX_ACCELERATION_CHANGE;
+        float i_hate_computers = 100;
 
-        //if(ds == 0.00001f && curvature_ps >= 10000000)
-        //    return;
+        #define MIN_STEP 0.000001f
 
-        float allowed_ps = CURVATURE_LIMIT;
+        float max_timestep = 100000;
 
-        next_ds = clamp(allowed_ps / curvature_ps, 0.00001f, 10000.f);
+        float diff = experienced_acceleration_change * i_hate_computers;
 
-        next_ds = 0.9 * ds * clamp(next_ds / ds, 0.3, 2.f);
+        //float diff = fast_length(next_acceleration * i_hate_computers - acceleration * i_hate_computers);
 
-        if(!isfinite(next_ds))
-            next_ds = 1000;
+        if(diff < err * i_hate_computers / pow(max_timestep, 2))
+            diff = err * i_hate_computers / pow(max_timestep, 2);
 
-        next_ds = max(next_ds, 0.00001f);
+        next_ds = sqrt(((err * i_hate_computers) / diff));
+
+        next_ds = max(next_ds, MIN_STEP);
 
         #ifdef IS_CONSTANT_THETA
         next_position.z = 0;
