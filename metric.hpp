@@ -63,21 +63,21 @@ namespace metric
 
         if(real_eq.size() == 16)
         {
-            bool no_offdiagonal_components = true;
+            bool no_offdiagonal_theta_components = true;
 
-            for(int j=0; j < 4; j++)
+            for(int i=0; i < 4; i++)
             {
-                for(int i=0; i < 4; i++)
-                {
-                    if(i == j)
-                        continue;
+                ///theta
+                int j = 2;
 
-                    if(real_eq[j * 4 + i] != "0")
-                        no_offdiagonal_components = true;
-                }
+                if(j == i)
+                    continue;
+
+                if(real_eq[j * 4 + i] != "0")
+                    no_offdiagonal_theta_components = false;
             }
 
-            is_polar_spherically_symmetric = no_offdiagonal_components && in.system == X_Y_THETA_PHI;
+            is_polar_spherically_symmetric = no_offdiagonal_theta_components && in.system == X_Y_THETA_PHI;
         }
 
         if(derivatives.size() == 16)

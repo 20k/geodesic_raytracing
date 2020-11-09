@@ -234,7 +234,7 @@ std::array<dual, 16> ellis_drainhole(dual t, dual r, dual theta, dual phi)
 {
     dual c = 1;
 
-    dual m = 0;
+    dual m = 0.5;
     dual n = 1;
 
     dual alpha = sqrt(n * n - m * m);
@@ -644,7 +644,8 @@ int main()
 
     ///todo: i forgot what this is and what parameters it might need
     metric::metric<ernst_metric, polar_to_polar, polar_to_polar> ernst_metric_obj;
-    ernst_metric_obj.adaptive_precision = false;
+    ernst_metric_obj.adaptive_precision = true;
+    ernst_metric_obj.detect_singularities = true;
 
     metric::metric<janis_newman_winicour, polar_to_polar, polar_to_polar> janis_newman_winicour_obj;
     janis_newman_winicour_obj.detect_singularities = true;
@@ -668,7 +669,7 @@ int main()
 
     metric::config cfg;
 
-    argument_string += build_argument_string(cosmic_string_obj, cfg);
+    argument_string += build_argument_string(ellis_drainhole_obj, cfg);
 
     #if 0
     //auto [real_eq, derivatives] = evaluate_metric(test_metric, "v1", "v2", "v3", "v4");
