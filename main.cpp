@@ -6,6 +6,7 @@
 #include <SFML/Graphics.hpp>
 #include <CL/cl_ext.h>
 #include "dual.hpp"
+#include "metric.hpp"
 //#include "dual_complex.hpp"
 
 /**
@@ -411,7 +412,7 @@ std::array<dual_complex, 16> minkowski_space(dual_complex t, dual_complex x, dua
 
 ///we're in inclination
 inline
-std::array<dual_complex, 16> cylinder_test(dual_complex t, dual_complex r, dual_complex phi, dual_complex z)
+std::array<dual_complex, 16> minkowski_cylindrical(dual_complex t, dual_complex r, dual_complex phi, dual_complex z)
 {
     std::array<dual_complex, 16> ret_fat;
     ret_fat[0] = -1;
@@ -575,14 +576,14 @@ std::array<dual, 4> polar_to_oblate(dual t, dual in_r, dual in_theta, dual in_ph
 //inline auto coordinate_transform_to = cylindrical_to_polar;
 //inline auto coordinate_transform_from = polar_to_cylindrical;
 
-inline auto coordinate_transform_to = polar_to_polar;
-inline auto coordinate_transform_from = polar_to_polar;
+//inline auto coordinate_transform_to = polar_to_polar;
+//inline auto coordinate_transform_from = polar_to_polar;
 
 //inline auto coordinate_transform_to = oblate_to_polar;
 //inline auto coordinate_transform_from = polar_to_oblate;
 
-//inline auto coordinate_transform_to = cartesian_to_polar_dual;
-//inline auto coordinate_transform_from = polar_to_cartesian_dual;
+inline auto coordinate_transform_to = cartesian_to_polar_dual;
+inline auto coordinate_transform_from = polar_to_cartesian_dual;
 
 //inline auto coordinate_transform_to = lemaitre_to_polar;
 //inline auto coordinate_transform_from = polar_to_lemaitre;
@@ -622,9 +623,54 @@ int main()
 
     std::string argument_string = "-O5 -cl-std=CL2.2 ";
 
+    #if 1
     #ifdef GENERIC_METRIC
+
+    metric::metric<schwarzschild_blackhole, polar_to_polar, polar_to_polar> schwarzs_polar;
+    schwarzs_polar.singular = true;
+    schwarzs_polar.adaptive_precision = false;
+
+    metric::metric<schwarzschild_blackhole_lemaitre, lemaitre_to_polar, polar_to_lemaitre> schwarzs_lemaitre;
+    schwarzs_lemaitre.singular = true;
+    schwarzs_lemaitre.traversible_event_horizon = true;
+    schwarzs_lemaitre.adaptive_precision = false;
+
+    metric::metric<traversible_wormhole, polar_to_polar, polar_to_polar> simple_wormhole;
+    simple_wormhole.adaptive_precision = false;
+
+    metric::metric<cosmic_string, polar_to_polar, polar_to_polar> cosmic_string_obj;
+    cosmic_string_obj.adaptive_precision = false;
+
+    ///todo: i forgot what this is and what parameters it might need
+    metric::metric<ernst_metric, polar_to_polar, polar_to_polar> ernst_metric_obj;
+    ernst_metric_obj.adaptive_precision = false;
+
+    metric::metric<janis_newman_winicour, polar_to_polar, polar_to_polar> janis_newman_winicour_obj;
+
+    metric::metric<ellis_drainhole, polar_to_polar, polar_to_polar> ellis_drainhole_obj;
+    ellis_drainhole_obj.adaptive_precision = false;
+
+    metric::metric<de_sitter, polar_to_polar, polar_to_polar> de_sitter_obj;
+    de_sitter_obj.adaptive_precision = false;
+
+    metric::metric<minkowski_space, cartesian_to_polar_dual, polar_to_cartesian_dual> minkowski_space_obj;
+    minkowski_space_obj.adaptive_precision = false;
+    minkowski_space_obj.system = metric::coordinate_system::CARTESIAN;
+
+    metric::metric<minkowski_cylindrical, cylindrical_to_polar, polar_to_cylindrical> minkowski_cylindrical_obj;
+    minkowski_cylindrical_obj.adaptive_precision = false;
+    minkowski_cylindrical_obj.system = metric::coordinate_system::OTHER;
+
+    metric::metric<alcubierre_metric, cartesian_to_polar_dual, polar_to_cartesian_dual> alcubierre_metric_obj;
+    alcubierre_metric_obj.system = metric::coordinate_system::CARTESIAN;
+
+    metric::config cfg;
+
+    argument_string += build_argument_string(alcubierre_metric_obj, cfg);
+
+    #if 0
     //auto [real_eq, derivatives] = evaluate_metric(test_metric, "v1", "v2", "v3", "v4");
-    auto [real_eq, derivatives] = evaluate_metric2D(kerr_metric, "v1", "v2", "v3", "v4");
+    //auto [real_eq, derivatives] = evaluate_metric2D(kerr_metric, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D(kerr_rational_polynomial, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D(kerr_schild_metric, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric(schwarzschild_blackhole, "v1", "v2", "v3", "v4");
@@ -637,7 +683,7 @@ int main()
     //auto [real_eq, derivatives] = evaluate_metric2D(kerr_metric, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D(ellis_drainhole, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D(janis_newman_winicour, "v1", "v2", "v3", "v4");
-    //auto [real_eq, derivatives] = evaluate_metric2D(alcubierre_metric, "v1", "v2", "v3", "v4");
+    auto [real_eq, derivatives] = evaluate_metric2D(alcubierre_metric, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D(big_metric_test, "v1", "v2", "v3", "v4");
 
     /*{
@@ -728,11 +774,13 @@ int main()
 
     ///coordinate weights
     ///singular polar
-    argument_string += " -DW_V1=1 -DW_V2=1 -DW_V3=8 -DW_V4=32";
+    //argument_string += " -DW_V1=1 -DW_V2=1 -DW_V3=8 -DW_V4=32";
     ///non singular polar
     //argument_string += " -DW_V1=1 -DW_V2=1 -DW_V3=8 -DW_V4=8";
     ///cartesian
-    //argument_string += " -DW_V1=1 -DW_V2=1 -DW_V3=1 -DW_V4=1";
+    argument_string += " -DW_V1=1 -DW_V2=1 -DW_V3=1 -DW_V4=1";
+    #endif // 0
+    #endif // GENERIC_METRIC
 
     std::cout << "ASTRING " << argument_string << std::endl;
 

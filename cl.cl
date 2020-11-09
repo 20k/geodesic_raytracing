@@ -2192,6 +2192,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
         step_verlet(position, velocity, acceleration, ds, &next_position, &next_velocity, &next_acceleration);
 
+        #ifdef ADAPTIVE_PRECISION
         float4 curve4 = next_acceleration - acceleration;
 
         float experienced_acceleration_change = max(max(fabs(curve4.x * W_V1), fabs(curve4.y * W_V2)), max(fabs(curve4.z * W_V3), fabs(curve4.w * W_V4)));
@@ -2221,6 +2222,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         if(next_ds == MIN_STEP && (diff/i_hate_computers) > err * 10000)
             return;
         #endif // SINGULARITY_DETECTION
+        #endif // ADAPTIVE_PRECISION
 
         #ifdef IS_CONSTANT_THETA
         next_position.z = 0;

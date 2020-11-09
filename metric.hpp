@@ -1,0 +1,181 @@
+#ifndef METRIC_HPP_INCLUDED
+#define METRIC_HPP_INCLUDED
+
+#include "dual.hpp"
+
+namespace metric
+{
+    enum coordinate_system
+    {
+        //ANGULAR,
+        X_Y_THETA_PHI,
+        CARTESIAN,
+        OTHER
+    };
+
+    template<auto T, auto U, auto V>
+    struct metric
+    {
+        ///only set to true in polar coordinates
+        //bool spherically_symmetric = false;
+
+        bool singular = false;
+        bool traversible_event_horizon = false;
+        float singular_terminator = 1;
+
+        bool adaptive_precision = true;
+        float max_acceleration_change = 0.0000001f;
+
+        coordinate_system system = coordinate_system::X_Y_THETA_PHI;
+    };
+
+    enum integration_type
+    {
+        EULER,
+        VERLET
+    };
+
+    struct config
+    {
+        float universe_size = 200000;
+        integration_type type = integration_type::VERLET;
+    };
+
+    template<auto T, auto U, auto V>
+    inline
+    std::string build_argument_string(const metric<T, U, V>& in, const config& cfg)
+    {
+        std::string argument_string = " -DRS_IMPL=1 -DC_IMPL=1 ";
+
+        auto [real_eq, derivatives] = evaluate_metric2D(T, "v1", "v2", "v3", "v4");
+
+        for(int i=0; i < (int)real_eq.size(); i++)
+        {
+            argument_string += "-DF" + std::to_string(i + 1) + "_I=" + real_eq[i] + " ";
+        }
+
+        ///only polar
+        bool is_polar_spherically_symmetric = false;
+
+        if(real_eq.size() == 4)
+            is_polar_spherically_symmetric = in.system == X_Y_THETA_PHI;
+
+        if(real_eq.size() == 16)
+        {
+            bool no_offdiagonal_components = true;
+
+            for(int j=0; j < 4; j++)
+            {
+                for(int i=0; i < 4; i++)
+                {
+                    if(i == j)
+                        continue;
+
+                    if(real_eq[j * 4 + i] != "0")
+                        no_offdiagonal_components = true;
+                }
+            }
+
+            is_polar_spherically_symmetric = no_offdiagonal_components && in.system == X_Y_THETA_PHI;
+        }
+
+        if(derivatives.size() == 16)
+        {
+            for(int j=0; j < 4; j++)
+            {
+                for(int i=0; i < 4; i++)
+                {
+                    int script_idx = j * 4 + i + 1;
+                    int my_idx = i * 4 + j;
+
+                    argument_string += "-DF" + std::to_string(script_idx) + "_P=" + derivatives[my_idx] + " ";
+                }
+            }
+        }
+
+        if(derivatives.size() == 64)
+        {
+            for(int i=0; i < 64; i++)
+                argument_string += "-DF" + std::to_string(i + 1) + "_P=" + derivatives[i] + " ";
+
+            argument_string += " -DGENERIC_BIG_METRIC ";
+        }
+
+        {
+            auto [to_polar, dt_to_spherical] = total_diff(U, "v1", "v2", "v3", "v4");
+            auto [from_polar, dt_from_spherical] = total_diff(V, "v1", "v2", "v3", "v4");
+
+            for(int i=0; i < to_polar.size(); i++)
+            {
+                argument_string += "-DTO_COORD" + std::to_string(i + 1) + "=" + to_polar[i] + " ";
+            }
+
+            for(int i=0; i < dt_to_spherical.size(); i++)
+            {
+                argument_string += "-DTO_DCOORD" + std::to_string(i + 1) + "=" + dt_to_spherical[i] + " ";
+            }
+
+            for(int i=0; i < from_polar.size(); i++)
+            {
+                argument_string += "-DFROM_COORD" + std::to_string(i + 1) + "=" + from_polar[i] + " ";
+            }
+
+            for(int i=0; i < dt_from_spherical.size(); i++)
+            {
+                argument_string += "-DFROM_DCOORD" + std::to_string(i + 1) + "=" + dt_from_spherical[i] + " ";
+            }
+        }
+
+        argument_string += " -DGENERIC_METRIC";
+
+        if(cfg.type == integration_type::EULER)
+        {
+            argument_string += " -DEULER_INTEGRATION_GENERIC";
+        }
+
+        if(cfg.type == integration_type::VERLET)
+        {
+            argument_string += " -DVERLET_INTEGRATION_GENERIC";
+        }
+
+        if(is_polar_spherically_symmetric)
+        {
+            argument_string += " -DGENERIC_CONSTANT_THETA";
+        }
+
+        if(in.singular)
+        {
+            argument_string += " -DSINGULAR";
+            argument_string += " -DSINGULAR_TERMINATOR=" + std::to_string(in.singular_terminator);
+        }
+
+        if(in.adaptive_precision)
+        {
+            argument_string += " -DADAPTIVE_PRECISION";
+            argument_string += " -DMAX_ACCELERATION_CHANGE=" + to_string_s(in.max_acceleration_change);
+        }
+
+        if(in.system == X_Y_THETA_PHI)
+        {
+            if(is_polar_spherically_symmetric)
+            {
+                argument_string += " -DW_V1=1 -DW_V2=1 -DW_V3=8 -DW_V4=8";
+            }
+            else
+            {
+                argument_string += " -DW_V1=1 -DW_V2=1 -DW_V3=8 -DW_V4=32";
+            }
+        }
+        else
+        {
+            ///covers cartesian, and 'other'
+            argument_string += " -DW_V1=1 -DW_V2=1 -DW_V3=1 -DW_V4=1";
+        }
+
+        argument_string += " -DUNIVERSE_SIZE=" + std::to_string(cfg.universe_size);
+
+        return argument_string;
+    }
+}
+
+#endif // METRIC_HPP_INCLUDED
