@@ -180,7 +180,8 @@ std::array<dual, 4> ernst_metric(dual t, dual r, dual theta, dual phi)
 std::array<dual, 4> janis_newman_winicour(dual t, dual r, dual theta, dual phi)
 {
     dual r0 = 1;
-    dual mu = 1;
+    ///mu = [1, +inf]
+    dual mu = 4;
 
     dual Ar = pow((2 * r - r0 * (mu - 1)) / (2 * r + r0 * (mu + 1)), 1/mu);
     dual Br = (1/4.f) * pow(2 * r + r0 * (mu + 1), (1/mu) + 1) / pow(2 * r - r0 * (mu - 1), (1/mu) - 1);
@@ -709,7 +710,7 @@ int main()
     //argument_string += " -DRK4_GENERIC";
     argument_string += " -DVERLET_INTEGRATION_GENERIC";
 
-    argument_string += " -DGENERIC_CONSTANT_THETA";
+    //argument_string += " -DGENERIC_CONSTANT_THETA";
     //argument_string += " -DPOLE_SINGULAIRTY";
     //argument_string += " -DSINGULAR";
     //argument_string += " -DTRAVERSABLE_EVENT_HORIZON";
@@ -717,16 +718,16 @@ int main()
     argument_string += " -DUNIVERSE_SIZE=200000";
     //argument_string += " -DSINGULAR_TERMINATOR=1.000001";
 
-    //argument_string += " -DSINGULARITY_DETECTION";
+    argument_string += " -DSINGULARITY_DETECTION";
 
     argument_string += " -DADAPTIVE_PRECISION";
     argument_string += " -DMAX_ACCELERATION_CHANGE=0.0000001f";
 
     ///coordinate weights
     ///singular polar
-    //argument_string += " -DW_V1=1 -DW_V2=1 -DW_V3=8 -DW_V4=32";
+    argument_string += " -DW_V1=1 -DW_V2=1 -DW_V3=8 -DW_V4=32";
     ///non singular polar
-    argument_string += " -DW_V1=1 -DW_V2=1 -DW_V3=8 -DW_V4=8";
+    //argument_string += " -DW_V1=1 -DW_V2=1 -DW_V3=8 -DW_V4=8";
     ///cartesian
     //argument_string += " -DW_V1=1 -DW_V2=1 -DW_V3=1 -DW_V4=1";
 
