@@ -59,7 +59,10 @@ https://arxiv.org/pdf/gr-qc/9509020.pdf - numerical relativity
 
 https://www.cec.uchile.cl/cinetica/pcordero/MC_libros/NumericalRecipesinC.pdf - 710
 
+https://arxiv.org/pdf/0712.4333.pdf - coordinate system choices for schwarzschild and kerr (hyperboloidal)
+https://iopscience.iop.org/article/10.1088/1361-6382/ab6e3e/pdf - another
 
+http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.1002.1336&rep=rep1&type=pdf
 */
 
 ///perfectly fine
@@ -621,7 +624,7 @@ int main()
 
     #ifdef GENERIC_METRIC
     //auto [real_eq, derivatives] = evaluate_metric(test_metric, "v1", "v2", "v3", "v4");
-    //auto [real_eq, derivatives] = evaluate_metric2D(kerr_metric, "v1", "v2", "v3", "v4");
+    auto [real_eq, derivatives] = evaluate_metric2D(kerr_metric, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D(kerr_rational_polynomial, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D(kerr_schild_metric, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric(schwarzschild_blackhole, "v1", "v2", "v3", "v4");
@@ -633,7 +636,7 @@ int main()
 
     //auto [real_eq, derivatives] = evaluate_metric2D(kerr_metric, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D(ellis_drainhole, "v1", "v2", "v3", "v4");
-    auto [real_eq, derivatives] = evaluate_metric2D(janis_newman_winicour, "v1", "v2", "v3", "v4");
+    //auto [real_eq, derivatives] = evaluate_metric2D(janis_newman_winicour, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D(alcubierre_metric, "v1", "v2", "v3", "v4");
     //auto [real_eq, derivatives] = evaluate_metric2D(big_metric_test, "v1", "v2", "v3", "v4");
 
