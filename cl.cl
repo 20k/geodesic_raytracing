@@ -2214,6 +2214,8 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         if(!isfinite(next_ds))
             next_ds = 1000;
 
+        next_ds = max(next_ds, 0.00001f);
+
         #ifdef IS_CONSTANT_THETA
         next_position.z = 0;
         next_velocity.z = 0;
