@@ -616,8 +616,8 @@ std::array<dual, 4> test_metric(dual t, dual p, dual theta, dual phi)
 int main()
 {
     render_settings sett;
-    sett.width = 1422;
-    sett.height = 800;
+    sett.width = 1422/5;
+    sett.height = 800/5;
     sett.opencl = true;
     sett.no_double_buffer = true;
 
@@ -709,9 +709,9 @@ int main()
 
     metric::config cfg;
     //cfg.error_override = 100.f;
-    cfg.error_override = 0.1;
+    //cfg.error_override = 0.0000001;
 
-    auto current_metric = schwarzs_lemaitre;
+    auto current_metric = kerr_obj;
 
     argument_string += build_argument_string(current_metric, cfg);
 
@@ -978,13 +978,13 @@ int main()
         texture_coordinates[i].set_to_zero(clctx.cqueue);
     }
 
-    schwarzs_1.alloc(sizeof(lightray) * ray_count * 3);
-    schwarzs_2.alloc(sizeof(lightray) * ray_count * 3);
+    schwarzs_1.alloc(sizeof(lightray) * ray_count * 2);
+    schwarzs_2.alloc(sizeof(lightray) * ray_count * 2);
     #ifndef GENERIC_METRIC
     kruskal_1.alloc(sizeof(lightray) * ray_count * 3);
     kruskal_2.alloc(sizeof(lightray) * ray_count * 3);
     #endif // GENERIC_METRIC
-    finished_1.alloc(sizeof(lightray) * ray_count * 3);
+    finished_1.alloc(sizeof(lightray) * ray_count * 2);
 
     schwarzs_count_1.alloc(sizeof(int));
     schwarzs_count_2.alloc(sizeof(int));
@@ -1056,13 +1056,13 @@ int main()
             rtex[0].create_from_texture(tex[0].handle);
             rtex[1].create_from_texture(tex[1].handle);
 
-            schwarzs_1.alloc(sizeof(lightray) * ray_count * 2);
-            schwarzs_2.alloc(sizeof(lightray) * ray_count * 2);
+            schwarzs_1.alloc(sizeof(lightray) * ray_count * 1.5);
+            schwarzs_2.alloc(sizeof(lightray) * ray_count * 1.5);
             #ifndef GENERIC_METRIC
             kruskal_1.alloc(sizeof(lightray) * ray_count * 2);
             kruskal_2.alloc(sizeof(lightray) * ray_count * 2);
             #endif // GENERIC_METRIC
-            finished_1.alloc(sizeof(lightray) * ray_count * 2);
+            finished_1.alloc(sizeof(lightray) * ray_count * 1.5);
 
             for(int i=0; i < 2; i++)
             {
@@ -1105,6 +1105,16 @@ int main()
         if(ImGui::IsKeyPressed(GLFW_KEY_M))
         {
             camera = {0, 0, 0, 1.16};
+        }
+
+        if(ImGui::IsKeyPressed(GLFW_KEY_J))
+        {
+            camera = {0, -1.16, 0, 0};
+        }
+
+        if(ImGui::IsKeyPressed(GLFW_KEY_K))
+        {
+            camera = {0, 1.16, 0, 0};
         }
 
         if(ImGui::IsKeyPressed(GLFW_KEY_V))
