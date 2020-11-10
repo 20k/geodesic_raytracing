@@ -1772,9 +1772,9 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
     float4 pixel_y = pixel_direction.y * polar_y;
     float4 pixel_z = pixel_direction.z * polar_z;
 
-    /*float4 pixel_x = (float4)(polar_x.x, pixel_direction.x * polar_x.yzw);
-    float4 pixel_y = (float4)(polar_y.x, pixel_direction.y * polar_y.yzw);
-    float4 pixel_z = (float4)(polar_z.x, pixel_direction.z * polar_z.yzw);*/
+    /*float4 pixel_x = (float4)(0, pixel_direction.x * polar_x.yzw);
+    float4 pixel_y = (float4)(0, pixel_direction.y * polar_y.yzw);
+    float4 pixel_z = (float4)(0, pixel_direction.z * polar_z.yzw);*/
 
     float4 pixel_t = bT;
 
@@ -2126,7 +2126,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
             float ffrac = (M_PI - polar_position.z) / ERR_BOUND;
             ds = mix(0.05, ds, ffrac);
         }
-        #endif // GENERIC_CONSTANT_THETA
+        #endif
 
         #ifndef GENERIC_BIG_METRIC
         float g_metric[4] = {};
@@ -2228,7 +2228,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         #endif // ADAPTIVE_PRECISION
 
         #ifdef IS_CONSTANT_THETA
-        next_position.z = 0;
+        next_position.z = M_PI/2;
         next_velocity.z = 0;
         next_acceleration.z = 0;
         #endif // IS_CONSTANT_THETA

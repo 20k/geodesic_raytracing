@@ -19,7 +19,7 @@ namespace metric
         std::string name;
 
         bool singular = false;
-        bool traversible_event_horizon = false;
+        bool traversable_event_horizon = false;
         float singular_terminator = 1;
 
         bool adaptive_precision = true;
@@ -149,7 +149,7 @@ namespace metric
             argument_string += " -DSINGULAR";
             argument_string += " -DSINGULAR_TERMINATOR=" + to_string_s(in.singular_terminator);
 
-            if(in.traversible_event_horizon)
+            if(in.traversable_event_horizon)
             {
                 argument_string += " -DTRAVERSABLE_EVENT_HORIZON";
             }
