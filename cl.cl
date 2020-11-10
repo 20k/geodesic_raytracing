@@ -3051,19 +3051,25 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
     int sy = ray->sy;
 
     float4 position = ray->position;
+    float4 velocity = ray->velocity;
+
+    #ifdef IS_CONSTANT_THETA
+    position.z = M_PI/2;
+    velocity.z = 0;
+    #endif // IS_CONSTANT_THETA
 
     #if defined(UNIVERSE_SIZE)
     {
         if(fabs(position.y) >= UNIVERSE_SIZE)
         {
-            position.yzw = fix_ray_position(position.yzw, ray->velocity.yzw, UNIVERSE_SIZE, true);
+            position.yzw = fix_ray_position(position.yzw, velocity.yzw, UNIVERSE_SIZE, true);
         }
 
         ///I'm not 100% sure this is working as well as it could be
         #if defined(SINGULAR) && defined(TRAVERSABLE_EVENT_HORIZON)
         if(fabs(position.y) < SINGULAR_TERMINATOR)
         {
-            position.yzw = fix_ray_position(position.yzw, ray->velocity.yzw, SINGULAR_TERMINATOR, true);
+            position.yzw = fix_ray_position(position.yzw, velocity.yzw, SINGULAR_TERMINATOR, true);
         }
         #endif
     }
@@ -3178,18 +3184,24 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
         return;
 
     float4 position = ray->position;
+    float4 velocity = ray->velocity;
+
+    #ifdef IS_CONSTANT_THETA
+    position.z = M_PI/2;
+    velocity.z = 0;
+    #endif // IS_CONSTANT_THETA
 
     #if defined(UNIVERSE_SIZE)
     {
         if(fabs(position.y) >= UNIVERSE_SIZE)
         {
-            position.yzw = fix_ray_position(position.yzw, ray->velocity.yzw, UNIVERSE_SIZE, true);
+            position.yzw = fix_ray_position(position.yzw, velocity.yzw, UNIVERSE_SIZE, true);
         }
 
         #if defined(SINGULAR) && defined(TRAVERSABLE_EVENT_HORIZON)
         if(fabs(position.y) < SINGULAR_TERMINATOR)
         {
-            position.yzw = fix_ray_position(position.yzw, ray->velocity.yzw, SINGULAR_TERMINATOR, true);
+            position.yzw = fix_ray_position(position.yzw, velocity.yzw, SINGULAR_TERMINATOR, true);
         }
         #endif
     }
