@@ -195,9 +195,14 @@ float3 spherical_velocity_to_cartesian_velocity(float3 p, float3 dp)
 
 float3 fix_ray_position(float3 polar_pos, float3 polar_velocity, float sphere_radius, bool outwards_facing)
 {
-    float3 cartesian_velocity = spherical_velocity_to_cartesian_velocity(polar_pos, polar_velocity);
+    float position_sign = sign(polar_pos.x);
 
-    float3 cartesian_pos = polar_to_cartesian(polar_pos);
+    float3 cpolar_pos = polar_pos;
+    cpolar_pos.x = fabs(cpolar_pos.x);
+
+    float3 cartesian_velocity = spherical_velocity_to_cartesian_velocity(cpolar_pos, polar_velocity);
+
+    float3 cartesian_pos = polar_to_cartesian(cpolar_pos);
 
     float3 C = (float3){0,0,0};
 
@@ -235,6 +240,8 @@ float3 fix_ray_position(float3 polar_pos, float3 polar_velocity, float sphere_ra
     #ifdef IS_CONSTANT_THETA
     new_polar.y = M_PI/2;
     #endif // IS_CONSTANT_THETA
+
+    new_polar.x *= position_sign;
 
     return new_polar;
 }
@@ -2119,8 +2126,8 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         {
             int out_id = atomic_inc(finished_count_out);
 
-            if(polar_position.y < 0)
-                polar_position.y = -polar_position.y;
+            //if(polar_position.y < 0)
+            //    polar_position.y = -polar_position.y;
 
             float4 polar_velocity = generic_velocity_to_spherical_velocity(position, velocity);
 
@@ -3079,7 +3086,7 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
     float r_value = position.y;
 
     #if !defined(TRAVERSABLE_EVENT_HORIZON) || (defined(NO_EVENT_HORIZON_CROSSING) && !defined(GENERIC_METRIC))
-    if(r_value <= rs)
+    if(fabs(r_value) <= rs)
     {
         return;
     }
@@ -3211,7 +3218,7 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
     float r_value = position.y;
 
     #if !defined(TRAVERSABLE_EVENT_HORIZON) || (defined(NO_EVENT_HORIZON_CROSSING) && !defined(GENERIC_METRIC))
-    if(r_value <= rs * 2)
+    if(fabs(r_value) <= rs * 2)
     {
         write_imagef(out, (int2){sx, sy}, (float4)(0, 0, 0, 1));
         return;
@@ -3222,7 +3229,7 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
     float syf = texture_coordinates[sy * width + sx].y;
 
     ///we actually do have an event horizon
-    if(r_value <= rs)
+    if(fabs(r_value) <= rs || r_value < 0)
     {
         float4 val = (float4)(0,0,0,1);
 

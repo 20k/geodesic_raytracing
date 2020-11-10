@@ -297,7 +297,7 @@ std::array<dual, 16> kerr_metric(dual t, dual r, dual theta, dual phi)
 {
     dual rs = 1;
 
-    dual a = 2;
+    dual a = 0.51;
     dual E = r * r + a * a * cos(theta) * cos(theta);
     dual D = r * r  - rs * r + a * a;
 
@@ -319,7 +319,7 @@ std::array<dual, 16> kerr_metric(dual t, dual r, dual theta, dual phi)
 inline
 std::array<dual, 16> kerr_schild_metric(dual t, dual x, dual y, dual z)
 {
-    dual a = 2;
+    dual a = 0.55;
 
     dual R2 = x * x + y * y + z * z;
     dual Rm2 = x * x + y * y - z * z;
@@ -616,8 +616,8 @@ std::array<dual, 4> test_metric(dual t, dual p, dual theta, dual phi)
 int main()
 {
     render_settings sett;
-    sett.width = 1422/5;
-    sett.height = 800/5;
+    sett.width = 1422/3;
+    sett.height = 800/3;
     sett.opencl = true;
     sett.no_double_buffer = true;
 
