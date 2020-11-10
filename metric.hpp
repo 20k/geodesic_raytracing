@@ -16,8 +16,7 @@ namespace metric
     template<auto T, auto U, auto V>
     struct metric
     {
-        ///only set to true in polar coordinates
-        //bool spherically_symmetric = false;
+        std::string name;
 
         bool singular = false;
         bool traversible_event_horizon = false;

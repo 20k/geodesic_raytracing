@@ -74,6 +74,10 @@ vec4f cartesian_to_schwarz(vec4f position)
     return (vec4f){position.x(), polar.x(), polar.y(), polar.z()};
 }
 
+struct frame_descriptor
+{
+    int width=0, height = 0;
+};
 
 struct lightray
 {
@@ -582,8 +586,8 @@ std::array<dual, 4> polar_to_oblate(dual t, dual in_r, dual in_theta, dual in_ph
 //inline auto coordinate_transform_to = oblate_to_polar;
 //inline auto coordinate_transform_from = polar_to_oblate;
 
-inline auto coordinate_transform_to = cartesian_to_polar_dual;
-inline auto coordinate_transform_from = polar_to_cartesian_dual;
+//inline auto coordinate_transform_to = cartesian_to_polar_dual;
+//inline auto coordinate_transform_from = polar_to_cartesian_dual;
 
 //inline auto coordinate_transform_to = lemaitre_to_polar;
 //inline auto coordinate_transform_from = polar_to_lemaitre;
@@ -610,7 +614,7 @@ std::array<dual, 4> test_metric(dual t, dual p, dual theta, dual phi)
 int main()
 {
     render_settings sett;
-    sett.width = 1000;
+    sett.width = 1422;
     sett.height = 800;
     sett.opencl = true;
     sett.no_double_buffer = true;
@@ -627,64 +631,80 @@ int main()
     #ifdef GENERIC_METRIC
 
     metric::metric<schwarzschild_blackhole, polar_to_polar, polar_to_polar> schwarzs_polar;
+    schwarzs_polar.name = "schwarzschild";
     schwarzs_polar.singular = true;
     schwarzs_polar.adaptive_precision = false;
 
     metric::metric<schwarzschild_blackhole_lemaitre, lemaitre_to_polar, polar_to_lemaitre> schwarzs_lemaitre;
+    schwarzs_lemaitre.name = "schwarzs_lemaitre";
     schwarzs_lemaitre.singular = true;
     schwarzs_lemaitre.traversible_event_horizon = true;
     schwarzs_lemaitre.adaptive_precision = false;
 
     metric::metric<traversible_wormhole, polar_to_polar, polar_to_polar> simple_wormhole;
+    simple_wormhole.name = "wormhole";
     simple_wormhole.adaptive_precision = false;
 
     metric::metric<cosmic_string, polar_to_polar, polar_to_polar> cosmic_string_obj;
+    cosmic_string_obj.name = "cosmic_string";
     cosmic_string_obj.adaptive_precision = true;
     cosmic_string_obj.detect_singularities = true;
 
     ///todo: i forgot what this is and what parameters it might need
     metric::metric<ernst_metric, polar_to_polar, polar_to_polar> ernst_metric_obj;
+    ernst_metric_obj.name = "ernst";
     ernst_metric_obj.adaptive_precision = true;
     ernst_metric_obj.detect_singularities = true;
 
     metric::metric<janis_newman_winicour, polar_to_polar, polar_to_polar> janis_newman_winicour_obj;
-    janis_newman_winicour_obj.detect_singularities = true;
+    janis_newman_winicour_obj.name = "janis_newman_winicour";
+    janis_newman_winicour_obj.detect_singularities = false;
 
     metric::metric<ellis_drainhole, polar_to_polar, polar_to_polar> ellis_drainhole_obj;
+    ellis_drainhole_obj.name = "ellis_drainhole";
     ellis_drainhole_obj.adaptive_precision = false;
 
     ///kerr family
     metric::metric<kerr_metric, polar_to_polar, polar_to_polar> kerr_obj;
+    kerr_obj.name = "kerr_boyer";
     kerr_obj.adaptive_precision = true;
     //kerr_obj.detect_singularities = true;
 
     metric::metric<kerr_schild_metric, cartesian_to_polar_dual, polar_to_cartesian_dual> kerr_schild_obj;
+    kerr_schild_obj.name = "kerr_schild";
     kerr_schild_obj.adaptive_precision = true;
     kerr_schild_obj.detect_singularities = true;
     kerr_schild_obj.system = metric::coordinate_system::CARTESIAN;
 
     metric::metric<kerr_rational_polynomial, rational_to_polar, polar_to_rational> kerr_rational_polynomial_obj;
+    kerr_rational_polynomial_obj.name = "kerr_rational_poly";
     kerr_rational_polynomial_obj.adaptive_precision = true;
     kerr_rational_polynomial_obj.detect_singularities = true;
 
     metric::metric<de_sitter, polar_to_polar, polar_to_polar> de_sitter_obj;
+    de_sitter_obj.name = "desitter";
     de_sitter_obj.adaptive_precision = false;
 
     metric::metric<minkowski_space, cartesian_to_polar_dual, polar_to_cartesian_dual> minkowski_space_obj;
+    minkowski_space_obj.name = "minkowski";
     minkowski_space_obj.adaptive_precision = false;
     minkowski_space_obj.system = metric::coordinate_system::CARTESIAN;
 
     metric::metric<minkowski_cylindrical, cylindrical_to_polar, polar_to_cylindrical> minkowski_cylindrical_obj;
+    minkowski_cylindrical_obj.name = "minkowski_cylindrical";
     minkowski_cylindrical_obj.adaptive_precision = false;
     minkowski_cylindrical_obj.system = metric::coordinate_system::OTHER;
 
     metric::metric<alcubierre_metric, cartesian_to_polar_dual, polar_to_cartesian_dual> alcubierre_metric_obj;
+    alcubierre_metric_obj.name = "alcubierre";
     alcubierre_metric_obj.system = metric::coordinate_system::CARTESIAN;
 
     metric::config cfg;
-    cfg.error_override = 100.f;
+    //cfg.error_override = 100.f;
 
-    argument_string += build_argument_string(ellis_drainhole_obj, cfg);
+    auto current_metric = schwarzs_polar;
+
+    argument_string += build_argument_string(current_metric, cfg);
 
     #if 0
     //auto [real_eq, derivatives] = evaluate_metric(test_metric, "v1", "v2", "v3", "v4");
@@ -929,8 +949,10 @@ int main()
 
     cl::buffer schwarzs_1(clctx.ctx);
     cl::buffer schwarzs_2(clctx.ctx);
+    #ifndef GENERIC_METRIC
     cl::buffer kruskal_1(clctx.ctx);
     cl::buffer kruskal_2(clctx.ctx);
+    #endif // GENERIC_METRIC
     cl::buffer finished_1(clctx.ctx);
 
     cl::buffer schwarzs_count_1(clctx.ctx);
@@ -949,8 +971,10 @@ int main()
 
     schwarzs_1.alloc(sizeof(lightray) * ray_count * 3);
     schwarzs_2.alloc(sizeof(lightray) * ray_count * 3);
+    #ifndef GENERIC_METRIC
     kruskal_1.alloc(sizeof(lightray) * ray_count * 3);
     kruskal_2.alloc(sizeof(lightray) * ray_count * 3);
+    #endif // GENERIC_METRIC
     finished_1.alloc(sizeof(lightray) * ray_count * 3);
 
     schwarzs_count_1.alloc(sizeof(int));
@@ -976,12 +1000,68 @@ int main()
     std::cout << "Supports shared events? " << cl::supports_extension(clctx.ctx, "cl_khr_gl_event") << std::endl;
 
     bool supersample = false;
+    bool should_take_screenshot = false;
+
+    int screenshot_w = 1920;
+    int screenshot_h = 1080;
 
     while(!win.should_close())
     {
         win.poll();
 
         glFinish();
+
+        auto buffer_size = rtex[which_buffer].size<2>();
+
+        bool taking_screenshot = should_take_screenshot;
+        should_take_screenshot = false;
+
+        if((vec2i){buffer_size.x() / supersample_mult, buffer_size.y() / supersample_mult} != win.get_window_size() || taking_screenshot)
+        {
+            if(last_event.has_value())
+                last_event.value().block();
+
+            last_event = std::nullopt;
+
+            if(!taking_screenshot)
+            {
+                supersample_width = win.get_window_size().x() * supersample_mult;
+                supersample_height = win.get_window_size().y() * supersample_mult;
+            }
+            else
+            {
+                supersample_width = screenshot_w * supersample_mult;
+                supersample_height = screenshot_h * supersample_mult;
+            }
+
+            ray_count = supersample_width * supersample_height * 3;
+
+            texture_settings new_sett;
+            new_sett.width = supersample_width;
+            new_sett.height = supersample_height;
+            new_sett.is_srgb = false;
+
+            tex[0].load_from_memory(new_sett, nullptr);
+            tex[1].load_from_memory(new_sett, nullptr);
+
+            rtex[0].create_from_texture(tex[0].handle);
+            rtex[1].create_from_texture(tex[1].handle);
+
+            schwarzs_1.alloc(sizeof(lightray) * ray_count * 2);
+            schwarzs_2.alloc(sizeof(lightray) * ray_count * 2);
+            #ifndef GENERIC_METRIC
+            kruskal_1.alloc(sizeof(lightray) * ray_count * 2);
+            kruskal_2.alloc(sizeof(lightray) * ray_count * 2);
+            #endif // GENERIC_METRIC
+            finished_1.alloc(sizeof(lightray) * ray_count * 2);
+
+            for(int i=0; i < 2; i++)
+            {
+                texture_coordinates[i].alloc(supersample_width * supersample_height * sizeof(float) * 2);
+                texture_coordinates[i].set_to_zero(clctx.cqueue);
+            }
+        }
+
         rtex[which_buffer].acquire(clctx.cqueue);
 
         float ds = 0.01;
@@ -1087,17 +1167,23 @@ int main()
 
         float time = clk.restart().asMicroseconds() / 1000.;
 
-        ImGui::Begin("DBG", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+        if(!taking_screenshot)
+        {
+            ImGui::Begin("DBG", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 
-        ImGui::DragFloat3("Pos", &scamera.v[1]);
+            ImGui::DragFloat3("Pos", &scamera.v[1]);
 
-        ImGui::DragFloat("Time", &time);
+            ImGui::DragFloat("Time", &time);
 
-        ImGui::Checkbox("Supersample", &supersample);
+            ImGui::Checkbox("Supersample", &supersample);
 
-        ImGui::SliderFloat("CTime", &camera.v[0], 0.f, 100.f);
+            ImGui::SliderFloat("CTime", &camera.v[0], 0.f, 100.f);
 
-        ImGui::End();
+            if(ImGui::Button("Screenshot"))
+                should_take_screenshot = true;
+
+            ImGui::End();
+        }
 
         int width = win.get_window_size().x();
         int height = win.get_window_size().y();
@@ -1106,6 +1192,12 @@ int main()
         {
             width *= supersample_mult;
             height *= supersample_mult;
+        }
+
+        if(taking_screenshot)
+        {
+            width = rtex[which_buffer].size<2>().x();
+            height = rtex[which_buffer].size<2>().y();
         }
 
         cl::args clr;
@@ -1228,6 +1320,34 @@ int main()
         }
 
         clctx.cqueue.flush();
+
+        if(taking_screenshot)
+        {
+            printf("Taking screenie\n");
+
+            clctx.cqueue.block();
+
+            printf("Blocked\n");
+
+            std::cout << "WIDTH " << (screenshot_w * supersample_mult) << " HEIGHT "<< (screenshot_h * supersample_mult) << std::endl;
+
+            std::vector<cl_uchar4> pixels = rtex[which_buffer].read<2, cl_uchar4>(clctx.cqueue, {0,0}, {screenshot_w * supersample_mult, screenshot_h * supersample_mult});
+
+            printf("Readback\n");
+
+            std::cout << "pixels size " << pixels.size() << std::endl;
+
+            sf::Image img;
+            img.create(screenshot_w * supersample_mult, screenshot_h * supersample_mult, (const sf::Uint8*)&pixels[0]);
+
+            std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
+            auto duration = now.time_since_epoch();
+            auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+
+            std::string fname = "./screenshots/" + current_metric.name + "_" + std::to_string(millis) + ".png";
+
+            img.saveToFile(fname);
+        }
 
         rtex[which_buffer].unacquire(clctx.cqueue);
 

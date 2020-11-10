@@ -43,13 +43,14 @@
 		</Build>
 		<Compiler>
 			<Add option="-Wall" />
-			<Add option="-fexceptions" />
 			<Add option="-std=c++17" />
+			<Add option="-fexceptions" />
 			<Add option="-DIMGUI_IMPL_OPENGL_LOADER_GLEW" />
 			<Add option="-DSUBPIXEL_FONT_RENDERING" />
 			<Add option="-DSFML_STATIC" />
 			<Add option="-DGLEW_STATIC" />
 			<Add option="-DGRAPHITE2_STATIC" />
+			<Add option="-DCL_TARGET_OPENCL_VERSION=220" />
 			<Add directory="deps" />
 			<Add directory="deps/imgui" />
 		</Compiler>
