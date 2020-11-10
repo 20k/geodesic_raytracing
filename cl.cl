@@ -1771,6 +1771,11 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
     float4 pixel_x = pixel_direction.x * polar_x;
     float4 pixel_y = pixel_direction.y * polar_y;
     float4 pixel_z = pixel_direction.z * polar_z;
+
+    /*float4 pixel_x = (float4)(polar_x.x, pixel_direction.x * polar_x.yzw);
+    float4 pixel_y = (float4)(polar_y.x, pixel_direction.y * polar_y.yzw);
+    float4 pixel_z = (float4)(polar_z.x, pixel_direction.z * polar_z.yzw);*/
+
     float4 pixel_t = bT;
 
     pixel_x = spherical_velocity_to_generic_velocity(polar_camera, pixel_x);

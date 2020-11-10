@@ -121,82 +121,70 @@ std::optional<float> get_value(std::string in)
 inline
 std::string infix(std::string v1, std::string v2, std::string op)
 {
+    auto c1 = get_value(v1);
+    auto c2 = get_value(v2);
+
+    //std::cout << "V " << op << " " << v1 << " " << v2 << std::endl;
+
     if(op == "*")
     {
-        if(v1 == "0" || v2 == "0")
+        if((c1.has_value() && c1.value() == 0) || (c2.has_value() && c2.value() == 0))
             return "0";
 
-        {
-            auto c1 = get_value(v1);
-            auto c2 = get_value(v2);
+        if(c1.has_value() && c2.has_value())
+            return to_string_s(c1.value() * c2.value());
 
-            if(c1.has_value() && c2.has_value())
-                return to_string_s(c1.value() * c2.value());
-        }
-
-        if(v1 == "1")
+        if(c1.has_value() && c1.value() == 1)
             return v2;
 
-        if(v2 == "1")
+        if(c2.has_value() && c2.value() == 1)
             return v1;
     }
 
     if(op == "+")
     {
-        if(v1 == "0")
+        if(c1.has_value() && c1.value() == 0)
             return v2;
 
-        if(v2 == "0")
+        if(c2.has_value() && c2.value() == 0)
             return v1;
 
-        {
-            auto c1 = get_value(v1);
-            auto c2 = get_value(v2);
-
-            if(c1.has_value() && c2.has_value())
-                return to_string_s(c1.value() + c2.value());
-        }
+        if(c1.has_value() && c2.has_value())
+            return to_string_s(c1.value() + c2.value());
     }
 
     if(op == "-")
     {
-        if(v1 == "0")
+        if(c1.has_value() && c1.value() == 0)
         {
-            if(v2 == "0")
+            if(c2.has_value() && c2.value() == 0)
                 return "0";
 
             return "(-(" + v2 + "))";
         }
 
-        if(v2 == "0")
+        if(c2.has_value() && c2.value() == 0)
             return v1;
 
-        if(v1 == v2)
+        if(c1.has_value() && c2.has_value() && c1.value() == c2.value())
             return "0";
 
-        {
-            auto c1 = get_value(v1);
-            auto c2 = get_value(v2);
-
-            if(c1.has_value() && c2.has_value())
-                return to_string_s(c1.value() - c2.value());
-        }
+        if(c1.has_value() && c2.has_value())
+            return to_string_s(c1.value() - c2.value());
 
         return "(" + v1 + op + "(" + v2 + "))";
     }
 
     if(op == "/")
     {
-        if(v1 == "0")
+        if(c1.has_value() && c1.value() == 0)
             return "0";
 
-        {
-            auto c1 = get_value(v1);
-            auto c2 = get_value(v2);
+        if(c2.has_value() && c2.value() == 1)
+            return v1;
 
-            if(c1.has_value() && c2.has_value())
-                return to_string_s(c1.value() / c2.value());
-        }
+        if(c1.has_value() && c2.has_value())
+            return to_string_s(c1.value() / c2.value());
     }
 
     return "(" + v1 + "" + op + "" + v2 + ")";
