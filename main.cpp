@@ -613,6 +613,7 @@ std::array<dual, 4> test_metric(dual t, dual p, dual theta, dual phi)
 
 #define GENERIC_METRIC
 
+///i need the ability to have dynamic parameters
 int main()
 {
     render_settings sett;
