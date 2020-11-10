@@ -109,6 +109,8 @@ std::array<dual, 4> schwarzschild_blackhole_lemaitre(dual T, dual p, dual theta,
 {
     dual rs = 1;
 
+    theta = M_PI/2;
+
     dual r = pow(((3/2.f) * (p - T)), 2.f/3.f) * pow(rs, 1.f/3.f);
 
     dual dT = -1;

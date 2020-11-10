@@ -2093,6 +2093,10 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
         float4 polar_position = generic_to_spherical(position);
 
+        #ifdef IS_CONSTANT_THETA
+        polar_position.z = M_PI/2;
+        #endif // IS_CONSTANT_THETA
+
         float r_value = polar_position.y;
 
         float ds = linear_val(fabs(r_value), new_min, new_max, ambient_precision, subambient_precision);
@@ -2226,12 +2230,6 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
             return;
         #endif // SINGULARITY_DETECTION
         #endif // ADAPTIVE_PRECISION
-
-        #ifdef IS_CONSTANT_THETA
-        next_position.z = M_PI/2;
-        next_velocity.z = 0;
-        next_acceleration.z = 0;
-        #endif // IS_CONSTANT_THETA
 
         position = next_position;
         //velocity = fix_light_velocity2(next_velocity, g_metric);
