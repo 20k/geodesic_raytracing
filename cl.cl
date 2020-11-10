@@ -197,16 +197,12 @@ float3 fix_ray_position(float3 polar_pos, float3 polar_velocity, float sphere_ra
 {
     float3 cartesian_velocity = spherical_velocity_to_cartesian_velocity(polar_pos, polar_velocity);
 
-    //polar_pos = polar_pos - polar_velocity;
     float3 cartesian_pos = polar_to_cartesian(polar_pos);
 
     float3 C = (float3){0,0,0};
 
     float3 L = C - cartesian_pos;
     float tca = dot(L, cartesian_velocity);
-
-    //if(tca < 0)
-    //    return polar_pos;
 
     float d2 = dot(L, L) - tca * tca;
 
@@ -218,58 +214,27 @@ float3 fix_ray_position(float3 polar_pos, float3 polar_velocity, float sphere_ra
     float t0 = tca - thc;
     float t1 = tca + thc;
 
-    //printf("PPR %f\n", polar_pos.x);
-
-
-    //if(t0 < 0 && t1 < 0)
-    //    return polar_pos;
-
     float my_t = 0;
 
-    if(outwards_facing)
-    {
-        if(t0 > 0 && t1 > 0)
-            return polar_pos;
+    if(t0 > 0 && t1 > 0)
+        return polar_pos;
 
-        if(t0 < 0 && t1 < 0)
-            my_t = max(t0, t1);
+    if(t0 < 0 && t1 < 0)
+        my_t = max(t0, t1);
 
-        if(t0 < 0 && t1 > 0)
-            my_t = t0;
+    if(t0 < 0 && t1 > 0)
+        my_t = t0;
 
-        if(t0 > 0 && t1 < 0)
-            my_t = t1;
-    }
-    else
-    {
-        if(t0 < 0 && t1 < 0)
-            return polar_pos;
-
-        if(t0 < 0 && t1 > 0)
-            my_t = t1;
-
-        if(t0 > 0 && t1 > 0)
-            my_t = min(t0, t1);
-    }
-
-    /*if(t0 > 0 && t1 > 0)
-    {
-        my_t = min(t0, t1);
-    }*/
-
-
-    /*if(t0 < 0 && t1 > 0)
-    {
+    if(t0 > 0 && t1 < 0)
         my_t = t1;
-    }*/
-
-    //printf("Hithere %f %f %f\n", my_t, t0, t1);
 
     float3 new_cart = cartesian_pos + my_t * cartesian_velocity;
 
     float3 new_polar = cartesian_to_polar(new_cart);
 
-    //printf("NPR %f\n", new_polar.x);
+    #ifdef IS_CONSTANT_THETA
+    new_polar.y = M_PI/2;
+    #endif // IS_CONSTANT_THETA
 
     return new_polar;
 }

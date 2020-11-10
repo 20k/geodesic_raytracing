@@ -642,8 +642,9 @@ int main()
     //schwarzs_lemaitre.singular = true;
     //schwarzs_lemaitre.traversible_event_horizon = true;
     //schwarzs_lemaitre.adaptive_precision = true;
+    schwarzs_lemaitre.adaptive_precision = true;
     schwarzs_lemaitre.singular = true;
-    schwarzs_lemaitre.singular_terminator = 0.9;
+    schwarzs_lemaitre.singular_terminator = 0.5;
     schwarzs_lemaitre.traversable_event_horizon = true;
     //schwarzs_lemaitre.system = metric::coordinate_system::OTHER;
     //schwarzs_lemaitre.detect_singularities = true;
@@ -708,6 +709,7 @@ int main()
 
     metric::config cfg;
     //cfg.error_override = 100.f;
+    cfg.error_override = 0.1;
 
     auto current_metric = schwarzs_lemaitre;
 
