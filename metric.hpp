@@ -147,7 +147,12 @@ namespace metric
         if(in.singular)
         {
             argument_string += " -DSINGULAR";
-            argument_string += " -DSINGULAR_TERMINATOR=" + std::to_string(in.singular_terminator);
+            argument_string += " -DSINGULAR_TERMINATOR=" + to_string_s(in.singular_terminator);
+
+            if(in.traversible_event_horizon)
+            {
+                argument_string += " -DTRAVERSABLE_EVENT_HORIZON";
+            }
         }
 
         if(in.adaptive_precision)

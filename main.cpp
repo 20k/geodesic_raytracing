@@ -637,9 +637,13 @@ int main()
 
     metric::metric<schwarzschild_blackhole_lemaitre, lemaitre_to_polar, polar_to_lemaitre> schwarzs_lemaitre;
     schwarzs_lemaitre.name = "schwarzs_lemaitre";
+    //schwarzs_lemaitre.singular = true;
+    //schwarzs_lemaitre.traversible_event_horizon = true;
+    //schwarzs_lemaitre.adaptive_precision = true;
     schwarzs_lemaitre.singular = true;
+    schwarzs_lemaitre.singular_terminator = 0.75;
     schwarzs_lemaitre.traversible_event_horizon = true;
-    schwarzs_lemaitre.adaptive_precision = false;
+    //schwarzs_lemaitre.detect_singularities = true;
 
     metric::metric<traversible_wormhole, polar_to_polar, polar_to_polar> simple_wormhole;
     simple_wormhole.name = "wormhole";
@@ -702,7 +706,7 @@ int main()
     metric::config cfg;
     //cfg.error_override = 100.f;
 
-    auto current_metric = schwarzs_polar;
+    auto current_metric = schwarzs_lemaitre;
 
     argument_string += build_argument_string(current_metric, cfg);
 
