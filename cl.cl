@@ -1748,7 +1748,7 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
     float4 pixel_y = (float4)(0, pixel_direction.y * polar_y.yzw);
     float4 pixel_z = (float4)(0, pixel_direction.z * polar_z.yzw);*/
 
-    float4 pixel_t = bT;
+    float4 pixel_t = -bT;
 
     pixel_x = spherical_velocity_to_generic_velocity(polar_camera, pixel_x);
     pixel_y = spherical_velocity_to_generic_velocity(polar_camera, pixel_y);
@@ -2099,7 +2099,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         }
         else
         {
-            ds = 0.1 * pow((fabs(r_value) - new_max), 1.5) + subambient_precision;
+            ds = 0.1 * pow((fabs(r_value) - new_max), 1) + subambient_precision;
             //ds = 0.1 * pow((fabs(r_value) - new_max), 2) + subambient_precision;
         }
 
