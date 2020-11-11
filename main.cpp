@@ -374,6 +374,40 @@ std::array<dual, 16> kerr_rational_polynomial(dual t, dual r, dual X, dual phi)
 }
 
 inline
+std::array<dual, 16> kerr_newman(dual t, dual r, dual theta, dual phi)
+{
+    dual c = 1;
+    dual rs = 1;
+    dual r2q = 0.5;
+    dual a = 0.51;
+    dual p2 = r * r + a * a * cos(theta) * cos(theta);
+    dual D = r * r - rs * r + a * a + r2q * r2q;
+
+    dual dr = -p2 / D;
+    dual dtheta = -p2;
+
+    dual dt_1 = c * c * D / p2;
+    dual dtdphi_1 = -2 * c * a * sin(theta) * sin(theta) * D/p2;
+    dual dphi_1 = pow(a * sin(theta) * sin(theta), 2) * D/p2;
+
+    dual dphi_2 = -pow(r * r + a * a, 2) * sin(theta) * sin(theta) / p2;
+    dual dtdphi_2 = 2 * a * c * (r * r + a * a) * sin(theta) * sin(theta) / p2;
+    dual dt_2 = -a * a * c * c * sin(theta) * sin(theta) / p2;
+
+    dual dtdphi = dtdphi_1 + dtdphi_2;
+
+    std::array<dual, 16> ret;
+    ret[0 * 4 + 0] = -(dt_1 + dt_2);
+    ret[1 * 4 + 1] = -dr;
+    ret[2 * 4 + 2] = -dtheta;
+    ret[3 * 4 + 3] = -(dphi_1 + dphi_2);
+    ret[0 * 4 + 3] = -dtdphi * 0.5;
+    ret[3 * 4 + 0] = -dtdphi * 0.5;
+
+    return ret;
+}
+
+inline
 std::array<dual_complex, 16> big_imaginary_metric_test(dual_complex t, dual_complex p, dual_complex theta, dual_complex phi)
 {
     dual_complex c = 1;
@@ -674,6 +708,11 @@ int main()
     kerr_obj.adaptive_precision = true;
     //kerr_obj.detect_singularities = true;
 
+    metric::metric<kerr_newman, polar_to_polar, polar_to_polar> kerr_newman_obj;
+    kerr_newman_obj.name = "kerrnewman_boyer";
+    kerr_newman_obj.adaptive_precision = true;
+    //kerr_newman_obj.detect_singularities = true;
+
     metric::metric<kerr_schild_metric, cartesian_to_polar_dual, polar_to_cartesian_dual> kerr_schild_obj;
     kerr_schild_obj.name = "kerr_schild";
     kerr_schild_obj.adaptive_precision = true;
@@ -707,7 +746,7 @@ int main()
     //cfg.error_override = 100.f;
     //cfg.error_override = 0.0000001;
 
-    auto current_metric = kerr_obj;
+    auto current_metric = kerr_newman_obj;
 
     argument_string += build_argument_string(current_metric, cfg);
 

@@ -2213,6 +2213,12 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         rk4_generic_big(&position, &velocity, &ds);
         #endif // RK4_GENERIC
 
+        if(any(isnan(position)) || any(isnan(velocity)) || any(isnan(acceleration)))
+        {
+            //printf("Hi %i %i\n", sx, sy);
+            return;
+        }
+
         //if(sx == 500 && sy == 400)
         //printf("DS %f\n", dot_product_big(velocity, velocity, g_metric_big));
 
