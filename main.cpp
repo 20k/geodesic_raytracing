@@ -294,7 +294,7 @@ std::array<dual, 16> kerr_metric(dual t, dual r, dual theta, dual phi)
 {
     dual rs = 1;
 
-    dual a = 0.51;
+    dual a = -0.51;
     dual E = r * r + a * a * cos(theta) * cos(theta);
     dual D = r * r  - rs * r + a * a;
 
@@ -316,7 +316,7 @@ std::array<dual, 16> kerr_metric(dual t, dual r, dual theta, dual phi)
 inline
 std::array<dual, 16> kerr_schild_metric(dual t, dual x, dual y, dual z)
 {
-    dual a = 0.55;
+    dual a = -0.55;
 
     dual R2 = x * x + y * y + z * z;
     dual Rm2 = x * x + y * y - z * z;
@@ -356,7 +356,7 @@ inline
 std::array<dual, 16> kerr_rational_polynomial(dual t, dual r, dual X, dual phi)
 {
     dual m = 0.5;
-    dual a = 2;
+    dual a = -2;
 
     dual dt = -(1 - 2 * m * r / (r * r + a * a * X * X));
     dual dphidt = - (4 * a * m * r * (1 - X * X))/(r * r + a * a * X * X);
@@ -383,7 +383,7 @@ std::array<dual, 16> kerr_newman(dual t, dual r, dual theta, dual phi)
     dual r2q = 0.51;
     //dual r2q = 0.5;
     //dual a = 0.51;
-    dual a = 0.51;
+    dual a = -0.51;
 
     dual p2 = r * r + a * a * cos(theta) * cos(theta);
     dual D = r * r - rs * r + a * a + r2q * r2q;
@@ -471,7 +471,7 @@ std::array<dual_complex, 16> minkowski_cylindrical(dual_complex t, dual_complex 
 inline
 std::array<dual, 16> alcubierre_metric(dual t, dual x, dual y, dual z)
 {
-    dual dxs_t = 1.9;
+    dual dxs_t = 0.9;
     dual xs_t = dxs_t * t;
     dual vs_t = dxs_t;
 
@@ -524,7 +524,7 @@ dual alcubierre_distance(dual t, dual r, dual theta, dual phi)
 {
     std::array<dual, 4> cart = polar_to_cartesian_dual(t, r, theta, phi);
 
-    dual dxs_t = 1.9;
+    dual dxs_t = 0.9;
 
     dual x_pos = cart[1] - dxs_t * t;
 
@@ -752,8 +752,8 @@ int main()
     //cfg.error_override = 0.00001f;
 
     //auto current_metric = kerr_obj;
-    //auto current_metric = alcubierre_metric_obj;
-    auto current_metric = kerr_newman_obj;
+    auto current_metric = alcubierre_metric_obj;
+    //auto current_metric = kerr_newman_obj;
 
     argument_string += build_argument_string(current_metric, cfg);
 
