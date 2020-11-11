@@ -74,11 +74,6 @@ vec4f cartesian_to_schwarz(vec4f position)
     return (vec4f){position.x(), polar.x(), polar.y(), polar.z()};
 }
 
-struct frame_descriptor
-{
-    int width=0, height = 0;
-};
-
 struct lightray
 {
     vec4f position;
