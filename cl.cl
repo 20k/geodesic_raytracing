@@ -2174,11 +2174,17 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         #ifdef ADAPTIVE_PRECISION
         float4 curve4 = next_acceleration - acceleration;
 
-        float experienced_acceleration_change = max(max(fabs(curve4.x * W_V1), fabs(curve4.y * W_V2)), max(fabs(curve4.z * W_V3), fabs(curve4.w * W_V4)));
+        //float experienced_acceleration_change = max(max(fabs(curve4.x * W_V1), fabs(curve4.y * W_V2)), max(fabs(curve4.z * W_V3), fabs(curve4.w * W_V4)));
+        float experienced_acceleration_change = fast_length(curve4 * (float4){W_V1, W_V2, W_V3, W_V4});
+
+        //experienced_acceleration_change /= max(max(W_V1, W_V2), max(W_V3, W_V4));
+
+        experienced_acceleration_change /= fast_length((float4)(W_V1, W_V2, W_V3, W_V4));
 
         float err = MAX_ACCELERATION_CHANGE;
         float i_hate_computers = 100;
 
+        //#define MIN_STEP 0.00001f
         #define MIN_STEP 0.000001f
 
         float max_timestep = 100000;
@@ -2215,7 +2221,6 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
         if(any(isnan(position)) || any(isnan(velocity)) || any(isnan(acceleration)))
         {
-            //printf("Hi %i %i\n", sx, sy);
             return;
         }
 

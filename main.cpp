@@ -64,6 +64,8 @@ https://arxiv.org/pdf/0712.4333.pdf - coordinate system choices for schwarzschil
 https://iopscience.iop.org/article/10.1088/1361-6382/ab6e3e/pdf - another
 
 http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.1002.1336&rep=rep1&type=pdf
+
+http://yukterez.net/ - loads of good stuff
 */
 
 ///perfectly fine
@@ -381,7 +383,7 @@ std::array<dual, 16> kerr_newman(dual t, dual r, dual theta, dual phi)
     dual r2q = 0.51;
     //dual r2q = 0.5;
     //dual a = 0.51;
-    dual a = 0.2;
+    dual a = 0.51;
 
     dual p2 = r * r + a * a * cos(theta) * cos(theta);
     dual D = r * r - rs * r + a * a + r2q * r2q;
@@ -649,8 +651,8 @@ std::array<dual, 4> test_metric(dual t, dual p, dual theta, dual phi)
 int main()
 {
     render_settings sett;
-    sett.width = 1422/3;
-    sett.height = 800/3;
+    sett.width = 1422/2;
+    sett.height = 800/2;
     sett.opencl = true;
     sett.no_double_buffer = true;
 
@@ -714,7 +716,7 @@ int main()
     metric::metric<kerr_newman, polar_to_polar, polar_to_polar> kerr_newman_obj;
     kerr_newman_obj.name = "kerrnewman_boyer";
     kerr_newman_obj.adaptive_precision = true;
-    //kerr_newman_obj.detect_singularities = true;
+    kerr_newman_obj.detect_singularities = true;
 
     metric::metric<kerr_schild_metric, cartesian_to_polar_dual, polar_to_cartesian_dual> kerr_schild_obj;
     kerr_schild_obj.name = "kerr_schild";
@@ -747,9 +749,10 @@ int main()
 
     metric::config cfg;
     //cfg.error_override = 100.f;
-    //cfg.error_override = 0.0000001;
+    //cfg.error_override = 0.00001f;
 
-    auto current_metric = kerr_newman_obj;
+    auto current_metric = schwarzs_lemaitre;
+    //auto current_metric = kerr_newman_obj;
 
     argument_string += build_argument_string(current_metric, cfg);
 
