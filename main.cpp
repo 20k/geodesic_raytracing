@@ -475,7 +475,7 @@ std::array<dual, 16> alcubierre_metric(dual t, dual x, dual y, dual z)
     dual xs_t = dxs_t * t;
     dual vs_t = dxs_t;
 
-    dual rs_t = sqrt((x - xs_t) * (x - xs_t) + y * y + z * z);
+    dual rs_t = fast_length(x - xs_t, y, z);
 
     dual sigma = 20;
     dual R = 1;
@@ -528,7 +528,7 @@ dual alcubierre_distance(dual t, dual r, dual theta, dual phi)
 
     dual x_pos = cart[1] - dxs_t * t;
 
-    return sqrt(x_pos * x_pos + cart[2] * cart[2] + cart[3] * cart[3]);
+    return fast_length(x_pos, cart[2], cart[3]);
 }
 
 inline
@@ -1055,6 +1055,7 @@ int main()
 
     int screenshot_w = 1920;
     int screenshot_h = 1080;
+    bool time_progresses = false;
 
     while(!win.should_close())
     {
@@ -1239,6 +1240,11 @@ int main()
             ImGui::Checkbox("Supersample", &supersample);
 
             ImGui::SliderFloat("CTime", &camera.v[0], 0.f, 100.f);
+
+            ImGui::Checkbox("Time Progresses", &time_progresses);
+
+            if(time_progresses)
+                camera.v[0] += time / 1000.f;
 
             if(ImGui::Button("Screenshot"))
                 should_take_screenshot = true;

@@ -472,6 +472,18 @@ dual_types::symbol makefinite(const dual_types::symbol& d1)
     return dual_types::symbol(threearg("0.f", d1.sym, unary(d1.sym, "isfinite"), "select"));
 }
 
+inline
+dual_types::symbol length(const dual_types::symbol& d1, const dual_types::symbol& d2, const dual_types::symbol& d3)
+{
+    return dual_types::symbol("length((float3){" + d1.sym + "," + d2.sym + "," + d3.sym + "})");
+}
+
+inline
+dual_types::symbol fast_length(const dual_types::symbol& d1, const dual_types::symbol& d2, const dual_types::symbol& d3)
+{
+    return dual_types::symbol("fast_length((float3){" + d1.sym + "," + d2.sym + "," + d3.sym + "})");
+}
+
 using complex_v = dual_types::symbol_complex;
 
 inline
@@ -725,6 +737,24 @@ inline
 dual_types::dual_v<T> conjugate(const dual_types::dual_v<T>& d1)
 {
     return dual_types::dual_v<T>(conjugate(d1.real), conjugate(d1.dual));
+}
+
+template<typename T>
+inline
+dual_types::dual_v<T> length(const dual_types::dual_v<T>& d1, const dual_types::dual_v<T>& d2, const dual_types::dual_v<T>& d3)
+{
+    T bottom = 2 * length(d1.real, d2.real, d3.real);
+
+    return dual_types::dual_v<T>(length(d1.real, d2.real, d3.real), (2 * d1.real * d1.dual + 2 * d2.real * d2.dual + 2 * d3.real * d3.dual) / bottom);
+}
+
+template<typename T>
+inline
+dual_types::dual_v<T> fast_length(const dual_types::dual_v<T>& d1, const dual_types::dual_v<T>& d2, const dual_types::dual_v<T>& d3)
+{
+    T bottom = 2 * fast_length(d1.real, d2.real, d3.real);
+
+    return dual_types::dual_v<T>(fast_length(d1.real, d2.real, d3.real), (2 * d1.real * d1.dual + 2 * d2.real * d2.dual + 2 * d3.real * d3.dual) / bottom);
 }
 
 inline

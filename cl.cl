@@ -2099,7 +2099,8 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         }
         else
         {
-            ds = 0.1 * (fabs(r_value) - new_max) + subambient_precision;
+            ds = 0.1 * pow((fabs(r_value) - new_max), 1.5) + subambient_precision;
+            //ds = 0.1 * pow((fabs(r_value) - new_max), 2) + subambient_precision;
         }
 
         #define ERR_BOUND (M_PI/4)
