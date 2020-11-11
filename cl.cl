@@ -2103,46 +2103,13 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
             //ds = 0.1 * pow((fabs(r_value) - new_max), 2) + subambient_precision;
         }
 
-        #define ERR_BOUND (M_PI/4)
-        #define TERMINATE_ERROR_BOUND (M_PI/32)
-
-        #ifdef POLE_SINGULARITY
-        if(polar_position.z < ERR_BOUND)
-        {
-            ds = mix(0.05, ds, polar_position.z / ERR_BOUND);
-        }
-
-        if(polar_position.z >= (M_PI - ERR_BOUND))
-        {
-            float ffrac = (M_PI - polar_position.z) / ERR_BOUND;
-            ds = mix(0.05, ds, ffrac);
-        }
-        #endif
-
-        #ifndef GENERIC_BIG_METRIC
-        float g_metric[4] = {};
-        float g_partials[16] = {};
-        #else
-        float g_metric_big[16] = {};
-        float g_partials_big[64] = {};
-        #endif // GENERIC_BIG_METRIC
-
-        bool singularity = false;
-
-        #ifdef POLE_SINGULARITY
-        singularity = polar_position.z < TERMINATE_ERROR_BOUND || polar_position.z >= M_PI - TERMINATE_ERROR_BOUND;
-        #endif
-
         #ifndef SINGULAR
-        if(fabs(polar_position.y) >= UNIVERSE_SIZE || singularity)
+        if(fabs(polar_position.y) >= UNIVERSE_SIZE)
         #else
-        if(fabs(polar_position.y) < rs*SINGULAR_TERMINATOR || fabs(polar_position.y) >= UNIVERSE_SIZE || singularity)
+        if(fabs(polar_position.y) < rs*SINGULAR_TERMINATOR || fabs(polar_position.y) >= UNIVERSE_SIZE)
         #endif // SINGULAR
         {
             int out_id = atomic_inc(finished_count_out);
-
-            //if(polar_position.y < 0)
-            //    polar_position.y = -polar_position.y;
 
             float4 polar_velocity = generic_velocity_to_spherical_velocity(position, velocity);
 
@@ -2158,6 +2125,14 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         }
 
         #ifdef EULER_INTEGRATION_GENERIC
+
+        #ifndef GENERIC_BIG_METRIC
+        float g_metric[4] = {};
+        float g_partials[16] = {};
+        #else
+        float g_metric_big[16] = {};
+        float g_partials_big[64] = {};
+        #endif // GENERIC_BIG_METRIC
 
         #ifndef GENERIC_BIG_METRIC
         calculate_metric_generic(position, g_metric);
@@ -2211,7 +2186,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         if(diff < err * i_hate_computers / pow(max_timestep, 2))
             diff = err * i_hate_computers / pow(max_timestep, 2);
 
-        next_ds = sqrt(((err * i_hate_computers) / diff));
+        next_ds = native_sqrt(((err * i_hate_computers) / diff));
 
         ///produces strictly worse results for kerr
         //next_ds = 0.9 * ds * clamp(next_ds / ds, 0.3, 2.f);
