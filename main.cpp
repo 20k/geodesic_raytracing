@@ -500,6 +500,38 @@ std::array<dual, 16> alcubierre_metric(dual t, dual x, dual y, dual z)
 }
 
 inline
+std::array<dual, 4> polar_to_cartesian_dual(dual t, dual r, dual theta, dual phi)
+{
+    dual x = r * sin(theta) * cos(phi);
+    dual y = r * sin(theta) * sin(phi);
+    dual z = r * cos(theta);
+
+    return {t, x, y, z};
+}
+
+inline
+std::array<dual, 4> cartesian_to_polar_dual(dual t, dual x, dual y, dual z)
+{
+    dual r = sqrt(x * x + y * y + z * z);
+    dual theta = atan2(sqrt(x * x + y * y), z);
+    dual phi = atan2(y, x);
+
+    return {t, r, theta, phi};
+}
+
+inline
+dual alcubierre_distance(dual t, dual r, dual theta, dual phi)
+{
+    std::array<dual, 4> cart = polar_to_cartesian_dual(t, r, theta, phi);
+
+    dual dxs_t = 0.9;
+
+    dual x_pos = cart[1] - dxs_t * t;
+
+    return sqrt(x_pos * x_pos + cart[2] * cart[2] + cart[3] * cart[3]);
+}
+
+inline
 std::array<dual, 4> lemaitre_to_polar(dual T, dual p, dual theta, dual phi)
 {
     dual rs = 1;
@@ -540,26 +572,6 @@ std::array<dual, 4> polar_to_cylindrical(dual t, dual r, dual theta, dual phi)
     dual rz = r * cos(theta);
 
     return {t, rp, rphi, rz};
-}
-
-inline
-std::array<dual, 4> polar_to_cartesian_dual(dual t, dual r, dual theta, dual phi)
-{
-    dual x = r * sin(theta) * cos(phi);
-    dual y = r * sin(theta) * sin(phi);
-    dual z = r * cos(theta);
-
-    return {t, x, y, z};
-}
-
-inline
-std::array<dual, 4> cartesian_to_polar_dual(dual t, dual x, dual y, dual z)
-{
-    dual r = sqrt(x * x + y * y + z * z);
-    dual theta = atan2(sqrt(x * x + y * y), z);
-    dual phi = atan2(y, x);
-
-    return {t, r, theta, phi};
 }
 
 inline
@@ -613,23 +625,11 @@ std::array<dual, 4> polar_to_oblate(dual t, dual in_r, dual in_theta, dual in_ph
     return {t, tr, ttheta, tphi};
 }
 
-//inline auto coordinate_transform_to = cylindrical_to_polar;
-//inline auto coordinate_transform_from = polar_to_cylindrical;
-
-//inline auto coordinate_transform_to = polar_to_polar;
-//inline auto coordinate_transform_from = polar_to_polar;
-
-//inline auto coordinate_transform_to = oblate_to_polar;
-//inline auto coordinate_transform_from = polar_to_oblate;
-
-//inline auto coordinate_transform_to = cartesian_to_polar_dual;
-//inline auto coordinate_transform_from = polar_to_cartesian_dual;
-
-//inline auto coordinate_transform_to = lemaitre_to_polar;
-//inline auto coordinate_transform_from = polar_to_lemaitre;
-
-//inline auto coordinate_transform_to = rational_to_polar;
-//inline auto coordinate_transform_from = polar_to_rational;
+inline
+dual at_origin(dual t, dual r, dual theta, dual phi)
+{
+    return r;
+}
 
 /*inline
 std::array<dual, 4> test_metric(dual t, dual p, dual theta, dual phi)
@@ -667,12 +667,12 @@ int main()
     #if 1
     #ifdef GENERIC_METRIC
 
-    metric::metric<schwarzschild_blackhole, polar_to_polar, polar_to_polar> schwarzs_polar;
+    metric::metric<schwarzschild_blackhole, polar_to_polar, polar_to_polar, at_origin> schwarzs_polar;
     schwarzs_polar.name = "schwarzschild";
     schwarzs_polar.singular = true;
     schwarzs_polar.adaptive_precision = false;
 
-    metric::metric<schwarzschild_blackhole_lemaitre, lemaitre_to_polar, polar_to_lemaitre> schwarzs_lemaitre;
+    metric::metric<schwarzschild_blackhole_lemaitre, lemaitre_to_polar, polar_to_lemaitre, at_origin> schwarzs_lemaitre;
     schwarzs_lemaitre.name = "schwarzs_lemaitre";
     //schwarzs_lemaitre.singular = true;
     //schwarzs_lemaitre.traversible_event_horizon = true;
@@ -684,66 +684,66 @@ int main()
     //schwarzs_lemaitre.system = metric::coordinate_system::OTHER;
     //schwarzs_lemaitre.detect_singularities = true;
 
-    metric::metric<traversible_wormhole, polar_to_polar, polar_to_polar> simple_wormhole;
+    metric::metric<traversible_wormhole, polar_to_polar, polar_to_polar, at_origin> simple_wormhole;
     simple_wormhole.name = "wormhole";
     simple_wormhole.adaptive_precision = false;
 
-    metric::metric<cosmic_string, polar_to_polar, polar_to_polar> cosmic_string_obj;
+    metric::metric<cosmic_string, polar_to_polar, polar_to_polar, at_origin> cosmic_string_obj;
     cosmic_string_obj.name = "cosmic_string";
     cosmic_string_obj.adaptive_precision = true;
     cosmic_string_obj.detect_singularities = true;
 
     ///todo: i forgot what this is and what parameters it might need
-    metric::metric<ernst_metric, polar_to_polar, polar_to_polar> ernst_metric_obj;
+    metric::metric<ernst_metric, polar_to_polar, polar_to_polar, at_origin> ernst_metric_obj;
     ernst_metric_obj.name = "ernst";
     ernst_metric_obj.adaptive_precision = true;
     ernst_metric_obj.detect_singularities = true;
 
-    metric::metric<janis_newman_winicour, polar_to_polar, polar_to_polar> janis_newman_winicour_obj;
+    metric::metric<janis_newman_winicour, polar_to_polar, polar_to_polar, at_origin> janis_newman_winicour_obj;
     janis_newman_winicour_obj.name = "janis_newman_winicour";
     janis_newman_winicour_obj.detect_singularities = false;
 
-    metric::metric<ellis_drainhole, polar_to_polar, polar_to_polar> ellis_drainhole_obj;
+    metric::metric<ellis_drainhole, polar_to_polar, polar_to_polar, at_origin> ellis_drainhole_obj;
     ellis_drainhole_obj.name = "ellis_drainhole";
     ellis_drainhole_obj.adaptive_precision = false;
 
     ///kerr family
-    metric::metric<kerr_metric, polar_to_polar, polar_to_polar> kerr_obj;
+    metric::metric<kerr_metric, polar_to_polar, polar_to_polar, at_origin> kerr_obj;
     kerr_obj.name = "kerr_boyer";
     kerr_obj.adaptive_precision = true;
     //kerr_obj.detect_singularities = true;
 
-    metric::metric<kerr_newman, polar_to_polar, polar_to_polar> kerr_newman_obj;
+    metric::metric<kerr_newman, polar_to_polar, polar_to_polar, at_origin> kerr_newman_obj;
     kerr_newman_obj.name = "kerrnewman_boyer";
     kerr_newman_obj.adaptive_precision = true;
     kerr_newman_obj.detect_singularities = true;
 
-    metric::metric<kerr_schild_metric, cartesian_to_polar_dual, polar_to_cartesian_dual> kerr_schild_obj;
+    metric::metric<kerr_schild_metric, cartesian_to_polar_dual, polar_to_cartesian_dual, at_origin> kerr_schild_obj;
     kerr_schild_obj.name = "kerr_schild";
     kerr_schild_obj.adaptive_precision = true;
     kerr_schild_obj.detect_singularities = true;
     kerr_schild_obj.system = metric::coordinate_system::CARTESIAN;
 
-    metric::metric<kerr_rational_polynomial, rational_to_polar, polar_to_rational> kerr_rational_polynomial_obj;
+    metric::metric<kerr_rational_polynomial, rational_to_polar, polar_to_rational, at_origin> kerr_rational_polynomial_obj;
     kerr_rational_polynomial_obj.name = "kerr_rational_poly";
     kerr_rational_polynomial_obj.adaptive_precision = true;
     kerr_rational_polynomial_obj.detect_singularities = true;
 
-    metric::metric<de_sitter, polar_to_polar, polar_to_polar> de_sitter_obj;
+    metric::metric<de_sitter, polar_to_polar, polar_to_polar, at_origin> de_sitter_obj;
     de_sitter_obj.name = "desitter";
     de_sitter_obj.adaptive_precision = false;
 
-    metric::metric<minkowski_space, cartesian_to_polar_dual, polar_to_cartesian_dual> minkowski_space_obj;
+    metric::metric<minkowski_space, cartesian_to_polar_dual, polar_to_cartesian_dual, at_origin> minkowski_space_obj;
     minkowski_space_obj.name = "minkowski";
     minkowski_space_obj.adaptive_precision = false;
     minkowski_space_obj.system = metric::coordinate_system::CARTESIAN;
 
-    metric::metric<minkowski_cylindrical, cylindrical_to_polar, polar_to_cylindrical> minkowski_cylindrical_obj;
+    metric::metric<minkowski_cylindrical, cylindrical_to_polar, polar_to_cylindrical, at_origin> minkowski_cylindrical_obj;
     minkowski_cylindrical_obj.name = "minkowski_cylindrical";
     minkowski_cylindrical_obj.adaptive_precision = false;
     minkowski_cylindrical_obj.system = metric::coordinate_system::OTHER;
 
-    metric::metric<alcubierre_metric, cartesian_to_polar_dual, polar_to_cartesian_dual> alcubierre_metric_obj;
+    metric::metric<alcubierre_metric, cartesian_to_polar_dual, polar_to_cartesian_dual, alcubierre_distance> alcubierre_metric_obj;
     alcubierre_metric_obj.name = "alcubierre";
     alcubierre_metric_obj.system = metric::coordinate_system::CARTESIAN;
 
@@ -751,7 +751,8 @@ int main()
     //cfg.error_override = 100.f;
     //cfg.error_override = 0.00001f;
 
-    auto current_metric = schwarzs_lemaitre;
+    //auto current_metric = kerr_obj;
+    auto current_metric = alcubierre_metric_obj;
     //auto current_metric = kerr_newman_obj;
 
     argument_string += build_argument_string(current_metric, cfg);

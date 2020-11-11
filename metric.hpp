@@ -13,7 +13,7 @@ namespace metric
         OTHER
     };
 
-    template<auto T, auto U, auto V>
+    template<auto T, auto U, auto V, auto distance_function>
     struct metric
     {
         std::string name;
@@ -42,9 +42,9 @@ namespace metric
         std::optional<float> error_override = std::nullopt;
     };
 
-    template<auto T, auto U, auto V>
+    template<auto T, auto U, auto V, auto distance_function>
     inline
-    std::string build_argument_string(const metric<T, U, V>& in, const config& cfg)
+    std::string build_argument_string(const metric<T, U, V, distance_function>& in, const config& cfg)
     {
         std::string argument_string = " -DRS_IMPL=1 -DC_IMPL=1 ";
 
@@ -186,6 +186,8 @@ namespace metric
             ///covers cartesian, and 'other'
             argument_string += " -DW_V1=1 -DW_V2=1 -DW_V3=1 -DW_V4=1";
         }
+
+        argument_string += " -DDISTANCE_FUNC=" + get_function(distance_function, "v1", "v2", "v3", "v4");
 
         argument_string += " -DUNIVERSE_SIZE=" + std::to_string(cfg.universe_size);
 

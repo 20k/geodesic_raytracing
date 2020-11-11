@@ -1999,6 +1999,18 @@ void step_verlet(float4 position, float4 velocity, float4 acceleration, float ds
     *acceleration_out = next_acceleration;
 }
 
+float get_distance_to_object(float4 polar)
+{
+    float v1 = polar.x;
+    float v2 = polar.y;
+    float v3 = polar.z;
+    float v4 = polar.w;
+
+    float result = DISTANCE_FUNC;
+
+    return result;
+}
+
 __kernel
 void do_generic_rays (__global struct lightray* generic_rays_in, __global struct lightray* generic_rays_out,
                       __global struct lightray* finished_rays,
@@ -2069,7 +2081,9 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         polar_position.z = M_PI/2;
         #endif // IS_CONSTANT_THETA
 
-        float r_value = polar_position.y;
+        //float r_value = polar_position.y;
+
+        float r_value = get_distance_to_object(polar_position);
 
         float ds = linear_val(fabs(r_value), new_min, new_max, ambient_precision, subambient_precision);
 

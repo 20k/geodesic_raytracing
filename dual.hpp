@@ -949,6 +949,24 @@ std::pair<std::vector<std::string>, std::vector<std::string>> total_diff(Func&& 
     return {full_eqs, total_differentials};
 }
 
+template<typename Func, typename... T>
+inline
+std::string get_function(Func&& f, T... raw_variables)
+{
+    constexpr int N = sizeof...(T);
+    std::array<std::string, N> variable_names{raw_variables...};
+
+    std::array<dual, N> variables;
+
+    for(int i=0; i < N; i++)
+    {
+        variables[i].make_variable(variable_names[i]);
+    }
+
+    dual result = array_apply(std::forward<Func>(f), variables);
+
+    return result.real.sym;
+}
 
 template<typename T, size_t N, size_t... Is>
 inline
