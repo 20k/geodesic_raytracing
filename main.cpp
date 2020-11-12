@@ -499,6 +499,49 @@ std::array<dual, 16> alcubierre_metric(dual t, dual x, dual y, dual z)
     return ret;
 }
 
+///https://arxiv.org/pdf/2010.11031.pdf
+inline
+std::array<dual, 16> symmetric_warp_drive(dual t, dual r, dual theta, dual phi)
+{
+    dual rg = 1;
+    dual rk = rg;
+
+    dual a20 = (1 - rg / r);
+
+    dual a0 = sqrt(a20);
+
+    dual a1 = t / theta;
+
+    dual a2 = a20 + a1;
+
+    dual yrr0 = 1 / (1 - (rg / r));
+    dual ythetatheta0 = r * r;
+    dual yphiphi0 = r * r * sin(theta) * sin(theta);
+
+    dual gamma_0 = pow(r, 4) * sin(theta) * sin(theta) / (1 - rg/r);
+
+    dual littlea = rk * theta * pow(a0, -1);
+    dual littleb = rk * theta - sqrt(gamma_0);
+
+    dual Urt = (littlea * pow(a20 + t/theta, 3/2.f) - littleb) / (littlea * a0*a0*a0 - littleb);
+
+    dual yrr = Urt * yrr0;
+    dual ythetatheta = Urt * ythetatheta0;
+    dual yphiphi = Urt * yphiphi0;
+
+    dual dt = -a2;
+
+    /*std::array<dual, 16> ret;
+    ret[0 * 4 + 0] = dt;
+    ret[1 * 4 + 1] = yrr;
+    ret[2 * 4 + 2] = ythetatheta;
+    ret[3 * 4 + 3] = yphiphi;
+
+    return ret;*/
+
+    return {dt, yrr, ythetatheta, yphiphi};
+}
+
 inline
 std::array<dual, 4> polar_to_cartesian_dual(dual t, dual r, dual theta, dual phi)
 {
@@ -747,12 +790,20 @@ int main()
     alcubierre_metric_obj.name = "alcubierre";
     alcubierre_metric_obj.system = metric::coordinate_system::CARTESIAN;
 
+    metric::metric<symmetric_warp_drive, polar_to_polar, polar_to_polar, at_origin> symmetric_warp_obj;
+    symmetric_warp_obj.name = "symmetric_warp";
+    symmetric_warp_obj.detect_singularities = true;
+    symmetric_warp_obj.singular = true;
+    symmetric_warp_obj.singular_terminator = 1.001f;
+    //symmetric_warp_obj.adaptive_precision = false;
+
     metric::config cfg;
     //cfg.error_override = 100.f;
     //cfg.error_override = 0.00001f;
 
+    auto current_metric = symmetric_warp_obj;
     //auto current_metric = kerr_obj;
-    auto current_metric = alcubierre_metric_obj;
+    //auto current_metric = alcubierre_metric_obj;
     //auto current_metric = kerr_newman_obj;
 
     argument_string += build_argument_string(current_metric, cfg);
