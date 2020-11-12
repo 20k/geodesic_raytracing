@@ -185,6 +185,16 @@ std::string infix(std::string v1, std::string v2, std::string op)
 
         if(c1.has_value() && c2.has_value())
             return to_string_s(c1.value() / c2.value());
+
+        #ifdef RECIPROCAL_CONSTANTS
+        if(!c1.has_value() && c2.has_value())
+        {
+            if(c2.value() == 0)
+                throw std::runtime_error("c2 cannot be 0 in / expression");
+
+            return infix(v1, to_string_s(1/c2.value()), "*");
+        }
+        #endif // RECIPROCAL_CONSTANTS
     }
 
     return "(" + v1 + "" + op + "" + v2 + ")";
