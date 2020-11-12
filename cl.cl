@@ -1664,7 +1664,6 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
     float4 bX = (float4)(0, 1/co_basis.y, 0, 0); ///or br
     float4 btheta = (float4)(0, 0, 1/co_basis.z, 0);
     float4 bphi = (float4)(0, 0, 0, 1/co_basis.w);
-
     #else
     float g_metric_big[16] = {0};
     calculate_metric_generic_big(at_metric, g_metric_big);
@@ -1757,14 +1756,17 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
     float4 vec = pixel_x + pixel_y + pixel_z + pixel_t;
 
     float4 pixel_N = vec;
-    #ifndef GENERIC_BIG_METRIC
-    pixel_N = fix_light_velocity2(pixel_N, g_metric);
-    #endif // GENERIC_BIG_METRIC
 
     lightray_velocity = pixel_N;
     lightray_spacetime_position = at_metric;
 
     float4 lightray_acceleration = (float4)(0,0,0,0);
+
+    #ifdef IS_CONSTANT_THETA
+    lightray_spacetime_position.z = M_PI/2;
+    lightray_velocity.z = 0;
+    lightray_acceleration.z = 0;
+    #endif // IS_CONSTANT_THETA
 
     {
         #ifndef GENERIC_BIG_METRIC
@@ -1778,10 +1780,11 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
         #else
         float g_partials_big[64] = {0};
 
-        //calculate_metric_generic_big(lightray_spacetime_position, g_metric_big);
+        calculate_metric_generic_big(lightray_spacetime_position, g_metric_big);
         calculate_partial_derivatives_generic_big(lightray_spacetime_position, g_partials_big);
 
-        //lightray_velocity = fix_light_velocity2(lightray_velocity, g_metric);
+        lightray_velocity = fix_light_velocity_big(lightray_velocity, g_metric_big);
+
         lightray_acceleration = calculate_acceleration_big(lightray_velocity, g_metric_big, g_partials_big);
         #endif // GENERIC_BIG_METRIC
     }
