@@ -499,9 +499,19 @@ std::array<dual, 16> alcubierre_metric(dual t, dual x, dual y, dual z)
     return ret;
 }
 
+
+/*std::array<dual, 16> ret;
+ret[0 * 4 + 0] = dt;
+ret[1 * 4 + 1] = yrr;
+ret[2 * 4 + 2] = ythetatheta;
+ret[3 * 4 + 3] = yphiphi;
+
+return ret;*/
+
+
 ///https://arxiv.org/pdf/2010.11031.pdf
 inline
-std::array<dual, 16> symmetric_warp_drive(dual t, dual r, dual theta, dual phi)
+std::array<dual, 4> symmetric_warp_drive(dual t, dual r, dual theta, dual phi)
 {
     dual rg = 1;
     dual rk = rg;
@@ -530,14 +540,6 @@ std::array<dual, 16> symmetric_warp_drive(dual t, dual r, dual theta, dual phi)
     dual yphiphi = Urt * yphiphi0;
 
     dual dt = -a2;
-
-    /*std::array<dual, 16> ret;
-    ret[0 * 4 + 0] = dt;
-    ret[1 * 4 + 1] = yrr;
-    ret[2 * 4 + 2] = ythetatheta;
-    ret[3 * 4 + 3] = yphiphi;
-
-    return ret;*/
 
     return {dt, yrr, ythetatheta, yphiphi};
 }
