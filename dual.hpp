@@ -230,61 +230,67 @@ std::string threearg(std::string v1, std::string v2, std::string v3, std::string
 inline
 std::string unary(std::string v1, std::string op)
 {
-    if(op == "-" && v1 == "0")
+    auto c1 = get_value(v1);
+
+    if(op == "-" && c1.has_value() && c1.value() == 0)
         return "0";
+
+    if(op == "sin" || op == "native_sin")
+    {
+        if(c1.has_value())
+            return to_string_s(sin(c1.value()));
+    }
+
+    if(op == "cos" || op == "native_cos")
+    {
+        if(c1.has_value())
+            return to_string_s(cos(c1.value()));
+    }
+
+    if(op == "tan" || op == "native_tan")
+    {
+        if(c1.has_value())
+            return to_string_s(tan(c1.value()));
+    }
 
     if(op == "native_exp")
     {
-        auto c1 = get_value(v1);
-
         if(c1.has_value())
             return to_string_s(exp(c1.value()));
     }
 
     if(op == "native_sqrt")
     {
-        auto c1 = get_value(v1);
-
         if(c1.has_value())
             return to_string_s(sqrt(c1.value()));
     }
 
     if(op == "sinh")
     {
-        auto c1 = get_value(v1);
-
         if(c1.has_value())
             return to_string_s(sinh(c1.value()));
     }
 
     if(op == "cosh")
     {
-        auto c1 = get_value(v1);
-
         if(c1.has_value())
             return to_string_s(cosh(c1.value()));
     }
 
     if(op == "tanh")
     {
-        auto c1 = get_value(v1);
-
         if(c1.has_value())
             return to_string_s(tanh(c1.value()));
     }
 
     if(op == "log")
     {
-        auto c1 = get_value(v1);
-
         if(c1.has_value())
             return to_string_s(log(c1.value()));
     }
 
     if(op == "isfinite")
     {
-        auto c1 = get_value(v1);
-
         if(c1.has_value())
             return to_string_s(isfinite(c1.value()));
     }

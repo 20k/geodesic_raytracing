@@ -513,6 +513,8 @@ return ret;*/
 inline
 std::array<dual, 4> symmetric_warp_drive(dual t, dual r, dual theta, dual phi)
 {
+    theta = M_PI/2;
+
     dual rg = 1;
     dual rk = rg;
 
