@@ -66,6 +66,7 @@ https://iopscience.iop.org/article/10.1088/1361-6382/ab6e3e/pdf - another
 http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.1002.1336&rep=rep1&type=pdf
 
 http://yukterez.net/ - loads of good stuff
+https://scholarworks.rit.edu/cgi/viewcontent.cgi?article=11286&context=theses - lots more good stuff, numerical relativity
 */
 
 ///perfectly fine

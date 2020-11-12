@@ -1966,6 +1966,9 @@ float4 rk4_f(float t, float4 position, float4 velocity)
 }*/
 #endif // GENERIC_BIG_METRIC
 
+///todo:
+///it would be useful to be able to combine data from multiple ticks which are separated by some delta, but where I don't have control over that delta
+///I wonder if a taylor series expansion of F(y + dt) might be helpful
 void step_verlet(float4 position, float4 velocity, float4 acceleration, float ds, float4* position_out, float4* velocity_out, float4* acceleration_out)
 {
     #ifndef GENERIC_BIG_METRIC
