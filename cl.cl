@@ -1971,6 +1971,58 @@ float4 rk4_f(float t, float4 position, float4 velocity)
 ///I wonder if a taylor series expansion of F(y + dt) might be helpful
 void step_verlet(float4 position, float4 velocity, float4 acceleration, float ds, float4* position_out, float4* velocity_out, float4* acceleration_out)
 {
+
+    //#define EXPERIMENTAL_DOUBLE_INTEGRATION
+    #ifdef EXPERIMENTAL_DOUBLE_INTEGRATION
+
+    //ds *= 2;
+
+    #ifndef GENERIC_BIG_METRIC
+    float g_metric[4] = {};
+    float g_partials[16] = {};
+
+    calculate_metric_generic(position, g_metric);
+    calculate_partial_derivatives_generic(position, g_partials);
+    #else
+    float g_metric_big[16] = {};
+    float g_partials_big[64] = {};
+
+    calculate_metric_generic_big(position, g_metric_big);
+    calculate_partial_derivatives_generic_big(position, g_partials_big);
+    #endif // GENERIC_BIG_METRIC
+
+    float4 v_half_estimate = velocity + (ds/2) * acceleration;
+
+    #ifndef GENERIC_BIG_METRIC
+    float4 half_acceleration = calculate_acceleration(v_half_estimate, g_metric, g_partials);
+    #else
+    float4 half_acceleration = calculate_acceleration_big(v_half_estimate, g_metric_big, g_partials_big);
+    #endif // GENERIC_BIG_METRIC
+
+    float4 v_half = velocity + (ds/2) * half_acceleration;
+
+    float4 p_half = position + (ds/2) * v_half;
+
+    float4 p_full = p_half + (ds/2) * v_half;
+
+    #ifndef GENERIC_BIG_METRIC
+    calculate_metric_generic(p_full, g_metric);
+    calculate_partial_derivatives_generic(p_full, g_partials);
+
+    float4 final_half_acceleration = calculate_acceleration(v_half, g_metric, g_partials);
+    #else
+    calculate_metric_generic_big(p_full, g_metric_big);
+    calculate_partial_derivatives_generic_big(p_full, g_partials_big);
+
+    float4 final_half_acceleration = calculate_acceleration_big(v_half, g_metric_big, g_partials_big);
+    #endif // GENERIC_BIG_METRIC
+
+    float4 v_full = v_half + (ds/2) * final_half_acceleration;
+
+    *position_out = p_full;
+    *velocity_out = v_full;
+    *acceleration_out = final_half_acceleration;
+    #else
     #ifndef GENERIC_BIG_METRIC
     float g_metric[4] = {};
     float g_partials[16] = {};
@@ -1980,6 +2032,7 @@ void step_verlet(float4 position, float4 velocity, float4 acceleration, float ds
     #endif // GENERIC_BIG_METRIC
 
     float4 next_position = position + velocity * ds + 0.5f * acceleration * ds * ds;
+
     float4 intermediate_next_velocity = velocity + acceleration * ds;
 
     #ifndef GENERIC_BIG_METRIC
@@ -2003,6 +2056,7 @@ void step_verlet(float4 position, float4 velocity, float4 acceleration, float ds
     *position_out = next_position;
     *velocity_out = next_velocity;
     *acceleration_out = next_acceleration;
+    #endif // EXPERIMENTAL_DOUBLE_INTEGRATION
 }
 
 float get_distance_to_object(float4 polar)
@@ -2106,6 +2160,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         else
         {
             ds = 0.1 * pow((fabs(r_value) - new_max), 1) + subambient_precision;
+            //ds = 0.1 * pow((fabs(r_value) - new_max), 1) + subambient_precision;
             //ds = 0.1 * pow((fabs(r_value) - new_max), 2) + subambient_precision;
         }
 

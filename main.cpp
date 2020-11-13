@@ -700,8 +700,8 @@ std::array<dual, 4> test_metric(dual t, dual p, dual theta, dual phi)
 int main()
 {
     render_settings sett;
-    sett.width = 1422/2;
-    sett.height = 800/2;
+    sett.width = 1422/1;
+    sett.height = 800/1;
     sett.opencl = true;
     sett.no_double_buffer = true;
 
@@ -805,12 +805,15 @@ int main()
 
     metric::config cfg;
     //cfg.error_override = 100.f;
+    cfg.error_override = 0.0001f;
+    //cfg.error_override = 0.001f;
     //cfg.error_override = 0.00001f;
 
-    auto current_metric = symmetric_warp_obj;
+    //auto current_metric = symmetric_warp_obj;
     //auto current_metric = kerr_obj;
     //auto current_metric = alcubierre_metric_obj;
     //auto current_metric = kerr_newman_obj;
+    auto current_metric = schwarzs_lemaitre;
 
     argument_string += build_argument_string(current_metric, cfg);
 
