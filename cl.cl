@@ -2174,13 +2174,21 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         float4 curve4 = next_acceleration - acceleration;
 
         //float experienced_acceleration_change = max(max(fabs(curve4.x * W_V1), fabs(curve4.y * W_V2)), max(fabs(curve4.z * W_V3), fabs(curve4.w * W_V4)));
-        float experienced_acceleration_change = fast_length(curve4 * (float4){W_V1, W_V2, W_V3, W_V4});
+        //float experienced_acceleration_change = fast_length(curve4 * (float4){W_V1, W_V2, W_V3, W_V4});
 
-        experienced_acceleration_change = fast_length(next_acceleration * (float4)(W_V1, W_V2, W_V3, W_V4)) * 0.01;
+        float maximum_space_curvature = max(max(fabs(curve4.x * W_V1), fabs(curve4.y * W_V2)), max(fabs(curve4.z * W_V3), fabs(curve4.w * W_V4)));
+
+        maximum_space_curvature /= max(max(W_V1, W_V2), max(W_V3, W_V4));
+
+        float current_acceleration_err = fast_length(next_acceleration * (float4)(W_V1, W_V2, W_V3, W_V4)) * 0.01;
+
+        current_acceleration_err /= max(max(W_V1, W_V2), max(W_V3, W_V4));
+
+        float experienced_acceleration_change = mix(maximum_space_curvature, current_acceleration_err, 0.8);
 
         //experienced_acceleration_change /= max(max(W_V1, W_V2), max(W_V3, W_V4));
 
-        experienced_acceleration_change /= fast_length((float4)(W_V1, W_V2, W_V3, W_V4));
+        //experienced_acceleration_change /= fast_length((float4)(W_V1, W_V2, W_V3, W_V4));
 
         float err = MAX_ACCELERATION_CHANGE;
         float i_hate_computers = 100;

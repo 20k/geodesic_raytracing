@@ -1039,8 +1039,8 @@ int main()
     cl::device_command_queue dqueue(clctx.ctx);
 
     ///t, x, y, z
-    vec4f camera = {0, -2, -2, 0};
-    //vec4f camera = {0, -2, -8, 0};
+    //vec4f camera = {0, -2, -2, 0};
+    vec4f camera = {0, -2, -8, 0};
     //vec4f camera = {0, 0, -8, 0};
     //vec4f camera = {0, 0.01, -0.024, -5.5};
     quat camera_quat;
