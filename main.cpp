@@ -296,7 +296,7 @@ std::array<dual, 16> kerr_metric(dual t, dual r, dual theta, dual phi)
 {
     dual rs = 1;
 
-    dual a = -0.51;
+    dual a = 0.51;
     dual E = r * r + a * a * cos(theta) * cos(theta);
     dual D = r * r  - rs * r + a * a;
 
@@ -318,7 +318,7 @@ std::array<dual, 16> kerr_metric(dual t, dual r, dual theta, dual phi)
 inline
 std::array<dual, 16> kerr_schild_metric(dual t, dual x, dual y, dual z)
 {
-    dual a = -0.55;
+    dual a = 0.55;
 
     dual R2 = x * x + y * y + z * z;
     dual Rm2 = x * x + y * y - z * z;
@@ -358,7 +358,7 @@ inline
 std::array<dual, 16> kerr_rational_polynomial(dual t, dual r, dual X, dual phi)
 {
     dual m = 0.5;
-    dual a = -2;
+    dual a = 2;
 
     dual dt = -(1 - 2 * m * r / (r * r + a * a * X * X));
     dual dphidt = - (4 * a * m * r * (1 - X * X))/(r * r + a * a * X * X);
@@ -385,7 +385,7 @@ std::array<dual, 16> kerr_newman(dual t, dual r, dual theta, dual phi)
     dual r2q = 0.51;
     //dual r2q = 0.5;
     //dual a = 0.51;
-    dual a = -0.51;
+    dual a = 0.51;
 
     dual p2 = r * r + a * a * cos(theta) * cos(theta);
     dual D = r * r - rs * r + a * a + r2q * r2q;
@@ -805,15 +805,15 @@ int main()
 
     metric::config cfg;
     //cfg.error_override = 100.f;
-    cfg.error_override = 0.0001f;
+    //cfg.error_override = 0.000001f;
     //cfg.error_override = 0.001f;
     //cfg.error_override = 0.00001f;
 
     //auto current_metric = symmetric_warp_obj;
-    //auto current_metric = kerr_obj;
+    auto current_metric = kerr_obj;
     //auto current_metric = alcubierre_metric_obj;
     //auto current_metric = kerr_newman_obj;
-    auto current_metric = schwarzs_lemaitre;
+    //auto current_metric = schwarzs_lemaitre;
 
     argument_string += build_argument_string(current_metric, cfg);
 
