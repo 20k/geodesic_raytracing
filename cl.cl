@@ -1972,8 +1972,6 @@ float4 rk4_f(float t, float4 position, float4 velocity)
 ///I wonder if a taylor series expansion of F(y + dt) might be helpful
 void step_verlet(float4 position, float4 velocity, float4 acceleration, float ds, float4* position_out, float4* velocity_out, float4* acceleration_out)
 {
-    //ds *= 4;
-
     #ifndef GENERIC_BIG_METRIC
     float g_metric[4] = {};
     float g_partials[16] = {};
@@ -2178,6 +2176,8 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         //float experienced_acceleration_change = max(max(fabs(curve4.x * W_V1), fabs(curve4.y * W_V2)), max(fabs(curve4.z * W_V3), fabs(curve4.w * W_V4)));
         float experienced_acceleration_change = fast_length(curve4 * (float4){W_V1, W_V2, W_V3, W_V4});
 
+        experienced_acceleration_change = fast_length(next_acceleration * (float4)(W_V1, W_V2, W_V3, W_V4)) * 0.01;
+
         //experienced_acceleration_change /= max(max(W_V1, W_V2), max(W_V3, W_V4));
 
         experienced_acceleration_change /= fast_length((float4)(W_V1, W_V2, W_V3, W_V4));
@@ -2197,7 +2197,8 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         if(diff < err * i_hate_computers / pow(max_timestep, 2))
             diff = err * i_hate_computers / pow(max_timestep, 2);
 
-        next_ds = native_sqrt(((err * i_hate_computers) / diff));
+        //next_ds = native_sqrt(((err * i_hate_computers) / diff));
+        next_ds = pow(err * i_hate_computers / diff, 0.7) * 20;
 
         ///produces strictly worse results for kerr
         //next_ds = 0.9 * ds * clamp(next_ds / ds, 0.3, 2.f);

@@ -296,7 +296,7 @@ std::array<dual, 16> kerr_metric(dual t, dual r, dual theta, dual phi)
 {
     dual rs = 1;
 
-    dual a = 0.51;
+    dual a = 2;
     dual E = r * r + a * a * cos(theta) * cos(theta);
     dual D = r * r  - rs * r + a * a;
 
@@ -765,7 +765,7 @@ int main()
     metric::metric<kerr_newman, polar_to_polar, polar_to_polar, at_origin> kerr_newman_obj;
     kerr_newman_obj.name = "kerrnewman_boyer";
     kerr_newman_obj.adaptive_precision = true;
-    kerr_newman_obj.detect_singularities = true;
+    //kerr_newman_obj.detect_singularities = true;
 
     metric::metric<kerr_schild_metric, cartesian_to_polar_dual, polar_to_cartesian_dual, at_origin> kerr_schild_obj;
     kerr_schild_obj.name = "kerr_schild";
@@ -810,9 +810,9 @@ int main()
     //cfg.error_override = 0.00001f;
 
     //auto current_metric = symmetric_warp_obj;
-    auto current_metric = kerr_obj;
+    //auto current_metric = kerr_obj;
     //auto current_metric = alcubierre_metric_obj;
-    //auto current_metric = kerr_newman_obj;
+    auto current_metric = kerr_newman_obj;
     //auto current_metric = schwarzs_lemaitre;
 
     argument_string += build_argument_string(current_metric, cfg);
@@ -1039,7 +1039,8 @@ int main()
     cl::device_command_queue dqueue(clctx.ctx);
 
     ///t, x, y, z
-    vec4f camera = {0, -2, -8, 0};
+    vec4f camera = {0, -2, -2, 0};
+    //vec4f camera = {0, -2, -8, 0};
     //vec4f camera = {0, 0, -8, 0};
     //vec4f camera = {0, 0.01, -0.024, -5.5};
     quat camera_quat;
