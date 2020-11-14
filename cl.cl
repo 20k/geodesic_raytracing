@@ -2202,6 +2202,9 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         if(diff < err * i_hate_computers / pow(max_timestep, 2))
             diff = err * i_hate_computers / pow(max_timestep, 2);
 
+        ///of course, as is tradition, whatever works for kerr does not work for alcubierre
+        ///the sqrt error calculation is significantly better for alcubierre, largely in terms of having no visual artifacts at all
+        ///whereas the pow version is nearly 2x faster for kerr
         //next_ds = native_sqrt(((err * i_hate_computers) / diff));
         next_ds = pow(err * i_hate_computers / diff, 0.7) * 20;
 
