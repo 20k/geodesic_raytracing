@@ -2072,6 +2072,8 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
     bool forward_progress = true;
 
+    float uniform_coordinate_precision_divisor = max(max(W_V1, W_V2), max(W_V3, W_V4));
+
     for(int i=0; i < 64000/125; i++)
     {
         #ifdef IS_CONSTANT_THETA
@@ -2108,8 +2110,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         else
         {
             ds = 0.1 * pow((fabs(r_value) - new_max), 1) + subambient_precision;
-            //ds = 0.1 * pow((fabs(r_value) - new_max), 1) + subambient_precision;
-            //ds = 0.1 * pow((fabs(r_value) - new_max), 2) + subambient_precision;
+            //ds = (0.1 * pow((fabs(r_value) - new_max), 1.3) / uniform_coordinate_precision_divisor) + subambient_precision;
         }
 
         #ifndef SINGULAR
@@ -2177,10 +2178,10 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         //float experienced_acceleration_change = fast_length(curve4 * (float4){W_V1, W_V2, W_V3, W_V4});
 
         float maximum_space_curvature = max(max(fabs(curve4.x * W_V1), fabs(curve4.y * W_V2)), max(fabs(curve4.z * W_V3), fabs(curve4.w * W_V4)));
-        maximum_space_curvature /= max(max(W_V1, W_V2), max(W_V3, W_V4));
+        maximum_space_curvature /= uniform_coordinate_precision_divisor;
 
         float current_acceleration_err = fast_length(next_acceleration * (float4)(W_V1, W_V2, W_V3, W_V4)) * 0.01;
-        current_acceleration_err /= max(max(W_V1, W_V2), max(W_V3, W_V4));
+        current_acceleration_err /= uniform_coordinate_precision_divisor;
 
         float experienced_acceleration_change = mix(maximum_space_curvature, current_acceleration_err, 0.8);
 
