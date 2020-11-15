@@ -958,10 +958,12 @@ float4 calculate_acceleration(float4 lightray_velocity, float g_metric[4], float
     float g_inv[4] = {1/g_metric[0], 1/g_metric[1], 1/g_metric[2], 1/g_metric[3]};
 
     {
+        #pragma unroll
         for(int i=0; i < 4; i++)
         {
             float ginvii = 0.5 * g_inv[i];
 
+            #pragma unroll
             for(int m=0; m < 4; m++)
             {
                 float adding = ginvii * g_partials[i * 4 + m];
@@ -978,12 +980,15 @@ float4 calculate_acceleration(float4 lightray_velocity, float g_metric[4], float
     ///no performance benefit by unrolling u into a float4
     float christ_result[4] = {0,0,0,0};
 
+    #pragma unroll
     for(int uu=0; uu < 4; uu++)
     {
         float sum = 0;
 
+        #pragma unroll
         for(int aa = 0; aa < 4; aa++)
         {
+            #pragma unroll
             for(int bb = 0; bb < 4; bb++)
             {
                 sum += (velocity_arr[aa]) * (velocity_arr[bb]) * christoff[uu * 16 + aa*4 + bb*1];
