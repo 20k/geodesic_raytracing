@@ -326,7 +326,7 @@ std::array<dual, 16> kerr_metric(dual t, dual r, dual theta, dual phi)
 inline
 std::array<dual, 16> kerr_schild_metric(dual t, dual x, dual y, dual z)
 {
-    dual a = -0.55;
+    dual a = -0.5;
 
     dual R2 = x * x + y * y + z * z;
     dual Rm2 = x * x + y * y - z * z;
@@ -820,9 +820,9 @@ int main()
 
     //auto current_metric = symmetric_warp_obj;
     //auto current_metric = kerr_obj;
-    auto current_metric = alcubierre_metric_obj;
+    //auto current_metric = alcubierre_metric_obj;
     //auto current_metric = kerr_newman_obj;
-    //auto current_metric = kerr_schild_obj;
+    auto current_metric = kerr_schild_obj;
     //auto current_metric = schwarzs_lemaitre;
 
     argument_string += build_argument_string(current_metric, cfg);
