@@ -1490,6 +1490,7 @@ float4 calculate_acceleration_big(float4 lightray_velocity, float g_metric_big[1
             {
                 float sum = 0;
 
+                #pragma unroll
                 for (int m = 0; m < 4; m++)
                 {
                     sum += g_inv_big[i * 4 + m] * g_partials_big[l * 16 + m * 4 + k];
@@ -1511,7 +1512,6 @@ float4 calculate_acceleration_big(float4 lightray_velocity, float g_metric_big[1
     for(int uu=0; uu < 4; uu++)
     {
         float sum = 0;
-
         #pragma unroll
         for(int aa = 0; aa < 4; aa++)
         {
