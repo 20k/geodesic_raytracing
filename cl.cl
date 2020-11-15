@@ -1479,10 +1479,13 @@ float4 calculate_acceleration_big(float4 lightray_velocity, float g_metric_big[1
 
     metric_inverse(g_metric_big, g_inv_big);
 
+    #pragma unroll
     for(int i = 0; i < 4; i++)
     {
+        #pragma unroll
         for(int k = 0; k < 4; k++)
         {
+            #pragma unroll
             for(int l = 0; l < 4; l++)
             {
                 float sum = 0;
@@ -1504,12 +1507,15 @@ float4 calculate_acceleration_big(float4 lightray_velocity, float g_metric_big[1
     ///no performance benefit by unrolling u into a float4
     float christ_result[4] = {0,0,0,0};
 
+    #pragma unroll
     for(int uu=0; uu < 4; uu++)
     {
         float sum = 0;
 
+        #pragma unroll
         for(int aa = 0; aa < 4; aa++)
         {
+            #pragma unroll
             for(int bb = 0; bb < 4; bb++)
             {
                 sum += (velocity_arr[aa]) * (velocity_arr[bb]) * christoff[uu * 16 + aa*4 + bb*1];
