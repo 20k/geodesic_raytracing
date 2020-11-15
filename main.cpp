@@ -68,6 +68,7 @@ http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.1002.1336&rep=rep1&type
 http://yukterez.net/ - loads of good stuff
 https://scholarworks.rit.edu/cgi/viewcontent.cgi?article=11286&context=theses - lots more good stuff, numerical relativity
 http://ccom.ucsd.edu/~lindblom/Talks/Milwaukee_14October2011.pdf - simple introduction to numerical relativity
+http://ccom.ucsd.edu/~lindblom/Talks/NRBeijing1.pdf - seems to be more up to date
 */
 
 ///perfectly fine
@@ -80,10 +81,10 @@ vec4f cartesian_to_schwarz(vec4f position)
 
 struct lightray
 {
-    vec4f position;
-    vec4f velocity;
-    vec4f acceleration;
-    int sx, sy;
+    cl_float4 position;
+    cl_float4 velocity;
+    cl_float4 acceleration;
+    cl_uint sx, sy;
 };
 
 inline
@@ -1082,13 +1083,13 @@ int main()
         texture_coordinates[i].set_to_zero(clctx.cqueue);
     }
 
-    schwarzs_1.alloc(sizeof(lightray) * ray_count * 2);
-    schwarzs_2.alloc(sizeof(lightray) * ray_count * 2);
+    schwarzs_1.alloc(sizeof(lightray) * ray_count);
+    schwarzs_2.alloc(sizeof(lightray) * ray_count);
     #ifndef GENERIC_METRIC
-    kruskal_1.alloc(sizeof(lightray) * ray_count * 3);
-    kruskal_2.alloc(sizeof(lightray) * ray_count * 3);
+    kruskal_1.alloc(sizeof(lightray) * ray_count);
+    kruskal_2.alloc(sizeof(lightray) * ray_count);
     #endif // GENERIC_METRIC
-    finished_1.alloc(sizeof(lightray) * ray_count * 2);
+    finished_1.alloc(sizeof(lightray) * ray_count);
 
     schwarzs_count_1.alloc(sizeof(int));
     schwarzs_count_2.alloc(sizeof(int));
@@ -1148,7 +1149,7 @@ int main()
                 supersample_height = screenshot_h * supersample_mult;
             }
 
-            ray_count = supersample_width * supersample_height * 3;
+            ray_count = supersample_width * supersample_height;
 
             texture_settings new_sett;
             new_sett.width = supersample_width;
@@ -1161,13 +1162,13 @@ int main()
             rtex[0].create_from_texture(tex[0].handle);
             rtex[1].create_from_texture(tex[1].handle);
 
-            schwarzs_1.alloc(sizeof(lightray) * ray_count * 1.5);
-            schwarzs_2.alloc(sizeof(lightray) * ray_count * 1.5);
+            schwarzs_1.alloc(sizeof(lightray) * ray_count);
+            schwarzs_2.alloc(sizeof(lightray) * ray_count);
             #ifndef GENERIC_METRIC
-            kruskal_1.alloc(sizeof(lightray) * ray_count * 2);
-            kruskal_2.alloc(sizeof(lightray) * ray_count * 2);
+            kruskal_1.alloc(sizeof(lightray) * ray_count);
+            kruskal_2.alloc(sizeof(lightray) * ray_count);
             #endif // GENERIC_METRIC
-            finished_1.alloc(sizeof(lightray) * ray_count * 1.5);
+            finished_1.alloc(sizeof(lightray) * ray_count);
 
             for(int i=0; i < 2; i++)
             {
