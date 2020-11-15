@@ -2272,7 +2272,6 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         #endif // SINGULARITY_DETECTION
         #endif // ADAPTIVE_PRECISION
 
-        //if(sx >= 400 && sx <= 505 && sy >= 400 && sy <= 405)
         if(fabs(r_value) < new_max)
         {
             if(next_ds < ds/1.95)
