@@ -1796,7 +1796,7 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
 
     ///so. all the reversing stuff I've done so far is incorrect
     ///when people say backwards in time, what they mean is backwards in affine time, not coordinate time
-    float4 pixel_t = bT;
+    float4 pixel_t = -bT;
 
     pixel_x = spherical_velocity_to_generic_velocity(polar_camera, pixel_x);
     pixel_y = spherical_velocity_to_generic_velocity(polar_camera, pixel_y);
@@ -2064,6 +2064,37 @@ void step_verlet(float4 position, float4 velocity, float4 acceleration, float ds
     *acceleration_out = next_acceleration;
 }
 
+void step_euler(float4 position, float4 velocity, float ds, float4* position_out, float4* velocity_out)
+{
+    #ifndef GENERIC_BIG_METRIC
+    float g_metric[4] = {};
+    float g_partials[16] = {};
+    #else
+    float g_metric_big[16] = {};
+    float g_partials_big[64] = {};
+    #endif // GENERIC_BIG_METRIC
+
+    #ifndef GENERIC_BIG_METRIC
+    calculate_metric_generic(position, g_metric);
+    calculate_partial_derivatives_generic(position, g_partials);
+
+    velocity = fix_light_velocity2(velocity, g_metric);
+
+    float4 lacceleration = calculate_acceleration(velocity, g_metric, g_partials);
+    #else
+    calculate_metric_generic_big(position, g_metric_big);
+    calculate_partial_derivatives_generic_big(position, g_partials_big);
+
+    float4 lacceleration = calculate_acceleration_big(velocity, g_metric_big, g_partials_big);
+    #endif // GENERIC_BIG_METRIC
+
+    velocity += lacceleration * ds;
+    position += velocity * ds;
+
+    *position_out = position;
+    *velocity_out = velocity;
+}
+
 float get_distance_to_object(float4 polar)
 {
     float v1 = polar.x;
@@ -2190,33 +2221,14 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
         #ifdef EULER_INTEGRATION_GENERIC
 
-        #ifndef GENERIC_BIG_METRIC
-        float g_metric[4] = {};
-        float g_partials[16] = {};
-        #else
-        float g_metric_big[16] = {};
-        float g_partials_big[64] = {};
-        #endif // GENERIC_BIG_METRIC
+        float4 next_position;
+        float4 next_velocity;
 
-        #ifndef GENERIC_BIG_METRIC
-        calculate_metric_generic(position, g_metric);
-        calculate_partial_derivatives_generic(position, g_partials);
+        step_euler(position, velocity, ds, &next_position, &next_velocity);
 
-        velocity = fix_light_velocity2(velocity, g_metric);
+        position = next_position;
+        velocity = next_velocity;
 
-        float4 lacceleration = calculate_acceleration(velocity, g_metric, g_partials);
-        #else
-        calculate_metric_generic_big(position, g_metric_big);
-        calculate_partial_derivatives_generic_big(position, g_partials_big);
-
-        float4 lacceleration = calculate_acceleration_big(velocity, g_metric_big, g_partials_big);
-        #endif // GENERIC_BIG_METRIC
-
-        velocity += lacceleration * ds;
-
-        acceleration = lacceleration;
-
-        position += velocity * ds;
         #endif // EULER_INTEGRATsION
 
         #ifdef VERLET_INTEGRATION_GENERIC
