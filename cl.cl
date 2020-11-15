@@ -1031,10 +1031,12 @@ float4 lower_index_big(float4 vec, float g_metric_big[])
     float vecarray[4] = {vec.x, vec.y, vec.z, vec.w};
     float ret[4] = {0,0,0,0};
 
+    #pragma unroll
     for(int i=0; i < 4; i++)
     {
         float sum = 0;
 
+        #pragma unroll
         for(int j=0; j < 4; j++)
         {
             sum += g_metric_big[i * 4 + j] * vecarray[j];
@@ -1051,10 +1053,12 @@ float4 raise_index_big(float4 vec, float g_metric_big_inv[])
     float vecarray[4] = {vec.x, vec.y, vec.z, vec.w};
     float ret[4] = {0,0,0,0};
 
+    #pragma unroll
     for(int i=0; i < 4; i++)
     {
         float sum = 0;
 
+        #pragma unroll
         for(int j=0; j < 4; j++)
         {
             sum += g_metric_big_inv[i * 4 + j] * vecarray[j];
@@ -1420,7 +1424,7 @@ void metric_inverse(const float m[16], float invOut[16])
 float stable_quad(float a, float d, float k)
 {
     if(k <= 4.38072748497961 * pow(10.f, 16.f))
-        return -(k + sqrt((4 * a) * d + k * k)) / (a * 2);
+        return -(k + native_sqrt((4 * a) * d + k * k)) / (a * 2);
 
     return -k / a;
 }
@@ -1554,7 +1558,7 @@ float4 normalize_big_metric(float4 in, float big_metric[])
 {
     float dot = dot_product_big(in, in, big_metric);
 
-    return in / sqrt(fabs(dot));
+    return in / native_sqrt(fabs(dot));
 }
 
 struct frame_basis calculate_frame_basis(float big_metric[])
@@ -2080,6 +2084,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
     float uniform_coordinate_precision_divisor = max(max(W_V1, W_V2), max(W_V3, W_V4));
 
+    #pragma unroll
     for(int i=0; i < 64000/125; i++)
     {
         #ifdef IS_CONSTANT_THETA
