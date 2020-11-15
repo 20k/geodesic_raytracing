@@ -383,10 +383,10 @@ std::array<dual, 16> kerr_newman(dual t, dual r, dual theta, dual phi)
 {
     dual c = 1;
     dual rs = 1;
-    dual r2q = 0.51;
+    dual r2q = 0.5;
     //dual r2q = 0.5;
     //dual a = 0.51;
-    dual a = 0.51;
+    dual a = 1;
 
     dual p2 = r * r + a * a * cos(theta) * cos(theta);
     dual D = r * r - rs * r + a * a + r2q * r2q;
@@ -805,6 +805,7 @@ int main()
     //symmetric_warp_obj.adaptive_precision = false;
 
     metric::config cfg;
+    //cfg.universe_size = 1000;
     //cfg.error_override = 100.f;
     //cfg.error_override = 0.000001f;
     //cfg.error_override = 0.001f;
@@ -812,8 +813,8 @@ int main()
 
     //auto current_metric = symmetric_warp_obj;
     //auto current_metric = kerr_obj;
-    auto current_metric = alcubierre_metric_obj;
-    //auto current_metric = kerr_newman_obj;
+    //auto current_metric = alcubierre_metric_obj;
+    auto current_metric = kerr_newman_obj;
     //auto current_metric = kerr_schild_obj;
     //auto current_metric = schwarzs_lemaitre;
 
