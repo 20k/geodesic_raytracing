@@ -383,10 +383,10 @@ std::array<dual, 16> kerr_newman(dual t, dual r, dual theta, dual phi)
 {
     dual c = 1;
     dual rs = 1;
-    dual r2q = 0.5;
+    dual r2q = 0.51;
     //dual r2q = 0.5;
     //dual a = 0.51;
-    dual a = 1;
+    dual a = 0.51;
 
     dual p2 = r * r + a * a * cos(theta) * cos(theta);
     dual D = r * r - rs * r + a * a + r2q * r2q;

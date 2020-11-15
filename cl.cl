@@ -1456,7 +1456,7 @@ void metric_inverse(const float m[16], float invOut[16])
 float stable_quad(float a, float d, float k)
 {
     if(k <= 4.38072748497961 * pow(10.f, 16.f))
-        return -(k + native_sqrt((4 * a) * d + k * k)) / (a * 2);
+        return -(k - native_sqrt((4 * a) * d + k * k)) / (a * 2);
 
     return -k / a;
 }
@@ -1825,7 +1825,15 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
         calculate_metric_generic_big(lightray_spacetime_position, g_metric_big);
         calculate_partial_derivatives_generic_big(lightray_spacetime_position, g_partials_big);
 
+        //float4 prefix = lightray_velocity;
+
         lightray_velocity = fix_light_velocity_big(lightray_velocity, g_metric_big);
+
+        /*if(cx == 500 && cy == 400)
+        {
+            printf("pre %f %f %f %f post %f %f %f %f", prefix.x, prefix.y, prefix.z, prefix.w,
+                                                         lightray_velocity.x, lightray_velocity.y, lightray_velocity.z, lightray_velocity.w);
+        }*/
 
         lightray_acceleration = calculate_acceleration_big(lightray_velocity, g_metric_big, g_partials_big);
         #endif // GENERIC_BIG_METRIC
