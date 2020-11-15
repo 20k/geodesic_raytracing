@@ -1794,8 +1794,8 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
     float4 pixel_y = (float4)(0, pixel_direction.y * polar_y.yzw);
     float4 pixel_z = (float4)(0, pixel_direction.z * polar_z.yzw);*/
 
-    ///so. all the reversing stuff I've done so far is incorrect
     ///when people say backwards in time, what they mean is backwards in affine time, not coordinate time
+    ///going backwards in coordinate time however should be identical
     float4 pixel_t = -bT;
 
     pixel_x = spherical_velocity_to_generic_velocity(polar_camera, pixel_x);
