@@ -811,9 +811,10 @@ int main()
 
     //auto current_metric = symmetric_warp_obj;
     //auto current_metric = kerr_obj;
-    //auto current_metric = alcubierre_metric_obj;
+    auto current_metric = alcubierre_metric_obj;
     //auto current_metric = kerr_newman_obj;
-    auto current_metric = schwarzs_lemaitre;
+    //auto current_metric = kerr_schild_obj;
+    //auto current_metric = schwarzs_lemaitre;
 
     argument_string += build_argument_string(current_metric, cfg);
 

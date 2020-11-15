@@ -2109,8 +2109,9 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         }
         else
         {
+            //ds = 0.1 * pow((fabs(r_value) - new_max), 1) + subambient_precision;
             ds = 0.1 * pow((fabs(r_value) - new_max), 1) + subambient_precision;
-            //ds = (0.1 * pow((fabs(r_value) - new_max), 1.3) / uniform_coordinate_precision_divisor) + subambient_precision;
+            //ds = (0.1 * pow((fabs(r_value) - new_max), 2) / (uniform_coordinate_precision_divisor * uniform_coordinate_precision_divisor)) + subambient_precision;
         }
 
         #ifndef SINGULAR
@@ -2206,8 +2207,8 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         ///of course, as is tradition, whatever works for kerr does not work for alcubierre
         ///the sqrt error calculation is significantly better for alcubierre, largely in terms of having no visual artifacts at all
         ///whereas the pow version is nearly 2x faster for kerr
-        //next_ds = native_sqrt(((err * i_hate_computers) / diff));
-        next_ds = pow(err * i_hate_computers / diff, 0.7) * 20;
+        next_ds = native_sqrt(((err * i_hate_computers) / diff));
+        //next_ds = pow(err * i_hate_computers / diff, 0.7) * 20;
 
         ///produces strictly worse results for kerr
         //next_ds = 0.9 * ds * clamp(next_ds / ds, 0.3, 2.f);
