@@ -2117,15 +2117,10 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
     ///ambient precision however looks way too low at 0.01, testing up to 0.3 showed no noticable difference, needs more precise tests though
     ///only in the case without kruskals and event horizon crossings however, any precision > 0.01 is insufficient in that case
-    float ambient_precision = 0.001;
     float subambient_precision = 0.5;
-
-    subambient_precision = 0.5;
-    ambient_precision = 0.1;
+    float ambient_precision = 0.2;
 
     float rs = 1;
-
-    bool forward_progress = true;
 
     float uniform_coordinate_precision_divisor = max(max(W_V1, W_V2), max(W_V3, W_V4));
 
@@ -2267,7 +2262,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         //next_ds = pow(err * i_hate_computers / diff, 0.7) * 20;
 
         ///produces strictly worse results for kerr
-        //next_ds = 0.9 * ds * clamp(next_ds / ds, 0.3, 2.f);
+        next_ds = 0.99 * ds * clamp(next_ds / ds, 0.3, 2.f);
 
         next_ds = max(next_ds, MIN_STEP);
 
@@ -2276,6 +2271,13 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
             return;
         #endif // SINGULARITY_DETECTION
         #endif // ADAPTIVE_PRECISION
+
+        //if(sx >= 400 && sx <= 505 && sy >= 400 && sy <= 405)
+        if(fabs(r_value) < new_max)
+        {
+            if(next_ds < ds/1.95)
+                continue;
+        }
 
         position = next_position;
         //velocity = fix_light_velocity2(next_velocity, g_metric);

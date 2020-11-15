@@ -118,6 +118,13 @@ std::array<dual, 4> schwarzschild_blackhole_lemaitre(dual T, dual p, dual theta,
     dual dtheta = r * r;
     dual dphi = r * r * sin(theta) * sin(theta);
 
+    /*std::array<dual, 16> ret;
+    ret[0] = dT;
+    ret[1 * 4 + 1] = dp;
+    ret[2 * 4 + 2] = dtheta;
+    ret[3 * 4 + 3] = dphi;
+
+    return ret;*/
     return {dT, dp, dtheta, dphi};
 }
 
@@ -813,8 +820,8 @@ int main()
 
     //auto current_metric = symmetric_warp_obj;
     //auto current_metric = kerr_obj;
-    //auto current_metric = alcubierre_metric_obj;
-    auto current_metric = kerr_newman_obj;
+    auto current_metric = alcubierre_metric_obj;
+    //auto current_metric = kerr_newman_obj;
     //auto current_metric = kerr_schild_obj;
     //auto current_metric = schwarzs_lemaitre;
 
@@ -1297,7 +1304,8 @@ int main()
         {
             ImGui::Begin("DBG", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 
-            ImGui::DragFloat3("Pos", &scamera.v[1]);
+            ImGui::DragFloat3("Polar Pos", &scamera.v[1]);
+            ImGui::DragFloat3("Cart Pos", &camera.v[1]);
 
             ImGui::DragFloat("Time", &time);
 
