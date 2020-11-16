@@ -104,8 +104,13 @@ std::array<dual, 4> schwarzschild_blackhole(dual t, dual r, dual theta, dual phi
     return {dt, dr, dtheta, dphi};
 }
 
+//-#define BIG
 inline
+#ifdef BIG
+std::array<dual, 16> schwarzschild_blackhole_lemaitre(dual T, dual p, dual theta, dual phi)
+#else
 std::array<dual, 4> schwarzschild_blackhole_lemaitre(dual T, dual p, dual theta, dual phi)
+#endif // BIG
 {
     dual rs = 1;
 
@@ -118,14 +123,17 @@ std::array<dual, 4> schwarzschild_blackhole_lemaitre(dual T, dual p, dual theta,
     dual dtheta = r * r;
     dual dphi = r * r * sin(theta) * sin(theta);
 
-    /*std::array<dual, 16> ret;
-    ret[0] = dT;
+    #ifdef BIG
+    std::array<dual, 16> ret;
+    ret[0 * 4 + 0] = dT;
     ret[1 * 4 + 1] = dp;
     ret[2 * 4 + 2] = dtheta;
     ret[3 * 4 + 3] = dphi;
 
-    return ret;*/
+    return ret;
+    #else
     return {dT, dp, dtheta, dphi};
+    #endif // BIG
 }
 
 ////https://arxiv.org/pdf/0904.4184.pdf
@@ -139,6 +147,14 @@ std::array<dual, 4> traversible_wormhole(dual t, dual p, dual theta, dual phi)
     dual dr = 1;
     dual dtheta = (p * p + n * n);
     dual dphi = (p * p + n * n) * (sin(theta) * sin(theta));
+
+    /*std::array<dual, 16> ret;
+    ret[0 * 4 + 0] = dt;
+    ret[1 * 4 + 1] = dr;
+    ret[2 * 4 + 2] = dtheta;
+    ret[3 * 4 + 3] = dphi;
+
+    return ret;*/
 
     return {dt, dr, dtheta, dphi};
 }
@@ -815,15 +831,15 @@ int main()
     //cfg.universe_size = 1000;
     //cfg.error_override = 100.f;
     //cfg.error_override = 0.000001f;
-    //cfg.error_override = 0.001f;
-    //cfg.error_override = 0.00001f;
+    cfg.error_override = 0.001f;
+    //cfg.error_override = 0.0001f;
 
     //auto current_metric = symmetric_warp_obj;
     //auto current_metric = kerr_obj;
     //auto current_metric = alcubierre_metric_obj;
-    auto current_metric = kerr_newman_obj;
+    //auto current_metric = kerr_newman_obj;
     //auto current_metric = kerr_schild_obj;
-    //auto current_metric = schwarzs_lemaitre;
+    auto current_metric = schwarzs_lemaitre;
 
     argument_string += build_argument_string(current_metric, cfg);
     #endif // GENERIC_METRIC

@@ -108,7 +108,7 @@ float4 fix_light_velocity2(float4 v, float g_metric[])
 
     float tvl_2 = dot(vmetric, v.yzw * v.yzw) / -g_metric[0];
 
-    v.x = native_sqrt(tvl_2);
+    v.x = copysign(native_sqrt(tvl_2), v.x);
 
     return v;
 }
@@ -2022,6 +2022,38 @@ float4 rk4_f(float t, float4 position, float4 velocity)
     *velocity = zt_t;
 }*/
 #endif // GENERIC_BIG_METRIC
+
+void print_metric_big_trace(float g_metric_big[])
+{
+    printf("%f %f %f %f\n", g_metric_big[0], g_metric_big[5], g_metric_big[10], g_metric_big[15]);
+}
+
+void print_metric(float g_metric[])
+{
+    printf("%f %f %f %f\n", g_metric[0], g_metric[1], g_metric[2], g_metric[3]);
+}
+
+void print_partials(float g_partials[])
+{
+    for(int i=0; i < 16; i++)
+    {
+        if(g_partials[i] == 0)
+            continue;
+
+        printf("%i: %f\n", i, g_partials[i]);
+    }
+}
+
+void print_partials_big(float g_metric_partials_big[])
+{
+    for(int i=0; i < 64; i++)
+    {
+        if(g_metric_partials_big[i] == 0)
+            continue;
+
+        printf("%i: %f\n", i, g_metric_partials_big[i]);
+    }
+}
 
 ///https://www.math.kit.edu/ianm3/lehre/geonumint2009s/media/gni_by_stoermer-verlet.pdf
 ///todo:
