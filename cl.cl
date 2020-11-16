@@ -1796,7 +1796,15 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
 
     ///when people say backwards in time, what they mean is backwards in affine time, not coordinate time
     ///going backwards in coordinate time however should be identical
+
+    ///so, the -bT path traces geodesics backwards in time, aka where did this light ray originate from?
+    ///the forward geodesic path says: I'm at this point, if I were to travel at the speed of light in the direction of a pixel
+    ///where would I end up?
+    #ifndef FORWARD_GEODESIC_PATH
     float4 pixel_t = -bT;
+    #else
+    float4 pixel_t = bT;
+    #endif // FORWARD_GEODESIC_PATH
 
     pixel_x = spherical_velocity_to_generic_velocity(polar_camera, pixel_x);
     pixel_y = spherical_velocity_to_generic_velocity(polar_camera, pixel_y);

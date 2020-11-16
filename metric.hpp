@@ -25,6 +25,7 @@ namespace metric
         bool adaptive_precision = true;
         bool detect_singularities = false;
         float max_acceleration_change = 0.0000001f;
+        bool follow_geodesics_forward = false;
 
         coordinate_system system = coordinate_system::X_Y_THETA_PHI;
     };
@@ -185,6 +186,11 @@ namespace metric
         {
             ///covers cartesian, and 'other'
             argument_string += " -DW_V1=1 -DW_V2=1 -DW_V3=1 -DW_V4=1";
+        }
+
+        if(in.follow_geodesics_forward)
+        {
+            argument_string += " -DFORWARD_GEODESIC_PATH";
         }
 
         argument_string += " -DDISTANCE_FUNC=" + get_function(distance_function, "v1", "v2", "v3", "v4");

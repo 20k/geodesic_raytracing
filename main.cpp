@@ -754,6 +754,7 @@ int main()
     schwarzs_lemaitre.singular = true;
     schwarzs_lemaitre.singular_terminator = 0.5;
     schwarzs_lemaitre.traversable_event_horizon = true;
+    schwarzs_lemaitre.follow_geodesics_forward = true;
     //schwarzs_lemaitre.system = metric::coordinate_system::OTHER;
     //schwarzs_lemaitre.detect_singularities = true;
 
@@ -839,7 +840,7 @@ int main()
     //auto current_metric = alcubierre_metric_obj;
     //auto current_metric = kerr_newman_obj;
     //auto current_metric = kerr_schild_obj;
-    auto current_metric = schwarzs_polar;
+    auto current_metric = schwarzs_lemaitre;
 
     argument_string += build_argument_string(current_metric, cfg);
     #endif // GENERIC_METRIC
