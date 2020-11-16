@@ -1458,10 +1458,10 @@ void metric_inverse(const float m[16], float invOut[16])
         invOut[i] = inv[i] * det;
 }
 
-float stable_quad(float a, float d, float k)
+float stable_quad(float a, float d, float k, float sign)
 {
     if(k <= 4.38072748497961 * pow(10.f, 16.f))
-        return -(k - native_sqrt((4 * a) * d + k * k)) / (a * 2);
+        return -(k + copysign(native_sqrt((4 * a) * d + k * k), sign)) / (a * 2);
 
     return -k / a;
 }
@@ -1494,7 +1494,7 @@ float4 fix_light_velocity_big(float4 v, float g_metric_big[])
         return v;
 
     if(fabs(a) > 0.1)
-        nx = stable_quad(a, d, k);
+        nx = stable_quad(a, d, k, v.x);
     else
         return v;
 
@@ -2316,13 +2316,13 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         if(next_ds == MIN_STEP && (diff/i_hate_computers) > err * 10000)
             return;
         #endif // SINGULARITY_DETECTION
-        #endif // ADAPTIVE_PRECISION
 
         if(fabs(r_value) < new_max)
         {
             if(next_ds < ds/1.95)
                 continue;
         }
+        #endif // ADAPTIVE_PRECISION
 
         position = next_position;
         //velocity = fix_light_velocity2(next_velocity, g_metric);

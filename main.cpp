@@ -104,7 +104,7 @@ std::array<dual, 4> schwarzschild_blackhole(dual t, dual r, dual theta, dual phi
     return {dt, dr, dtheta, dphi};
 }
 
-//-#define BIG
+#define BIG
 inline
 #ifdef BIG
 std::array<dual, 16> schwarzschild_blackhole_lemaitre(dual T, dual p, dual theta, dual phi)
@@ -839,7 +839,7 @@ int main()
     //auto current_metric = alcubierre_metric_obj;
     //auto current_metric = kerr_newman_obj;
     //auto current_metric = kerr_schild_obj;
-    auto current_metric = schwarzs_lemaitre;
+    auto current_metric = schwarzs_polar;
 
     argument_string += build_argument_string(current_metric, cfg);
     #endif // GENERIC_METRIC
