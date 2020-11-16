@@ -136,6 +136,25 @@ std::array<dual, 4> schwarzschild_blackhole_lemaitre(dual T, dual p, dual theta,
     #endif // BIG
 }
 
+inline
+std::array<dual, 16> schwarzschild_eddington_finkelstein_outgoing(dual u, dual r, dual theta, dual phi)
+{
+    std::array<dual, 16> ret;
+
+    dual rs = 1;
+
+    dual du_dr = -2;
+
+    ret[0 * 4 + 0] = -(1 - rs/r);
+    ret[0 * 4 + 1] = 0.5 * du_dr;
+    ret[1 * 4 + 0] = 0.5 * du_dr;
+
+    ret[2 * 4 + 2] = r * r;
+    ret[3 * 4 + 3] = r * r * sin(theta) * sin(theta);
+
+    return ret;
+}
+
 ////https://arxiv.org/pdf/0904.4184.pdf
 inline
 std::array<dual, 4> traversible_wormhole(dual t, dual p, dual theta, dual phi)
@@ -725,6 +744,31 @@ std::array<dual, 4> tortoise_to_polar(dual t, dual tort, dual theta, dual phi)
 }
 
 inline
+std::array<dual, 4> polar_to_outgoing_eddington_finkelstein(dual t, dual r, dual theta, dual phi)
+{
+    dual rstar = polar_to_tortoise(t, r, theta, phi)[1];
+
+    dual u = t - rstar;
+
+    return {u, r, theta, phi};
+}
+
+inline
+std::array<dual, 4> outgoing_eddington_finkelstein_to_polar(dual u, dual r, dual theta, dual phi)
+{
+    ///u = t - r*
+    ///t = u + r*
+
+    ///ignore t component, its unused in tortoise
+    ///the reason to recalculate is to avoid calculating lambert_w0, which is very imprecise
+    dual rstar = polar_to_tortoise(0.f, r, theta, phi)[1];
+
+    dual t = u + rstar;
+
+    return {t, r, theta, phi};
+}
+
+inline
 dual at_origin(dual t, dual r, dual theta, dual phi)
 {
     return r;
@@ -783,6 +827,13 @@ int main()
     schwarzs_lemaitre.follow_geodesics_forward = true;
     //schwarzs_lemaitre.system = metric::coordinate_system::OTHER;
     //schwarzs_lemaitre.detect_singularities = true;
+
+    metric::metric<schwarzschild_eddington_finkelstein_outgoing, outgoing_eddington_finkelstein_to_polar, polar_to_outgoing_eddington_finkelstein, at_origin> schwarzschild_ef_outgoing;
+    schwarzschild_ef_outgoing.name = "schwarzs_ef_out";
+    schwarzschild_ef_outgoing.adaptive_precision = true;
+    schwarzschild_ef_outgoing.singular = true;
+    schwarzschild_ef_outgoing.singular_terminator = 0.5;
+    schwarzschild_ef_outgoing.traversable_event_horizon = true;
 
     metric::metric<traversible_wormhole, polar_to_polar, polar_to_polar, at_origin> simple_wormhole;
     simple_wormhole.name = "wormhole";
@@ -866,7 +917,8 @@ int main()
     //auto current_metric = alcubierre_metric_obj;
     //auto current_metric = kerr_newman_obj;
     //auto current_metric = kerr_schild_obj;
-    auto current_metric = schwarzs_lemaitre;
+    auto current_metric = schwarzschild_ef_outgoing;
+    //auto current_metric = schwarzs_lemaitre;
 
     argument_string += build_argument_string(current_metric, cfg);
     #endif // GENERIC_METRIC
