@@ -293,7 +293,7 @@ std::string unary(std::string v1, std::string op)
             return to_string_s(tanh(c1.value()));
     }
 
-    if(op == "log")
+    if(op == "log" || op == "native_log")
     {
         if(c1.has_value())
             return to_string_s(log(c1.value()));
@@ -410,6 +410,12 @@ dual_types::symbol log(const dual_types::symbol& d1)
 }
 
 inline
+dual_types::symbol fabs(const dual_types::symbol& d1)
+{
+    return dual_types::symbol(unary(d1.sym, "fabs"));
+}
+
+inline
 dual_types::symbol exp(const dual_types::symbol& d1)
 {
     return dual_types::symbol(unary(d1.sym, "native_exp"));
@@ -473,6 +479,12 @@ inline
 dual_types::symbol atan2(const dual_types::symbol& d1, const dual_types::symbol& d2)
 {
     return dual_types::symbol(outer(d1.sym, d2.sym, "atan2"));
+}
+
+inline
+dual_types::symbol lambert_w0(const dual_types::symbol& d1)
+{
+    return dual_types::symbol(unary(d1.sym, "lambert_w0"));
 }
 
 inline
@@ -668,7 +680,14 @@ template<typename T>
 inline
 dual_types::dual_v<T> log(const dual_types::dual_v<T>& d1)
 {
-    return dual_types::dual_v<T>(log(d1), d1.dual / d1.real);
+    return dual_types::dual_v<T>(log(d1.real), d1.dual / d1.real);
+}
+
+template<typename T>
+inline
+dual_types::dual_v<T> fabs(const dual_types::dual_v<T>& d1)
+{
+    return dual_types::dual_v<T>(fabs(d1.real), d1.real * d1.dual / fabs(d1.real));
 }
 
 template<typename T>
@@ -753,6 +772,13 @@ inline
 dual_types::dual_v<T> atan2(const dual_types::dual_v<T>& d1, const dual_types::dual_v<T>& d2)
 {
     return dual_types::dual_v<T>(atan2(d1.real, d2.real), (-d1.real * d2.dual / (d2.real * d2.real + d1.real * d1.real)) + d1.dual * d2.real / (d2.real * d2.real + d1.real * d1.real));
+}
+
+template<typename T>
+inline
+dual_types::dual_v<T> lambert_w0(const dual_types::dual_v<T>& d1)
+{
+    return dual_types::dual_v<T>(lambert_w0(d1.real), d1.dual * lambert_w0(d1.real) / (d1.real * lambert_w0(d1.real) + d1.real));
 }
 
 template<typename T>
