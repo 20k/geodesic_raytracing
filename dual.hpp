@@ -406,7 +406,7 @@ dual_types::symbol pow(const dual_types::symbol& d1, const dual_types::symbol& d
 inline
 dual_types::symbol log(const dual_types::symbol& d1)
 {
-    return dual_types::symbol(unary(d1.sym, "log"));
+    return dual_types::symbol(unary(d1.sym, "native_log"));
 }
 
 inline
@@ -662,6 +662,13 @@ inline
 dual_types::dual_v<T> pow(const dual_types::dual_v<T>& d1, const U& d2)
 {
     return pow(d1, dual_types::dual_v<T>(T(d2), T()));
+}
+
+template<typename T>
+inline
+dual_types::dual_v<T> log(const dual_types::dual_v<T>& d1)
+{
+    return dual_types::dual_v<T>(log(d1), d1.dual / d1.real);
 }
 
 template<typename T>
