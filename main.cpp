@@ -699,6 +699,32 @@ std::array<dual, 4> polar_to_oblate(dual t, dual in_r, dual in_theta, dual in_ph
 }
 
 inline
+std::array<dual, 4> polar_to_tortoise(dual t, dual r, dual theta, dual phi)
+{
+    dual rs = 1;
+
+    dual tr = r + rs * log(fabs(r / rs - 1));
+
+    return {t, tr, theta, phi};
+}
+
+inline
+std::array<dual, 4> tortoise_to_polar(dual t, dual tort, dual theta, dual phi)
+{
+    dual rs = 1;
+    ///r* = r + rs * ln(fabs(r/rs - 1))
+
+    ///where m = rs
+    ///W = lambert_w0
+    ///k = r*
+    ///x = r
+    ///https://www.wolframalpha.com/input/?i=e%5Ek+%3D+e%5E%28x+%2B+m+*+ln%28abs%28x%2Fm+-+1%29%29%29
+    dual r = rs * (lambert_w0(pow(exp(tort - rs), 1/rs)) + 1);
+
+    return {t, r, theta, phi};
+}
+
+inline
 dual at_origin(dual t, dual r, dual theta, dual phi)
 {
     return r;
