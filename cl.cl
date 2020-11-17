@@ -1648,6 +1648,45 @@ struct frame_basis calculate_frame_basis(float big_metric[])
     return ret;
 }
 
+void print_metric_big_trace(float g_metric_big[])
+{
+    printf("%f %f %f %f\n", g_metric_big[0], g_metric_big[5], g_metric_big[10], g_metric_big[15]);
+}
+void print_metric_big(float g_metric_big[])
+{
+    printf("%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f\n", g_metric_big[0], g_metric_big[1], g_metric_big[2], g_metric_big[3],
+           g_metric_big[4], g_metric_big[5], g_metric_big[6], g_metric_big[7],
+           g_metric_big[8], g_metric_big[9], g_metric_big[10], g_metric_big[11],
+           g_metric_big[12], g_metric_big[13], g_metric_big[14], g_metric_big[15]);
+}
+
+void print_metric(float g_metric[])
+{
+    printf("%f %f %f %f\n", g_metric[0], g_metric[1], g_metric[2], g_metric[3]);
+}
+
+void print_partials(float g_partials[])
+{
+    for(int i=0; i < 16; i++)
+    {
+        if(g_partials[i] == 0)
+            continue;
+
+        printf("%i: %f\n", i, g_partials[i]);
+    }
+}
+
+void print_partials_big(float g_metric_partials_big[])
+{
+    for(int i=0; i < 64; i++)
+    {
+        if(g_metric_partials_big[i] == 0)
+            continue;
+
+        printf("%i: %f\n", i, g_metric_partials_big[i]);
+    }
+}
+
 __kernel
 void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global struct lightray* metric_rays, __global int* metric_ray_count, int width, int height)
 {
@@ -1757,6 +1796,49 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
         printf("obX %f %f %f %f\n", obX.x, obX.y, obX.z, obX.w);
         printf("obtheta %f %f %f %f\n", obtheta.x, obtheta.y, obtheta.z, obtheta.w);
         printf("obphi %f %f %f %f\n", obphi.x, obphi.y, obphi.z, obphi.w);*/
+
+        ///i absolutely did not expect, under any circumstances whatsoever, for this to produce the correct results
+        #if 0
+        float g_metric_inv2[16] = {};
+
+        metric_inverse(g_metric_big, g_metric_inv2);
+
+        float cb_in[16] = {bT.x, bX.x, btheta.x, bphi.x,
+                           bT.y, bX.y, btheta.y, bphi.y,
+                           bT.z, bX.z, btheta.z, bphi.z,
+                           bT.w, bX.w, btheta.w, bphi.w};
+
+        float g_calculated[16] = {0};
+
+        float g_minkowski[16] = {-1, 0, 0, 0,
+                                0, 1, 0, 0,
+                                0, 0, 1, 0,
+                                0, 0, 0, 1};
+
+        for(int u = 0; u < 4; u++)
+        {
+           for(int v=0; v < 4; v++)
+           {
+               float sum = 0;
+
+               for(int a = 0; a < 4; a++)
+               {
+                   for(int b=0; b < 4; b++)
+                   {
+                        sum += cb_in[u * 4 + a] * cb_in[v * 4 + b] * g_minkowski[a * 4 + b];
+                   }
+               }
+
+               g_calculated[u * 4 + v] = sum;
+           }
+        }
+
+        ///should be the same
+        printf("Metric inverse\n");
+        print_metric_big(g_metric_inv2);
+        printf("Calculated\n");
+        print_metric_big(g_calculated);
+        #endif // 0
     }
 
     /*float lorenz[16] = {};
@@ -2030,38 +2112,6 @@ float4 rk4_f(float t, float4 position, float4 velocity)
     *velocity = zt_t;
 }*/
 #endif // GENERIC_BIG_METRIC
-
-void print_metric_big_trace(float g_metric_big[])
-{
-    printf("%f %f %f %f\n", g_metric_big[0], g_metric_big[5], g_metric_big[10], g_metric_big[15]);
-}
-
-void print_metric(float g_metric[])
-{
-    printf("%f %f %f %f\n", g_metric[0], g_metric[1], g_metric[2], g_metric[3]);
-}
-
-void print_partials(float g_partials[])
-{
-    for(int i=0; i < 16; i++)
-    {
-        if(g_partials[i] == 0)
-            continue;
-
-        printf("%i: %f\n", i, g_partials[i]);
-    }
-}
-
-void print_partials_big(float g_metric_partials_big[])
-{
-    for(int i=0; i < 64; i++)
-    {
-        if(g_metric_partials_big[i] == 0)
-            continue;
-
-        printf("%i: %f\n", i, g_metric_partials_big[i]);
-    }
-}
 
 ///https://www.math.kit.edu/ianm3/lehre/geonumint2009s/media/gni_by_stoermer-verlet.pdf
 ///todo:

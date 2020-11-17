@@ -69,6 +69,8 @@ http://yukterez.net/ - loads of good stuff
 https://scholarworks.rit.edu/cgi/viewcontent.cgi?article=11286&context=theses - lots more good stuff, numerical relativity
 http://ccom.ucsd.edu/~lindblom/Talks/Milwaukee_14October2011.pdf - simple introduction to numerical relativity
 http://ccom.ucsd.edu/~lindblom/Talks/NRBeijing1.pdf - seems to be more up to date
+
+https://www.aanda.org/articles/aa/pdf/2012/09/aa19599-12.pdf - radiative transfer
 */
 
 ///perfectly fine
@@ -915,9 +917,9 @@ int main()
     //auto current_metric = symmetric_warp_obj;
     //auto current_metric = kerr_obj;
     //auto current_metric = alcubierre_metric_obj;
-    //auto current_metric = kerr_newman_obj;
+    auto current_metric = kerr_newman_obj;
     //auto current_metric = kerr_schild_obj;
-    auto current_metric = schwarzschild_ef_outgoing;
+    //auto current_metric = simple_wormhole;
     //auto current_metric = schwarzs_lemaitre;
 
     argument_string += build_argument_string(current_metric, cfg);
