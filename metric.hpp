@@ -41,6 +41,7 @@ namespace metric
         float universe_size = 200000;
         integration_type type = integration_type::VERLET;
         std::optional<float> error_override = std::nullopt;
+        bool redshift = false;
     };
 
     template<auto T, auto U, auto V, auto distance_function>
@@ -191,6 +192,11 @@ namespace metric
         if(in.follow_geodesics_forward)
         {
             argument_string += " -DFORWARD_GEODESIC_PATH";
+        }
+
+        if(cfg.redshift)
+        {
+            argument_string += " -DREDSHIFT";
         }
 
         argument_string += " -DDISTANCE_FUNC=" + get_function(distance_function, "v1", "v2", "v3", "v4");

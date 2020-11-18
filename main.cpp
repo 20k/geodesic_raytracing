@@ -71,6 +71,7 @@ http://ccom.ucsd.edu/~lindblom/Talks/Milwaukee_14October2011.pdf - simple introd
 http://ccom.ucsd.edu/~lindblom/Talks/NRBeijing1.pdf - seems to be more up to date
 
 https://www.aanda.org/articles/aa/pdf/2012/09/aa19599-12.pdf - radiative transfer
+https://arxiv.org/pdf/0704.0986.pdf - tetrad info
 */
 
 ///perfectly fine
@@ -87,6 +88,7 @@ struct lightray
     cl_float4 velocity;
     cl_float4 acceleration;
     cl_uint sx, sy;
+    cl_float ku_uobsu;
 };
 
 inline
@@ -913,14 +915,15 @@ int main()
     //cfg.error_override = 0.000001f;
     cfg.error_override = 0.001f;
     //cfg.error_override = 0.0001f;
+    cfg.redshift = true;
 
     //auto current_metric = symmetric_warp_obj;
     //auto current_metric = kerr_obj;
     //auto current_metric = alcubierre_metric_obj;
-    auto current_metric = kerr_newman_obj;
+    //auto current_metric = kerr_newman_obj;
     //auto current_metric = kerr_schild_obj;
     //auto current_metric = simple_wormhole;
-    //auto current_metric = schwarzs_lemaitre;
+    auto current_metric = schwarzs_polar;
 
     argument_string += build_argument_string(current_metric, cfg);
     #endif // GENERIC_METRIC

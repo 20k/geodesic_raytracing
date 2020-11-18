@@ -1027,6 +1027,7 @@ struct lightray
     float4 velocity;
     float4 acceleration;
     int sx, sy;
+    float ku_uobsu;
 };
 
 #ifdef GENERIC_METRIC
@@ -1648,6 +1649,51 @@ struct frame_basis calculate_frame_basis(float big_metric[])
     return ret;
 }
 
+struct frame_basis calculate_covariant_basis(float big_metric[])
+{
+    ///while really i think it should be columns, the metric tensor is always symmetric
+    ///this seems better for memory ordering
+    float4 i1 = (float4)(big_metric[0], big_metric[1], big_metric[2], big_metric[3]);
+    float4 i2 = (float4)(big_metric[1], big_metric[5], big_metric[6], big_metric[7]);
+    float4 i3 = (float4)(big_metric[2], big_metric[6], big_metric[10], big_metric[11]);
+    float4 i4 = (float4)(big_metric[3], big_metric[7], big_metric[11], big_metric[15]);
+
+    float g_big_metric_inverse[16] = {};
+    metric_inverse(big_metric, g_big_metric_inverse);
+
+    float4 u1 = i1;
+
+    float4 u2 = i2;
+    u2 = u2 - gram_proj(u1, u2, big_metric);
+
+    float4 u3 = i3;
+    u3 = u3 - gram_proj(u1, u3, big_metric);
+    u3 = u3 - gram_proj(u2, u3, big_metric);
+
+    float4 u4 = i4;
+    u4 = u4 - gram_proj(u1, u4, big_metric);
+    u4 = u4 - gram_proj(u2, u4, big_metric);
+    u4 = u4 - gram_proj(u3, u4, big_metric);
+
+    /*u1 = normalize(u1);
+    u2 = normalize(u2);
+    u3 = normalize(u3);
+    u4 = normalize(u4);*/
+
+    u1 = u1 / sqrt(fabs(dot(u1, raise_index_big(u1, g_big_metric_inverse))));
+    u2 = u2 / sqrt(fabs(dot(u2, raise_index_big(u2, g_big_metric_inverse))));
+    u3 = u3 / sqrt(fabs(dot(u3, raise_index_big(u3, g_big_metric_inverse))));
+    u4 = u4 / sqrt(fabs(dot(u4, raise_index_big(u4, g_big_metric_inverse))));
+
+    struct frame_basis ret;
+    ret.v1 = u1;
+    ret.v2 = u2;
+    ret.v3 = u3;
+    ret.v4 = u4;
+
+    return ret;
+}
+
 void print_metric_big_trace(float g_metric_big[])
 {
     printf("%f %f %f %f\n", g_metric_big[0], g_metric_big[5], g_metric_big[10], g_metric_big[15]);
@@ -1754,6 +1800,7 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
     float g_metric_big[16] = {0};
     calculate_metric_generic_big(at_metric, g_metric_big);
 
+    ///contravariant
     float4 bT;
     float4 bX;
     float4 btheta;
@@ -1785,6 +1832,7 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
     }
     #endif // GENERIC_BIG_METRIC
 
+    #if 0
     if(cx == 500 && cy == 400)
     {
         /*printf("BT %f %f %f %f\n", bT.x, bT.y, bT.z, bT.w);
@@ -1798,7 +1846,9 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
         printf("obphi %f %f %f %f\n", obphi.x, obphi.y, obphi.z, obphi.w);*/
 
         ///i absolutely did not expect, under any circumstances whatsoever, for this to produce the correct results
-        #if 0
+        #if 1
+        struct frame_basis cb = calculate_covariant_basis(g_metric_big);
+
         float g_metric_inv2[16] = {};
 
         metric_inverse(g_metric_big, g_metric_inv2);
@@ -1833,13 +1883,50 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
            }
         }
 
+        float4 c1 = tensor_contract(g_minkowski, bT);
+        float4 c2 = tensor_contract(g_minkowski, bX);
+        float4 c3 = tensor_contract(g_minkowski, btheta);
+        float4 c4 = tensor_contract(g_minkowski, bphi);
+
+        float cov_in[16] = {c1.x, c2.x, c3.x, c4.x,
+                            c1.y, c2.y, c3.y, c4.y,
+                            c1.z, c2.z, c3.z, c4.z,
+                            c1.w, c2.w, c3.w, c4.w};
+
+        float g_cov_metric[16] = {0};
+
+        for(int u = 0; u < 4; u++)
+        {
+           for(int v=0; v < 4; v++)
+           {
+               float sum = 0;
+
+               for(int a = 0; a < 4; a++)
+               {
+                   for(int b=0; b < 4; b++)
+                   {
+                        sum += cov_in[u * 4 + a] * cov_in[v * 4 + b] * g_minkowski[a * 4 + b];
+                   }
+               }
+
+               g_cov_metric[u * 4 + v] = sum;
+           }
+        }
+
+
         ///should be the same
         printf("Metric inverse\n");
         print_metric_big(g_metric_inv2);
         printf("Calculated\n");
         print_metric_big(g_calculated);
+
+        printf("Metric calculated\n");
+        print_metric_big(g_cov_metric);
+        printf("Metric real\n");
+        print_metric_big(g_metric_big);
         #endif // 0
     }
+    #endif // 0
 
     /*float lorenz[16] = {};
     get_lorenz_coeff(bT, g_metric, lorenz);
@@ -1945,6 +2032,20 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
     ray.position = lightray_spacetime_position;
     ray.velocity = lightray_velocity;
     ray.acceleration = lightray_acceleration;
+
+    {
+        float4 uobsu_upper = bT;
+
+        #ifdef GENERIC_BIG_METRIC
+        float4 uobsu_lower = lower_index_big(uobsu_upper, g_metric_big);
+        #else
+        float4 uobsu_lower = lower_index(uobsu_upper, g_metric);
+        #endif // GENERIC_BIG_METRIC
+
+        float final_val = dot(lightray_velocity, uobsu_lower);
+
+        ray.ku_uobsu = final_val;
+    }
 
     int id = cy * width + cx;
 
@@ -2304,6 +2405,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
             out_ray.position = polar_position;
             out_ray.velocity = polar_velocity;
             out_ray.acceleration = 0;
+            out_ray.ku_uobsu = ray->ku_uobsu;
 
             finished_rays[out_id] = out_ray;
             return;
@@ -2410,6 +2512,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
     out_ray.position = position;
     out_ray.velocity = velocity;
     out_ray.acceleration = acceleration;
+    out_ray.ku_uobsu = ray->ku_uobsu;
 
     generic_rays_out[out_id] = out_ray;
 }
@@ -3556,68 +3659,69 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
         iProbes = 1;
     }
 
+    float4 end_result = 0;
+
     if(iProbes == 1 || iProbes <= 1)
     {
         if(iProbes < 1)
             levelofdetail = maxLod;
 
-        float4 end_result = read_imagef(mip_background, sam, (float2){sxf, syf}, levelofdetail);
-
-        write_imagef(out, (int2){sx, sy}, end_result);
-        return;
-    }
-
-    float lineLength = 2 * (majorRadius - minorRadius);
-    float du = cos(theta) * lineLength / (iProbes - 1);
-    float dv = sin(theta) * lineLength / (iProbes - 1);
-
-    float4 totalWeight = 0;
-    float accumulatedProbes = 0;
-
-    int startN = 0;
-
-    ///odd probes
-    if((iProbes % 2) == 1)
-    {
-        int probeArm = (iProbes - 1) / 2;
-
-        startN = -2 * probeArm;
+        end_result = read_imagef(mip_background, sam, (float2){sxf, syf}, levelofdetail);
     }
     else
     {
-        int probeArm = (iProbes / 2);
+        float lineLength = 2 * (majorRadius - minorRadius);
+        float du = cos(theta) * lineLength / (iProbes - 1);
+        float dv = sin(theta) * lineLength / (iProbes - 1);
 
-        startN = -2 * probeArm - 1;
+        float4 totalWeight = 0;
+        float accumulatedProbes = 0;
+
+        int startN = 0;
+
+        ///odd probes
+        if((iProbes % 2) == 1)
+        {
+            int probeArm = (iProbes - 1) / 2;
+
+            startN = -2 * probeArm;
+        }
+        else
+        {
+            int probeArm = (iProbes / 2);
+
+            startN = -2 * probeArm - 1;
+        }
+
+        int currentN = startN;
+        float alpha = 2;
+
+        float sU = du / get_image_width(mip_background);
+        float sV = dv / get_image_height(mip_background);
+
+        for(int cnt = 0; cnt < iProbes; cnt++)
+        {
+            float d_2 = (currentN * currentN / 4.f) * (du * du + dv * dv) / (majorRadius * majorRadius);
+
+            ///not a performance issue
+            float relativeWeight = native_exp(-alpha * d_2);
+
+            float centreu = sxf;
+            float centrev = syf;
+
+            float cu = centreu + (currentN / 2.f) * sU;
+            float cv = centrev + (currentN / 2.f) * sV;
+
+            float4 fval = read_imagef(mip_background, sam, (float2){cu, cv}, levelofdetail);
+
+            totalWeight += relativeWeight * fval;
+            accumulatedProbes += relativeWeight;
+
+            currentN += 2;
+        }
+
+        end_result = totalWeight / accumulatedProbes;
     }
-
-    int currentN = startN;
-    float alpha = 2;
-
-    float sU = du / get_image_width(mip_background);
-    float sV = dv / get_image_height(mip_background);
-
-    for(int cnt = 0; cnt < iProbes; cnt++)
-    {
-        float d_2 = (currentN * currentN / 4.f) * (du * du + dv * dv) / (majorRadius * majorRadius);
-
-        ///not a performance issue
-        float relativeWeight = native_exp(-alpha * d_2);
-
-        float centreu = sxf;
-        float centrev = syf;
-
-        float cu = centreu + (currentN / 2.f) * sU;
-        float cv = centrev + (currentN / 2.f) * sV;
-
-        float4 fval = read_imagef(mip_background, sam, (float2){cu, cv}, levelofdetail);
-
-        totalWeight += relativeWeight * fval;
-        accumulatedProbes += relativeWeight;
-
-        currentN += 2;
-    }
-
-    float4 end_result = totalWeight / accumulatedProbes;
 
     #endif // TRILINEAR
 
@@ -3626,6 +3730,28 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
     #else
     float4 end_result = read_imagef(mip_background, sam, (float2){sxf, syf}, 0);
     #endif // MIPMAPPING
+
+    #ifdef REDSHIFT
+    float z_shift = (velocity.x / -ray->ku_uobsu) - 1;
+
+    float hue_shift = tanh(z_shift);
+
+    float4 blue = (float4)(0, 0, 1, 1);
+    float4 red = (float4)(1, 0, 0, 1);
+
+    if(r_value > rs * 2)
+    {
+        if(hue_shift > 0)
+        {
+            end_result = mix(end_result, red, hue_shift);
+        }
+        else
+        {
+            end_result = mix(end_result, blue, fabs(hue_shift));
+        }
+    }
+
+    #endif // REDSHIFT
 
     write_imagef(out, (int2){sx, sy}, end_result);
 }
