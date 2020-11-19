@@ -2071,7 +2071,7 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
 
         //float4 prefix = lightray_velocity;
 
-        //lightray_velocity = fix_light_velocity_big(lightray_velocity, g_metric_big);
+        lightray_velocity = fix_light_velocity_big(lightray_velocity, g_metric_big);
 
         /*if(cx == 500 && cy == 400)
         {
@@ -3927,6 +3927,11 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
 
     float3 blue = (float3)(0, 0, 1);
     float3 red = (float3)(1, 0, 0);
+
+    /*if(sx == 700 && sy == 400)
+    {
+        printf("Shift %f vx %f obvsu %f\n", z_shift, velocity.x, -ray->ku_uobsu);
+    }*/
 
     if(r_value > rs * 2)
     {
