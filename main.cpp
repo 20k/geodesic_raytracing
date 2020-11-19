@@ -77,6 +77,8 @@ https://arxiv.org/pdf/0704.0986.pdf - tetrad info
 https://github.com/colour-science/smits1999
 https://github.com/appleseedhq/appleseed/blob/54ce23fc940087180511cb5659d8a7aac33712fb/src/appleseed/foundation/image/colorspace.h#L956
 https://github.com/wip-/RgbToSpectrum/blob/master/Spectra/SimpleSpectrum.cs
+https://en.wikipedia.org/wiki/Dominant_wavelength
+http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.40.9608&rep=rep1&type=pdf
 
 */
 
