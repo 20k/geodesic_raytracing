@@ -1733,6 +1733,63 @@ void print_partials_big(float g_metric_partials_big[])
     }
 }
 
+#ifdef GENERIC_BIG_METRIC
+void calculate_lorentz_boost_big(float4 time_basis, float4 observer_velocity, float g_metric_big[], float coeff_out[])
+{
+    float delta[] = {1, 0, 0, 0,
+                     0, 1, 0, 0,
+                     0, 0, 1, 0,
+                     0, 0, 0, 1};
+
+    float4 lowered_time_basis = lower_index_big(time_basis, g_metric_big);
+    float4 lowered_observer_velocity = lower_index_big(observer_velocity, g_metric_big);
+
+    float T[4] = ARRAY4(time_basis);
+    float lT[4] = ARRAY4(lowered_time_basis);
+    float uobs[4] = ARRAY4(observer_velocity);
+    float luobs[4] = ARRAY4(lowered_observer_velocity);
+
+    float lorentz_factor = -dot(lowered_time_basis, observer_velocity);
+
+    for(int u = 0; u < 4; u++)
+    {
+        for(int v=0; v < 4; v++)
+        {
+            coeff_out[u * 4 + v] = delta[u * 4 + v] - (1 / (1 + lorentz_factor)) * (T[u] + uobs[u]) * (-lT[v] - luobs[v]) - 2 * uobs[u] * lT[v];
+        }
+    }
+}
+
+#else
+
+void calculate_lorentz_boost(float4 time_basis, float4 observer_velocity, float g_metric[4], float coeff_out[])
+{
+    float delta[] = {1, 0, 0, 0,
+                     0, 1, 0, 0,
+                     0, 0, 1, 0,
+                     0, 0, 0, 1};
+
+    float4 lowered_time_basis = lower_index(time_basis, g_metric);
+    float4 lowered_observer_velocity = lower_index(observer_velocity, g_metric);
+
+    float T[4] = ARRAY4(time_basis);
+    float lT[4] = ARRAY4(lowered_time_basis);
+    float uobs[4] = ARRAY4(observer_velocity);
+    float luobs[4] = ARRAY4(lowered_observer_velocity);
+
+    float lorentz_factor = -dot(lowered_time_basis, observer_velocity);
+
+    for(int u = 0; u < 4; u++)
+    {
+        for(int v=0; v < 4; v++)
+        {
+            coeff_out[u * 4 + v] = delta[u * 4 + v] - (1 / (1 + lorentz_factor)) * (T[u] + uobs[u]) * (-lT[v] - luobs[v]) - 2 * uobs[u] * lT[v];
+        }
+    }
+}
+
+#endif // GENERIC_BIG_METRIC
+
 __kernel
 void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global struct lightray* metric_rays, __global int* metric_ray_count, int width, int height)
 {
@@ -1928,20 +1985,23 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
     }
     #endif // 0
 
-    /*float lorenz[16] = {};
-    get_lorenz_coeff(bT, g_metric, lorenz);
+    ///???
+    float4 observer_velocity = bT;
 
-    float4 cX = tensor_contract(lorenz, btheta);
-    float4 cY = tensor_contract(lorenz, bphi);
-    float4 cZ = tensor_contract(lorenz, bX);
+    //float4 observer_velocity = {1, 0.5, 0, 0};
+    float lorentz[16] = {};
 
-    float3 sVx = cX.yzw;
-    float3 sVy = cY.yzw;
-    float3 sVz = cZ.yzw;*/
+    #ifndef GENERIC_BIG_METRIC
+    calculate_lorentz_boost(bT, observer_velocity, g_metric, lorentz);
+    #else
+    calculate_lorentz_boost_big(bT, observer_velocity, g_metric_bit, lorentz);
+    #endif // GENERIC_BIG_METRIC
 
-    float4 sVx = btheta;
-    float4 sVy = bphi;
-    float4 sVz = bX;
+    bT = observer_velocity;
+
+    float4 sVx = tensor_contract(lorentz, btheta);
+    float4 sVy = tensor_contract(lorentz, bphi);
+    float4 sVz = tensor_contract(lorentz, bX);
 
     float4 polar_x = generic_velocity_to_spherical_velocity(at_metric, sVx);
     float4 polar_y = generic_velocity_to_spherical_velocity(at_metric, sVy);
@@ -2034,7 +2094,7 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
     ray.acceleration = lightray_acceleration;
 
     {
-        float4 uobsu_upper = bT;
+        float4 uobsu_upper = observer_velocity;
 
         #ifdef GENERIC_BIG_METRIC
         float4 uobsu_lower = lower_index_big(uobsu_upper, g_metric_big);
@@ -3773,7 +3833,7 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
 
     float real_sol = 299792458;
 
-    #define DOMINANT_COLOUR
+    //#define DOMINANT_COLOUR
     #ifndef DOMINANT_COLOUR
     ///Pick an arbitrary wavelength, the peak of human vision
     float test_wavelength = 555 / real_sol;
