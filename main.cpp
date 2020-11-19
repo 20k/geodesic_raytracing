@@ -72,6 +72,12 @@ http://ccom.ucsd.edu/~lindblom/Talks/NRBeijing1.pdf - seems to be more up to dat
 
 https://www.aanda.org/articles/aa/pdf/2012/09/aa19599-12.pdf - radiative transfer
 https://arxiv.org/pdf/0704.0986.pdf - tetrad info
+
+"how do i convert rgb to wavelengths"
+https://github.com/colour-science/smits1999
+https://github.com/appleseedhq/appleseed/blob/54ce23fc940087180511cb5659d8a7aac33712fb/src/appleseed/foundation/image/colorspace.h#L956
+https://github.com/wip-/RgbToSpectrum/blob/master/Spectra/SimpleSpectrum.cs
+
 */
 
 ///perfectly fine
@@ -913,17 +919,17 @@ int main()
     //cfg.universe_size = 1000;
     //cfg.error_override = 100.f;
     //cfg.error_override = 0.000001f;
-    cfg.error_override = 0.001f;
+    cfg.error_override = 0.00001f;
     //cfg.error_override = 0.0001f;
     cfg.redshift = true;
 
     //auto current_metric = symmetric_warp_obj;
     //auto current_metric = kerr_obj;
     //auto current_metric = alcubierre_metric_obj;
-    //auto current_metric = kerr_newman_obj;
+    auto current_metric = kerr_newman_obj;
     //auto current_metric = kerr_schild_obj;
     //auto current_metric = simple_wormhole;
-    auto current_metric = schwarzs_polar;
+    //auto current_metric = schwarzs_polar;
 
     argument_string += build_argument_string(current_metric, cfg);
     #endif // GENERIC_METRIC

@@ -3736,20 +3736,24 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
 
     float hue_shift = tanh(z_shift);
 
-    float4 blue = (float4)(0, 0, 1, 1);
-    float4 red = (float4)(1, 0, 0, 1);
+    float3 blue = (float3)(0, 0, 1);
+    float3 red = (float3)(1, 0, 0);
+
+    float3 lin_result = srgb_to_lin(end_result.xyz);
 
     if(r_value > rs * 2)
     {
         if(hue_shift > 0)
         {
-            end_result = mix(end_result, red, hue_shift);
+            lin_result = mix(lin_result, red, hue_shift);
         }
         else
         {
-            end_result = mix(end_result, blue, fabs(hue_shift));
+            lin_result = mix(lin_result, blue, fabs(hue_shift));
         }
     }
+
+    end_result.xyz = lin_to_srgb(lin_result);
 
     #endif // REDSHIFT
 
