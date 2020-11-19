@@ -3735,10 +3735,47 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
     ///[-1, +infinity]
     float z_shift = (velocity.x / -ray->ku_uobsu) - 1;
 
-    float3 blue = (float3)(0, 0, 1);
-    float3 red = (float3)(1, 0, 0);
+    ///linf / le = z + 1
+    ///le =  linf / (z + 1)
+
+    ///So, this is an incredibly, incredibly gross approximation
+    ///there are several problems here
+    ///1. Fundamentally I do not have a spectrographic map of the surrounding universe, which means any data is very approximate
+    ///EG blueshifting of infrared into visible light is therefore impossible
+    ///2. Converting sRGB information into wavelengths is possible, but also unphysical
+    ///This might be a worthwhile approximation as it might correctly bunch frequencies together
+    ///3. Its not possible to correctly render red/blueshifting, so it maps the range [-1, +inf] to [red, blue], mixing the colours with parameter [x <= 0 -> abs(x), x > 0 -> tanh(x)]]
+    ///this means that even if I did all the above correctly, its still a mess
+
+    ///This estimates luminance from the rgb value, which should be pretty ok at least!
+
+    float test_wavelength = 555;
+    float local_wavelength = test_wavelength / (z_shift + 1);
 
     float3 lin_result = srgb_to_lin(end_result.xyz);
+
+    ///this is relative luminance instead of absolute specific intensity, but relative_luminance / wavelength^3 should still be lorenz invariant
+    float relative_luminance = 0.2126f * lin_result.x + 0.7152f * lin_result.y + 0.0722f * lin_result.z;
+
+    ///Iv = I1 / v1^3, where Iv is lorenz invariant
+    ///Iv = I2 / v2^3 in our new frame of reference
+    ///therefore we can calculate the new intensity in our new frame of reference as...
+    ///I1/v1^3 = I2 / v2^3
+    ///I2 = v2^3 * I1/v1^3
+
+    float new_relative_luminance = pow(local_wavelength, 3) * relative_luminance / pow(test_wavelength, 3);
+
+    new_relative_luminance = clamp(new_relative_luminance, 0.f, 1.f);
+
+    if(relative_luminance > 0.00001)
+    {
+        lin_result = (new_relative_luminance / relative_luminance) * lin_result;
+
+        lin_result = clamp(lin_result, 0.f, 1.f);
+    }
+
+    float3 blue = (float3)(0, 0, 1);
+    float3 red = (float3)(1, 0, 0);
 
     if(r_value > rs * 2)
     {
