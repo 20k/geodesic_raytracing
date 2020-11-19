@@ -3732,9 +3732,8 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
     #endif // MIPMAPPING
 
     #ifdef REDSHIFT
+    ///[-1, +infinity]
     float z_shift = (velocity.x / -ray->ku_uobsu) - 1;
-
-    float hue_shift = tanh(z_shift);
 
     float3 blue = (float3)(0, 0, 1);
     float3 red = (float3)(1, 0, 0);
@@ -3743,13 +3742,13 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
 
     if(r_value > rs * 2)
     {
-        if(hue_shift > 0)
+        if(z_shift > 0)
         {
-            lin_result = mix(lin_result, red, hue_shift);
+            lin_result = mix(lin_result, red, tanh(z_shift));
         }
         else
         {
-            lin_result = mix(lin_result, blue, fabs(hue_shift));
+            lin_result = mix(lin_result, blue, fabs(z_shift));
         }
     }
 
