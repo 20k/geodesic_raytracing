@@ -550,6 +550,8 @@ namespace chromaticity
 
         float angle = (xy - (vec2f{0.3333f, 0.3333f})).angle();
 
+        printf("Angle %f\n", angle);
+
         vec2f c = vec2f{1, 0}.rot(angle);
 
         for(int i=0; i < (int)all_coordinates.size() - 1; i++)

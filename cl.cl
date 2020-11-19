@@ -3456,6 +3456,26 @@ float2 circular_diff2(float2 f1, float2 f2)
     return (float2)(circular_diff(f1.x, f2.x), circular_diff(f1.y, f2.y));
 }
 
+
+float3 linear_rgb_to_XYZ(float3 in)
+{
+    float X = 0.4124564f * in.x + 0.3575761f * in.y + 0.1804375f * in.z;
+    float Y = 0.2126729f * in.x + 0.7151522f * in.y + 0.0721750f * in.z;
+    float Z = 0.0193339f * in.x + 0.1191920f * in.y + 0.9503041f * in.z;
+
+    return (float3){X, Y, Z};
+}
+
+bool vector_lies_between(float2 v1, float2 v2, float2 c)
+{
+    return (v1.y * v2.x - v1.x * v2.y) * (v1.y * c.x - v1.x * c.y) < 0;
+}
+
+float angle_between_vectors(float2 v1, float2 v2)
+{
+    return acos(clamp(dot(fast_normalize(v1), fast_normalize(v2)), -1.f, 1.f));
+}
+
 __kernel
 void render(__global struct lightray* finished_rays, __global int* finished_count_in, __write_only image2d_t out,
             __read_only image2d_t mip_background,
@@ -3749,11 +3769,81 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
 
     ///This estimates luminance from the rgb value, which should be pretty ok at least!
 
-    ///Pick an arbitrary wavelength, the peak of human vision
-    float test_wavelength = 555;
-    float local_wavelength = test_wavelength / (z_shift + 1);
-
     float3 lin_result = srgb_to_lin(end_result.xyz);
+
+    float real_sol = 299792458;
+
+    #define DOMINANT_COLOUR
+    #ifndef DOMINANT_COLOUR
+    ///Pick an arbitrary wavelength, the peak of human vision
+    float test_wavelength = 555 / real_sol;
+    #else
+
+    float r_wavelength = 612;
+    float g_wavelength = 549;
+    float b_wavelength = 464;
+
+    float r_angle = -2.161580;
+    float g_angle = 1.695013;
+    float b_angle = -0.010759;
+
+    float3 as_xyz = linear_rgb_to_XYZ(lin_result);
+
+    float sum = as_xyz.x + as_xyz.y + as_xyz.z;
+
+    if(sum < 0.00001f)
+        sum = 0.00001f;
+
+    float2 as_xy = (float2)(as_xyz.x / sum, as_xyz.y / sum);
+
+    float2 as_vec = as_xy - (float2)(0.3333f, 0.3333f);
+
+    float angle = atan2(as_xy.y, as_xy.x);
+
+    float2 v_r = {cos(r_angle), sin(r_angle)};
+    float2 v_g = {cos(g_angle), sin(g_angle)};
+    float2 v_b = {cos(b_angle), sin(b_angle)};
+
+    float2 p1;
+    float2 p2;
+    float w1, w2;
+
+    if(vector_lies_between(v_r, v_g, as_vec))
+    {
+        p1 = v_r;
+        p2 = v_g;
+        w1 = r_wavelength;
+        w2 = g_wavelength;
+    }
+
+    else if(vector_lies_between(v_g, v_b, as_vec))
+    {
+        p1 = v_g;
+        p2 = v_b;
+        w1 = g_wavelength;
+        w2 = b_wavelength;
+    }
+
+    else
+    {
+        p1 = v_r;
+        p2 = v_b;
+        w1 = r_wavelength;
+        w2 = b_wavelength;
+    }
+
+    float fraction = angle_between_vectors(p1, as_vec) / angle_between_vectors(p1, p2);
+
+    float test_wavelength = mix(w1, w2, fraction) / real_sol;
+
+    /*if(sx == 700 && sy == 400)
+    {
+        printf("wave %f\n", test_wavelength * real_sol);
+    }*/
+
+    #endif // DOMINANT_COLOUR
+
+    float local_wavelength = test_wavelength / (z_shift + 1);
 
     ///this is relative luminance instead of absolute specific intensity, but relative_luminance / wavelength^3 should still be lorenz invariant
     float relative_luminance = 0.2126f * lin_result.x + 0.7152f * lin_result.y + 0.0722f * lin_result.z;
