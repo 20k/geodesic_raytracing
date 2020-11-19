@@ -3749,6 +3749,7 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
 
     ///This estimates luminance from the rgb value, which should be pretty ok at least!
 
+    ///Pick an arbitrary wavelength, the peak of human vision
     float test_wavelength = 555;
     float local_wavelength = test_wavelength / (z_shift + 1);
 

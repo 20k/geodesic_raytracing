@@ -79,7 +79,9 @@ https://github.com/appleseedhq/appleseed/blob/54ce23fc940087180511cb5659d8a7aac3
 https://github.com/wip-/RgbToSpectrum/blob/master/Spectra/SimpleSpectrum.cs
 https://en.wikipedia.org/wiki/Dominant_wavelength
 http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.40.9608&rep=rep1&type=pdf
-
+https://www.fourmilab.ch/documents/specrend/specrend.c
+https://www.researchgate.net/publication/308305862_Relationship_between_peak_wavelength_and_dominant_wavelength_of_light_sources_based_on_vector-based_dominant_wavelength_calculation_method
+https://www.semrock.com/how-to-calculate-luminosity-dominant-wavelength-and-excitation-purity.aspx
 */
 
 ///perfectly fine
