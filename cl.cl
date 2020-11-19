@@ -3536,6 +3536,29 @@ float angle_between_vectors(float2 v1, float2 v2)
     return acos(clamp(dot(fast_normalize(v1), fast_normalize(v2)), -1.f, 1.f));
 }
 
+float3 redshift(float3 v, float z)
+{
+    float radiant_energy = v.x*0.2125f + v.y*0.7154f + v.z*0.0721f;
+
+    float3 red = (float3){1/0.2125f, 0.f, 0.f};
+    float3 blue = (float3){0.f, 0.f, 1/0.0721};
+
+    float3 result;
+
+    if(z > 0)
+    {
+        result = mix(v, radiant_energy * red, tanh(z));
+    }
+    else
+    {
+        result = mix(v, radiant_energy * blue, fabs(z));
+    }
+
+    result = clamp(result, 0.f, 1.f);
+
+    return result;
+}
+
 __kernel
 void render(__global struct lightray* finished_rays, __global int* finished_count_in, __write_only image2d_t out,
             __read_only image2d_t mip_background,
@@ -3935,14 +3958,7 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
 
     if(r_value > rs * 2)
     {
-        if(z_shift > 0)
-        {
-            lin_result = mix(lin_result, red, tanh(z_shift));
-        }
-        else
-        {
-            lin_result = mix(lin_result, blue, fabs(z_shift));
-        }
+        lin_result = redshift(lin_result, z_shift);
     }
 
     end_result.xyz = lin_to_srgb(lin_result);
