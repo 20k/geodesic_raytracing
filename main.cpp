@@ -510,6 +510,18 @@ std::array<dual_complex, 16> minkowski_space(dual_complex t, dual_complex x, dua
     return ret_fat;
 }
 
+inline
+std::array<dual, 16> minkowski_polar(dual t, dual r, dual theta, dual phi)
+{
+    std::array<dual, 16> ret_fat;
+    ret_fat[0] = -1;
+    ret_fat[1 * 4 + 1] = 1;
+    ret_fat[2 * 4 + 2] = r * r;
+    ret_fat[3 * 4 + 3] = r * r * sin(theta) * sin(theta);
+
+    return ret_fat;
+}
+
 ///we're in inclination
 inline
 std::array<dual_complex, 16> minkowski_cylindrical(dual_complex t, dual_complex r, dual_complex phi, dual_complex z)
@@ -904,6 +916,10 @@ int main()
     minkowski_space_obj.adaptive_precision = false;
     minkowski_space_obj.system = metric::coordinate_system::CARTESIAN;
 
+    metric::metric<minkowski_polar, polar_to_polar, polar_to_polar, at_origin> minkowski_polar_obj;
+    minkowski_space_obj.name = "minkowski_polar";
+    minkowski_space_obj.adaptive_precision = false;
+
     metric::metric<minkowski_cylindrical, cylindrical_to_polar, polar_to_cylindrical, at_origin> minkowski_cylindrical_obj;
     minkowski_cylindrical_obj.name = "minkowski_cylindrical";
     minkowski_cylindrical_obj.adaptive_precision = false;
@@ -934,7 +950,8 @@ int main()
     //auto current_metric = kerr_newman_obj;
     //auto current_metric = kerr_schild_obj;
     //auto current_metric = simple_wormhole;
-    auto current_metric = schwarzs_polar;
+    //auto current_metric = schwarzs_polar;
+    auto current_metric = minkowski_polar_obj;
 
     argument_string += build_argument_string(current_metric, cfg);
     #endif // GENERIC_METRIC

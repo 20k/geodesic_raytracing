@@ -1994,7 +1994,7 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
     #ifndef GENERIC_BIG_METRIC
     calculate_lorentz_boost(bT, observer_velocity, g_metric, lorentz);
     #else
-    calculate_lorentz_boost_big(bT, observer_velocity, g_metric_bit, lorentz);
+    calculate_lorentz_boost_big(bT, observer_velocity, g_metric_big, lorentz);
     #endif // GENERIC_BIG_METRIC
 
     bT = observer_velocity;
