@@ -97,6 +97,7 @@
 			<Add option="-lbacktrace" />
 			<Add option="-lopencl" />
 		</Linker>
+		<Unit filename="chromaticity.hpp" />
 		<Unit filename="cl.cl">
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>

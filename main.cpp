@@ -7,6 +7,7 @@
 #include <CL/cl_ext.h>
 #include "dual.hpp"
 #include "metric.hpp"
+#include "chromaticity.hpp"
 //#include "dual_complex.hpp"
 
 /**
@@ -941,6 +942,8 @@ int main()
     std::cout << "ASTRING " << argument_string << std::endl;
 
     #endif // GENERIC_METRIC
+
+    printf("WLs %f %f %f\n", chromaticity::srgb_to_wavelength({1, 0, 0}), chromaticity::srgb_to_wavelength({0, 1, 0}), chromaticity::srgb_to_wavelength({0, 0, 1}));
 
     cl::program prog(clctx.ctx, "cl.cl");
     prog.build(clctx.ctx, argument_string);
