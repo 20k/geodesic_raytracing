@@ -1409,6 +1409,8 @@ float4 calculate_acceleration_big(float4 lightray_velocity, float g_metric_big[1
     ///no performance benefit by unrolling u into a float4
     float christ_result[4] = {0,0,0,0};
 
+    #define TIME_IS_AFFINE_TIME
+    #ifdef TIME_IS_AFFINE_TIME
     #pragma unroll
     for(int uu=0; uu < 4; uu++)
     {
@@ -1423,10 +1425,31 @@ float4 calculate_acceleration_big(float4 lightray_velocity, float g_metric_big[1
             }
         }
 
+        christ_result[uu] = -sum;
+    }
+    #endif // TIME_IS_COORDINATE_TIME
+
+    //#define TIME_IS_COORDINATE_TIME
+    #ifdef TIME_IS_COORDINATE_TIME
+    #pragma unroll
+    for(int uu=0; uu < 4; uu++)
+    {
+        float sum = 0;
+        #pragma unroll
+        for(int aa = 0; aa < 4; aa++)
+        {
+            #pragma unroll
+            for(int bb = 0; bb < 4; bb++)
+            {
+                sum += -(velocity_arr[aa]) * (velocity_arr[bb]) * christoff[uu * 16 + aa*4 + bb*1] + christoff[0 * 16 + aa * 4 + bb] * velocity_arr[aa] * velocity_arr[bb] * velocity_arr[uu];
+            }
+        }
+
         christ_result[uu] = sum;
     }
+    #endif // TIME_IS_COORDINATE_TIME
 
-    float4 acceleration = {-christ_result[0], -christ_result[1], -christ_result[2], -christ_result[3]};
+    float4 acceleration = {christ_result[0], christ_result[1], christ_result[2], christ_result[3]};
 
     #ifdef IS_CONSTANT_THETA
     acceleration.z = 0;
@@ -3263,6 +3286,7 @@ float3 redshift(float3 v, float z)
 {
     ///1 + z = gtt(recv) / gtt(src)
     ///1 + z = lnow / lthen
+    ///1 + z = wsrc / wobs
 
     float radiant_energy = v.x*0.2125f + v.y*0.7154f + v.z*0.0721f;
 
@@ -3277,7 +3301,10 @@ float3 redshift(float3 v, float z)
     }
     else
     {
-        result = mix(v, radiant_energy * blue, fabs(z));
+        float iv1pz = (1/(1 + z)) - 1;
+
+        //result = mix(v, radiant_energy * blue, fabs(z));
+        result = mix(v, radiant_energy * blue, tanh(iv1pz));
     }
 
     result = clamp(result, 0.f, 1.f);
