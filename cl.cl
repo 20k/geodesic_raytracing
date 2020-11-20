@@ -3542,6 +3542,9 @@ float angle_between_vectors(float2 v1, float2 v2)
 
 float3 redshift(float3 v, float z)
 {
+    ///1 + z = gtt(recv) / gtt(src)
+    ///1 + z = lnow / lthen
+
     float radiant_energy = v.x*0.2125f + v.y*0.7154f + v.z*0.0721f;
 
     float3 red = (float3){1/0.2125f, 0.f, 0.f};
@@ -3551,11 +3554,11 @@ float3 redshift(float3 v, float z)
 
     if(z > 0)
     {
-        result = mix(v, radiant_energy * blue, tanh(z));
+        result = mix(v, radiant_energy * red, tanh(z));
     }
     else
     {
-        result = mix(v, radiant_energy * red, fabs(z));
+        result = mix(v, radiant_energy * blue, fabs(z));
     }
 
     result = clamp(result, 0.f, 1.f);
