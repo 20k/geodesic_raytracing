@@ -73,6 +73,7 @@ http://ccom.ucsd.edu/~lindblom/Talks/NRBeijing1.pdf - seems to be more up to dat
 
 https://www.aanda.org/articles/aa/pdf/2012/09/aa19599-12.pdf - radiative transfer
 https://arxiv.org/pdf/0704.0986.pdf - tetrad info
+https://www.researchgate.net/figure/View-of-a-static-observer-located-at-x-0-y-4-in-the-positive-y-direction-for-t_fig2_225428633 - alcubierre. Successfully managed to replicate this https://imgur.com/a/48SONjV
 
 "how do i convert rgb to wavelengths"
 https://github.com/colour-science/smits1999
@@ -543,14 +544,14 @@ std::array<dual_complex, 16> minkowski_cylindrical(dual_complex t, dual_complex 
 inline
 std::array<dual, 16> alcubierre_metric(dual t, dual x, dual y, dual z)
 {
-    dual dxs_t = 0.9;
+    dual dxs_t = 2;
     dual xs_t = dxs_t * t;
     dual vs_t = dxs_t;
 
     dual rs_t = fast_length(x - xs_t, y, z);
 
-    dual sigma = 20;
-    dual R = 1;
+    dual sigma = 1;
+    dual R = 2;
 
     dual f_rs = (tanh(sigma * (rs_t + R)) - tanh(sigma * (rs_t - R))) / (2 * tanh(sigma * R));
 
@@ -643,7 +644,7 @@ dual alcubierre_distance(dual t, dual r, dual theta, dual phi)
 {
     std::array<dual, 4> cart = polar_to_cartesian_dual(t, r, theta, phi);
 
-    dual dxs_t = 0.9;
+    dual dxs_t = 2;
 
     dual x_pos = cart[1] - dxs_t * t;
 
@@ -1067,9 +1068,10 @@ int main()
 
     ///t, x, y, z
     //vec4f camera = {0, -2, -2, 0};
-    vec4f camera = {0, -2, -8, 0};
+    //vec4f camera = {0, -2, -8, 0};
     //vec4f camera = {0, 0, -8, 0};
     //vec4f camera = {0, 0.01, -0.024, -5.5};
+    vec4f camera = {0, 0, -4, 0};
     quat camera_quat;
 
     quat q;
