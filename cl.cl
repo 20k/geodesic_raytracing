@@ -2559,8 +2559,12 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
             return;
         }
 
-        //if(sx == 500 && sy == 400)
-        //printf("DS %f\n", dot_product_big(velocity, velocity, g_metric_big));
+        /*if(sx == 700 && sy == 400)
+        {
+            float g_metric_big[16] = {};
+            calculate_metric_generic_big(position, g_metric_big);
+            printf("DS %f\n", dot_product_big(velocity, velocity, g_metric_big));
+        }*/
 
     }
 
@@ -3547,11 +3551,11 @@ float3 redshift(float3 v, float z)
 
     if(z > 0)
     {
-        result = mix(v, radiant_energy * red, tanh(z));
+        result = mix(v, radiant_energy * blue, tanh(z));
     }
     else
     {
-        result = mix(v, radiant_energy * blue, fabs(z));
+        result = mix(v, radiant_energy * red, fabs(z));
     }
 
     result = clamp(result, 0.f, 1.f);
@@ -3947,9 +3951,6 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
 
         lin_result = clamp(lin_result, 0.f, 1.f);
     }
-
-    float3 blue = (float3)(0, 0, 1);
-    float3 red = (float3)(1, 0, 0);
 
     /*if(sx == 700 && sy == 400)
     {

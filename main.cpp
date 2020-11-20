@@ -940,18 +940,18 @@ int main()
     cfg.universe_size = 10000;
     //cfg.error_override = 100.f;
     //cfg.error_override = 0.000001f;
-    cfg.error_override = 0.00001f;
-    //cfg.error_override = 0.0001f;
+    //cfg.error_override = 0.00001f;
+    //cfg.error_override = 0.01f;
     cfg.redshift = true;
 
     //auto current_metric = symmetric_warp_obj;
     //auto current_metric = kerr_obj;
-    //auto current_metric = alcubierre_metric_obj;
+    auto current_metric = alcubierre_metric_obj;
     //auto current_metric = kerr_newman_obj;
     //auto current_metric = kerr_schild_obj;
     //auto current_metric = simple_wormhole;
     //auto current_metric = schwarzs_polar;
-    auto current_metric = minkowski_polar_obj;
+    //auto current_metric = minkowski_polar_obj;
 
     argument_string += build_argument_string(current_metric, cfg);
     #endif // GENERIC_METRIC
