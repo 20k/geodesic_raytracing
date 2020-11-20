@@ -1431,6 +1431,7 @@ float4 calculate_acceleration_big(float4 lightray_velocity, float g_metric_big[1
 
     ///this doesn't seem to work all that well, especially not for eg kerr
     ///I think more in depth changes are needed, eg B.8 https://www.researchgate.net/figure/View-of-a-static-observer-located-at-x-0-y-4-in-the-positive-y-direction-for-t_fig2_225428633
+    ///that said... while the paper says that numerical integration of the alcubierre edge is difficult due to an extremely low ds, I have had no problems with ds being too small
     //#define TIME_IS_COORDINATE_TIME
     #ifdef TIME_IS_COORDINATE_TIME
     #pragma unroll
