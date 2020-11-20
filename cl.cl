@@ -12,30 +12,6 @@ void generate_mips(__global uchar4* in, int page_width, int page_height, int wid
     avg += in[lower_level * ]
 }*/
 
-float spacetime_metric_value(int i, int k, int l, float g_partial[16])
-{
-    if(i != k)
-        return 0;
-
-    return g_partial[l * 4 + i];
-}
-
-/*struct light_ray
-{
-    float4 spacetime_velocity;
-    float4 spacetime_position;
-};*/
-
-/*float3 cartesian_to_schwarz(float3 in)
-{
-
-}*/
-
-/*
-
-*/
-
-
 float3 cartesian_to_polar(float3 in)
 {
     float r = length(in);
@@ -143,7 +119,6 @@ void clear(__write_only image2d_t out)
 
     write_imagef(out, (int2){x, y}, (float4){0,0,0,1});
 }
-
 
 float3 rot_quat(const float3 point, float4 quat)
 {
@@ -313,78 +288,6 @@ float3 lin_to_srgb(float3 val)
     return sRGB;
 }
 
-/*float lambert_w0(float x)
-{
-    const float c1 = 4.0 / 3.0;
-    const float c2 = 7.0 / 3.0;
-    const float c3 = 5.0 / 6.0;
-    const float c4 = 2.0 / 3.0;
-    float f;
-    float temp;
-    float wn;
-    float y;
-    float zn;
-
-    f = log ( x );
-
-    if ( x <= 0.7385 )
-    {
-        wn = x * ( 1.0 + c1 * x ) / ( 1.0 + x * ( c2 + c3 * x ) );
-    }
-    else
-    {
-        wn = f - 24.0 * ( ( f + 2.0 ) * f - 3.0 )
-        / ( ( 0.7 * f + 58.0 ) * f + 127.0 );
-    }
-
-    zn = f - wn - log ( wn );
-    temp = 1.0 + wn;
-    y = 2.0 * temp * ( temp + c4 * zn ) - zn;
-    float interm = zn * y / ( temp * ( y - zn ) );
-    wn = wn * ( 1.0 + interm );
-
-    return wn;
-}*/
-
-float lambert_w0_approx(float x)
-{
-  const float c1 = 4.0 / 3.0;
-  const float c2 = 7.0 / 3.0;
-  const float c3 = 5.0 / 6.0;
-  const float c4 = 2.0 / 3.0;
-  float f;
-  float temp;
-  float temp2;
-  float wn;
-  float y;
-  float zn;
-
-  f = log ( x );
-
-  if ( x <= 6.46 )
-  {
-    wn = x * ( 1.0 + c1 * x ) / ( 1.0 + x * ( c2 + c3 * x ) );
-    zn = f - wn - log ( wn );
-  }
-  else
-  {
-    wn = f;
-    zn = - log ( wn );
-  }
-
-  temp = 1.0 + wn;
-  y = 2.0 * temp * ( temp + c4 * zn ) - zn;
-  wn = wn * ( 1.0 + zn * y / ( temp * ( y - zn ) ) );
-
-  zn = f - wn - log ( wn );
-  temp = 1.0 + wn;
-  temp2 = temp + c4 * zn;
-  float en2 = zn * temp2 / ( temp * temp2 - 0.5 * zn );
-  wn = wn * ( 1.0 + en2 );
-
-  return wn;
-}
-
 float lambert_w0_newton(float x)
 {
     if(x < -(1 / M_E))
@@ -447,12 +350,7 @@ float lambert_w0_highprecision(float x)
 float lambert_w0(float x)
 {
     return lambert_w0_halley(x);
-
-    //return lambert_w0_halley(x);
-
-    //return lambert_w0_halley(x);
 }
-
 
 void calculate_metric_krus(float4 spacetime_position, float g_metric_out[])
 {
@@ -816,43 +714,6 @@ float4 lower_index(float4 raised, float g_metric[])
 
 #define ARRAY4(v) {v.x, v.y, v.z, v.w}
 
-void get_lorenz_coeff(float4 time_basis, float g_metric[], float coeff_out[16])
-{
-    //float g_metric[] = {-g_metric_in[0], -g_metric_in[1], -g_metric_in[2], -g_metric_in[3]};
-
-    float4 low_time_basis = lower_index(time_basis, g_metric);
-
-    float tuu[] = {time_basis.x, time_basis.y, time_basis.z, time_basis.w};
-    float tuv[] = {low_time_basis.x, low_time_basis.y, low_time_basis.z, low_time_basis.w};
-
-    for(int i=0; i < 16; i++)
-    {
-        coeff_out[i] = 0;
-    }
-
-    float obvs[] = {1, 0, 0, 0};
-    float4 lobvsv = lower_index((float4){1, 0, 0, 0}, g_metric);
-
-    float lobvs[4] = ARRAY4(lobvsv);
-
-    float gamma = -tuv[0] * obvs[0];
-
-    coeff_out[0 * 4 + 0] = 1;
-    coeff_out[1 * 4 + 1] = 1;
-    coeff_out[2 * 4 + 2] = 1;
-    coeff_out[3 * 4 + 3] = 1;
-
-    for(int u=0; u < 4; u++)
-    {
-        for(int v=0; v < 4; v++)
-        {
-            float val = -1/(1 + gamma) * (tuu[u] + obvs[u]) * (-tuv[v] - lobvs[v]) - 2 * obvs[u] * tuv[v];
-
-            coeff_out[u * 4 + v] += val;
-        }
-    }
-}
-
 float4 tensor_contract(float t16[16], float4 vec)
 {
     float4 res;
@@ -1079,8 +940,6 @@ float4 raise_index_big(float4 vec, float g_metric_big_inv[])
 float dot_product_big(float4 u, float4 v, float g_metric_big[])
 {
     float4 lowered = lower_index_big(u, g_metric_big);
-
-    //return dot(tensor_contract(g_metric_big, u), v);
 
     return dot(lowered, v);
 }
@@ -1373,46 +1232,46 @@ void metric_inverse(const float m[16], float invOut[16])
     float inv[16], det;
     int i;
 
-    inv[0] = m[5]  * m[10] * m[15] -
-             m[5]  * m[11] * m[11] -
-             m[6]  * m[6]  * m[15] +
-             m[6]  * m[7]  * m[11] +
+    inv[0] = m[5] * m[10] * m[15] -
+             m[5] * m[11] * m[11] -
+             m[6] * m[6]  * m[15] +
+             m[6] * m[7]  * m[11] +
              m[7] * m[6]  * m[11] -
              m[7] * m[7]  * m[10];
 
-    inv[1] = -m[1]  * m[10] * m[15] +
-              m[1]  * m[11] * m[11] +
-              m[6]  * m[2] * m[15] -
-              m[6]  * m[3] * m[11] -
+    inv[1] = -m[1] * m[10] * m[15] +
+              m[1] * m[11] * m[11] +
+              m[6] * m[2] * m[15] -
+              m[6] * m[3] * m[11] -
               m[7] * m[2] * m[11] +
               m[7] * m[3] * m[10];
 
-    inv[5] = m[0]  * m[10] * m[15] -
-             m[0]  * m[11] * m[11] -
-             m[2]  * m[2] * m[15] +
-             m[2]  * m[3] * m[11] +
+    inv[5] = m[0] * m[10] * m[15] -
+             m[0] * m[11] * m[11] -
+             m[2] * m[2] * m[15] +
+             m[2] * m[3] * m[11] +
              m[3] * m[2] * m[11] -
              m[3] * m[3] * m[10];
 
 
-    inv[2] = m[1]  * m[6] * m[15] -
-             m[1]  * m[7] * m[11] -
-             m[5]  * m[2] * m[15] +
-             m[5]  * m[3] * m[11] +
+    inv[2] = m[1] * m[6] * m[15] -
+             m[1] * m[7] * m[11] -
+             m[5] * m[2] * m[15] +
+             m[5] * m[3] * m[11] +
              m[7] * m[2] * m[7] -
              m[7] * m[3] * m[6];
 
-    inv[6] = -m[0]  * m[6] * m[15] +
-              m[0]  * m[7] * m[11] +
-              m[1]  * m[2] * m[15] -
-              m[1]  * m[3] * m[11] -
+    inv[6] = -m[0] * m[6] * m[15] +
+              m[0] * m[7] * m[11] +
+              m[1] * m[2] * m[15] -
+              m[1] * m[3] * m[11] -
               m[3] * m[2] * m[7] +
               m[3] * m[3] * m[6];
 
-    inv[10] = m[0]  * m[5] * m[15] -
-              m[0]  * m[7] * m[7] -
-              m[1]  * m[1] * m[15] +
-              m[1]  * m[3] * m[7] +
+    inv[10] = m[0] * m[5] * m[15] -
+              m[0] * m[7] * m[7] -
+              m[1] * m[1] * m[15] +
+              m[1] * m[3] * m[7] +
               m[3] * m[1] * m[7] -
               m[3] * m[3] * m[5];
 
@@ -1649,55 +1508,11 @@ struct frame_basis calculate_frame_basis(float big_metric[])
     return ret;
 }
 
-struct frame_basis calculate_covariant_basis(float big_metric[])
-{
-    ///while really i think it should be columns, the metric tensor is always symmetric
-    ///this seems better for memory ordering
-    float4 i1 = (float4)(big_metric[0], big_metric[1], big_metric[2], big_metric[3]);
-    float4 i2 = (float4)(big_metric[1], big_metric[5], big_metric[6], big_metric[7]);
-    float4 i3 = (float4)(big_metric[2], big_metric[6], big_metric[10], big_metric[11]);
-    float4 i4 = (float4)(big_metric[3], big_metric[7], big_metric[11], big_metric[15]);
-
-    float g_big_metric_inverse[16] = {};
-    metric_inverse(big_metric, g_big_metric_inverse);
-
-    float4 u1 = i1;
-
-    float4 u2 = i2;
-    u2 = u2 - gram_proj(u1, u2, big_metric);
-
-    float4 u3 = i3;
-    u3 = u3 - gram_proj(u1, u3, big_metric);
-    u3 = u3 - gram_proj(u2, u3, big_metric);
-
-    float4 u4 = i4;
-    u4 = u4 - gram_proj(u1, u4, big_metric);
-    u4 = u4 - gram_proj(u2, u4, big_metric);
-    u4 = u4 - gram_proj(u3, u4, big_metric);
-
-    /*u1 = normalize(u1);
-    u2 = normalize(u2);
-    u3 = normalize(u3);
-    u4 = normalize(u4);*/
-
-    u1 = u1 / sqrt(fabs(dot(u1, raise_index_big(u1, g_big_metric_inverse))));
-    u2 = u2 / sqrt(fabs(dot(u2, raise_index_big(u2, g_big_metric_inverse))));
-    u3 = u3 / sqrt(fabs(dot(u3, raise_index_big(u3, g_big_metric_inverse))));
-    u4 = u4 / sqrt(fabs(dot(u4, raise_index_big(u4, g_big_metric_inverse))));
-
-    struct frame_basis ret;
-    ret.v1 = u1;
-    ret.v2 = u2;
-    ret.v3 = u3;
-    ret.v4 = u4;
-
-    return ret;
-}
-
 void print_metric_big_trace(float g_metric_big[])
 {
     printf("%f %f %f %f\n", g_metric_big[0], g_metric_big[5], g_metric_big[10], g_metric_big[15]);
 }
+
 void print_metric_big(float g_metric_big[])
 {
     printf("%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f\n", g_metric_big[0], g_metric_big[1], g_metric_big[2], g_metric_big[3],
@@ -1866,11 +1681,6 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
     {
         struct frame_basis basis = calculate_frame_basis(g_metric_big);
 
-        //float4 my_vec = basis.v1 + basis.v2 + basis.v3 + basis.v4;
-
-        //if(cx == 500 && cy == 400)
-        //printf("DS %f\n", dot_product_big(my_vec, my_vec, g_metric_big));
-
         /*if(cx == 500 && cy == 400)
         {
             float d1 = dot_product_big(basis.v1, basis.v2, g_metric_big);
@@ -1901,87 +1711,6 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
         printf("obX %f %f %f %f\n", obX.x, obX.y, obX.z, obX.w);
         printf("obtheta %f %f %f %f\n", obtheta.x, obtheta.y, obtheta.z, obtheta.w);
         printf("obphi %f %f %f %f\n", obphi.x, obphi.y, obphi.z, obphi.w);*/
-
-        ///i absolutely did not expect, under any circumstances whatsoever, for this to produce the correct results
-        #if 1
-        struct frame_basis cb = calculate_covariant_basis(g_metric_big);
-
-        float g_metric_inv2[16] = {};
-
-        metric_inverse(g_metric_big, g_metric_inv2);
-
-        float cb_in[16] = {bT.x, bX.x, btheta.x, bphi.x,
-                           bT.y, bX.y, btheta.y, bphi.y,
-                           bT.z, bX.z, btheta.z, bphi.z,
-                           bT.w, bX.w, btheta.w, bphi.w};
-
-        float g_calculated[16] = {0};
-
-        float g_minkowski[16] = {-1, 0, 0, 0,
-                                0, 1, 0, 0,
-                                0, 0, 1, 0,
-                                0, 0, 0, 1};
-
-        for(int u = 0; u < 4; u++)
-        {
-           for(int v=0; v < 4; v++)
-           {
-               float sum = 0;
-
-               for(int a = 0; a < 4; a++)
-               {
-                   for(int b=0; b < 4; b++)
-                   {
-                        sum += cb_in[u * 4 + a] * cb_in[v * 4 + b] * g_minkowski[a * 4 + b];
-                   }
-               }
-
-               g_calculated[u * 4 + v] = sum;
-           }
-        }
-
-        float4 c1 = tensor_contract(g_minkowski, bT);
-        float4 c2 = tensor_contract(g_minkowski, bX);
-        float4 c3 = tensor_contract(g_minkowski, btheta);
-        float4 c4 = tensor_contract(g_minkowski, bphi);
-
-        float cov_in[16] = {c1.x, c2.x, c3.x, c4.x,
-                            c1.y, c2.y, c3.y, c4.y,
-                            c1.z, c2.z, c3.z, c4.z,
-                            c1.w, c2.w, c3.w, c4.w};
-
-        float g_cov_metric[16] = {0};
-
-        for(int u = 0; u < 4; u++)
-        {
-           for(int v=0; v < 4; v++)
-           {
-               float sum = 0;
-
-               for(int a = 0; a < 4; a++)
-               {
-                   for(int b=0; b < 4; b++)
-                   {
-                        sum += cov_in[u * 4 + a] * cov_in[v * 4 + b] * g_minkowski[a * 4 + b];
-                   }
-               }
-
-               g_cov_metric[u * 4 + v] = sum;
-           }
-        }
-
-
-        ///should be the same
-        printf("Metric inverse\n");
-        print_metric_big(g_metric_inv2);
-        printf("Calculated\n");
-        print_metric_big(g_calculated);
-
-        printf("Metric calculated\n");
-        print_metric_big(g_cov_metric);
-        printf("Metric real\n");
-        print_metric_big(g_metric_big);
-        #endif // 0
     }
     #endif // 0
 
@@ -2018,10 +1747,6 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
     float4 pixel_x = pixel_direction.x * polar_x;
     float4 pixel_y = pixel_direction.y * polar_y;
     float4 pixel_z = pixel_direction.z * polar_z;
-
-    /*float4 pixel_x = (float4)(0, pixel_direction.x * polar_x.yzw);
-    float4 pixel_y = (float4)(0, pixel_direction.y * polar_y.yzw);
-    float4 pixel_z = (float4)(0, pixel_direction.z * polar_z.yzw);*/
 
     ///when people say backwards in time, what they mean is backwards in affine time, not coordinate time
     ///going backwards in coordinate time however should be identical
@@ -2503,9 +2228,6 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
         float experienced_acceleration_change = mix(maximum_space_curvature, current_acceleration_err, 0.8);
 
-        //experienced_acceleration_change /= max(max(W_V1, W_V2), max(W_V3, W_V4));
-        //experienced_acceleration_change /= fast_length((float4)(W_V1, W_V2, W_V3, W_V4));
-
         float err = MAX_ACCELERATION_CHANGE;
         float i_hate_computers = 100;
 
@@ -2539,7 +2261,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
         if(fabs(r_value) < new_max)
         {
-            if(next_ds < ds/1.95)
+            if(next_ds < ds/1.95f)
                 continue;
         }
         #endif // ADAPTIVE_PRECISION
@@ -2724,12 +2446,9 @@ void init_rays(float4 cartesian_camera_pos, float4 camera_quat, __global struct 
     float4 btheta = (float4)(0, 0, 1/co_basis.z, 0);
     float4 bphi = (float4)(0, 0, 0, 1/co_basis.w);
 
-    float lorenz[16] = {};
-    get_lorenz_coeff(bT, g_metric, lorenz);
-
-    float4 cX = tensor_contract(lorenz, btheta);
-    float4 cY = tensor_contract(lorenz, bphi);
-    float4 cZ = tensor_contract(lorenz, bX);
+    float4 cX = btheta;
+    float4 cY = bphi;
+    float4 cZ = bX;
 
     float3 sVx;
     float3 sVy;
@@ -3935,7 +3654,7 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
 
     float local_wavelength = test_wavelength / (z_shift + 1);
 
-    ///this is relative luminance instead of absolute specific intensity, but relative_luminance / wavelength^3 should still be lorenz invariant
+    ///this is relative luminance instead of absolute specific intensity, but relative_luminance / wavelength^3 should still be lorenz invariant (?)
     float relative_luminance = 0.2126f * lin_result.x + 0.7152f * lin_result.y + 0.0722f * lin_result.z;
 
     ///Iv = I1 / v1^3, where Iv is lorenz invariant
@@ -4050,12 +3769,9 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
     float4 btheta = (float4)(0, 0, 1/co_basis.z, 0);
     float4 bphi = (float4)(0, 0, 0, 1/co_basis.w);
 
-    float lorenz[16] = {};
-    get_lorenz_coeff(bT, g_metric, lorenz);
-
-    float4 cX = tensor_contract(lorenz, btheta);
-    float4 cY = tensor_contract(lorenz, bphi);
-    float4 cZ = tensor_contract(lorenz, bX);
+    float4 cX = btheta;
+    float4 cY = bphi;
+    float4 cZ = bX;
 
     float3 sVx;
     float3 sVy;
