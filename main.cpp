@@ -73,7 +73,7 @@ http://ccom.ucsd.edu/~lindblom/Talks/NRBeijing1.pdf - seems to be more up to dat
 
 https://www.aanda.org/articles/aa/pdf/2012/09/aa19599-12.pdf - radiative transfer
 https://arxiv.org/pdf/0704.0986.pdf - tetrad info
-https://www.researchgate.net/figure/View-of-a-static-observer-located-at-x-0-y-4-in-the-positive-y-direction-for-t_fig2_225428633 - alcubierre. Successfully managed to replicate this https://imgur.com/a/48SONjV
+https://www.researchgate.net/figure/View-of-a-static-observer-located-at-x-0-y-4-in-the-positive-y-direction-for-t_fig2_225428633 - alcubierre. Successfully managed to replicate this https://imgur.com/a/48SONjV. This paper is an absolute goldmine of useful information
 
 "how do i convert rgb to wavelengths"
 https://github.com/colour-science/smits1999
