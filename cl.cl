@@ -1429,6 +1429,7 @@ float4 calculate_acceleration_big(float4 lightray_velocity, float g_metric_big[1
     }
     #endif // TIME_IS_COORDINATE_TIME
 
+    ///this doesn't seem to work all that well, especially not for eg kerr
     //#define TIME_IS_COORDINATE_TIME
     #ifdef TIME_IS_COORDINATE_TIME
     #pragma unroll
