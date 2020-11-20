@@ -544,14 +544,14 @@ std::array<dual_complex, 16> minkowski_cylindrical(dual_complex t, dual_complex 
 inline
 std::array<dual, 16> alcubierre_metric(dual t, dual x, dual y, dual z)
 {
-    dual dxs_t = 2;
+    dual dxs_t = 0.9;
     dual xs_t = dxs_t * t;
     dual vs_t = dxs_t;
 
     dual rs_t = fast_length(x - xs_t, y, z);
 
-    dual sigma = 1;
-    dual R = 2;
+    dual sigma = 20;
+    dual R = 1;
 
     dual f_rs = (tanh(sigma * (rs_t + R)) - tanh(sigma * (rs_t - R))) / (2 * tanh(sigma * R));
 
@@ -644,7 +644,7 @@ dual alcubierre_distance(dual t, dual r, dual theta, dual phi)
 {
     std::array<dual, 4> cart = polar_to_cartesian_dual(t, r, theta, phi);
 
-    dual dxs_t = 2;
+    dual dxs_t = 0.9;
 
     dual x_pos = cart[1] - dxs_t * t;
 

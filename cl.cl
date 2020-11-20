@@ -1421,7 +1421,7 @@ float4 calculate_acceleration_big(float4 lightray_velocity, float g_metric_big[1
             #pragma unroll
             for(int bb = 0; bb < 4; bb++)
             {
-                sum += (velocity_arr[aa]) * (velocity_arr[bb]) * christoff[uu * 16 + aa*4 + bb*1];
+                sum += velocity_arr[aa] * velocity_arr[bb] * christoff[uu * 16 + aa*4 + bb*1];
             }
         }
 
@@ -1441,7 +1441,7 @@ float4 calculate_acceleration_big(float4 lightray_velocity, float g_metric_big[1
             #pragma unroll
             for(int bb = 0; bb < 4; bb++)
             {
-                sum += -(velocity_arr[aa]) * (velocity_arr[bb]) * christoff[uu * 16 + aa*4 + bb*1] + christoff[0 * 16 + aa * 4 + bb] * velocity_arr[aa] * velocity_arr[bb] * velocity_arr[uu];
+                sum += -velocity_arr[aa] * velocity_arr[bb] * christoff[uu * 16 + aa*4 + bb*1] + christoff[0 * 16 + aa * 4 + bb] * velocity_arr[aa] * velocity_arr[bb] * velocity_arr[uu];
             }
         }
 
