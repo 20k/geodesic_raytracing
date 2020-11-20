@@ -543,7 +543,7 @@ std::array<dual_complex, 16> minkowski_cylindrical(dual_complex t, dual_complex 
 inline
 std::array<dual, 16> alcubierre_metric(dual t, dual x, dual y, dual z)
 {
-    dual dxs_t = 1.9;
+    dual dxs_t = 0.9;
     dual xs_t = dxs_t * t;
     dual vs_t = dxs_t;
 
@@ -643,7 +643,7 @@ dual alcubierre_distance(dual t, dual r, dual theta, dual phi)
 {
     std::array<dual, 4> cart = polar_to_cartesian_dual(t, r, theta, phi);
 
-    dual dxs_t = 1.9;
+    dual dxs_t = 0.9;
 
     dual x_pos = cart[1] - dxs_t * t;
 
@@ -946,11 +946,11 @@ int main()
 
     //auto current_metric = symmetric_warp_obj;
     //auto current_metric = kerr_obj;
-    //auto current_metric = alcubierre_metric_obj;
+    auto current_metric = alcubierre_metric_obj;
     //auto current_metric = kerr_newman_obj;
     //auto current_metric = kerr_schild_obj;
     //auto current_metric = simple_wormhole;
-    auto current_metric = schwarzs_polar;
+    //auto current_metric = schwarzs_polar;
     //auto current_metric = minkowski_polar_obj;
 
     argument_string += build_argument_string(current_metric, cfg);
