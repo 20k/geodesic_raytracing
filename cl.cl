@@ -2114,6 +2114,71 @@ float get_distance_to_object(float4 polar)
     return result;
 }
 
+enum ds_result
+{
+    DS_NONE,
+    DS_SKIP,
+    DS_RETURN,
+};
+
+#ifdef ADAPTIVE_PRECISION
+int calculate_ds_error(float current_ds, float4 next_acceleration, float4 acceleration, float* next_ds_out)
+{
+    float uniform_coordinate_precision_divisor = max(max(W_V1, W_V2), max(W_V3, W_V4));
+
+    float4 curve4 = next_acceleration - acceleration;
+
+    //float experienced_acceleration_change = max(max(fabs(curve4.x * W_V1), fabs(curve4.y * W_V2)), max(fabs(curve4.z * W_V3), fabs(curve4.w * W_V4)));
+    //float experienced_acceleration_change = fast_length(curve4 * (float4){W_V1, W_V2, W_V3, W_V4});
+
+    float maximum_space_curvature = max(max(fabs(curve4.x * W_V1), fabs(curve4.y * W_V2)), max(fabs(curve4.z * W_V3), fabs(curve4.w * W_V4)));
+    maximum_space_curvature /= uniform_coordinate_precision_divisor;
+
+    float current_acceleration_err = fast_length(next_acceleration * (float4)(W_V1, W_V2, W_V3, W_V4)) * 0.01;
+    current_acceleration_err /= uniform_coordinate_precision_divisor;
+
+    float experienced_acceleration_change = mix(maximum_space_curvature, current_acceleration_err, 0.8);
+
+    float err = MAX_ACCELERATION_CHANGE;
+    float i_hate_computers = 100;
+
+    //#define MIN_STEP 0.00001f
+    #define MIN_STEP 0.000001f
+
+    float max_timestep = 100000;
+
+    float diff = experienced_acceleration_change * i_hate_computers;
+
+    //float diff = fast_length(next_acceleration * i_hate_computers - acceleration * i_hate_computers);
+
+    if(diff < err * i_hate_computers / pow(max_timestep, 2))
+        diff = err * i_hate_computers / pow(max_timestep, 2);
+
+    ///of course, as is tradition, whatever works for kerr does not work for alcubierre
+    ///the sqrt error calculation is significantly better for alcubierre, largely in terms of having no visual artifacts at all
+    ///whereas the pow version is nearly 2x faster for kerr
+    float next_ds = native_sqrt(((err * i_hate_computers) / diff));
+    //next_ds = pow(err * i_hate_computers / diff, 0.7) * 20;
+
+    ///produces strictly worse results for kerr
+    next_ds = 0.99f * current_ds * clamp(next_ds / current_ds, 0.3, 2.f);
+
+    next_ds = max(next_ds, MIN_STEP);
+
+    *next_ds_out = next_ds;
+
+    #ifdef SINGULARITY_DETECTION
+    if(next_ds == MIN_STEP && (diff/i_hate_computers) > err * 10000)
+        return DS_RETURN;
+    #endif // SINGULARITY_DETECTION
+
+    if(next_ds < current_ds/1.95f)
+        return DS_SKIP;
+
+    return DS_NONE;
+}
+#endif // ADAPTIVE_PRECISION
+
 __kernel
 void do_generic_rays (__global struct lightray* generic_rays_in, __global struct lightray* generic_rays_out,
                       __global struct lightray* finished_rays,
@@ -2246,55 +2311,18 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
         step_verlet(position, velocity, acceleration, ds, &next_position, &next_velocity, &next_acceleration);
 
         #ifdef ADAPTIVE_PRECISION
-        float4 curve4 = next_acceleration - acceleration;
-
-        //float experienced_acceleration_change = max(max(fabs(curve4.x * W_V1), fabs(curve4.y * W_V2)), max(fabs(curve4.z * W_V3), fabs(curve4.w * W_V4)));
-        //float experienced_acceleration_change = fast_length(curve4 * (float4){W_V1, W_V2, W_V3, W_V4});
-
-        float maximum_space_curvature = max(max(fabs(curve4.x * W_V1), fabs(curve4.y * W_V2)), max(fabs(curve4.z * W_V3), fabs(curve4.w * W_V4)));
-        maximum_space_curvature /= uniform_coordinate_precision_divisor;
-
-        float current_acceleration_err = fast_length(next_acceleration * (float4)(W_V1, W_V2, W_V3, W_V4)) * 0.01;
-        current_acceleration_err /= uniform_coordinate_precision_divisor;
-
-        float experienced_acceleration_change = mix(maximum_space_curvature, current_acceleration_err, 0.8);
-
-        float err = MAX_ACCELERATION_CHANGE;
-        float i_hate_computers = 100;
-
-        //#define MIN_STEP 0.00001f
-        #define MIN_STEP 0.000001f
-
-        float max_timestep = 100000;
-
-        float diff = experienced_acceleration_change * i_hate_computers;
-
-        //float diff = fast_length(next_acceleration * i_hate_computers - acceleration * i_hate_computers);
-
-        if(diff < err * i_hate_computers / pow(max_timestep, 2))
-            diff = err * i_hate_computers / pow(max_timestep, 2);
-
-        ///of course, as is tradition, whatever works for kerr does not work for alcubierre
-        ///the sqrt error calculation is significantly better for alcubierre, largely in terms of having no visual artifacts at all
-        ///whereas the pow version is nearly 2x faster for kerr
-        next_ds = native_sqrt(((err * i_hate_computers) / diff));
-        //next_ds = pow(err * i_hate_computers / diff, 0.7) * 20;
-
-        ///produces strictly worse results for kerr
-        next_ds = 0.99 * ds * clamp(next_ds / ds, 0.3, 2.f);
-
-        next_ds = max(next_ds, MIN_STEP);
-
-        #ifdef SINGULARITY_DETECTION
-        if(next_ds == MIN_STEP && (diff/i_hate_computers) > err * 10000)
-            return;
-        #endif // SINGULARITY_DETECTION
 
         if(fabs(r_value) < new_max)
         {
-            if(next_ds < ds/1.95f)
+            int res = calculate_ds_error(ds, next_acceleration, acceleration, &next_ds);
+
+            if(res == DS_RETURN)
+                return;
+
+            if(res == DS_SKIP)
                 continue;
         }
+
         #endif // ADAPTIVE_PRECISION
 
         position = next_position;
