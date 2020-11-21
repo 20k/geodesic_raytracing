@@ -536,6 +536,40 @@ std::array<dual_complex, 16> minkowski_cylindrical(dual_complex t, dual_complex 
     return ret_fat;
 }
 
+///krasnikov tubes: https://core.ac.uk/download/pdf/25208925.pdf
+dual krasnikov_thetae(dual v, dual e)
+{
+    return 0.5f * (tanh(2 * ((2 * v / e) - 1)) + 1);
+}
+
+///they call x, z
+std::array<dual, 16> krasnikov_tube_metric(dual t, dual p, dual phi, dual x)
+{
+    dual e = 0.01;
+    dual D = 10;
+    dual pmax = 1;
+
+    ///[0, 2], approx= 0?
+    dual little_d = 0.001;
+
+    auto k_t_x_p = [e, pmax, D, little_d](dual t, dual x, dual p)
+    {
+        return 1 - (2 - little_d) * krasnikov_thetae(pmax - p, e) * krasnikov_thetae(t - x - p, e) * (krasnikov_thetae(x, e) - krasnikov_thetae(x + e - D, e));
+    };
+
+    dual dxdt = (1 - k_t_x_p(t, x, p));
+
+    std::array<dual, 16> ret;
+    ret[0 * 4 + 0] = -1;
+    ret[1 * 4 + 1] = 1;
+    ret[2 * 4 + 2] = p * p;
+    ret[3 * 4 + 3] = k_t_x_p(t, x, p);
+    ret[0 * 4 + 3] = 0.5 * dxdt;
+    ret[3 * 4 + 0] = 0.5 * dxdt;
+
+    return ret;
+}
+
 ///rendering alcubierre nicely is very hard: the shell is extremely thin, and flat on both sides
 ///this means that a naive timestepping method results in a lot of distortion
 ///need to crank down subambient_precision, and crank up new_max to about 20 * rs
@@ -936,6 +970,10 @@ int main()
     symmetric_warp_obj.singular_terminator = 1.001f;
     //symmetric_warp_obj.adaptive_precision = false;
 
+    metric::metric<krasnikov_tube_metric, cylindrical_to_polar, polar_to_cylindrical, at_origin> krasnikov_tube_obj;
+    krasnikov_tube_obj.name = "krasnikov_tube";
+    krasnikov_tube_obj.adaptive_precision = true;
+
     metric::config cfg;
     cfg.universe_size = 10000;
     //cfg.error_override = 100.f;
@@ -946,12 +984,13 @@ int main()
 
     //auto current_metric = symmetric_warp_obj;
     //auto current_metric = kerr_obj;
-    auto current_metric = alcubierre_metric_obj;
+    //auto current_metric = alcubierre_metric_obj;
     //auto current_metric = kerr_newman_obj;
     //auto current_metric = kerr_schild_obj;
     //auto current_metric = simple_wormhole;
     //auto current_metric = schwarzs_polar;
     //auto current_metric = minkowski_polar_obj;
+    auto current_metric = krasnikov_tube_obj;
 
     argument_string += build_argument_string(current_metric, cfg);
     #endif // GENERIC_METRIC
