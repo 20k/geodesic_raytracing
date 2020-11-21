@@ -539,8 +539,7 @@ std::array<dual_complex, 16> minkowski_cylindrical(dual_complex t, dual_complex 
 ///rendering alcubierre nicely is very hard: the shell is extremely thin, and flat on both sides
 ///this means that a naive timestepping method results in a lot of distortion
 ///need to crank down subambient_precision, and crank up new_max to about 20 * rs
-///performance and quality could be made significantly better with a dynamic timestep that only reduces the timestep around
-///the border shell
+///performance and quality is made significantly better with a dynamic timestep based on an error estimate, and then unstepping if it steps too far
 inline
 std::array<dual, 16> alcubierre_metric(dual t, dual x, dual y, dual z)
 {
