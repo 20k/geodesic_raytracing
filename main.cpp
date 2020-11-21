@@ -545,12 +545,12 @@ dual krasnikov_thetae(dual v, dual e)
 ///they call x, z
 std::array<dual, 16> krasnikov_tube_metric(dual t, dual p, dual phi, dual x)
 {
-    dual e = 0.01;
-    dual D = 10;
+    dual e = 0.1;
+    dual D = 1;
     dual pmax = 1;
 
     ///[0, 2], approx= 0?
-    dual little_d = 0.001;
+    dual little_d = 0.01;
 
     auto k_t_x_p = [e, pmax, D, little_d](dual t, dual x, dual p)
     {
@@ -720,6 +720,34 @@ std::array<dual, 4> cylindrical_to_polar(dual t, dual p, dual phi, dual z)
 inline
 std::array<dual, 4> polar_to_cylindrical(dual t, dual r, dual theta, dual phi)
 {
+    dual rp = r * sin(theta);
+    dual rphi = phi;
+    dual rz = r * cos(theta);
+
+    return {t, rp, rphi, rz};
+}
+
+inline
+std::array<dual, 4> rotated_cylindrical_to_polar(dual t, dual p, dual phi, dual x)
+{
+    dual rr = sqrt(p * p + x * x);
+    dual rtheta = atan2(p, x);
+    //dual rtheta = atan(p / z);
+    dual rphi = phi;
+
+    return {t, rr, rtheta, rphi};
+}
+
+inline
+std::array<dual, 4> polar_to_cylindrical_rotated(dual t, dual r, dual theta, dual phi)
+{
+    quaternion_base<dual> dual_quat;
+    dual_quat.load_from_axis_angle({1, 0, 0, M_PI/2});
+
+    std::array<dual, 4> as_cart = polar_to_cartesian_dual(t, r, theta, phi);
+
+    auto rotated = rot_quat({as_cart[1], as_cart[2], as_cart[3]}, dual_quat);
+
     dual rp = r * sin(theta);
     dual rphi = phi;
     dual rz = r * cos(theta);
