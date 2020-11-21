@@ -571,6 +571,7 @@ std::array<dual, 16> krasnikov_tube_metric(dual t, dual p, dual phi, dual x)
     return ret;
 }
 
+///values here are picked for numerical stability, in particular D should be < the precision bounding box, and its more numerically stable the higher e is
 std::array<dual, 16> krasnikov_tube_metric_cart(dual t, dual x, dual y, dual z)
 {
     dual e = 0.75; ///width o the tunnel
