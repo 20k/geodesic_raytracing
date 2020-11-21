@@ -1054,10 +1054,10 @@ int main()
     //auto current_metric = alcubierre_metric_obj;
     //auto current_metric = kerr_newman_obj;
     //auto current_metric = kerr_schild_obj;
-    //auto current_metric = simple_wormhole;
+    auto current_metric = simple_wormhole;
     //auto current_metric = schwarzs_polar;
     //auto current_metric = minkowski_polar_obj;
-    auto current_metric = krasnikov_tube_cart_obj;
+    //auto current_metric = krasnikov_tube_cart_obj;
 
     argument_string += build_argument_string(current_metric, cfg);
     #endif // GENERIC_METRIC
@@ -1251,6 +1251,7 @@ int main()
     int screenshot_w = 1920;
     int screenshot_h = 1080;
     bool time_progresses = false;
+    bool flip_sign = false;
 
     while(!win.should_close())
     {
@@ -1390,6 +1391,11 @@ int main()
             camera_quat = q * camera_quat;
         }
 
+        if(ImGui::IsKeyPressed(GLFW_KEY_1))
+        {
+            flip_sign = !flip_sign;
+        }
+
         vec3f up = {0, 0, -1};
         vec3f right = rot_quat({1, 0, 0}, camera_quat);
         vec3f forward_axis = rot_quat({0, 0, 1}, camera_quat);
@@ -1421,6 +1427,9 @@ int main()
         camera.w() += offset.z();
 
         vec4f scamera = cartesian_to_schwarz(camera);
+
+        if(flip_sign)
+            scamera.y() = -scamera.y();
 
         float time = clk.restart().asMicroseconds() / 1000.;
 
