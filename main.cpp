@@ -571,6 +571,35 @@ std::array<dual, 16> krasnikov_tube_metric(dual t, dual p, dual phi, dual x)
     return ret;
 }
 
+std::array<dual, 16> krasnikov_tube_metric_cart(dual t, dual x, dual y, dual z)
+{
+    dual e = 0.75; ///width o the tunnel
+    dual D = 5; ///length of the tube
+    dual pmax = 2; ///size of the mouth
+
+    ///[0, 2], approx= 0?
+    dual little_d = 0.01; ///unsure, <1 required for superluminosity
+
+    dual p = sqrt(y * y + z * z);
+
+    auto k_t_x_p = [e, pmax, D, little_d](dual t, dual x, dual p)
+    {
+        return 1 - (2 - little_d) * krasnikov_thetae(pmax - p, e) * krasnikov_thetae(t - x - p, e) * (krasnikov_thetae(x, e) - krasnikov_thetae(x + e - D, e));
+    };
+
+    dual dxdt = (1 - k_t_x_p(t, x, p));
+
+    std::array<dual, 16> ret;
+    ret[0 * 4 + 0] = -1;
+    ret[1 * 4 + 1] = k_t_x_p(t, x, p);
+    ret[2 * 4 + 2] = 1;
+    ret[3 * 4 + 3] = 1;
+    ret[0 * 4 + 1] = 0.5 * dxdt;
+    ret[1 * 4 + 0] = 0.5 * dxdt;
+
+    return ret;
+}
+
 ///rendering alcubierre nicely is very hard: the shell is extremely thin, and flat on both sides
 ///this means that a naive timestepping method results in a lot of distortion
 ///need to crank down subambient_precision, and crank up new_max to about 20 * rs
@@ -1004,13 +1033,19 @@ int main()
     metric::metric<krasnikov_tube_metric, cylindrical_to_polar, polar_to_cylindrical, at_origin> krasnikov_tube_obj;
     krasnikov_tube_obj.name = "krasnikov_tube";
     krasnikov_tube_obj.adaptive_precision = true;
+    krasnikov_tube_obj.system = metric::coordinate_system::OTHER;
+
+    metric::metric<krasnikov_tube_metric_cart, cartesian_to_polar_dual, polar_to_cartesian_dual, at_origin> krasnikov_tube_cart_obj;
+    krasnikov_tube_cart_obj.name = "krasnikov_tube_cart";
+    krasnikov_tube_cart_obj.adaptive_precision = true;
+    krasnikov_tube_cart_obj.system = metric::coordinate_system::CARTESIAN;
 
     metric::config cfg;
     cfg.universe_size = 10000;
     //cfg.error_override = 100.f;
     //cfg.error_override = 0.000001f;
     //cfg.error_override = 0.00001f;
-    //cfg.error_override = 0.01f;
+    //cfg.error_override = 0.0001f;
     cfg.redshift = true;
 
     //auto current_metric = symmetric_warp_obj;
@@ -1021,7 +1056,7 @@ int main()
     //auto current_metric = simple_wormhole;
     //auto current_metric = schwarzs_polar;
     //auto current_metric = minkowski_polar_obj;
-    auto current_metric = krasnikov_tube_obj;
+    auto current_metric = krasnikov_tube_cart_obj;
 
     argument_string += build_argument_string(current_metric, cfg);
     #endif // GENERIC_METRIC
