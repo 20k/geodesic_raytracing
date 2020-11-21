@@ -543,14 +543,15 @@ dual krasnikov_thetae(dual v, dual e)
 }
 
 ///they call x, z
+///krasnikov is extremely terrible, because its situated down the z axis here which is super incredibly bad for performance
 std::array<dual, 16> krasnikov_tube_metric(dual t, dual p, dual phi, dual x)
 {
-    dual e = 0.1;
-    dual D = 2;
-    dual pmax = 1;
+    dual e = 0.1; ///width o the tunnel
+    dual D = 2; ///length of the tube
+    dual pmax = 1; ///size of the mouth
 
     ///[0, 2], approx= 0?
-    dual little_d = 0.01;
+    dual little_d = 0.01; ///unsure, <1 required for superluminosity
 
     auto k_t_x_p = [e, pmax, D, little_d](dual t, dual x, dual p)
     {
