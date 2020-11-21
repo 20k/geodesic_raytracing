@@ -1534,7 +1534,7 @@ int main()
             #else
 
             cl::args init_args;
-            init_args.push_back(camera);
+            init_args.push_back(scamera);
             init_args.push_back(camera_quat);
             init_args.push_back(*b1);
             init_args.push_back(*c1);
@@ -1564,7 +1564,7 @@ int main()
             texture_args.push_back(texture_coordinates[which_buffer]);
             texture_args.push_back(width);
             texture_args.push_back(height);
-            texture_args.push_back(camera);
+            texture_args.push_back(scamera);
             texture_args.push_back(camera_quat);
 
             clctx.cqueue.exec("calculate_texture_coordinates", texture_args, {width * height}, {256});

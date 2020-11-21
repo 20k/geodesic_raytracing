@@ -1632,7 +1632,7 @@ void calculate_lorentz_boost(float4 time_basis, float4 observer_velocity, float 
 #endif // GENERIC_BIG_METRIC
 
 __kernel
-void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global struct lightray* metric_rays, __global int* metric_ray_count, int width, int height)
+void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global struct lightray* metric_rays, __global int* metric_ray_count, int width, int height)
 {
     #define FOV 90
 
@@ -1643,6 +1643,8 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
 
     if(cx >= width || cy >= height)
         return;
+
+    float3 cartesian_camera_pos = polar_to_cartesian(polar_camera_in.yzw);
 
     float nonphysical_plane_half_width = width/2;
     float nonphysical_f_stop = nonphysical_plane_half_width / tan(fov_rad/2);
@@ -1655,7 +1657,7 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
     float3 cartesian_velocity = normalize(pixel_direction);
 
     float3 new_basis_x = normalize(cartesian_velocity);
-    float3 new_basis_y = normalize(-cartesian_camera_pos.yzw);
+    float3 new_basis_y = normalize(-cartesian_camera_pos);
 
     new_basis_x = rejection(new_basis_x, new_basis_y);
 
@@ -1663,15 +1665,18 @@ void init_rays_generic(float4 cartesian_camera_pos, float4 camera_quat, __global
 
     #ifdef GENERIC_CONSTANT_THETA
     {
-        float3 cartesian_camera_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_camera_pos.yzw);
+        float3 cartesian_camera_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_camera_pos);
         float3 cartesian_velocity_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_velocity);
 
-        cartesian_camera_pos.yzw = cartesian_camera_new_basis;
+        cartesian_camera_pos = cartesian_camera_new_basis;
         pixel_direction = normalize(cartesian_velocity_new_basis);
     }
     #endif // GENERIC_CONSTANT_THETA
 
-    float4 polar_camera = (float4)(cartesian_camera_pos.x, cartesian_to_polar(cartesian_camera_pos.yzw));
+    float4 polar_camera = (float4)(polar_camera_in.x, cartesian_to_polar(cartesian_camera_pos));
+
+    ///in case we specify a negative r
+    polar_camera.y = copysign(polar_camera.y, polar_camera_in.y);
 
     float4 lightray_velocity;
     float4 lightray_spacetime_position;
@@ -3140,7 +3145,7 @@ void relauncher(__global struct lightray* schwarzs_rays_in, __global struct ligh
 }
 
 __kernel
-void calculate_texture_coordinates(__global struct lightray* finished_rays, __global int* finished_count_in, __global float2* texture_coordinates, int width, int height, float4 cartesian_camera_pos, float4 camera_quat)
+void calculate_texture_coordinates(__global struct lightray* finished_rays, __global int* finished_count_in, __global float2* texture_coordinates, int width, int height, float4 polar_camera_pos, float4 camera_quat)
 {
     int id = get_global_id(0);
 
@@ -3187,6 +3192,8 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
         return;
     }
     #endif
+
+    float4 cartesian_camera_pos = (float4)(polar_camera_pos.x, polar_to_cartesian(polar_camera_pos.yzw));
 
     float3 cart_here = polar_to_cartesian((float3)(r_value, position.zw));
 
