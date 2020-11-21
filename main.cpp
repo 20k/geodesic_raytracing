@@ -546,7 +546,7 @@ dual krasnikov_thetae(dual v, dual e)
 std::array<dual, 16> krasnikov_tube_metric(dual t, dual p, dual phi, dual x)
 {
     dual e = 0.1;
-    dual D = 1;
+    dual D = 2;
     dual pmax = 1;
 
     ///[0, 2], approx= 0?
@@ -1000,7 +1000,7 @@ int main()
     symmetric_warp_obj.singular_terminator = 1.001f;
     //symmetric_warp_obj.adaptive_precision = false;
 
-    metric::metric<krasnikov_tube_metric, cylindrical_to_polar, to_cylindrical_rotated, at_origin> krasnikov_tube_obj;
+    metric::metric<krasnikov_tube_metric, cylindrical_to_polar, polar_to_cylindrical, at_origin> krasnikov_tube_obj;
     krasnikov_tube_obj.name = "krasnikov_tube";
     krasnikov_tube_obj.adaptive_precision = true;
 
