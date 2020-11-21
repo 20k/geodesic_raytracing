@@ -730,12 +730,16 @@ std::array<dual, 4> polar_to_cylindrical(dual t, dual r, dual theta, dual phi)
 inline
 std::array<dual, 4> rotated_cylindrical_to_polar(dual t, dual p, dual phi, dual x)
 {
-    dual rr = sqrt(p * p + x * x);
-    dual rtheta = atan2(p, x);
-    //dual rtheta = atan(p / z);
-    dual rphi = phi;
+    std::array<dual, 4> as_polar = cylindrical_to_polar(t, p, phi, x);
 
-    return {t, rr, rtheta, rphi};
+    std::array<dual, 4> as_cart = polar_to_cartesian_dual(as_polar[0], as_polar[1], as_polar[2], as_polar[3]);
+
+    quaternion_base<dual> dual_quat;
+    dual_quat.load_from_axis_angle({1, 0, 0, -M_PI/2});
+
+    auto rotated = rot_quat({as_cart[1], as_cart[2], as_cart[3]}, dual_quat);
+
+    return cartesian_to_polar_dual(t, rotated.x(), rotated.y(), rotated.z());
 }
 
 inline
@@ -748,11 +752,9 @@ std::array<dual, 4> polar_to_cylindrical_rotated(dual t, dual r, dual theta, dua
 
     auto rotated = rot_quat({as_cart[1], as_cart[2], as_cart[3]}, dual_quat);
 
-    dual rp = r * sin(theta);
-    dual rphi = phi;
-    dual rz = r * cos(theta);
+    std::array<dual, 4> as_polar = cartesian_to_polar_dual(t, rotated.x(), rotated.y(), rotated.z());
 
-    return {t, rp, rphi, rz};
+    return polar_to_cylindrical(as_polar[0], as_polar[1], as_polar[2], as_polar[3]);
 }
 
 inline
@@ -998,7 +1000,7 @@ int main()
     symmetric_warp_obj.singular_terminator = 1.001f;
     //symmetric_warp_obj.adaptive_precision = false;
 
-    metric::metric<krasnikov_tube_metric, cylindrical_to_polar, polar_to_cylindrical, at_origin> krasnikov_tube_obj;
+    metric::metric<krasnikov_tube_metric, cylindrical_to_polar, to_cylindrical_rotated, at_origin> krasnikov_tube_obj;
     krasnikov_tube_obj.name = "krasnikov_tube";
     krasnikov_tube_obj.adaptive_precision = true;
 
