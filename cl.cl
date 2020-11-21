@@ -1632,7 +1632,7 @@ void calculate_lorentz_boost(float4 time_basis, float4 observer_velocity, float 
 #endif // GENERIC_BIG_METRIC
 
 __kernel
-void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global struct lightray* metric_rays, __global int* metric_ray_count, int width, int height)
+void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global struct lightray* metric_rays, __global int* metric_ray_count, int width, int height, int flip_geodesic_direction)
 {
     #define FOV 90
 
@@ -1790,6 +1790,11 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     #else
     float4 pixel_t = bT;
     #endif // FORWARD_GEODESIC_PATH
+
+    if(flip_geodesic_direction)
+    {
+        pixel_t = -pixel_t;
+    }
 
     pixel_x = spherical_velocity_to_generic_velocity(polar_camera, pixel_x);
     pixel_y = spherical_velocity_to_generic_velocity(polar_camera, pixel_y);
@@ -2362,6 +2367,128 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
     generic_rays_out[out_id] = out_ray;
 }
 
+
+__kernel
+void get_geodesic_path(__global struct lightray* generic_rays_in,
+                       __global float4* positions_out,
+                       __global int* generic_count_in, int geodesic_start)
+{
+    int id = geodesic_start;
+
+    if(id >= *generic_count_in)
+        return;
+
+    if(get_global_id(0) > 1)
+        return;
+
+    __global struct lightray* ray = &generic_rays_in[id];
+
+    float4 position = ray->position;
+    float4 velocity = ray->velocity;
+    float4 acceleration = ray->acceleration;
+
+    int sx = ray->sx;
+    int sy = ray->sy;
+
+    #ifndef GENERIC_BIG_METRIC
+    {
+        float g_metric[4] = {0};
+        calculate_metric_generic(position, g_metric);
+
+        velocity = fix_light_velocity2(velocity, g_metric);
+    }
+    #endif // GENERIC_BIG_METRIC
+
+    #ifdef IS_CONSTANT_THETA
+    position.z = M_PI/2;
+    velocity.z = 0;
+    acceleration.z = 0;
+    #endif // IS_CONSTANT_THETA
+
+    float next_ds = 0.00001;
+
+    float subambient_precision = 0.5;
+    float ambient_precision = 0.2;
+
+    float rs = 1;
+
+    int bufc = 0;
+
+    #pragma unroll
+    for(int i=0; i < 64000; i++)
+    {
+        #ifdef IS_CONSTANT_THETA
+        position.z = M_PI/2;
+        velocity.z = 0;
+        acceleration.z = 0;
+        #endif // IS_CONSTANT_THETA
+
+        float new_max = 10 * rs;
+        float new_min = 3 * rs;
+
+        float4 polar_position = generic_to_spherical(position);
+
+        #ifdef IS_CONSTANT_THETA
+        polar_position.z = M_PI/2;
+        #endif // IS_CONSTANT_THETA
+
+        //float r_value = polar_position.y;
+
+        float r_value = get_distance_to_object(polar_position);
+
+        float ds = linear_val(fabs(r_value), new_min, new_max, ambient_precision, subambient_precision);
+
+        if(fabs(r_value) < new_max)
+        {
+            ds = min(ds, ambient_precision);
+        }
+        else
+        {
+            ds = 0.1 * pow((fabs(r_value) - new_max), 1) + subambient_precision;
+        }
+
+        #ifndef SINGULAR
+        if(fabs(polar_position.y) >= UNIVERSE_SIZE)
+        #else
+        if(fabs(polar_position.y) < rs*SINGULAR_TERMINATOR || fabs(polar_position.y) >= UNIVERSE_SIZE)
+        #endif // SINGULAR
+        {
+            return;
+        }
+
+        float4 next_position, next_velocity, next_acceleration;
+
+        step_verlet(position, velocity, acceleration, ds, &next_position, &next_velocity, &next_acceleration);
+
+        #ifdef ADAPTIVE_PRECISION
+
+        if(fabs(r_value) < new_max)
+        {
+            int res = calculate_ds_error(ds, next_acceleration, acceleration, &next_ds);
+
+            if(res == DS_RETURN)
+                return;
+
+            if(res == DS_SKIP)
+                continue;
+        }
+
+        #endif // ADAPTIVE_PRECISION
+
+        position = next_position;
+        //velocity = fix_light_velocity2(next_velocity, g_metric);
+        velocity = next_velocity;
+        acceleration = next_acceleration;
+
+        positions_out[bufc] = generic_to_spherical(position);
+        bufc++;
+
+        if(any(isnan(position)) || any(isnan(velocity)) || any(isnan(acceleration)))
+        {
+            return;
+        }
+    }
+}
 
 __kernel
 void relauncher_generic(__global struct lightray* generic_rays_in, __global struct lightray* generic_rays_out,

@@ -912,6 +912,36 @@ std::array<dual, 4> test_metric(dual t, dual p, dual theta, dual phi)
 
 #define GENERIC_METRIC
 
+vec4f interpolate_geodesic(const std::vector<cl_float4>& geodesic, float coordinate_time)
+{
+    for(int i=0; i < (int)geodesic.size() - 1; i++)
+    {
+        vec4f cur = {geodesic[i].s[0], geodesic[i].s[1], geodesic[i].s[2], geodesic[i].s[3]};
+        vec4f next = {geodesic[i + 1].s[0], geodesic[i + 1].s[1], geodesic[i + 1].s[2], geodesic[i + 1].s[3]};
+
+        if(coordinate_time >= cur.x() && coordinate_time < next.x())
+        {
+            vec3f as_cart1 = polar_to_cartesian<float>({cur.y(), cur.z(), cur.w()});
+            vec3f as_cart2 = polar_to_cartesian<float>({next.y(), next.z(), next.w()});
+
+            float dx = (coordinate_time - cur.x()) / (next.x() - cur.x());
+
+            vec3f next_cart = cartesian_to_polar(mix(as_cart1, as_cart2, dx));
+
+            float sign = mix(cur.y(), next.y(), dx) > 0 ? 1 : -1;
+
+            vec4f next_polar = {coordinate_time, next_cart.x() * sign, next_cart.y(), next_cart.z()};
+
+            return next_polar;
+        }
+    }
+
+    if(geodesic.size() == 0)
+        return {0,0,0,0};
+
+    return {geodesic[0].s[0], geodesic[0].s[1], geodesic[0].s[2], geodesic[0].s[3]};
+}
+
 ///i need the ability to have dynamic parameters
 int main()
 {
@@ -1051,10 +1081,10 @@ int main()
 
     //auto current_metric = symmetric_warp_obj;
     //auto current_metric = kerr_obj;
-    auto current_metric = alcubierre_metric_obj;
+    //auto current_metric = alcubierre_metric_obj;
     //auto current_metric = kerr_newman_obj;
     //auto current_metric = kerr_schild_obj;
-    //auto current_metric = simple_wormhole;
+    auto current_metric = simple_wormhole;
     //auto current_metric = schwarzs_polar;
     //auto current_metric = minkowski_polar_obj;
     //auto current_metric = krasnikov_tube_cart_obj;
@@ -1207,6 +1237,12 @@ int main()
     cl::buffer kruskal_count_2(clctx.ctx);
     cl::buffer finished_count_1(clctx.ctx);
 
+    cl::buffer geodesic_trace_buffer(clctx.ctx);
+    geodesic_trace_buffer.alloc(64000 * sizeof(cl_float4));
+
+    std::vector<cl_float4> current_geodesic_path;
+    current_geodesic_path.resize(64000);
+
     cl::buffer texture_coordinates[2] = {clctx.ctx, clctx.ctx};
 
     for(int i=0; i < 2; i++)
@@ -1252,6 +1288,9 @@ int main()
     int screenshot_h = 1080;
     bool time_progresses = false;
     bool flip_sign = false;
+    float current_geodesic_time = 0;
+    bool camera_on_geodesic = false;
+    bool camera_time_progresses = false;
 
     while(!win.should_close())
     {
@@ -1263,6 +1302,8 @@ int main()
 
         bool taking_screenshot = should_take_screenshot;
         should_take_screenshot = false;
+
+        bool should_snapshot_geodesic = false;
 
         if((vec2i){buffer_size.x() / supersample_mult, buffer_size.y() / supersample_mult} != win.get_window_size() || taking_screenshot)
         {
@@ -1454,7 +1495,26 @@ int main()
             if(ImGui::Button("Screenshot"))
                 should_take_screenshot = true;
 
+            ImGui::SliderFloat("Geodesic Camera Time", &current_geodesic_time, -100.f, 100.f);
+
+            ImGui::Checkbox("Use Camera Geodesic", &camera_on_geodesic);
+
+            ImGui::Checkbox("Camera Time Progresses", &camera_time_progresses);
+
+            if(camera_time_progresses)
+                current_geodesic_time += time / 1000.f;
+
+            if(ImGui::Button("Snapshot Camera Geodesic"))
+            {
+                should_snapshot_geodesic = true;
+            }
+
             ImGui::End();
+        }
+
+        if(camera_on_geodesic)
+        {
+            scamera = interpolate_geodesic(current_geodesic_path, current_geodesic_time);
         }
 
         int width = win.get_window_size().x();
@@ -1549,8 +1609,24 @@ int main()
             init_args.push_back(*c1);
             init_args.push_back(width);
             init_args.push_back(height);
+            init_args.push_back((int)should_snapshot_geodesic);
 
             clctx.cqueue.exec("init_rays_generic", init_args, {width, height}, {16, 16});
+
+            if(should_snapshot_geodesic)
+            {
+                int idx = (height/2) * width + width/2;
+
+                cl::args snapshot_args;
+                snapshot_args.push_back(*b1);
+                snapshot_args.push_back(geodesic_trace_buffer);
+                snapshot_args.push_back(*c1);
+                snapshot_args.push_back(idx);
+
+                clctx.cqueue.exec("get_geodesic_path", snapshot_args, {1}, {1});
+
+                current_geodesic_path = geodesic_trace_buffer.read<cl_float4>(clctx.cqueue);
+            }
 
             cl::args run_args;
             run_args.push_back(*b1);
