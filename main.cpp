@@ -601,6 +601,14 @@ std::array<dual, 16> krasnikov_tube_metric_cart(dual t, dual x, dual y, dual z)
     return ret;
 }
 
+/*inline
+std::array<dual, 16> natario_warp_drive_metric(dual t, dual rs, dual theta, dual phi)
+{
+    std::array<dual, 16> ret;
+
+    dual f_rs = (tanh(sigma * (rs_t + R)) - tanh(sigma * (rs_t - R))) / (2 * tanh(sigma * R));
+}*/
+
 ///rendering alcubierre nicely is very hard: the shell is extremely thin, and flat on both sides
 ///this means that a naive timestepping method results in a lot of distortion
 ///need to crank down subambient_precision, and crank up new_max to about 20 * rs
@@ -608,14 +616,14 @@ std::array<dual, 16> krasnikov_tube_metric_cart(dual t, dual x, dual y, dual z)
 inline
 std::array<dual, 16> alcubierre_metric(dual t, dual x, dual y, dual z)
 {
-    dual dxs_t = 0.9;
+    dual dxs_t = 2;
     dual xs_t = dxs_t * t;
     dual vs_t = dxs_t;
 
     dual rs_t = fast_length(x - xs_t, y, z);
 
-    dual sigma = 20;
-    dual R = 1;
+    dual sigma = 1;
+    dual R = 2;
 
     dual f_rs = (tanh(sigma * (rs_t + R)) - tanh(sigma * (rs_t - R))) / (2 * tanh(sigma * R));
 
@@ -708,7 +716,7 @@ dual alcubierre_distance(dual t, dual r, dual theta, dual phi)
 {
     std::array<dual, 4> cart = polar_to_cartesian_dual(t, r, theta, phi);
 
-    dual dxs_t = 0.9;
+    dual dxs_t = 2;
 
     dual x_pos = cart[1] - dxs_t * t;
 
@@ -1081,10 +1089,10 @@ int main()
 
     //auto current_metric = symmetric_warp_obj;
     //auto current_metric = kerr_obj;
-    //auto current_metric = alcubierre_metric_obj;
+    auto current_metric = alcubierre_metric_obj;
     //auto current_metric = kerr_newman_obj;
     //auto current_metric = kerr_schild_obj;
-    auto current_metric = simple_wormhole;
+    //auto current_metric = simple_wormhole;
     //auto current_metric = schwarzs_polar;
     //auto current_metric = minkowski_polar_obj;
     //auto current_metric = krasnikov_tube_cart_obj;
@@ -1204,7 +1212,7 @@ int main()
     ///t, x, y, z
     //vec4f camera = {0, -2, -2, 0};
     //vec4f camera = {0, -2, -8, 0};
-    vec4f camera = {0, 0, -8, 0};
+    vec4f camera = {0, 0, -4, 0};
     //vec4f camera = {0, 0.01, -0.024, -5.5};
     //vec4f camera = {0, 0, -4, 0};
     quat camera_quat;
@@ -1602,6 +1610,8 @@ int main()
             clctx.cqueue.exec("relauncher", run_args, {1}, {1});
             #else
 
+            int isnap = should_snapshot_geodesic;
+
             cl::args init_args;
             init_args.push_back(scamera);
             init_args.push_back(camera_quat);
@@ -1609,7 +1619,7 @@ int main()
             init_args.push_back(*c1);
             init_args.push_back(width);
             init_args.push_back(height);
-            init_args.push_back((int)should_snapshot_geodesic);
+            init_args.push_back(isnap);
 
             clctx.cqueue.exec("init_rays_generic", init_args, {width, height}, {16, 16});
 
