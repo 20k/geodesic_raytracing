@@ -26,21 +26,23 @@ float3 cartesian_to_polar_signed(float3 in, bool positive)
 {
     float r = length(in);
 
-    if(!positive)
-        r = -r;
+    //if(!positive)
+    //    r = -r;
 
     //float theta = atan2(native_sqrt(in.x * in.x + in.y * in.y), in.z);
     float theta = acos(in.z / r);
     float phi = atan2(in.y, in.x);
 
-    if(!positive)
-        phi += M_PI;
+    //if(!positive)
+    //    phi += M_PI;
 
     return (float3){r, theta, phi};
 }
 
 float3 polar_to_cartesian(float3 in)
 {
+    in.x = fabs(in.x);
+
     float x = in.x * sin(in.y) * cos(in.z);
     float y = in.x * sin(in.y) * sin(in.z);
     float z = in.x * cos(in.y);
@@ -146,29 +148,10 @@ float3 rot_quat(const float3 point, float4 quat)
     return point + quat.w * t + cross(quat.xyz, t);
 }
 
-float3 spherical_acceleration_to_cartesian_acceleration(float3 p, float3 dp, float3 ddp)
-{
-    float r = p.x;
-    float dr = dp.x;
-    float ddr = ddp.x;
-
-    float x = p.y;
-    float dx = dp.y;
-    float ddx = ddp.y;
-
-    float y = p.z;
-    float dy = dp.z;
-    float ddy = ddp.z;
-
-    float v1 = -r * sin(x) * sin(y) * ddy + r * cos(x) * cos(y) * ddx + sin(x) * cos(y) * ddr - 2 * sin(x) * sin(y) * dr * dy + 2 * cos(x) * cos(y) * dr * dx - r * sin(x) * cos(y) * dx * dx - 2 * r * cos(x) * sin(y) * dx * dy - r * sin(x) * cos(y) * dy * dy;
-    float v2 = sin(x) * sin(y) * ddr + r * sin(x) * cos(y) * ddy + r * cos(x) * sin(y) * ddx - r * sin(x) * sin(y) * dx * dx - r * sin(x) * sin(y) * dy * dy + 2 * r * cos(x) * cos(y) * dx * dy + 2 * cos(x) * sin(y) * dr * dx + 2 * sin(x) * cos(y) * dr * dy;
-    float v3 = sin(x) * (-r * ddx - 2 * dr * dx) + cos(x) * (ddr - r * dx * dx);
-
-    return (float3){v1, v2, v3};
-}
-
 float3 spherical_velocity_to_cartesian_velocity(float3 p, float3 dp)
 {
+    p.x = fabs(p.x);
+
     float r = p.x;
     float dr = dp.x;
 
