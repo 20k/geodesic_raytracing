@@ -22,6 +22,23 @@ float3 cartesian_to_polar(float3 in)
     return (float3){r, theta, phi};
 }
 
+float3 cartesian_to_polar_signed(float3 in, bool positive)
+{
+    float r = length(in);
+
+    if(!positive)
+        r = -r;
+
+    //float theta = atan2(native_sqrt(in.x * in.x + in.y * in.y), in.z);
+    float theta = acos(in.z / r);
+    float phi = atan2(in.y, in.x);
+
+    if(!positive)
+        phi += M_PI;
+
+    return (float3){r, theta, phi};
+}
+
 float3 polar_to_cartesian(float3 in)
 {
     float x = in.x * sin(in.y) * cos(in.z);
@@ -1673,10 +1690,7 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     }
     #endif // GENERIC_CONSTANT_THETA
 
-    float4 polar_camera = (float4)(polar_camera_in.x, cartesian_to_polar(cartesian_camera_pos));
-
-    ///in case we specify a negative r
-    polar_camera.y = copysign(polar_camera.y, polar_camera_in.y);
+    float4 polar_camera = (float4)(polar_camera_in.x, cartesian_to_polar_signed(cartesian_camera_pos, polar_camera_in.y >= 0));
 
     float4 lightray_velocity;
     float4 lightray_spacetime_position;
@@ -1845,7 +1859,8 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     }
 
     //if(cx == 500 && cy == 400)
-    //printf("DS %f\n", dot_product_big(lightray_velocity, lightray_velocity, g_metric_big));
+    //    printf("Posr %f %f %f\n", polar_camera.y, polar_camera.z, polar_camera.w);
+    //    printf("DS %f\n", dot_product_big(lightray_velocity, lightray_velocity, g_metric_big));
 
     struct lightray ray;
     ray.sx = cx;
@@ -3377,7 +3392,7 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
     cart_here = rotate_vector(new_basis_x, new_basis_y, new_basis_z, cart_here);
     #endif // GENERIC_CONSTANT_THETA
 
-    float3 npolar = cartesian_to_polar(cart_here);
+    float3 npolar = cartesian_to_polar_signed(cart_here, r_value >= 0);
 
     float thetaf = fmod(npolar.y, 2 * M_PI);
     float phif = npolar.z;
@@ -3537,7 +3552,8 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
     float syf = texture_coordinates[sy * width + sx].y;
 
     ///we actually do have an event horizon
-    if(fabs(r_value) <= rs || r_value < 0)
+    if(fabs(r_value) <= rs)
+    //if(fabs(r_value) <= rs || r_value < 0)
     {
         float4 val = (float4)(0,0,0,1);
 
@@ -3871,7 +3887,7 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
         printf("Shift %f vx %f obvsu %f\n", z_shift, velocity.x, -ray->ku_uobsu);
     }*/
 
-    if(r_value > rs * 2)
+    if(fabs(r_value) > rs * 2)
     {
         lin_result = redshift(lin_result, z_shift);
     }

@@ -601,13 +601,16 @@ std::array<dual, 16> krasnikov_tube_metric_cart(dual t, dual x, dual y, dual z)
     return ret;
 }
 
-/*inline
-std::array<dual, 16> natario_warp_drive_metric(dual t, dual rs, dual theta, dual phi)
+inline
+std::array<dual, 16> natario_warp_drive_metric(dual t, dual rs_t, dual theta, dual phi)
 {
+    dual sigma = 1;
+    dual R = 2;
+
     std::array<dual, 16> ret;
 
     dual f_rs = (tanh(sigma * (rs_t + R)) - tanh(sigma * (rs_t - R))) / (2 * tanh(sigma * R));
-}*/
+}
 
 ///rendering alcubierre nicely is very hard: the shell is extremely thin, and flat on both sides
 ///this means that a naive timestepping method results in a lot of distortion
@@ -1089,10 +1092,10 @@ int main()
 
     //auto current_metric = symmetric_warp_obj;
     //auto current_metric = kerr_obj;
-    auto current_metric = alcubierre_metric_obj;
+    //auto current_metric = alcubierre_metric_obj;
     //auto current_metric = kerr_newman_obj;
     //auto current_metric = kerr_schild_obj;
-    //auto current_metric = simple_wormhole;
+    auto current_metric = simple_wormhole;
     //auto current_metric = schwarzs_polar;
     //auto current_metric = minkowski_polar_obj;
     //auto current_metric = krasnikov_tube_cart_obj;
@@ -1482,6 +1485,11 @@ int main()
 
         float time = clk.restart().asMicroseconds() / 1000.;
 
+        if(camera_on_geodesic)
+        {
+            scamera = interpolate_geodesic(current_geodesic_path, current_geodesic_time);
+        }
+
         if(!taking_screenshot)
         {
             ImGui::Begin("DBG", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
@@ -1503,7 +1511,8 @@ int main()
             if(ImGui::Button("Screenshot"))
                 should_take_screenshot = true;
 
-            ImGui::SliderFloat("Geodesic Camera Time", &current_geodesic_time, -100.f, 100.f);
+            ImGui::DragFloat("Geodesic Camera Time", &current_geodesic_time, 0.1, -100.f, 100.f);
+            //ImGui::SliderFloat("Geodesic Camera Time", &current_geodesic_time, -100.f, 100.f);
 
             ImGui::Checkbox("Use Camera Geodesic", &camera_on_geodesic);
 
@@ -1518,11 +1527,6 @@ int main()
             }
 
             ImGui::End();
-        }
-
-        if(camera_on_geodesic)
-        {
-            scamera = interpolate_geodesic(current_geodesic_path, current_geodesic_time);
         }
 
         int width = win.get_window_size().x();
