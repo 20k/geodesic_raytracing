@@ -41,8 +41,6 @@ float3 cartesian_to_polar_signed(float3 in, bool positive)
 
 float3 polar_to_cartesian(float3 in)
 {
-    in.x = fabs(in.x);
-
     float x = in.x * sin(in.y) * cos(in.z);
     float y = in.x * sin(in.y) * sin(in.z);
     float z = in.x * cos(in.y);
@@ -150,8 +148,6 @@ float3 rot_quat(const float3 point, float4 quat)
 
 float3 spherical_velocity_to_cartesian_velocity(float3 p, float3 dp)
 {
-    p.x = fabs(p.x);
-
     float r = p.x;
     float dr = dp.x;
 
@@ -1841,8 +1837,8 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
         #endif // GENERIC_BIG_METRIC
     }
 
-    //if(cx == 500 && cy == 400)
-    //    printf("Posr %f %f %f\n", polar_camera.y, polar_camera.z, polar_camera.w);
+    if(cx == 500 && cy == 400)
+        printf("Posr %f %f %f\n", polar_camera.y, polar_camera.z, polar_camera.w);
     //    printf("DS %f\n", dot_product_big(lightray_velocity, lightray_velocity, g_metric_big));
 
     struct lightray ray;
