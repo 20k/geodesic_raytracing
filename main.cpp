@@ -945,8 +945,6 @@ vec4f interpolate_geodesic(const std::vector<cl_float4>& geodesic, float coordin
 
                 vec4f next_polar = {coordinate_time, next_cart.x() * sign, next_cart.y(), next_cart.z()};
 
-                std::cout << "Cur " << cur << " Next " << next << " got " << next_polar << std::endl;
-
                 return next_polar;
             }
             else
