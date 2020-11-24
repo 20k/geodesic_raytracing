@@ -939,8 +939,6 @@ vec4f interpolate_geodesic(const std::vector<cl_float4>& geodesic, float coordin
 
                 float dx = (coordinate_time - cur.x()) / (next.x() - cur.x());
 
-                //vec3f direction_vector = (as_cart2 - as_cart1);
-
                 vec3f next_cart = cartesian_to_polar(mix(as_cart1, as_cart2, dx));
 
                 float sign = mix(cur.y(), next.y(), dx) > 0 ? 1 : -1;
@@ -954,11 +952,8 @@ vec4f interpolate_geodesic(const std::vector<cl_float4>& geodesic, float coordin
             else
             {
                 vec4f v1 = {v[i].s[0], v[i].s[1], v[i].s[2], v[i].s[3]};
-                //vec4f v2 = {v[i + 1].s[0], v[i + 1].s[1], v[i + 1].s[2], v[i + 1].s[3]};
 
                 float affine_elapsed = affine[i];
-
-                std::cout << "v " << v1 << " a " << affine_elapsed << std::endl;
 
                 float fraction = (coordinate_time - cur.x()) / (next.x() - cur.x());
 
@@ -966,82 +961,6 @@ vec4f interpolate_geodesic(const std::vector<cl_float4>& geodesic, float coordin
 
                 return result;
             }
-
-            #if 0
-            else
-            {
-                ///radius crosses the 0 point
-                vec3f as_cart1 = polar_to_cartesian<float>({fabs(cur.y()), cur.z(), cur.w()});
-                vec3f as_cart2 = polar_to_cartesian<float>({fabs(next.y()), next.z(), next.w()});
-
-                float distance1 = as_cart1.length();
-                float distance2 = as_cart2.length();
-
-                float total_distance = pow(distance1, 2) + pow(distance2, 2) - 2 * distance1 * distance2 * cos(angle_between_vectors(as_cart1.norm(), as_cart2.norm()));
-
-                //float time_coordinate_at_0 = (distance1 / total_distance) * (next.x() - cur.x()) + cur.x();
-
-                std::cout << "TC_AT_0 " << time_coordinate_at_0 << std::endl;
-
-                //time_coordinate_at_0 = std::min(time_coordinate_at_0, coordinate_time);
-
-                /*if(coordinate_time < time_coordinate_at_0)
-                {
-                    float coordinate_fraction = (coordinate_time - time_coordinate_at_0) / (next.x() - time_coordinate_at_0);
-
-                    vec3f polar_current = vec3f{mix(0.f, next.y(), coordinate_fraction), next.z(), next.w()};
-
-                    return {coordinate_time, polar_current.x(), polar_current.y(), polar_current.z()};
-                }
-                else
-                {
-                    float coordinate_fraction = (coordinate_time - time_coordinate_at_0) / (next.x() - time_coordinate_at_0);
-
-                    vec3f polar_current = vec3f{mix(0.f, next.y(), coordinate_fraction), next.z(), next.w()};
-
-                    return {coordinate_time, polar_current.x(), polar_current.y(), polar_current.z()};
-                }*/
-
-                /*float dx = (coordinate_time - cur.x()) / (next.x() - cur.x());
-
-                //vec3f direction_vector = (as_cart2 - as_cart1);
-
-                vec3f next_cart = cartesian_to_polar(mix(as_cart1, as_cart2, dx));
-
-                float sign = mix(cur.y(), next.y(), dx) > 0 ? 1 : -1;
-
-                vec4f next_polar = {coordinate_time, next_cart.x() * sign, next_cart.y(), next_cart.z()};
-
-                return next_polar;*/
-
-                /*if(coordinate_time < time_coordinate_at_0)
-                {
-                    float time_until_0 =
-                }*/
-
-                float dx = (coordinate_time - cur.x()) / (next.x() - cur.x());
-
-                vec3f new_point = (as_cart2 - as_cart1).norm() * dx * total_distance;
-
-                vec3f next_cart = cartesian_to_polar();
-
-                //vec3f next_cart = cartesian_to_polar(mix(as_cart1, as_cart2, dx));
-
-                //float sign = coordinate_time >= time_coordinate_at_0 ? -1 : 1;
-
-                float sign = next_cart.length() >
-
-                vec4f next_polar = {coordinate_time, next_cart.x() * sign, next_cart.y(), next_cart.z()};
-
-                return next_polar;
-            }
-            #endif // 0
-
-            //return cur;
-
-            //vec4f next_polar = {coordinate_time, next_cart.x(), next_cart.y(), next_cart.z()};
-
-            //return next_polar;
         }
     }
 
