@@ -3325,14 +3325,14 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
     {
         if(fabs(position.y) >= UNIVERSE_SIZE)
         {
-            //position.yzw = fix_ray_position(position.yzw, velocity.yzw, UNIVERSE_SIZE, true);
+            position.yzw = fix_ray_position(position.yzw, velocity.yzw, UNIVERSE_SIZE, true);
         }
 
         ///I'm not 100% sure this is working as well as it could be
         #if defined(SINGULAR) && defined(TRAVERSABLE_EVENT_HORIZON)
         if(fabs(position.y) < SINGULAR_TERMINATOR)
         {
-            //position.yzw = fix_ray_position(position.yzw, velocity.yzw, SINGULAR_TERMINATOR, true);
+            position.yzw = fix_ray_position(position.yzw, velocity.yzw, SINGULAR_TERMINATOR, true);
         }
         #endif
     }
@@ -3377,14 +3377,8 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
     cart_here = rotate_vector(new_basis_x, new_basis_y, new_basis_z, cart_here);
     #endif // GENERIC_CONSTANT_THETA
 
-    //float3 npolar = cartesian_to_polar_signed(cart_here, r_value >= 0);
-
-    float3 npolar = position.yzw;
-
-    if(sx == 1422/2 && sy == 800/2)
-    {
-        //printf("Npol %f %f %f\n", npolar.x, npolar.y, npolar.z);
-    }
+    ///npolar.x aka radius isn't used here, so it doesn't really matter
+    float3 npolar = cartesian_to_polar_signed(cart_here, r_value >= 0);
 
     float thetaf = fmod(npolar.y, 2 * M_PI);
     float phif = npolar.z;
@@ -3517,13 +3511,13 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
     {
         if(fabs(position.y) >= UNIVERSE_SIZE)
         {
-            //position.yzw = fix_ray_position(position.yzw, velocity.yzw, UNIVERSE_SIZE, true);
+            position.yzw = fix_ray_position(position.yzw, velocity.yzw, UNIVERSE_SIZE, true);
         }
 
         #if defined(SINGULAR) && defined(TRAVERSABLE_EVENT_HORIZON)
         if(fabs(position.y) < SINGULAR_TERMINATOR)
         {
-            //position.yzw = fix_ray_position(position.yzw, velocity.yzw, SINGULAR_TERMINATOR, true);
+            position.yzw = fix_ray_position(position.yzw, velocity.yzw, SINGULAR_TERMINATOR, true);
         }
         #endif
     }
