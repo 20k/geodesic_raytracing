@@ -26,15 +26,18 @@ float3 cartesian_to_polar_signed(float3 in, bool positive)
 {
     float r = length(in);
 
-    //if(!positive)
-    //    r = -r;
+    if(!positive)
+        r = -r;
 
     //float theta = atan2(native_sqrt(in.x * in.x + in.y * in.y), in.z);
     float theta = acos(in.z / r);
     float phi = atan2(in.y, in.x);
 
-    //if(!positive)
-    //    phi += M_PI;
+    if(!positive)
+        phi += M_PI;
+
+    if(phi >= M_PI)
+        phi -= 2 * M_PI;
 
     return (float3){r, theta, phi};
 }
@@ -1669,7 +1672,9 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     }
     #endif // GENERIC_CONSTANT_THETA
 
-    float4 polar_camera = (float4)(polar_camera_in.x, cartesian_to_polar_signed(cartesian_camera_pos, polar_camera_in.y >= 0));
+    //float4 polar_camera = (float4)(polar_camera_in.x, cartesian_to_polar_signed(cartesian_camera_pos, polar_camera_in.y >= 0));
+
+    float4 polar_camera = polar_camera_in;
 
     float4 lightray_velocity;
     float4 lightray_spacetime_position;
@@ -1752,9 +1757,9 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
 
     bT = observer_velocity;
 
-    float4 sVx = tensor_contract(lorentz, btheta);
-    float4 sVy = tensor_contract(lorentz, bphi);
-    float4 sVz = tensor_contract(lorentz, bX);
+    float4 sVx = btheta;
+    float4 sVy = bphi;
+    float4 sVz = bX;
 
     float4 polar_x = generic_velocity_to_spherical_velocity(at_metric, sVx);
     float4 polar_y = generic_velocity_to_spherical_velocity(at_metric, sVy);
@@ -1764,10 +1769,9 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     float3 cartesian_cy = spherical_velocity_to_cartesian_velocity(polar_camera.yzw, polar_y.yzw);
     float3 cartesian_cz = spherical_velocity_to_cartesian_velocity(polar_camera.yzw, polar_z.yzw);
 
-    pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
+    //pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
 
     pixel_direction = normalize(pixel_direction);
-
     float4 pixel_x = pixel_direction.x * polar_x;
     float4 pixel_y = pixel_direction.y * polar_y;
     float4 pixel_z = pixel_direction.z * polar_z;
@@ -1837,8 +1841,8 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
         #endif // GENERIC_BIG_METRIC
     }
 
-    if(cx == 500 && cy == 400)
-        printf("Posr %f %f %f\n", polar_camera.y, polar_camera.z, polar_camera.w);
+    //if(cx == 500 && cy == 400)
+    //    printf("Posr %f %f %f\n", polar_camera.y, polar_camera.z, polar_camera.w);
     //    printf("DS %f\n", dot_product_big(lightray_velocity, lightray_velocity, g_metric_big));
 
     struct lightray ray;
@@ -2364,7 +2368,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
 __kernel
 void get_geodesic_path(__global struct lightray* generic_rays_in,
-                       __global float4* positions_out,
+                       __global float4* positions_out, __global float4* velocities_out, __global float* affine_out,
                        __global int* generic_count_in, int geodesic_start)
 {
     int id = geodesic_start;
@@ -2475,6 +2479,8 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         acceleration = next_acceleration;
 
         positions_out[bufc] = generic_to_spherical(position);
+        velocities_out[bufc] = generic_velocity_to_spherical_velocity(position, velocity);
+        affine_out[bufc] = ds;
         bufc++;
 
         if(any(isnan(position)) || any(isnan(velocity)) || any(isnan(acceleration)))
@@ -3319,14 +3325,14 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
     {
         if(fabs(position.y) >= UNIVERSE_SIZE)
         {
-            position.yzw = fix_ray_position(position.yzw, velocity.yzw, UNIVERSE_SIZE, true);
+            //position.yzw = fix_ray_position(position.yzw, velocity.yzw, UNIVERSE_SIZE, true);
         }
 
         ///I'm not 100% sure this is working as well as it could be
         #if defined(SINGULAR) && defined(TRAVERSABLE_EVENT_HORIZON)
         if(fabs(position.y) < SINGULAR_TERMINATOR)
         {
-            position.yzw = fix_ray_position(position.yzw, velocity.yzw, SINGULAR_TERMINATOR, true);
+            //position.yzw = fix_ray_position(position.yzw, velocity.yzw, SINGULAR_TERMINATOR, true);
         }
         #endif
     }
@@ -3371,7 +3377,14 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
     cart_here = rotate_vector(new_basis_x, new_basis_y, new_basis_z, cart_here);
     #endif // GENERIC_CONSTANT_THETA
 
-    float3 npolar = cartesian_to_polar_signed(cart_here, r_value >= 0);
+    //float3 npolar = cartesian_to_polar_signed(cart_here, r_value >= 0);
+
+    float3 npolar = position.yzw;
+
+    if(sx == 1422/2 && sy == 800/2)
+    {
+        //printf("Npol %f %f %f\n", npolar.x, npolar.y, npolar.z);
+    }
 
     float thetaf = fmod(npolar.y, 2 * M_PI);
     float phif = npolar.z;
@@ -3504,13 +3517,13 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
     {
         if(fabs(position.y) >= UNIVERSE_SIZE)
         {
-            position.yzw = fix_ray_position(position.yzw, velocity.yzw, UNIVERSE_SIZE, true);
+            //position.yzw = fix_ray_position(position.yzw, velocity.yzw, UNIVERSE_SIZE, true);
         }
 
         #if defined(SINGULAR) && defined(TRAVERSABLE_EVENT_HORIZON)
         if(fabs(position.y) < SINGULAR_TERMINATOR)
         {
-            position.yzw = fix_ray_position(position.yzw, velocity.yzw, SINGULAR_TERMINATOR, true);
+            //position.yzw = fix_ray_position(position.yzw, velocity.yzw, SINGULAR_TERMINATOR, true);
         }
         #endif
     }

@@ -923,7 +923,7 @@ std::array<dual, 4> test_metric(dual t, dual p, dual theta, dual phi)
 
 #define GENERIC_METRIC
 
-vec4f interpolate_geodesic(const std::vector<cl_float4>& geodesic, float coordinate_time)
+vec4f interpolate_geodesic(const std::vector<cl_float4>& geodesic, float coordinate_time, const std::vector<cl_float4>& v, const std::vector<cl_float>& affine)
 {
     for(int i=0; i < (int)geodesic.size() - 1; i++)
     {
@@ -932,18 +932,116 @@ vec4f interpolate_geodesic(const std::vector<cl_float4>& geodesic, float coordin
 
         if(coordinate_time >= cur.x() && coordinate_time < next.x())
         {
-            vec3f as_cart1 = polar_to_cartesian<float>({cur.y(), cur.z(), cur.w()});
-            vec3f as_cart2 = polar_to_cartesian<float>({next.y(), next.z(), next.w()});
+            if(signum(cur.y()) == signum(next.y()))
+            {
+                vec3f as_cart1 = polar_to_cartesian<float>({fabs(cur.y()), cur.z(), cur.w()});
+                vec3f as_cart2 = polar_to_cartesian<float>({fabs(next.y()), next.z(), next.w()});
 
-            float dx = (coordinate_time - cur.x()) / (next.x() - cur.x());
+                float dx = (coordinate_time - cur.x()) / (next.x() - cur.x());
 
-            vec3f next_cart = cartesian_to_polar(mix(as_cart1, as_cart2, dx));
+                //vec3f direction_vector = (as_cart2 - as_cart1);
 
-            float sign = mix(cur.y(), next.y(), dx) > 0 ? 1 : -1;
+                vec3f next_cart = cartesian_to_polar(mix(as_cart1, as_cart2, dx));
 
-            vec4f next_polar = {coordinate_time, next_cart.x() * sign, next_cart.y(), next_cart.z()};
+                float sign = mix(cur.y(), next.y(), dx) > 0 ? 1 : -1;
 
-            return next_polar;
+                vec4f next_polar = {coordinate_time, next_cart.x() * sign, next_cart.y(), next_cart.z()};
+
+                std::cout << "Cur " << cur << " Next " << next << " got " << next_polar << std::endl;
+
+                return next_polar;
+            }
+            else
+            {
+                vec4f v1 = {v[i].s[0], v[i].s[1], v[i].s[2], v[i].s[3]};
+                //vec4f v2 = {v[i + 1].s[0], v[i + 1].s[1], v[i + 1].s[2], v[i + 1].s[3]};
+
+                float affine_elapsed = affine[i];
+
+                std::cout << "v " << v1 << " a " << affine_elapsed << std::endl;
+
+                float fraction = (coordinate_time - cur.x()) / (next.x() - cur.x());
+
+                vec4f result = cur + v1 * fraction * affine_elapsed;
+
+                return result;
+            }
+
+            #if 0
+            else
+            {
+                ///radius crosses the 0 point
+                vec3f as_cart1 = polar_to_cartesian<float>({fabs(cur.y()), cur.z(), cur.w()});
+                vec3f as_cart2 = polar_to_cartesian<float>({fabs(next.y()), next.z(), next.w()});
+
+                float distance1 = as_cart1.length();
+                float distance2 = as_cart2.length();
+
+                float total_distance = pow(distance1, 2) + pow(distance2, 2) - 2 * distance1 * distance2 * cos(angle_between_vectors(as_cart1.norm(), as_cart2.norm()));
+
+                //float time_coordinate_at_0 = (distance1 / total_distance) * (next.x() - cur.x()) + cur.x();
+
+                std::cout << "TC_AT_0 " << time_coordinate_at_0 << std::endl;
+
+                //time_coordinate_at_0 = std::min(time_coordinate_at_0, coordinate_time);
+
+                /*if(coordinate_time < time_coordinate_at_0)
+                {
+                    float coordinate_fraction = (coordinate_time - time_coordinate_at_0) / (next.x() - time_coordinate_at_0);
+
+                    vec3f polar_current = vec3f{mix(0.f, next.y(), coordinate_fraction), next.z(), next.w()};
+
+                    return {coordinate_time, polar_current.x(), polar_current.y(), polar_current.z()};
+                }
+                else
+                {
+                    float coordinate_fraction = (coordinate_time - time_coordinate_at_0) / (next.x() - time_coordinate_at_0);
+
+                    vec3f polar_current = vec3f{mix(0.f, next.y(), coordinate_fraction), next.z(), next.w()};
+
+                    return {coordinate_time, polar_current.x(), polar_current.y(), polar_current.z()};
+                }*/
+
+                /*float dx = (coordinate_time - cur.x()) / (next.x() - cur.x());
+
+                //vec3f direction_vector = (as_cart2 - as_cart1);
+
+                vec3f next_cart = cartesian_to_polar(mix(as_cart1, as_cart2, dx));
+
+                float sign = mix(cur.y(), next.y(), dx) > 0 ? 1 : -1;
+
+                vec4f next_polar = {coordinate_time, next_cart.x() * sign, next_cart.y(), next_cart.z()};
+
+                return next_polar;*/
+
+                /*if(coordinate_time < time_coordinate_at_0)
+                {
+                    float time_until_0 =
+                }*/
+
+                float dx = (coordinate_time - cur.x()) / (next.x() - cur.x());
+
+                vec3f new_point = (as_cart2 - as_cart1).norm() * dx * total_distance;
+
+                vec3f next_cart = cartesian_to_polar();
+
+                //vec3f next_cart = cartesian_to_polar(mix(as_cart1, as_cart2, dx));
+
+                //float sign = coordinate_time >= time_coordinate_at_0 ? -1 : 1;
+
+                float sign = next_cart.length() >
+
+                vec4f next_polar = {coordinate_time, next_cart.x() * sign, next_cart.y(), next_cart.z()};
+
+                return next_polar;
+            }
+            #endif // 0
+
+            //return cur;
+
+            //vec4f next_polar = {coordinate_time, next_cart.x(), next_cart.y(), next_cart.z()};
+
+            //return next_polar;
         }
     }
 
@@ -1221,7 +1319,7 @@ int main()
     quat camera_quat;
 
     quat q;
-    q.load_from_axis_angle({1, 0, 0, -M_PI/2});
+    q.load_from_axis_angle({1, 0, 0, 0});
 
     camera_quat = q * camera_quat;
 
@@ -1249,10 +1347,15 @@ int main()
     cl::buffer finished_count_1(clctx.ctx);
 
     cl::buffer geodesic_trace_buffer(clctx.ctx);
+    cl::buffer geodesic_velocity_buffer(clctx.ctx);
+    cl::buffer geodesic_affine_buffer(clctx.ctx);
     geodesic_trace_buffer.alloc(64000 * sizeof(cl_float4));
+    geodesic_velocity_buffer.alloc(64000 * sizeof(cl_float4));
+    geodesic_affine_buffer.alloc(64000 * sizeof(cl_float));
 
     std::vector<cl_float4> current_geodesic_path;
-    current_geodesic_path.resize(64000);
+    std::vector<cl_float4> current_geodesic_velocity;
+    std::vector<cl_float> current_geodesic_affine;
 
     cl::buffer texture_coordinates[2] = {clctx.ctx, clctx.ctx};
 
@@ -1487,7 +1590,7 @@ int main()
 
         if(camera_on_geodesic)
         {
-            scamera = interpolate_geodesic(current_geodesic_path, current_geodesic_time);
+            scamera = interpolate_geodesic(current_geodesic_path, current_geodesic_time, current_geodesic_velocity, current_geodesic_affine);
         }
 
         if(!taking_screenshot)
@@ -1634,12 +1737,16 @@ int main()
                 cl::args snapshot_args;
                 snapshot_args.push_back(*b1);
                 snapshot_args.push_back(geodesic_trace_buffer);
+                snapshot_args.push_back(geodesic_velocity_buffer);
+                snapshot_args.push_back(geodesic_affine_buffer);
                 snapshot_args.push_back(*c1);
                 snapshot_args.push_back(idx);
 
                 clctx.cqueue.exec("get_geodesic_path", snapshot_args, {1}, {1});
 
                 current_geodesic_path = geodesic_trace_buffer.read<cl_float4>(clctx.cqueue);
+                current_geodesic_velocity = geodesic_velocity_buffer.read<cl_float4>(clctx.cqueue);
+                current_geodesic_affine = geodesic_affine_buffer.read<cl_float>(clctx.cqueue);
             }
 
             cl::args run_args;
