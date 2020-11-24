@@ -1672,9 +1672,7 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     }
     #endif // GENERIC_CONSTANT_THETA
 
-    //float4 polar_camera = (float4)(polar_camera_in.x, cartesian_to_polar_signed(cartesian_camera_pos, polar_camera_in.y >= 0));
-
-    float4 polar_camera = polar_camera_in;
+    float4 polar_camera = (float4)(polar_camera_in.x, cartesian_to_polar_signed(cartesian_camera_pos, polar_camera_in.y >= 0));
 
     float4 lightray_velocity;
     float4 lightray_spacetime_position;
@@ -1757,9 +1755,9 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
 
     bT = observer_velocity;
 
-    float4 sVx = btheta;
-    float4 sVy = bphi;
-    float4 sVz = bX;
+    float4 sVx = tensor_contract(lorentz, btheta);
+    float4 sVy = tensor_contract(lorentz, bphi);
+    float4 sVz = tensor_contract(lorentz, bX);
 
     float4 polar_x = generic_velocity_to_spherical_velocity(at_metric, sVx);
     float4 polar_y = generic_velocity_to_spherical_velocity(at_metric, sVy);
