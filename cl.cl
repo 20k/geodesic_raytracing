@@ -1763,11 +1763,14 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     float4 polar_y = generic_velocity_to_spherical_velocity(at_metric, sVy);
     float4 polar_z = generic_velocity_to_spherical_velocity(at_metric, sVz);
 
-    float3 cartesian_cx = spherical_velocity_to_cartesian_velocity(polar_camera.yzw, polar_x.yzw);
-    float3 cartesian_cy = spherical_velocity_to_cartesian_velocity(polar_camera.yzw, polar_y.yzw);
-    float3 cartesian_cz = spherical_velocity_to_cartesian_velocity(polar_camera.yzw, polar_z.yzw);
+    float3 apolar = polar_camera.yzw;
+    apolar.x = fabs(apolar.x);
 
-    //pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
+    float3 cartesian_cx = spherical_velocity_to_cartesian_velocity(apolar, polar_x.yzw);
+    float3 cartesian_cy = spherical_velocity_to_cartesian_velocity(apolar, polar_y.yzw);
+    float3 cartesian_cz = spherical_velocity_to_cartesian_velocity(apolar, polar_z.yzw);
+
+    pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
 
     pixel_direction = normalize(pixel_direction);
     float4 pixel_x = pixel_direction.x * polar_x;
