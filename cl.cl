@@ -2407,7 +2407,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
     float next_ds = 0.00001;
 
     float subambient_precision = 0.5;
-    float ambient_precision = 0.2;
+    float ambient_precision = 0.02;
 
     float rs = 1;
 
@@ -3993,6 +3993,7 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
     float3 cartesian_cy = spherical_velocity_to_cartesian_velocity(polar_camera, sVy);
     float3 cartesian_cz = spherical_velocity_to_cartesian_velocity(polar_camera, sVz);
 
+    ///this is totally screwed in -r space
     pixel_direction = unrotate_vector(fast_normalize(cartesian_cx), fast_normalize(cartesian_cy), fast_normalize(cartesian_cz), pixel_direction);
 
     float4 pixel_x = pixel_direction.x * cX;
