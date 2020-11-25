@@ -1631,7 +1631,7 @@ void calculate_lorentz_boost(float4 time_basis, float4 observer_velocity, float 
 #endif // GENERIC_BIG_METRIC
 
 __kernel
-void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global struct lightray* metric_rays, __global int* metric_ray_count, int width, int height, int flip_geodesic_direction)
+void init_rays_generic(__constant float* polar_camera_ina, __constant float* camera_quata, __global struct lightray* metric_rays, __global int* metric_ray_count, int width, int height, int flip_geodesic_direction)
 {
     #define FOV 90
 
@@ -1642,6 +1642,11 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
 
     if(cx >= width || cy >= height)
         return;
+
+    float4 polar_camera_in = {polar_camera_ina[0], polar_camera_ina[1], polar_camera_ina[2], polar_camera_ina[3]};
+    float4 camera_quat = {camera_quata[0], camera_quata[1], camera_quata[2], camera_quata[3]};
+
+    //float4 polar_camera_in_positive = (float4)(polar_camera_in.x, fabs(polar_camera_in.y), polar_camera_in.zw);
 
     float3 cartesian_camera_pos = polar_to_cartesian(polar_camera_in.yzw);
 
@@ -1672,7 +1677,13 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     }
     #endif // GENERIC_CONSTANT_THETA
 
-    float4 polar_camera = (float4)(polar_camera_in.x, cartesian_to_polar_signed(cartesian_camera_pos, polar_camera_in.y >= 0));
+    //float4 polar_camera = (float4)(polar_camera_in.x, cartesian_to_polar_signed(cartesian_camera_pos, polar_camera_in.y >= 0));
+
+    float4 polar_camera = polar_camera_in;
+
+    ///so. If I don't fabs the r component here, I get a proper basis, woo!
+    ///but its got the wrong... handedness perhaps?
+    float4 polar_camera_positive = (float4)(polar_camera.x, fabs(polar_camera.y), polar_camera.zw);
 
     float4 lightray_velocity;
     float4 lightray_spacetime_position;
@@ -1759,88 +1770,73 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     float4 sVy = tensor_contract(lorentz, bphi);
     float4 sVz = tensor_contract(lorentz, bX);
 
+    /*if(cx == 1422/2 && cy == 400)
+    {
+        printf("x %f %f %f y %f %f %f z %f %f %f\n", sVx.x, sVx.y, sVx.z, sVy.x, sVy.y, sVy.z, sVz.x, sVz.y, sVz.z);
+    }*/
+
     float4 polar_x = generic_velocity_to_spherical_velocity(at_metric, sVx);
     float4 polar_y = generic_velocity_to_spherical_velocity(at_metric, sVy);
     float4 polar_z = generic_velocity_to_spherical_velocity(at_metric, sVz);
 
-    float3 apolar = polar_camera.yzw;
-    apolar.x = fabs(apolar.x);
+    if(polar_camera_in.y < 0)
+    {
+        polar_camera_positive.z += M_PI;
+    }
 
-    float3 cartesian_cx = spherical_velocity_to_cartesian_velocity(apolar, polar_x.yzw);
-    float3 cartesian_cy = spherical_velocity_to_cartesian_velocity(apolar, polar_y.yzw);
-    float3 cartesian_cz = spherical_velocity_to_cartesian_velocity(apolar, polar_z.yzw);
+    float3 cartesian_cx1 = spherical_velocity_to_cartesian_velocity(polar_camera_positive.yzw, polar_x.yzw);
+    float3 cartesian_cy1 = spherical_velocity_to_cartesian_velocity(polar_camera_positive.yzw, polar_y.yzw);
+    float3 cartesian_cz1 = spherical_velocity_to_cartesian_velocity(polar_camera_positive.yzw, polar_z.yzw);
 
-    pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
+    float3 pixel_direction1 = unrotate_vector(normalize(cartesian_cx1), normalize(cartesian_cy1), normalize(cartesian_cz1), pixel_direction);
 
-    pixel_direction = normalize(pixel_direction);
-    float4 pixel_x = pixel_direction.x * polar_x;
-    float4 pixel_y = pixel_direction.y * polar_y;
-    float4 pixel_z = pixel_direction.z * polar_z;
+    pixel_direction1 = normalize(pixel_direction1);
 
-    ///when people say backwards in time, what they mean is backwards in affine time, not coordinate time
-    ///going backwards in coordinate time however should be identical
+    float4 pixel_x1 = pixel_direction1.x * polar_x;
+    float4 pixel_y1 = pixel_direction1.y * polar_y;
+    float4 pixel_z1 = pixel_direction1.z * polar_z;
 
-    ///so, the -bT path traces geodesics backwards in time, aka where did this light ray originate from?
-    ///the forward geodesic path says: I'm at this point, if I were to travel at the speed of light in the direction of a pixel
-    ///where would I end up?
-    #ifndef FORWARD_GEODESIC_PATH
     float4 pixel_t = -bT;
-    #else
-    float4 pixel_t = bT;
-    #endif // FORWARD_GEODESIC_PATH
 
     if(flip_geodesic_direction)
     {
         pixel_t = -pixel_t;
     }
 
-    pixel_x = spherical_velocity_to_generic_velocity(polar_camera, pixel_x);
-    pixel_y = spherical_velocity_to_generic_velocity(polar_camera, pixel_y);
-    pixel_z = spherical_velocity_to_generic_velocity(polar_camera, pixel_z);
+    if(polar_camera.y < 0)
+    {
+        pixel_x1 = -pixel_x1;
+        pixel_y1 = -pixel_y1;
+        pixel_z1 = -pixel_z1;
+    }
 
-    float4 vec = pixel_x + pixel_y + pixel_z + pixel_t;
+    float4 vec = pixel_x1 + pixel_y1 + pixel_z1 + pixel_t;
 
-    float4 pixel_N = vec;
-
-    lightray_velocity = pixel_N;
+    lightray_velocity = vec;
     lightray_spacetime_position = at_metric;
+
+    if(cx == 200 && cy == 100)
+    {
+        //printf("Vel %f %f %f %f\n", lightray_velocity.x, lightray_velocity.y, lightray_velocity.z, lightray_velocity.w);
+        //printf("ppz %f %f %f\n", lightray_spacetime_position.y, lightray_spacetime_position.z, lightray_spacetime_position.w);
+        //printf("Quat %f %f %f %f\n", camera_quat.x, camera_quat.y, camera_quat.z, camera_quat.w);
+
+        //printf("Vel %f %f %f %f Pos %f %f %f %f\n", lightray_velocity.x, lightray_velocity.y, lightray_velocity.z, lightray_velocity.w,
+        //                                            lightray_spacetime_position.x, lightray_spacetime_position.y, lightray_spacetime_position.z, lightray_spacetime_position.w);
+    }
+
+    /*if(cx == 1422/2 && cy == 400)
+    {
+        printf("Vel %f %f %f %f\n", lightray_velocity.x, lightray_velocity.y, lightray_velocity.z, lightray_velocity.w);
+    }*/
 
     float4 lightray_acceleration = (float4)(0,0,0,0);
 
     #ifdef IS_CONSTANT_THETA
     lightray_spacetime_position.z = M_PI/2;
     lightray_velocity.z = 0;
-    lightray_acceleration.z = 0;
     #endif // IS_CONSTANT_THETA
 
-    {
-        #ifndef GENERIC_BIG_METRIC
-        float g_partials[16] = {0};
-
-        calculate_metric_generic(lightray_spacetime_position, g_metric);
-        calculate_partial_derivatives_generic(lightray_spacetime_position, g_partials);
-
-        lightray_velocity = fix_light_velocity2(lightray_velocity, g_metric);
-        lightray_acceleration = calculate_acceleration(lightray_velocity, g_metric, g_partials);
-        #else
-        float g_partials_big[64] = {0};
-
-        calculate_metric_generic_big(lightray_spacetime_position, g_metric_big);
-        calculate_partial_derivatives_generic_big(lightray_spacetime_position, g_partials_big);
-
-        //float4 prefix = lightray_velocity;
-
-        lightray_velocity = fix_light_velocity_big(lightray_velocity, g_metric_big);
-
-        /*if(cx == 500 && cy == 400)
-        {
-            printf("pre %f %f %f %f post %f %f %f %f", prefix.x, prefix.y, prefix.z, prefix.w,
-                                                         lightray_velocity.x, lightray_velocity.y, lightray_velocity.z, lightray_velocity.w);
-        }*/
-
-        lightray_acceleration = calculate_acceleration_big(lightray_velocity, g_metric_big, g_partials_big);
-        #endif // GENERIC_BIG_METRIC
-    }
 
     //if(cx == 500 && cy == 400)
     //    printf("Posr %f %f %f\n", polar_camera.y, polar_camera.z, polar_camera.w);
@@ -3379,7 +3375,9 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
     #endif // GENERIC_CONSTANT_THETA
 
     ///npolar.x aka radius isn't used here, so it doesn't really matter
-    float3 npolar = cartesian_to_polar_signed(cart_here, r_value >= 0);
+    //float3 npolar = cartesian_to_polar_signed(cart_here, r_value >= 0);
+
+    float3 npolar = position.yzw;
 
     float thetaf = fmod(npolar.y, 2 * M_PI);
     float phif = npolar.z;

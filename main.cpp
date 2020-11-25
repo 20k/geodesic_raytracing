@@ -983,7 +983,7 @@ int main()
 
     opencl_context& clctx = *win.clctx;
 
-    std::string argument_string = "-O5 -cl-std=CL2.2 ";
+    std::string argument_string = "-O3 -cl-std=CL2.2 ";
 
     #if 1
     #ifdef GENERIC_METRIC
@@ -1323,6 +1323,15 @@ int main()
     bool camera_on_geodesic = false;
     bool camera_time_progresses = false;
 
+    cl_float4 pinned_camera_pos = {0};
+    cl_float4 pinned_camera_quat = {0};
+
+    cl::buffer pinned_camera_pos_buf(clctx.ctx);
+    pinned_camera_pos_buf.alloc(sizeof(cl_float4));
+
+    cl::buffer pinned_camera_quat_buf(clctx.ctx);
+    pinned_camera_quat_buf.alloc(sizeof(cl_float4));
+
     while(!win.should_close())
     {
         win.poll();
@@ -1636,9 +1645,18 @@ int main()
 
             int isnap = should_snapshot_geodesic;
 
+            cl_float4 scam1 = {scamera.x(), scamera.y(), scamera.z(), scamera.w()};
+            cl_float4 scamq = {camera_quat.x(), camera_quat.y(), camera_quat.z(), camera_quat.w()};
+
+            pinned_camera_pos = scam1;
+            pinned_camera_quat = scamq;
+
+            pinned_camera_pos_buf.write_async(clctx.cqueue, (const char*)&pinned_camera_pos.s[0], sizeof(pinned_camera_pos));
+            pinned_camera_quat_buf.write_async(clctx.cqueue, (const char*)&pinned_camera_quat.s[0], sizeof(pinned_camera_quat));
+
             cl::args init_args;
-            init_args.push_back(scamera);
-            init_args.push_back(camera_quat);
+            init_args.push_back(pinned_camera_pos_buf);
+            init_args.push_back(pinned_camera_quat_buf);
             init_args.push_back(*b1);
             init_args.push_back(*c1);
             init_args.push_back(width);
