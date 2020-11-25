@@ -1766,6 +1766,12 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     float3 apolar = polar_camera.yzw;
     apolar.x = fabs(apolar.x);
 
+    if(polar_camera.y < 0)
+    {
+        //apolar.y += M_PI;
+        //apolar.z += M_PI;
+    }
+
     float3 cartesian_cx = spherical_velocity_to_cartesian_velocity(apolar, polar_x.yzw);
     float3 cartesian_cy = spherical_velocity_to_cartesian_velocity(apolar, polar_y.yzw);
     float3 cartesian_cz = spherical_velocity_to_cartesian_velocity(apolar, polar_z.yzw);
@@ -1776,6 +1782,13 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     float4 pixel_x = pixel_direction.x * polar_x;
     float4 pixel_y = pixel_direction.y * polar_y;
     float4 pixel_z = pixel_direction.z * polar_z;
+
+    if(polar_camera.y < 0)
+    {
+        //pixel_x = -pixel_x;
+        //pixel_y = -pixel_y;
+        //pixel_z = -pixel_z;
+    }
 
     ///when people say backwards in time, what they mean is backwards in affine time, not coordinate time
     ///going backwards in coordinate time however should be identical
