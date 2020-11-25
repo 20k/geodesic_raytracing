@@ -1501,7 +1501,11 @@ int main()
         vec4f scamera = cartesian_to_schwarz(camera);
 
         if(flip_sign)
+        {
             scamera.y() = -scamera.y();
+            //scamera = cartesian_to_schwarz((vec4f){camera.x(), -camera.y(), -camera.z(), -camera.w()});
+            //scamera.y() = -scamera.y();
+        }
 
         float time = clk.restart().asMicroseconds() / 1000.;
 
