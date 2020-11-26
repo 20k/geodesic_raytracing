@@ -1650,6 +1650,8 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
 
     float3 pixel_direction = (float3){cx - width/2, cy - height/2, nonphysical_f_stop};
 
+    float2 pixel_fractions = pixel_direction.xy / (float2){width/2, width/2};
+
     if(polar_camera_in.y < 0)
     {
         //pixel_direction.y = -pixel_direction.y;
@@ -1734,10 +1736,10 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     #if 0
     if(cx == 500 && cy == 400)
     {
-        /*printf("BT %f %f %f %f\n", bT.x, bT.y, bT.z, bT.w);
+        printf("BT %f %f %f %f\n", bT.x, bT.y, bT.z, bT.w);
         printf("bX %f %f %f %f\n", bX.x, bX.y, bX.z, bX.w);
         printf("btheta %f %f %f %f\n", btheta.x, btheta.y, btheta.z, btheta.w);
-        printf("bphi %f %f %f %f\n", bphi.x, bphi.y, bphi.z, bphi.w);*/
+        printf("bphi %f %f %f %f\n", bphi.x, bphi.y, bphi.z, bphi.w);
 
         /*printf("oBT %f %f %f %f\n", obT.x, obT.y, obT.z, obT.w);
         printf("obX %f %f %f %f\n", obX.x, obX.y, obX.z, obX.w);
@@ -1760,10 +1762,33 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
 
     bT = observer_velocity;
 
-    float4 sVx = tensor_contract(lorentz, btheta);
+    ///polar basis vectors
+    float4 sVx = tensor_contract(lorentz, bX);
     float4 sVy = tensor_contract(lorentz, bphi);
-    float4 sVz = tensor_contract(lorentz, bX);
+    float4 sVz = tensor_contract(lorentz, btheta);
 
+    #if 0
+    float2 pd = (float2){pixel_fractions.x * M_PI/4, pixel_fractions.y * M_PI/4};
+
+    float Nx = sin(pd.y) * cos(pd.x);
+    float Ny = sin(pd.y) * sin(pd.x);
+    float Nz = cos(pd.y);
+
+    float3 Nv = (float3)(Nx, Ny, Nz);
+
+    //Nv = rot_quat(Nv, camera_quat);
+
+    float4 pixel_x = (float4)(sVx.x, sVx.yzw * -Nv.x);
+    float4 pixel_y = (float4)(sVy.x, -sVy.yzw * -Nv.y);
+    float4 pixel_z = (float4)(sVz.x, sVz.yzw * Nv.z);
+
+    if(cx == 500 && cy == 200)
+    {
+        printf("Px %f %f %f N: %f %f %f\n", pixel_y.y, pixel_y.z, pixel_y.w, Nv.x, Nv.y, Nv.z);
+    }
+    #endif // 0
+
+    #if 1
     float4 polar_x = generic_velocity_to_spherical_velocity(at_metric, sVx);
     float4 polar_y = generic_velocity_to_spherical_velocity(at_metric, sVy);
     float4 polar_z = generic_velocity_to_spherical_velocity(at_metric, sVz);
@@ -1771,49 +1796,34 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     float3 apolar = polar_camera.yzw;
     apolar.x = fabs(apolar.x);
 
+    //polar_y = -polar_y;
+
     if(polar_camera.y < 0)
     {
-        apolar.y += M_PI;
-        if(apolar.y >= M_PI)
-        {
-            apolar.y -= M_PI;
-            apolar.z += M_PI;
-        }
-
-        //apolar.z += M_PI;
+        //polar_x = -polar_x;
+        //polar_y = -polar_y;
+        //polar_z = -polar_z;
     }
 
     float3 cartesian_cx = spherical_velocity_to_cartesian_velocity(apolar, polar_x.yzw);
     float3 cartesian_cy = spherical_velocity_to_cartesian_velocity(apolar, polar_y.yzw);
     float3 cartesian_cz = spherical_velocity_to_cartesian_velocity(apolar, polar_z.yzw);
 
-    /*if(polar_camera.y < 0)
-    {
-        //pixel_direction.z = -pixel_direction.z;
-        //pixel_direction.x = -pixel_direction.x;
-        //pixel_direction.x = -pixel_direction.x;
-        //pixel_direction.y = -pixel_direction.y;
-        //polar_x = -polar_x;
-        //polar_y = -polar_y;
-    }*/
+    cartesian_cy = -cartesian_cy;
+    cartesian_cx = -cartesian_cx;
 
-    //pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
+    pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
+
+    //polar_y = -polar_y;
+
+    //if(polar_camera.y < 0)
+    //    polar_y = -polar_y;
 
     pixel_direction = normalize(pixel_direction);
     float4 pixel_x = pixel_direction.x * polar_x;
     float4 pixel_y = pixel_direction.y * polar_y;
     float4 pixel_z = pixel_direction.z * polar_z;
-
-    if(polar_camera.y < 0)
-    {
-        //pixel_x = -pixel_x;
-        //pixel_y = -pixel_y;
-        //pixel_z = -pixel_z;
-
-        //pixel_x.x = -pixel_x.x;
-        //pixel_y.x = -pixel_y.x;
-        //pixel_z.x = -pixel_z.x;
-    }
+    #endif // 0
 
     ///when people say backwards in time, what they mean is backwards in affine time, not coordinate time
     ///going backwards in coordinate time however should be identical
@@ -3435,7 +3445,18 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
 
     if(npolar.x < 0)
     {
-        phif = 2 * M_PI - phif;
+        //phif = 2 * M_PI - phif;
+        /*thetaf += M_PI;
+
+        if(thetaf >= M_PI)
+        {
+            thetaf -= M_PI;
+            phif += M_PI;
+        }*/
+
+        //phif = -phif;
+
+        //phif = 2 * M_PI - phif;
     }
 
     phif = fmod(phif, 2 * M_PI);
