@@ -1630,8 +1630,38 @@ void calculate_lorentz_boost(float4 time_basis, float4 observer_velocity, float 
 
 #endif // GENERIC_BIG_METRIC
 
+float4 aa_to_quat(float3 axis, float angle)
+{
+    float4 q;
+
+    q.xyz = axis.xyz * sin(angle/2);
+    q.w = cos(angle/2);
+
+    return normalize(q);
+}
+
+float4 quat_multiply(float4 q1, float4 q2)
+{
+    float4 ret;
+
+    ret.x = q1.w * q2.x + q1.x * q2.w + q1.y * q2.z - q1.z * q2.y;
+    ret.y = q1.w * q2.y + q1.y * q2.w + q1.z * q2.x - q1.x * q2.z;
+    ret.z = q1.w * q2.z + q1.z * q2.w + q1.x * q2.y - q1.y * q2.x;
+    ret.w = q1.w * q2.w - q1.x * q2.x - q1.y * q2.y - q1.z * q2.z;
+
+    return ret;
+}
+
+float4 euler_to_quaternion(float2 angles)
+{
+    float4 q1 = aa_to_quat((float3){0, 0, 1}, angles.y);
+    float4 q2 = aa_to_quat((float3){1, 0, 0}, angles.x);
+
+    return quat_multiply(q1, q2);
+}
+
 __kernel
-void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global struct lightray* metric_rays, __global int* metric_ray_count, int width, int height, int flip_geodesic_direction)
+void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global struct lightray* metric_rays, __global int* metric_ray_count, int width, int height, int flip_geodesic_direction)
 {
     #define FOV 90
 
@@ -1643,6 +1673,8 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     if(cx >= width || cy >= height)
         return;
 
+    float4 camera_quat = euler_to_quaternion(camera_euler);
+
     float3 cartesian_camera_pos = polar_to_cartesian(polar_camera_in.yzw);
 
     float nonphysical_plane_half_width = width/2;
@@ -1651,14 +1683,6 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     float3 pixel_direction = (float3){cx - width/2, cy - height/2, nonphysical_f_stop};
 
     float2 pixel_fractions = pixel_direction.xy / (float2){width/2, width/2};
-
-    if(polar_camera_in.y < 0)
-    {
-        //pixel_direction.y = -pixel_direction.y;
-        //pixel_direction.x = -pixel_direction.x;
-        //pixel_direction.xy = -pixel_direction.xy;
-        //pixel_direction.z = -pixel_direction.z;
-    }
 
     pixel_direction = normalize(pixel_direction);
     pixel_direction = rot_quat(pixel_direction, camera_quat);
@@ -1788,6 +1812,9 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     }
     #endif // 0
 
+    ///so
+    ///the entire problem here is handedness, and the trouble's with correctly defining what I want
+    ///sit down and figure it
     #if 1
     float4 polar_x = generic_velocity_to_spherical_velocity(at_metric, sVx);
     float4 polar_y = generic_velocity_to_spherical_velocity(at_metric, sVy);
@@ -1803,14 +1830,35 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
         //polar_x = -polar_x;
         //polar_y = -polar_y;
         //polar_z = -polar_z;
+
+        /*apolar.y += M_PI;
+
+        if(apolar.y >= M_PI)
+        {
+            apolar.z += M_PI;
+            apolar.y -= M_PI;
+        }*/
+
+        //apolar.y = -apolar.y;
+        //polar_z.yzw = -polar_z.yzw;
+        //apolar.z = -apolar.z;
+        //polar_y.yzw = -polar_y.yzw;
+        //apolar.z += M_PI;
     }
 
     float3 cartesian_cx = spherical_velocity_to_cartesian_velocity(apolar, polar_x.yzw);
     float3 cartesian_cy = spherical_velocity_to_cartesian_velocity(apolar, polar_y.yzw);
     float3 cartesian_cz = spherical_velocity_to_cartesian_velocity(apolar, polar_z.yzw);
 
-    cartesian_cy = -cartesian_cy;
-    cartesian_cx = -cartesian_cx;
+    //cartesian_cy = -cartesian_cy;
+    //cartesian_cx = -cartesian_cx;
+
+    if(polar_camera.y < 0)
+    {
+        //cartesian_cx = -cartesian_cx;
+        //cartesian_cy = -cartesian_cy;
+        //cartesian_cz = -cartesian_cz;
+    }
 
     pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
 
@@ -1818,6 +1866,13 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
 
     //if(polar_camera.y < 0)
     //    polar_y = -polar_y;
+
+    if(polar_camera.y < 0)
+    {
+        //polar_x = -polar_x;
+        //polar_y = -polar_y;
+        //polar_z = -polar_z;
+    }
 
     pixel_direction = normalize(pixel_direction);
     float4 pixel_x = pixel_direction.x * polar_x;
@@ -1890,6 +1945,13 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     //if(cx == 500 && cy == 400)
     //    printf("Posr %f %f %f\n", polar_camera.y, polar_camera.z, polar_camera.w);
     //    printf("DS %f\n", dot_product_big(lightray_velocity, lightray_velocity, g_metric_big));
+
+    /*if(polar_camera_in.y < 0)
+    {
+        lightray_velocity.w = -lightray_velocity.w;
+        lightray_spacetime_position.w = -lightray_spacetime_position.w;
+        lightray_acceleration.w = -lightray_acceleration.w;
+    }*/
 
     struct lightray ray;
     ray.sx = cx;
@@ -3346,12 +3408,14 @@ void relauncher(__global struct lightray* schwarzs_rays_in, __global struct ligh
 }
 
 __kernel
-void calculate_texture_coordinates(__global struct lightray* finished_rays, __global int* finished_count_in, __global float2* texture_coordinates, int width, int height, float4 polar_camera_pos, float4 camera_quat)
+void calculate_texture_coordinates(__global struct lightray* finished_rays, __global int* finished_count_in, __global float2* texture_coordinates, int width, int height, float4 polar_camera_pos, float2 camera_euler)
 {
     int id = get_global_id(0);
 
     if(id >= *finished_count_in)
         return;
+
+    float4 camera_quat = euler_to_quaternion(camera_euler);
 
     struct lightray* ray = &finished_rays[id];
 
@@ -3454,7 +3518,7 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
             phif += M_PI;
         }*/
 
-        //phif = -phif;
+        phif = -phif;
 
         //phif = 2 * M_PI - phif;
     }

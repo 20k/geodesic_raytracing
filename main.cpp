@@ -1322,6 +1322,8 @@ int main()
     bool camera_on_geodesic = false;
     bool camera_time_progresses = false;
 
+    vec2f camera_euler = {0,0};
+
     while(!win.should_close())
     {
         win.poll();
@@ -1454,6 +1456,8 @@ int main()
 
             camera_quat = q * camera_quat;
             camera_quati = qi * camera_quati;
+
+            camera_euler.y() += M_PI/128;
         }
 
         if(ImGui::IsKeyDown(GLFW_KEY_LEFT))
@@ -1468,6 +1472,8 @@ int main()
 
             camera_quat = q * camera_quat;
             camera_quati = qi * camera_quati;
+
+            camera_euler.y() -= M_PI/128;
         }
 
         if(ImGui::IsKeyPressed(GLFW_KEY_1))
@@ -1491,6 +1497,8 @@ int main()
 
             camera_quat = q * camera_quat;
             camera_quati = qi * camera_quati;
+
+            camera_euler.x() += M_PI/128;
         }
 
         if(ImGui::IsKeyDown(GLFW_KEY_UP))
@@ -1502,6 +1510,8 @@ int main()
 
             camera_quat = q * camera_quat;
             camera_quati = qi * camera_quati;
+
+            camera_euler.x() -= M_PI/128;
         }
 
         vec3f offset = {0,0,0};
@@ -1660,9 +1670,9 @@ int main()
             init_args.push_back(scamera);
 
             if(scamera.y() >= 0)
-                init_args.push_back(camera_quat);
+                init_args.push_back(camera_euler);
             else
-                init_args.push_back(camera_quat);
+                init_args.push_back(camera_euler);
 
             init_args.push_back(*b1);
             init_args.push_back(*c1);
@@ -1715,9 +1725,9 @@ int main()
             texture_args.push_back(scamera);
 
             if(scamera.y() >= 0)
-                texture_args.push_back(camera_quat);
+                texture_args.push_back(camera_euler);
             else
-                texture_args.push_back(camera_quat);
+                texture_args.push_back(camera_euler);
 
             clctx.cqueue.exec("calculate_texture_coordinates", texture_args, {width * height}, {256});
 
