@@ -1650,6 +1650,14 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
 
     float3 pixel_direction = (float3){cx - width/2, cy - height/2, nonphysical_f_stop};
 
+    if(polar_camera_in.y < 0)
+    {
+        //pixel_direction.y = -pixel_direction.y;
+        //pixel_direction.x = -pixel_direction.x;
+        //pixel_direction.xy = -pixel_direction.xy;
+        //pixel_direction.z = -pixel_direction.z;
+    }
+
     pixel_direction = normalize(pixel_direction);
     pixel_direction = rot_quat(pixel_direction, camera_quat);
 
@@ -1673,9 +1681,6 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     #endif // GENERIC_CONSTANT_THETA
 
     float4 polar_camera = (float4)(polar_camera_in.x, cartesian_to_polar_signed(cartesian_camera_pos, polar_camera_in.y >= 0));
-
-    float4 lightray_velocity;
-    float4 lightray_spacetime_position;
 
     float4 at_metric = spherical_to_generic(polar_camera);
 
@@ -1768,7 +1773,13 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
 
     if(polar_camera.y < 0)
     {
-        //apolar.y += M_PI;
+        apolar.y += M_PI;
+        if(apolar.y >= M_PI)
+        {
+            apolar.y -= M_PI;
+            apolar.z += M_PI;
+        }
+
         //apolar.z += M_PI;
     }
 
@@ -1776,7 +1787,17 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     float3 cartesian_cy = spherical_velocity_to_cartesian_velocity(apolar, polar_y.yzw);
     float3 cartesian_cz = spherical_velocity_to_cartesian_velocity(apolar, polar_z.yzw);
 
-    pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
+    /*if(polar_camera.y < 0)
+    {
+        //pixel_direction.z = -pixel_direction.z;
+        //pixel_direction.x = -pixel_direction.x;
+        //pixel_direction.x = -pixel_direction.x;
+        //pixel_direction.y = -pixel_direction.y;
+        //polar_x = -polar_x;
+        //polar_y = -polar_y;
+    }*/
+
+    //pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
 
     pixel_direction = normalize(pixel_direction);
     float4 pixel_x = pixel_direction.x * polar_x;
@@ -1788,6 +1809,10 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
         //pixel_x = -pixel_x;
         //pixel_y = -pixel_y;
         //pixel_z = -pixel_z;
+
+        //pixel_x.x = -pixel_x.x;
+        //pixel_y.x = -pixel_y.x;
+        //pixel_z.x = -pixel_z.x;
     }
 
     ///when people say backwards in time, what they mean is backwards in affine time, not coordinate time
@@ -1813,17 +1838,14 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
 
     float4 vec = pixel_x + pixel_y + pixel_z + pixel_t;
 
-    float4 pixel_N = vec;
-
-    lightray_velocity = pixel_N;
-    lightray_spacetime_position = at_metric;
+    float4 lightray_velocity = vec;
+    float4 lightray_spacetime_position = at_metric;
 
     float4 lightray_acceleration = (float4)(0,0,0,0);
 
     #ifdef IS_CONSTANT_THETA
     lightray_spacetime_position.z = M_PI/2;
     lightray_velocity.z = 0;
-    lightray_acceleration.z = 0;
     #endif // IS_CONSTANT_THETA
 
     {
@@ -3397,10 +3419,23 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
     float thetaf = fmod(npolar.y, 2 * M_PI);
     float phif = npolar.z;
 
-    if(thetaf >= M_PI)
+    /*if(npolar.x < 0)
     {
         phif += M_PI;
         thetaf -= M_PI;
+    }*/
+
+    while(thetaf >= M_PI)
+    {
+        phif += M_PI;
+        thetaf -= M_PI;
+    }
+
+    phif = fmod(phif, 2 * M_PI);
+
+    if(npolar.x < 0)
+    {
+        phif = 2 * M_PI - phif;
     }
 
     phif = fmod(phif, 2 * M_PI);

@@ -1234,16 +1234,15 @@ int main()
     //vec4f camera = {0, 0.01, -0.024, -5.5};
     //vec4f camera = {0, 0, -4, 0};
     quat camera_quat;
+    quat camera_quati;
 
     quat q;
-    q.load_from_axis_angle({1, 0, 0, 0});
+    q.load_from_axis_angle({0, 0, 1, 0});
 
     camera_quat = q * camera_quat;
+    camera_quati = q * camera_quati;
 
     //camera_quat.load_from_matrix(axis_angle_to_mat({0, 0, 0}, 0));
-
-    vec3f forward_axis = {0, 0, 1};
-    vec3f up_axis = {0, 1, 0};
 
     sf::Clock clk;
 
@@ -1450,7 +1449,11 @@ int main()
             quat q;
             q.load_from_matrix(m);
 
+            quat qi;
+            qi.load_from_axis_angle({0, 0, 1, M_PI/128});
+
             camera_quat = q * camera_quat;
+            camera_quati = qi * camera_quati;
         }
 
         if(ImGui::IsKeyDown(GLFW_KEY_LEFT))
@@ -1460,7 +1463,11 @@ int main()
             quat q;
             q.load_from_matrix(m);
 
+            quat qi;
+            qi.load_from_axis_angle({0, 0, 1, -M_PI/128});
+
             camera_quat = q * camera_quat;
+            camera_quati = qi * camera_quati;
         }
 
         if(ImGui::IsKeyPressed(GLFW_KEY_1))
@@ -1470,22 +1477,31 @@ int main()
 
         vec3f up = {0, 0, -1};
         vec3f right = rot_quat({1, 0, 0}, camera_quat);
+        vec3f righti = rot_quat({1, 0, 0}, camera_quati);
         vec3f forward_axis = rot_quat({0, 0, 1}, camera_quat);
+        vec3f forward_axisi = rot_quat({0, 0, 1}, camera_quati);
 
         if(ImGui::IsKeyDown(GLFW_KEY_DOWN))
         {
             quat q;
             q.load_from_axis_angle({right.x(), right.y(), right.z(), M_PI/128});
 
+            quat qi;
+            qi.load_from_axis_angle({righti.x(), righti.y(), righti.z(), M_PI/128});
+
             camera_quat = q * camera_quat;
+            camera_quati = qi * camera_quati;
         }
 
         if(ImGui::IsKeyDown(GLFW_KEY_UP))
         {
             quat q;
             q.load_from_axis_angle({right.x(), right.y(), right.z(), -M_PI/128});
+            quat qi;
+            qi.load_from_axis_angle({righti.x(), righti.y(), righti.z(), -M_PI/128});
 
             camera_quat = q * camera_quat;
+            camera_quati = qi * camera_quati;
         }
 
         vec3f offset = {0,0,0};
@@ -1642,7 +1658,12 @@ int main()
 
             cl::args init_args;
             init_args.push_back(scamera);
-            init_args.push_back(camera_quat);
+
+            if(scamera.y() >= 0)
+                init_args.push_back(camera_quat);
+            else
+                init_args.push_back(camera_quat);
+
             init_args.push_back(*b1);
             init_args.push_back(*c1);
             init_args.push_back(width);
@@ -1692,7 +1713,11 @@ int main()
             texture_args.push_back(width);
             texture_args.push_back(height);
             texture_args.push_back(scamera);
-            texture_args.push_back(camera_quat);
+
+            if(scamera.y() >= 0)
+                texture_args.push_back(camera_quat);
+            else
+                texture_args.push_back(camera_quat);
 
             clctx.cqueue.exec("calculate_texture_coordinates", texture_args, {width * height}, {256});
 
