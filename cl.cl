@@ -1660,6 +1660,14 @@ float4 euler_to_quaternion(float2 angles)
     return quat_multiply(q1, q2);
 }
 
+float4 euler_to_polar_quaternion(float2 angles)
+{
+    float4 q1 = aa_to_quat((float3){0, 0, 1}, -angles.y);
+    float4 q2 = aa_to_quat((float3){0, 1, 0}, -angles.x);
+
+    return quat_multiply(q1, q2);
+}
+
 struct mat3f
 {
     float v[9];
@@ -1982,7 +1990,7 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
                               0, 1, 0,
                               0, 0, 1}};
 
-    struct mat3f forward_rotation   =  {{bx.x, by.x, bz.x,
+    /*struct mat3f forward_rotation   =  {{bx.x, by.x, bz.x,
                                          bx.y, by.y, bz.y,
                                          bx.z, by.z, bz.z}};
 
@@ -1994,14 +2002,21 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
 
     backward_rotation = matrix_3x3_multiply(backward_rotation, camera_mat);
 
-    struct mat3f matrix_out = matrix_3x3_multiply(matrix_3x3_multiply(change_of_basis, backward_rotation), matrix_3x3_invert(change_of_basis));
+    struct mat3f matrix_out = matrix_3x3_multiply(matrix_3x3_multiply(change_of_basis, backward_rotation), matrix_3x3_invert(change_of_basis));*/
 
     //pixel_direction = rot_quat(pixel_direction, camera_quat);
 
     pixel_direction = (float3){-nonphysical_f_stop, cx - width/2, cy - height/2};
     pixel_direction = normalize(pixel_direction);
 
-    pixel_direction = matrix_3x3_contract(matrix_out, pixel_direction);
+    float4 polar_quat = euler_to_polar_quaternion(camera_euler);
+
+    pixel_direction = rot_quat(pixel_direction, polar_quat);
+
+    //pixel_direction = rot_quat(pixel_direction.yzx, camera_quat).zxy;
+
+
+    //pixel_direction = matrix_3x3_contract(matrix_out, pixel_direction);
     //pixel_direction = matrix_3x3_contract(matrix_3x3_multiply(matrix_out, camera_mat), pixel_direction);
 
 
@@ -2018,9 +2033,6 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
     struct mat3f resulting = matrix_3x3_multiply(matrix_3x3_multiply(to_forward_basis, identity), matrix_3x3_invert(to_forward_basis));
 
     pixel_direction = normalize(matrix_3x3_contract(resulting, (float3)(1, 1, 1)));*/
-
-
-
 
     //pixel_direction = matrix_3x3_contract(backward_rotation, pixel_direction);
 
