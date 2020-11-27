@@ -1654,7 +1654,7 @@ float4 quat_multiply(float4 q1, float4 q2)
 
 float4 euler_to_quaternion(float2 angles)
 {
-    float4 q1 = aa_to_quat((float3){0, 0, 1}, angles.y);
+    float4 q1 = aa_to_quat((float3){0, 0, 1}, -angles.y);
     float4 q2 = aa_to_quat((float3){1, 0, 0}, angles.x);
 
     return quat_multiply(q1, q2);
@@ -1673,6 +1673,12 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
     if(cx >= width || cy >= height)
         return;
 
+    if(polar_camera_in.y < 0)
+    {
+        //camera_euler.xy = -camera_euler.xy;
+        //camera_euler.y = -camera_euler.y;
+    }
+
     float4 camera_quat = euler_to_quaternion(camera_euler);
 
     float3 cartesian_camera_pos = polar_to_cartesian(polar_camera_in.yzw);
@@ -1685,7 +1691,7 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
     float2 pixel_fractions = pixel_direction.xy / (float2){width/2, width/2};
 
     pixel_direction = normalize(pixel_direction);
-    pixel_direction = rot_quat(pixel_direction, camera_quat);
+    //pixel_direction = rot_quat(pixel_direction, camera_quat);
 
     float3 cartesian_velocity = normalize(pixel_direction);
 
@@ -1859,6 +1865,8 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
         //cartesian_cy = -cartesian_cy;
         //cartesian_cz = -cartesian_cz;
     }
+
+    pixel_direction = rot_quat(pixel_direction, camera_quat);
 
     pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
 
