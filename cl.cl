@@ -1781,15 +1781,6 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
     if(cx >= width || cy >= height)
         return;
 
-    if(polar_camera_in.y < 0)
-    {
-        //camera_euler.xy = -camera_euler.xy;
-        //camera_euler.y = -camera_euler.y;
-        //camera_euler.y += M_PI;
-
-        //camera_euler.x += M_PI;
-    }
-
     float4 camera_quat = euler_to_quaternion(camera_euler);
 
     float3 cartesian_camera_pos = polar_to_cartesian(polar_camera_in.yzw);
@@ -1915,34 +1906,6 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
     float4 polar_x = generic_velocity_to_spherical_velocity(at_metric, sVx);
     float4 polar_y = generic_velocity_to_spherical_velocity(at_metric, sVy);
     float4 polar_z = generic_velocity_to_spherical_velocity(at_metric, sVz);
-
-    float3 apolar = polar_camera.yzw;
-    apolar.x = fabs(apolar.x);
-
-    //polar_y = -polar_y;
-
-    if(polar_camera.y < 0)
-    {
-        //polar_x = -polar_x;
-        //polar_y = -polar_y;
-        //polar_z = -polar_z;
-
-        /*apolar.y += M_PI;
-
-        if(apolar.y >= M_PI)
-        {
-            apolar.z += M_PI;
-            apolar.y -= M_PI;
-        }*/
-
-        //apolar.y = -apolar.y;
-        //polar_z.yzw = -polar_z.yzw;
-        //apolar.z = -apolar.z;
-        //polar_y.yzw = -polar_y.yzw;
-        //apolar.z += M_PI;
-    }
-
-    //pixel_direction = rot_quat(pixel_direction, camera_quat);
 
     pixel_direction = (float3){-nonphysical_f_stop, cx - width/2, cy - height/2};
     pixel_direction = normalize(pixel_direction);
