@@ -1908,27 +1908,6 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
     float4 sVy = tensor_contract(lorentz, bphi);
     float4 sVz = tensor_contract(lorentz, btheta);
 
-    #if 0
-    float2 pd = (float2){pixel_fractions.x * M_PI/4, pixel_fractions.y * M_PI/4};
-
-    float Nx = sin(pd.y) * cos(pd.x);
-    float Ny = sin(pd.y) * sin(pd.x);
-    float Nz = cos(pd.y);
-
-    float3 Nv = (float3)(Nx, Ny, Nz);
-
-    //Nv = rot_quat(Nv, camera_quat);
-
-    float4 pixel_x = (float4)(sVx.x, sVx.yzw * -Nv.x);
-    float4 pixel_y = (float4)(sVy.x, -sVy.yzw * -Nv.y);
-    float4 pixel_z = (float4)(sVz.x, sVz.yzw * Nv.z);
-
-    if(cx == 500 && cy == 200)
-    {
-        printf("Px %f %f %f N: %f %f %f\n", pixel_y.y, pixel_y.z, pixel_y.w, Nv.x, Nv.y, Nv.z);
-    }
-    #endif // 0
-
     ///so
     ///the entire problem here is handedness, and the trouble's with correctly defining what I want
     ///sit down and figure it
@@ -1963,47 +1942,6 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
         //apolar.z += M_PI;
     }
 
-    float3 cartesian_cx = spherical_velocity_to_cartesian_velocity(apolar, polar_x.yzw);
-    float3 cartesian_cy = spherical_velocity_to_cartesian_velocity(apolar, polar_y.yzw);
-    float3 cartesian_cz = spherical_velocity_to_cartesian_velocity(apolar, polar_z.yzw);
-
-    float3 bx = normalize(cartesian_cx);
-    float3 by = normalize(cartesian_cy);
-    float3 bz = normalize(cartesian_cz);
-
-    struct mat3f change_of_basis;
-
-    if(polar_camera.y >= 0)
-    {
-        change_of_basis = (struct mat3f){{1, 0, 0,
-                            0, 1, 0,
-                            0, 0, 1}};
-    }
-    else
-    {
-        change_of_basis = (struct mat3f){{-1, 0, 0,
-                            0, 1, 0,
-                            0, 0, 1}};
-    }
-
-    struct mat3f identity = {{1, 0, 0,
-                              0, 1, 0,
-                              0, 0, 1}};
-
-    /*struct mat3f forward_rotation   =  {{bx.x, by.x, bz.x,
-                                         bx.y, by.y, bz.y,
-                                         bx.z, by.z, bz.z}};
-
-    //struct mat3f backward_rotation = matrix_3x3_invert(forward_rotation);
-
-    struct mat3f backward_rotation = identity;
-
-    struct mat3f camera_mat = quat_to_mat(camera_quat);
-
-    backward_rotation = matrix_3x3_multiply(backward_rotation, camera_mat);
-
-    struct mat3f matrix_out = matrix_3x3_multiply(matrix_3x3_multiply(change_of_basis, backward_rotation), matrix_3x3_invert(change_of_basis));*/
-
     //pixel_direction = rot_quat(pixel_direction, camera_quat);
 
     pixel_direction = (float3){-nonphysical_f_stop, cx - width/2, cy - height/2};
@@ -2011,11 +1949,11 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
 
     float4 polar_quat = euler_to_polar_quaternion(camera_euler);
 
-    float4 phi_quat = aa_to_quat((float3)(0, 0, 1), -polar_camera_in.w);
+    float4 phi_quat = aa_to_quat((float3)(0, 0, 1), -polar_camera_in.w - M_PI/2);
 
     if(polar_camera_in.y < 0)
     {
-        phi_quat = aa_to_quat((float3)(0, 0, -1), polar_camera_in.w);
+        phi_quat = aa_to_quat((float3)(0, 0, 1), -(-polar_camera_in.w - M_PI/2));
         //polar_y = -polar_y;
     }
 
@@ -2028,7 +1966,7 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
 
     pixel_direction = rot_quat(pixel_direction, theta_quat);*/
 
-    pixel_direction = rot_quat(pixel_direction, phi_quat);
+    //pixel_direction = rot_quat(pixel_direction, phi_quat);
 
     pixel_direction = rot_quat(pixel_direction, polar_quat);
 
@@ -2060,11 +1998,6 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
     pixel_z = spherical_velocity_to_generic_velocity(polar_camera, pixel_z);
 
     float4 vec = pixel_x + pixel_y + pixel_z + pixel_t;
-
-    if(polar_camera_in.y < 0)
-    {
-        //vec.w = -vec.w;
-    }
 
     float4 lightray_velocity = vec;
     float4 lightray_spacetime_position = at_metric;
@@ -2104,6 +2037,12 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
         lightray_acceleration = calculate_acceleration_big(lightray_velocity, g_metric_big, g_partials_big);
         #endif // GENERIC_BIG_METRIC
     }
+
+    /*if(polar_camera_in.y < 0)
+    {
+        lightray_velocity.w = -lightray_velocity.w;
+        lightray_acceleration.w = -lightray_acceleration.w;
+    }*/
 
     //if(cx == 500 && cy == 400)
     //    printf("Posr %f %f %f\n", polar_camera.y, polar_camera.z, polar_camera.w);
@@ -3681,7 +3620,7 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
             phif += M_PI;
         }*/
 
-        //phif = -phif;
+        phif = -phif;
 
         //phif = 2 * M_PI - phif;
     }
