@@ -1660,51 +1660,62 @@ float4 euler_to_quaternion(float2 angles)
     return quat_multiply(q1, q2);
 }
 
+struct mat3f
+{
+    float v[9];
+};
+
 ///i really hate C
 ///https://stackoverflow.com/questions/983999/simple-3x3-matrix-inverse-code-c
-void matrix_3x3_invert(float m[9], float o[9])
+struct mat3f matrix_3x3_invert(struct mat3f m)
 {
-    float m00 = m[0 * 3 + 0];
-    float m01 = m[0 * 3 + 1];
-    float m02 = m[0 * 3 + 2];
-    float m10 = m[1 * 3 + 0];
-    float m11 = m[1 * 3 + 1];
-    float m12 = m[1 * 3 + 2];
-    float m20 = m[2 * 3 + 0];
-    float m21 = m[2 * 3 + 1];
-    float m22 = m[2 * 3 + 2];
+    float m00 = m.v[0 * 3 + 0];
+    float m01 = m.v[0 * 3 + 1];
+    float m02 = m.v[0 * 3 + 2];
+    float m10 = m.v[1 * 3 + 0];
+    float m11 = m.v[1 * 3 + 1];
+    float m12 = m.v[1 * 3 + 2];
+    float m20 = m.v[2 * 3 + 0];
+    float m21 = m.v[2 * 3 + 1];
+    float m22 = m.v[2 * 3 + 2];
 
-    float det = m[0 * 3 + 0] * (m[1 * 3 + 1] * m[2 * 3 + 2] - m[2 * 3 + 1] * m[1 * 3 + 2]) -
-             m[0 * 3 + 1] * (m[1 * 3 + 0] * m[2 * 3 + 2] - m[1 * 3 + 2] * m[2 * 3 + 0]) +
-             m[0 * 3 + 2] * (m[1 * 3 + 0] * m[2 * 3 + 1] - m[1 * 3 + 1] * m[2 * 3 + 0]);
+    float det = m.v[0 * 3 + 0] * (m.v[1 * 3 + 1] * m.v[2 * 3 + 2] - m.v[2 * 3 + 1] * m.v[1 * 3 + 2]) -
+             m.v[0 * 3 + 1] * (m.v[1 * 3 + 0] * m.v[2 * 3 + 2] - m.v[1 * 3 + 2] * m.v[2 * 3 + 0]) +
+             m.v[0 * 3 + 2] * (m.v[1 * 3 + 0] * m.v[2 * 3 + 1] - m.v[1 * 3 + 1] * m.v[2 * 3 + 0]);
 
     float invdet = 1 / det;
 
-    o[0 * 3 + 0] = (m[1 * 3 + 1] * m[2 * 3 + 2] - m[2 * 3 + 1] * m[1 * 3 + 2]) * invdet;
-    o[0 * 3 + 1] = (m[0 * 3 + 2] * m[2 * 3 + 1] - m[0 * 3 + 1] * m[2 * 3 + 2]) * invdet;
-    o[0 * 3 + 2] = (m[0 * 3 + 1] * m[1 * 3 + 2] - m[0 * 3 + 2] * m[1 * 3 + 1]) * invdet;
-    o[1 * 3 + 0] = (m[1 * 3 + 2] * m[2 * 3 + 0] - m[1 * 3 + 0] * m[2 * 3 + 2]) * invdet;
-    o[1 * 3 + 1] = (m[0 * 3 + 0] * m[2 * 3 + 2] - m[0 * 3 + 2] * m[2 * 3 + 0]) * invdet;
-    o[1 * 3 + 2] = (m[1 * 3 + 0] * m[0 * 3 + 2] - m[0 * 3 + 0] * m[1 * 3 + 2]) * invdet;
-    o[2 * 3 + 0] = (m[1 * 3 + 0] * m[2 * 3 + 1] - m[2 * 3 + 0] * m[1 * 3 + 1]) * invdet;
-    o[2 * 3 + 1] = (m[2 * 3 + 0] * m[0 * 3 + 1] - m[0 * 3 + 0] * m[2 * 3 + 1]) * invdet;
-    o[2 * 3 + 2] = (m[0 * 3 + 0] * m[1 * 3 + 1] - m[1 * 3 + 0] * m[0 * 3 + 1]) * invdet;
+    struct mat3f o;
+
+    o.v[0 * 3 + 0] = (m.v[1 * 3 + 1] * m.v[2 * 3 + 2] - m.v[2 * 3 + 1] * m.v[1 * 3 + 2]) * invdet;
+    o.v[0 * 3 + 1] = (m.v[0 * 3 + 2] * m.v[2 * 3 + 1] - m.v[0 * 3 + 1] * m.v[2 * 3 + 2]) * invdet;
+    o.v[0 * 3 + 2] = (m.v[0 * 3 + 1] * m.v[1 * 3 + 2] - m.v[0 * 3 + 2] * m.v[1 * 3 + 1]) * invdet;
+    o.v[1 * 3 + 0] = (m.v[1 * 3 + 2] * m.v[2 * 3 + 0] - m.v[1 * 3 + 0] * m.v[2 * 3 + 2]) * invdet;
+    o.v[1 * 3 + 1] = (m.v[0 * 3 + 0] * m.v[2 * 3 + 2] - m.v[0 * 3 + 2] * m.v[2 * 3 + 0]) * invdet;
+    o.v[1 * 3 + 2] = (m.v[1 * 3 + 0] * m.v[0 * 3 + 2] - m.v[0 * 3 + 0] * m.v[1 * 3 + 2]) * invdet;
+    o.v[2 * 3 + 0] = (m.v[1 * 3 + 0] * m.v[2 * 3 + 1] - m.v[2 * 3 + 0] * m.v[1 * 3 + 1]) * invdet;
+    o.v[2 * 3 + 1] = (m.v[2 * 3 + 0] * m.v[0 * 3 + 1] - m.v[0 * 3 + 0] * m.v[2 * 3 + 1]) * invdet;
+    o.v[2 * 3 + 2] = (m.v[0 * 3 + 0] * m.v[1 * 3 + 1] - m.v[1 * 3 + 0] * m.v[0 * 3 + 1]) * invdet;
+
+    return o;
 }
 
 ///I don't know if I already mentioned how much I dislike C
-float3 matrix_3x3_contract(float mat[9], float3 vec)
+float3 matrix_3x3_contract(struct mat3f m, float3 vec)
 {
     float3 ret;
 
-    ret.x = mat[0] * vec.x + mat[1] * vec.y + mat[2] * vec.z;
-    ret.y = mat[3] * vec.x + mat[4] * vec.y + mat[5] * vec.z;
-    ret.z = mat[6] * vec.x + mat[7] * vec.y + mat[8] * vec.z;
+    ret.x = m.v[0] * vec.x + m.v[1] * vec.y + m.v[2] * vec.z;
+    ret.y = m.v[3] * vec.x + m.v[4] * vec.y + m.v[5] * vec.z;
+    ret.z = m.v[6] * vec.x + m.v[7] * vec.y + m.v[8] * vec.z;
 
     return ret;
 }
 
-void matrix_3x3_multiply(float mat[9], float mat2[0], float o[9])
+struct mat3f matrix_3x3_multiply(struct mat3f mat, struct mat3f mat2)
 {
+    struct mat3f o;
+
     for(int j=0; j < 3; j++)
     {
         for(int i=0; i < 3; i++)
@@ -1713,12 +1724,14 @@ void matrix_3x3_multiply(float mat[9], float mat2[0], float o[9])
 
             for(int k=0; k < 3; k++)
             {
-                sum += mat[i * 3 + k] * mat2[k * 3 + j];
+                sum += mat.v[i * 3 + k] * mat2.v[k * 3 + j];
             }
 
-            o[j * 3 + i] = sum;
+            o.v[j * 3 + i] = sum;
         }
     }
+
+    return o;
 }
 
 __kernel
@@ -1931,13 +1944,26 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
     float3 by = normalize(cartesian_cy);
     float3 bz = normalize(cartesian_cz);
 
-    float forward_rotation[9] = {bx.x, by.x, bz.x, bx.y, by.y, bz.y, bx.z, by.z, bz.z};
+    struct mat3f change_of_basis    = {{1, 0, 0,
+                                        0, -1, 0,
+                                        0, 0, 1}};
 
-    float backward_rotation[9] = {};
+    struct mat3f forward_rotation   =  {{bx.x, by.x, bz.x,
+                                         bx.y, by.y, bz.y,
+                                         bx.z, by.z, bz.z}};
 
-    matrix_3x3_invert(forward_rotation, backward_rotation);
+    struct mat3f backward_rotation = matrix_3x3_invert(forward_rotation);
 
-    pixel_direction = matrix_3x3_contract(backward_rotation, pixel_direction);
+    struct mat3f change_of_basis_inverse = matrix_3x3_invert(change_of_basis);
+
+    //matrix_3x3_multiply(change_of_basis, backward_rotation, matrix_accum);
+    //matrix_3x3_multiply(matrix_accum, change_of_basis_inverse, matrix_out);
+
+    struct mat3f matrix_out = matrix_3x3_multiply(matrix_3x3_multiply(change_of_basis, backward_rotation), change_of_basis_inverse);
+
+    pixel_direction = matrix_3x3_contract(matrix_out, pixel_direction);
+
+    //pixel_direction = matrix_3x3_contract(backward_rotation, pixel_direction);
 
     //pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
 
