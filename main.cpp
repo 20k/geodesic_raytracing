@@ -75,6 +75,8 @@ https://www.aanda.org/articles/aa/pdf/2012/09/aa19599-12.pdf - radiative transfe
 https://arxiv.org/pdf/0704.0986.pdf - tetrad info
 https://www.researchgate.net/figure/View-of-a-static-observer-located-at-x-0-y-4-in-the-positive-y-direction-for-t_fig2_225428633 - alcubierre. Successfully managed to replicate this https://imgur.com/a/48SONjV. This paper is an absolute goldmine of useful information
 
+https://towardsdatascience.com/change-of-basis-3909ef4bed43 - change of basis formula
+
 "how do i convert rgb to wavelengths"
 https://github.com/colour-science/smits1999
 https://github.com/appleseedhq/appleseed/blob/54ce23fc940087180511cb5659d8a7aac33712fb/src/appleseed/foundation/image/colorspace.h#L956
