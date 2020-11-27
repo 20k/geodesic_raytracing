@@ -1660,6 +1660,37 @@ float4 euler_to_quaternion(float2 angles)
     return quat_multiply(q1, q2);
 }
 
+///i really hate opencl
+///https://stackoverflow.com/questions/983999/simple-3x3-matrix-inverse-code-c
+void matrix_3x3_invert(float m[9], float o[9])
+{
+    float m00 = m[0 * 3 + 0];
+    float m01 = m[0 * 3 + 1];
+    float m02 = m[0 * 3 + 2];
+    float m10 = m[1 * 3 + 0];
+    float m11 = m[1 * 3 + 1];
+    float m12 = m[1 * 3 + 2];
+    float m20 = m[2 * 3 + 0];
+    float m21 = m[2 * 3 + 1];
+    float m22 = m[2 * 3 + 2];
+
+    float det = m[0 * 3 + 0] * (m[1 * 3 + 1] * m[2 * 3 + 2] - m[2 * 3 + 1] * m[1 * 3 + 2]) -
+             m[0 * 3 + 1] * (m[1 * 3 + 0] * m[2 * 3 + 2] - m[1 * 3 + 2] * m[2 * 3 + 0]) +
+             m[0 * 3 + 2] * (m[1 * 3 + 0] * m[2 * 3 + 1] - m[1 * 3 + 1] * m[2 * 3 + 0]);
+
+    float invdet = 1 / det;
+
+    o[0 * 3 + 0] = (m[1 * 3 + 1] * m[2 * 3 + 2] - m[2 * 3 + 1] * m[1 * 3 + 2]) * invdet;
+    o[0 * 3 + 1] = (m[0 * 3 + 2] * m[2 * 3 + 1] - m[0 * 3 + 1] * m[2 * 3 + 2]) * invdet;
+    o[0 * 3 + 2] = (m[0 * 3 + 1] * m[1 * 3 + 2] - m[0 * 3 + 2] * m[1 * 3 + 1]) * invdet;
+    o[1 * 3 + 0] = (m[1 * 3 + 2] * m[2 * 3 + 0] - m[1 * 3 + 0] * m[2 * 3 + 2]) * invdet;
+    o[1 * 3 + 1] = (m[0 * 3 + 0] * m[2 * 3 + 2] - m[0 * 3 + 2] * m[2 * 3 + 0]) * invdet;
+    o[1 * 3 + 2] = (m[1 * 3 + 0] * m[0 * 3 + 2] - m[0 * 3 + 0] * m[1 * 3 + 2]) * invdet;
+    o[2 * 3 + 0] = (m[1 * 3 + 0] * m[2 * 3 + 1] - m[2 * 3 + 0] * m[1 * 3 + 1]) * invdet;
+    o[2 * 3 + 1] = (m[2 * 3 + 0] * m[0 * 3 + 1] - m[0 * 3 + 0] * m[2 * 3 + 1]) * invdet;
+    o[2 * 3 + 2] = (m[0 * 3 + 0] * m[1 * 3 + 1] - m[1 * 3 + 0] * m[0 * 3 + 1]) * invdet;
+}
+
 __kernel
 void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global struct lightray* metric_rays, __global int* metric_ray_count, int width, int height, int flip_geodesic_direction)
 {
