@@ -1903,6 +1903,12 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
     ///the entire problem here is handedness, and the trouble's with correctly defining what I want
     ///sit down and figure it
     #if 1
+    /*if(polar_camera_in.y < 0)
+    {
+        at_metric.w = -at_metric.w;
+        sVy = -sVy;
+    }*/
+
     float4 polar_x = generic_velocity_to_spherical_velocity(at_metric, sVx);
     float4 polar_y = generic_velocity_to_spherical_velocity(at_metric, sVy);
     float4 polar_z = generic_velocity_to_spherical_velocity(at_metric, sVz);
@@ -1916,22 +1922,20 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
 
     if(polar_camera_in.y < 0)
     {
-        phi_quat = aa_to_quat((float3)(0, 0, 1), -(-polar_camera_in.w - M_PI/2));
-        //polar_y = -polar_y;
+        phi_quat = aa_to_quat((float3)(0, 0, 1), (-polar_camera_in.w - M_PI/2));
     }
 
-    /*float4 theta_quat = aa_to_quat((float3)(0, 1, 0), polar_camera_in.z - M_PI/2);
+    float4 theta_quat = aa_to_quat((float3)(0, 1, 0), polar_camera_in.z - M_PI/2);
 
     if(polar_camera_in.y < 0)
     {
-        theta_quat = -theta_quat;
+        //theta_quat = -theta_quat;
+        theta_quat = aa_to_quat((float3)(0, 1, 0), -(polar_camera_in.z - M_PI/2));
     }
 
-    pixel_direction = rot_quat(pixel_direction, theta_quat);*/
-
-    //pixel_direction = rot_quat(pixel_direction, phi_quat);
-
     pixel_direction = rot_quat(pixel_direction, polar_quat);
+    pixel_direction = rot_quat(pixel_direction, theta_quat);
+    //pixel_direction = rot_quat(pixel_direction, phi_quat);
 
     pixel_direction = normalize(pixel_direction);
     float4 pixel_x = pixel_direction.x * polar_x;
@@ -1972,6 +1976,7 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
     lightray_velocity.z = 0;
     #endif // IS_CONSTANT_THETA
 
+    #if 0
     {
         #ifndef GENERIC_BIG_METRIC
         float g_partials[16] = {0};
@@ -2000,6 +2005,7 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
         lightray_acceleration = calculate_acceleration_big(lightray_velocity, g_metric_big, g_partials_big);
         #endif // GENERIC_BIG_METRIC
     }
+    #endif // 0
 
     /*if(polar_camera_in.y < 0)
     {
@@ -2016,6 +2022,12 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
         lightray_velocity.w = -lightray_velocity.w;
         lightray_spacetime_position.w = -lightray_spacetime_position.w;
         lightray_acceleration.w = -lightray_acceleration.w;
+    }*/
+
+    /*if(polar_camera_in.y < 0)
+    {
+        //lightray_velocity.z = -lightray_velocity.z;
+        //lightray_acceleration.z = -lightray_acceleration.z;
     }*/
 
     struct lightray ray;
