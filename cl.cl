@@ -1776,7 +1776,7 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
     if(polar_camera_in.y < 0)
     {
         //camera_euler.xy = -camera_euler.xy;
-        camera_euler.y = -camera_euler.y + M_PI;
+        //camera_euler.y = -camera_euler.y;
         //camera_euler.y += M_PI;
 
         //camera_euler.x += M_PI;
@@ -1973,19 +1973,22 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
     }
     else
     {
-        change_of_basis = (struct mat3f){{1, 0, 0,
-                            0, -1, 0,
-                            0, 0, -1}};
-
-        by = -by;
-        bz = -bz;
+        change_of_basis = (struct mat3f){{-1, 0, 0,
+                            0, 1, 0,
+                            0, 0, 1}};
     }
+
+    struct mat3f identity = {{1, 0, 0,
+                              0, 1, 0,
+                              0, 0, 1}};
 
     struct mat3f forward_rotation   =  {{bx.x, by.x, bz.x,
                                          bx.y, by.y, bz.y,
                                          bx.z, by.z, bz.z}};
 
-    struct mat3f backward_rotation = matrix_3x3_invert(forward_rotation);
+    //struct mat3f backward_rotation = matrix_3x3_invert(forward_rotation);
+
+    struct mat3f backward_rotation = identity;
 
     struct mat3f camera_mat = quat_to_mat(camera_quat);
 
@@ -1994,6 +1997,9 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
     struct mat3f matrix_out = matrix_3x3_multiply(matrix_3x3_multiply(change_of_basis, backward_rotation), matrix_3x3_invert(change_of_basis));
 
     //pixel_direction = rot_quat(pixel_direction, camera_quat);
+
+    pixel_direction = (float3){-nonphysical_f_stop, cx - width/2, cy - height/2};
+    pixel_direction = normalize(pixel_direction);
 
     pixel_direction = matrix_3x3_contract(matrix_out, pixel_direction);
     //pixel_direction = matrix_3x3_contract(matrix_3x3_multiply(matrix_out, camera_mat), pixel_direction);
@@ -2028,8 +2034,8 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
     if(polar_camera.y < 0)
     {
         //polar_x = -polar_x;
-        polar_y = -polar_y;
-        polar_z = -polar_z;
+        //polar_y = -polar_y;
+        //polar_z = -polar_z;
     }
 
     pixel_direction = normalize(pixel_direction);
@@ -3676,7 +3682,7 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
             phif += M_PI;
         }*/
 
-        phif = -phif;
+        //phif = -phif;
 
         //phif = 2 * M_PI - phif;
     }
