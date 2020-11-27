@@ -1692,7 +1692,7 @@ void matrix_3x3_invert(float m[9], float o[9])
 }
 
 ///I don't know if I already mentioned how much I dislike C
-float3 matrix_3x3_multiply(float mat[9], float3 vec)
+float3 matrix_3x3_contract(float mat[9], float3 vec)
 {
     float3 ret;
 
@@ -1701,6 +1701,24 @@ float3 matrix_3x3_multiply(float mat[9], float3 vec)
     ret.z = mat[6] * vec.x + mat[7] * vec.y + mat[8] * vec.z;
 
     return ret;
+}
+
+void matrix_3x3_multiply(float mat[9], float mat2[0], float o[9])
+{
+    for(int j=0; j < 3; j++)
+    {
+        for(int i=0; i < 3; i++)
+        {
+            float sum = 0;
+
+            for(int k=0; k < 3; k++)
+            {
+                sum += mat[i * 3 + k] * mat2[k * 3 + j];
+            }
+
+            o[j * 3 + i] = sum;
+        }
+    }
 }
 
 __kernel
@@ -1919,7 +1937,7 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
 
     matrix_3x3_invert(forward_rotation, backward_rotation);
 
-    pixel_direction = matrix_3x3_multiply(backward_rotation, pixel_direction);
+    pixel_direction = matrix_3x3_contract(backward_rotation, pixel_direction);
 
     //pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
 
