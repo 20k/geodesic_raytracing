@@ -2011,6 +2011,17 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
 
     float4 polar_quat = euler_to_polar_quaternion(camera_euler);
 
+    //float4 phi_quat = aa_to_quat((float3)(0, 0, 1), -polar_camera_in.w);
+    float4 theta_quat = aa_to_quat((float3)(0, 1, 0), polar_camera_in.z - M_PI/2);
+
+    if(polar_camera_in.y < 0)
+    {
+        theta_quat = -theta_quat;
+    }
+
+    pixel_direction = rot_quat(pixel_direction, theta_quat);
+    //pixel_direction = rot_quat(pixel_direction, phi_quat);
+
     pixel_direction = rot_quat(pixel_direction, polar_quat);
 
     //pixel_direction = rot_quat(pixel_direction.yzx, camera_quat).zxy;
