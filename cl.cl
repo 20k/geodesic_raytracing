@@ -1776,7 +1776,10 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
     if(polar_camera_in.y < 0)
     {
         //camera_euler.xy = -camera_euler.xy;
-        //camera_euler.y = -camera_euler.y;
+        camera_euler.y = -camera_euler.y + M_PI;
+        //camera_euler.y += M_PI;
+
+        //camera_euler.x += M_PI;
     }
 
     float4 camera_quat = euler_to_quaternion(camera_euler);
@@ -1956,16 +1959,6 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
     float3 cartesian_cy = spherical_velocity_to_cartesian_velocity(apolar, polar_y.yzw);
     float3 cartesian_cz = spherical_velocity_to_cartesian_velocity(apolar, polar_z.yzw);
 
-    //cartesian_cy = -cartesian_cy;
-    //cartesian_cx = -cartesian_cx;
-
-    if(polar_camera.y < 0)
-    {
-        //cartesian_cx = -cartesian_cx;
-        //cartesian_cy = -cartesian_cy;
-        //cartesian_cz = -cartesian_cz;
-    }
-
     float3 bx = normalize(cartesian_cx);
     float3 by = normalize(cartesian_cy);
     float3 bz = normalize(cartesian_cz);
@@ -1980,9 +1973,12 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
     }
     else
     {
-        change_of_basis = (struct mat3f){{-1, 0, 0,
+        change_of_basis = (struct mat3f){{1, 0, 0,
                             0, -1, 0,
-                            0, 0, 1}};
+                            0, 0, -1}};
+
+        by = -by;
+        bz = -bz;
     }
 
     struct mat3f forward_rotation   =  {{bx.x, by.x, bz.x,
@@ -1993,15 +1989,14 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
 
     struct mat3f camera_mat = quat_to_mat(camera_quat);
 
-    //backward_rotation = matrix_3x3_multiply(camera_mat, backward_rotation);
+    backward_rotation = matrix_3x3_multiply(backward_rotation, camera_mat);
 
     struct mat3f matrix_out = matrix_3x3_multiply(matrix_3x3_multiply(change_of_basis, backward_rotation), matrix_3x3_invert(change_of_basis));
 
     //pixel_direction = rot_quat(pixel_direction, camera_quat);
 
-    //pixel_direction = matrix_3x3_contract(camera_mat, pixel_direction);
-
-    pixel_direction = matrix_3x3_contract(matrix_3x3_multiply(matrix_out, camera_mat), pixel_direction);
+    pixel_direction = matrix_3x3_contract(matrix_out, pixel_direction);
+    //pixel_direction = matrix_3x3_contract(matrix_3x3_multiply(matrix_out, camera_mat), pixel_direction);
 
 
     /*struct mat3f current_basis      =  {{bx.x, by.x, bz.x,
@@ -2033,8 +2028,8 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
     if(polar_camera.y < 0)
     {
         //polar_x = -polar_x;
-        //polar_y = -polar_y;
-        //polar_z = -polar_z;
+        polar_y = -polar_y;
+        polar_z = -polar_z;
     }
 
     pixel_direction = normalize(pixel_direction);
