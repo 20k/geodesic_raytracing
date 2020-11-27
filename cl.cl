@@ -1660,7 +1660,7 @@ float4 euler_to_quaternion(float2 angles)
     return quat_multiply(q1, q2);
 }
 
-///i really hate opencl
+///i really hate C
 ///https://stackoverflow.com/questions/983999/simple-3x3-matrix-inverse-code-c
 void matrix_3x3_invert(float m[9], float o[9])
 {
@@ -1689,6 +1689,18 @@ void matrix_3x3_invert(float m[9], float o[9])
     o[2 * 3 + 0] = (m[1 * 3 + 0] * m[2 * 3 + 1] - m[2 * 3 + 0] * m[1 * 3 + 1]) * invdet;
     o[2 * 3 + 1] = (m[2 * 3 + 0] * m[0 * 3 + 1] - m[0 * 3 + 0] * m[2 * 3 + 1]) * invdet;
     o[2 * 3 + 2] = (m[0 * 3 + 0] * m[1 * 3 + 1] - m[1 * 3 + 0] * m[0 * 3 + 1]) * invdet;
+}
+
+///I don't know if I already mentioned how much I dislike C
+float3 matrix_3x3_multiply(float mat[9], float3 vec)
+{
+    float3 ret;
+
+    ret.x = mat[0] * vec.x + mat[1] * vec.y + mat[2] * vec.z;
+    ret.y = mat[3] * vec.x + mat[4] * vec.y + mat[5] * vec.z;
+    ret.z = mat[6] * vec.x + mat[7] * vec.y + mat[8] * vec.z;
+
+    return ret;
 }
 
 __kernel
@@ -1722,7 +1734,7 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
     float2 pixel_fractions = pixel_direction.xy / (float2){width/2, width/2};
 
     pixel_direction = normalize(pixel_direction);
-    //pixel_direction = rot_quat(pixel_direction, camera_quat);
+    pixel_direction = rot_quat(pixel_direction, camera_quat);
 
     float3 cartesian_velocity = normalize(pixel_direction);
 
@@ -1897,9 +1909,19 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
         //cartesian_cz = -cartesian_cz;
     }
 
-    pixel_direction = rot_quat(pixel_direction, camera_quat);
+    float3 bx = normalize(cartesian_cx);
+    float3 by = normalize(cartesian_cy);
+    float3 bz = normalize(cartesian_cz);
 
-    pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
+    float forward_rotation[9] = {bx.x, by.x, bz.x, bx.y, by.y, bz.y, bx.z, by.z, bz.z};
+
+    float backward_rotation[9] = {};
+
+    matrix_3x3_invert(forward_rotation, backward_rotation);
+
+    pixel_direction = matrix_3x3_multiply(backward_rotation, pixel_direction);
+
+    //pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
 
     //polar_y = -polar_y;
 
