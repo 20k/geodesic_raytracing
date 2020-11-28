@@ -1449,6 +1449,22 @@ int main()
 
         if(ImGui::IsKeyDown(GLFW_KEY_RIGHT))
         {
+            mat3f m = mat3f().ZRot(-M_PI/128);
+
+            quat q;
+            q.load_from_matrix(m);
+
+            quat qi;
+            qi.load_from_axis_angle({0, 0, 1, -M_PI/128});
+
+            camera_quat = q * camera_quat;
+            camera_quati = qi * camera_quati;
+
+            camera_euler.y() += -M_PI/128;
+        }
+
+        if(ImGui::IsKeyDown(GLFW_KEY_LEFT))
+        {
             mat3f m = mat3f().ZRot(M_PI/128);
 
             quat q;
@@ -1461,22 +1477,6 @@ int main()
             camera_quati = qi * camera_quati;
 
             camera_euler.y() += M_PI/128;
-        }
-
-        if(ImGui::IsKeyDown(GLFW_KEY_LEFT))
-        {
-            mat3f m = mat3f().ZRot(-M_PI/128);
-
-            quat q;
-            q.load_from_matrix(m);
-
-            quat qi;
-            qi.load_from_axis_angle({0, 0, 1, -M_PI/128});
-
-            camera_quat = q * camera_quat;
-            camera_quati = qi * camera_quati;
-
-            camera_euler.y() -= M_PI/128;
         }
 
         if(ImGui::IsKeyPressed(GLFW_KEY_1))
@@ -1501,7 +1501,7 @@ int main()
             camera_quat = q * camera_quat;
             camera_quati = qi * camera_quati;
 
-            camera_euler.x() += M_PI/128;
+            camera_euler.x() -= M_PI/128;
         }
 
         if(ImGui::IsKeyDown(GLFW_KEY_UP))
@@ -1514,7 +1514,7 @@ int main()
             camera_quat = q * camera_quat;
             camera_quati = qi * camera_quati;
 
-            camera_euler.x() -= M_PI/128;
+            camera_euler.x() += M_PI/128;
         }
 
         vec3f offset = {0,0,0};

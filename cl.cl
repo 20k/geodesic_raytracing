@@ -1908,34 +1908,38 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
         at_metric.w = -at_metric.w;
         sVy = -sVy;
     }*/
-
     float4 polar_x = generic_velocity_to_spherical_velocity(at_metric, sVx);
     float4 polar_y = generic_velocity_to_spherical_velocity(at_metric, sVy);
-    float4 polar_z = generic_velocity_to_spherical_velocity(at_metric, sVz);
+    float4 polar_z = -generic_velocity_to_spherical_velocity(at_metric, sVz);
 
-    pixel_direction = (float3){-nonphysical_f_stop, cx - width/2, cy - height/2};
+    if(polar_camera_in.y < 0)
+    {
+        polar_y = -polar_y;
+    }
+
+    pixel_direction = (float3){nonphysical_f_stop, cx - width/2, cy - height/2};
     pixel_direction = normalize(pixel_direction);
 
     float4 polar_quat = euler_to_polar_quaternion(camera_euler);
 
-    float4 phi_quat = aa_to_quat((float3)(0, 0, 1), -polar_camera_in.w - M_PI/2);
+    float4 phi_quat = aa_to_quat((float3)(0, 0, 1), (-polar_camera_in.w + M_PI/2));
 
     if(polar_camera_in.y < 0)
     {
-        phi_quat = aa_to_quat((float3)(0, 0, 1), (-polar_camera_in.w - M_PI/2));
+        //phi_quat = aa_to_quat((float3)(0, 0, 1), -(-polar_camera_in.w - M_PI/2));
     }
 
-    float4 theta_quat = aa_to_quat((float3)(0, 1, 0), polar_camera_in.z - M_PI/2);
+    /*float4 theta_quat = aa_to_quat((float3)(0, 1, 0), polar_camera_in.z - M_PI/2);
 
     if(polar_camera_in.y < 0)
     {
         //theta_quat = -theta_quat;
         theta_quat = aa_to_quat((float3)(0, 1, 0), -(polar_camera_in.z - M_PI/2));
-    }
+    }*/
 
     pixel_direction = rot_quat(pixel_direction, polar_quat);
-    pixel_direction = rot_quat(pixel_direction, theta_quat);
-    //pixel_direction = rot_quat(pixel_direction, phi_quat);
+    //pixel_direction = rot_quat(pixel_direction, theta_quat);
+    pixel_direction = rot_quat(pixel_direction, phi_quat);
 
     pixel_direction = normalize(pixel_direction);
     float4 pixel_x = pixel_direction.x * polar_x;
@@ -2024,11 +2028,11 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
         lightray_acceleration.w = -lightray_acceleration.w;
     }*/
 
-    /*if(polar_camera_in.y < 0)
+    if(polar_camera_in.y < 0)
     {
-        //lightray_velocity.z = -lightray_velocity.z;
-        //lightray_acceleration.z = -lightray_acceleration.z;
-    }*/
+        lightray_velocity.w = -lightray_velocity.w;
+        lightray_acceleration.w = -lightray_acceleration.w;
+    }
 
     struct lightray ray;
     ray.sx = cx;
@@ -3595,9 +3599,15 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
             phif += M_PI;
         }*/
 
-        phif = -phif;
+        //if(polar_camera_pos.y >= 0)
+        //    phif = -phif;
 
         //phif = 2 * M_PI - phif;
+    }
+
+    if(polar_camera_pos.y < 0)
+    {
+        //phif = -phif - M_PI/2;
     }
 
     phif = fmod(phif, 2 * M_PI);
@@ -3722,13 +3732,13 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
     {
         if(fabs(position.y) >= UNIVERSE_SIZE)
         {
-            position.yzw = fix_ray_position(position.yzw, velocity.yzw, UNIVERSE_SIZE, true);
+            //position.yzw = fix_ray_position(position.yzw, velocity.yzw, UNIVERSE_SIZE, true);
         }
 
         #if defined(SINGULAR) && defined(TRAVERSABLE_EVENT_HORIZON)
         if(fabs(position.y) < SINGULAR_TERMINATOR)
         {
-            position.yzw = fix_ray_position(position.yzw, velocity.yzw, SINGULAR_TERMINATOR, true);
+            //position.yzw = fix_ray_position(position.yzw, velocity.yzw, SINGULAR_TERMINATOR, true);
         }
         #endif
     }
