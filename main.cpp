@@ -971,6 +971,17 @@ vec4f interpolate_geodesic(const std::vector<cl_float4>& geodesic, float coordin
     return {geodesic[0].s[0], geodesic[0].s[1], geodesic[0].s[2], geodesic[0].s[3]};
 }
 
+quat euler_to_polar_quaternion(vec2f angles)
+{
+    quat q1;
+    q1.load_from_axis_angle({0, 0, 1, angles.y()});
+
+    quat q2;
+    q2.load_from_axis_angle({0, 1, 0, -angles.x()});
+
+    return q1 * q2;
+}
+
 ///i need the ability to have dynamic parameters
 int main()
 {
@@ -1460,7 +1471,7 @@ int main()
             camera_quat = q * camera_quat;
             camera_quati = qi * camera_quati;
 
-            camera_euler.y() += -M_PI/128;
+            camera_euler.y() += M_PI/128;
         }
 
         if(ImGui::IsKeyDown(GLFW_KEY_LEFT))
@@ -1476,7 +1487,7 @@ int main()
             camera_quat = q * camera_quat;
             camera_quati = qi * camera_quati;
 
-            camera_euler.y() += M_PI/128;
+            camera_euler.y() += -M_PI/128;
         }
 
         if(ImGui::IsKeyPressed(GLFW_KEY_1))
@@ -1485,10 +1496,13 @@ int main()
         }
 
         vec3f up = {0, 0, -1};
-        vec3f right = rot_quat({1, 0, 0}, camera_quat);
+        //vec3f right = rot_quat({1, 0, 0}, camera_quat);
         vec3f righti = rot_quat({1, 0, 0}, camera_quati);
-        vec3f forward_axis = rot_quat({0, 0, 1}, camera_quat);
+        //vec3f forward_axis = rot_quat({0, 0, 1}, camera_quat);
         vec3f forward_axisi = rot_quat({0, 0, 1}, camera_quati);
+
+        vec3f right = rot_quat({-1, 0, 0}, euler_to_polar_quaternion(camera_euler));
+        vec3f forward_axis = rot_quat({0, 0, 1}, euler_to_polar_quaternion(camera_euler));
 
         if(ImGui::IsKeyDown(GLFW_KEY_DOWN))
         {
@@ -1520,7 +1534,7 @@ int main()
         vec3f offset = {0,0,0};
 
         offset += forward_axis * ((ImGui::IsKeyDown(GLFW_KEY_W) - ImGui::IsKeyDown(GLFW_KEY_S)) * speed);
-        offset += right * (ImGui::IsKeyDown(GLFW_KEY_D) - ImGui::IsKeyDown(GLFW_KEY_A)) * speed;
+        offset += right * (ImGui::IsKeyDown(GLFW_KEY_A) - ImGui::IsKeyDown(GLFW_KEY_D)) * speed;
         offset += up * (ImGui::IsKeyDown(GLFW_KEY_E) - ImGui::IsKeyDown(GLFW_KEY_Q)) * speed;
 
         camera.y() += offset.x();

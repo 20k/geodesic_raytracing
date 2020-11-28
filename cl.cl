@@ -1662,7 +1662,7 @@ float4 euler_to_quaternion(float2 angles)
 
 float4 euler_to_polar_quaternion(float2 angles)
 {
-    float4 q1 = aa_to_quat((float3){0, 0, 1}, -angles.y);
+    float4 q1 = aa_to_quat((float3){0, 0, 1}, angles.y);
     float4 q2 = aa_to_quat((float3){0, 1, 0}, -angles.x);
 
     return quat_multiply(q1, q2);
@@ -1914,7 +1914,7 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
 
     if(polar_camera_in.y < 0)
     {
-        polar_y = -polar_y;
+        //polar_y = -polar_y;
     }
 
     pixel_direction = (float3){nonphysical_f_stop, cx - width/2, cy - height/2};
@@ -1922,7 +1922,8 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
 
     float4 polar_quat = euler_to_polar_quaternion(camera_euler);
 
-    float4 phi_quat = aa_to_quat((float3)(0, 0, 1), (-polar_camera_in.w + M_PI/2));
+    float4 phi_quat = aa_to_quat((float3)(0, 0, 1), (-polar_camera_in.w));
+    float4 point_at_wormhole_phi = aa_to_quat((float3)(0, 0, 1), +M_PI/2);
 
     if(polar_camera_in.y < 0)
     {
@@ -1938,8 +1939,9 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
     }*/
 
     pixel_direction = rot_quat(pixel_direction, polar_quat);
-    //pixel_direction = rot_quat(pixel_direction, theta_quat);
     pixel_direction = rot_quat(pixel_direction, phi_quat);
+    pixel_direction = rot_quat(pixel_direction, point_at_wormhole_phi);
+    //pixel_direction = rot_quat(pixel_direction, theta_quat);
 
     pixel_direction = normalize(pixel_direction);
     float4 pixel_x = pixel_direction.x * polar_x;
@@ -2028,11 +2030,11 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
         lightray_acceleration.w = -lightray_acceleration.w;
     }*/
 
-    if(polar_camera_in.y < 0)
+    /*if(polar_camera_in.y < 0)
     {
         lightray_velocity.w = -lightray_velocity.w;
         lightray_acceleration.w = -lightray_acceleration.w;
-    }
+    }*/
 
     struct lightray ray;
     ray.sx = cx;
