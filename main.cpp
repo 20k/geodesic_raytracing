@@ -1501,7 +1501,7 @@ int main()
         //vec3f forward_axis = rot_quat({0, 0, 1}, camera_quat);
         vec3f forward_axisi = rot_quat({0, 0, 1}, camera_quati);
 
-        vec3f right = rot_quat({-1, 0, 0}, euler_to_polar_quaternion(camera_euler));
+        vec3f right = rot_quat({1, 0, 0}, euler_to_polar_quaternion(camera_euler));
         vec3f forward_axis = rot_quat({0, 0, 1}, euler_to_polar_quaternion(camera_euler));
 
         if(ImGui::IsKeyDown(GLFW_KEY_DOWN))
