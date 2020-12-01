@@ -628,8 +628,8 @@ std::array<dual, 16> alcubierre_metric(dual t, dual x, dual y, dual z)
 
     dual rs_t = fast_length(x - xs_t, y, z);
 
-    dual sigma = 1;
-    dual R = 2;
+    dual sigma = 10;
+    dual R = 1;
 
     dual f_rs = (tanh(sigma * (rs_t + R)) - tanh(sigma * (rs_t - R))) / (2 * tanh(sigma * R));
 
@@ -1134,10 +1134,10 @@ int main()
 
     //auto current_metric = symmetric_warp_obj;
     //auto current_metric = kerr_obj;
-    //auto current_metric = alcubierre_metric_obj;
+    auto current_metric = alcubierre_metric_obj;
     //auto current_metric = kerr_newman_obj;
     //auto current_metric = kerr_schild_obj;
-    auto current_metric = simple_wormhole;
+    //auto current_metric = simple_wormhole;
     //auto current_metric = schwarzs_polar;
     //auto current_metric = minkowski_polar_obj;
     //auto current_metric = krasnikov_tube_cart_obj;
