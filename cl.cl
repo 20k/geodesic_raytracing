@@ -1769,7 +1769,7 @@ struct mat3f quat_to_mat(float4 quat)
 };
 
 __kernel
-void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global struct lightray* metric_rays, __global int* metric_ray_count, int width, int height, int flip_geodesic_direction)
+void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global struct lightray* metric_rays, __global int* metric_ray_count, int width, int height, int flip_geodesic_direction, float phi_offset)
 {
     #define FOV 90
 
@@ -1924,7 +1924,7 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
 
     float4 phi_quat = aa_to_quat((float3)(0, 0, 1), (-polar_camera_in.w));
     float4 point_at_wormhole_phi = aa_to_quat((float3)(0, 0, 1), +M_PI/2);
-    float4 global_offset = aa_to_quat((float3)(0, 0, 1), M_PI/16);
+    float4 global_offset = aa_to_quat((float3)(0, 0, 1), phi_offset + M_PI/2);
 
     if(polar_camera_in.y < 0)
     {
@@ -1933,7 +1933,7 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
         //phi_quat = aa_to_quat((float3)(0, 0, 1), -polar_camera_in.w);
         phi_quat = aa_to_quat((float3)(0, 0, 1), polar_camera_in.w);
         point_at_wormhole_phi = aa_to_quat((float3)(0, 0, 1), -M_PI/2);
-        global_offset = aa_to_quat((float3)(0, 0, 1), -M_PI/16);
+        global_offset = aa_to_quat((float3)(0, 0, 1), -(phi_offset + M_PI/2));
     }
 
     /*float4 theta_quat = aa_to_quat((float3)(0, 1, 0), polar_camera_in.z - M_PI/2);

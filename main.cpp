@@ -971,6 +971,19 @@ vec4f interpolate_geodesic(const std::vector<cl_float4>& geodesic, float coordin
     return {geodesic[0].s[0], geodesic[0].s[1], geodesic[0].s[2], geodesic[0].s[3]};
 }
 
+float get_geodesic_phi_intersection(const std::vector<cl_float4>& geodesic)
+{
+    for(int i=0; i < (int)geodesic.size() - 1; i++)
+    {
+        if(signum(geodesic[i].s[1]) != signum(geodesic[i + 1].s[1]))
+        {
+            return geodesic[i].s[3];
+        }
+    }
+
+    return 0;
+}
+
 quat euler_to_polar_quaternion(vec2f angles)
 {
     quat q1;
@@ -1335,6 +1348,7 @@ int main()
     float current_geodesic_time = 0;
     bool camera_on_geodesic = false;
     bool camera_time_progresses = false;
+    float phi_offset = 0;
 
     vec2f camera_euler = {0,0};
 
@@ -1555,6 +1569,7 @@ int main()
         if(camera_on_geodesic)
         {
             scamera = interpolate_geodesic(current_geodesic_path, current_geodesic_time, current_geodesic_velocity, current_geodesic_affine);
+            phi_offset = get_geodesic_phi_intersection(current_geodesic_path);
         }
 
         if(!taking_screenshot)
@@ -1696,6 +1711,7 @@ int main()
             init_args.push_back(width);
             init_args.push_back(height);
             init_args.push_back(isnap);
+            init_args.push_back(phi_offset);
 
             clctx.cqueue.exec("init_rays_generic", init_args, {width, height}, {16, 16});
 
