@@ -1908,7 +1908,7 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
         at_metric.w = -at_metric.w;
         sVy = -sVy;
     }*/
-    float4 polar_x = -generic_velocity_to_spherical_velocity(at_metric, sVx);
+    float4 polar_x = generic_velocity_to_spherical_velocity(at_metric, sVx);
     float4 polar_y = generic_velocity_to_spherical_velocity(at_metric, sVy);
     float4 polar_z = -generic_velocity_to_spherical_velocity(at_metric, sVz);
 
@@ -1924,10 +1924,16 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
 
     float4 phi_quat = aa_to_quat((float3)(0, 0, 1), (-polar_camera_in.w));
     float4 point_at_wormhole_phi = aa_to_quat((float3)(0, 0, 1), +M_PI/2);
+    float4 global_offset = aa_to_quat((float3)(0, 0, 1), M_PI/16);
 
     if(polar_camera_in.y < 0)
     {
         //phi_quat = aa_to_quat((float3)(0, 0, 1), -(-polar_camera_in.w - M_PI/2));
+        //phi_quat = aa_to_quat((float3)(0, 0, 1), -polar_camera_in.w);
+        //phi_quat = aa_to_quat((float3)(0, 0, 1), -polar_camera_in.w);
+        phi_quat = aa_to_quat((float3)(0, 0, 1), polar_camera_in.w);
+        point_at_wormhole_phi = aa_to_quat((float3)(0, 0, 1), -M_PI/2);
+        global_offset = aa_to_quat((float3)(0, 0, 1), -M_PI/16);
     }
 
     /*float4 theta_quat = aa_to_quat((float3)(0, 1, 0), polar_camera_in.z - M_PI/2);
@@ -1941,6 +1947,7 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
     pixel_direction = rot_quat(pixel_direction, polar_quat);
     pixel_direction = rot_quat(pixel_direction, phi_quat);
     pixel_direction = rot_quat(pixel_direction, point_at_wormhole_phi);
+    pixel_direction = rot_quat(pixel_direction, global_offset);
 
 
     //pixel_direction = rot_quat(pixel_direction, theta_quat);
