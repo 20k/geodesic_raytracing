@@ -1768,6 +1768,13 @@ struct mat3f quat_to_mat(float4 quat)
     return m;
 };
 
+float cos_mix(float x1, float x2, float f)
+{
+    float f2 = (1 - cos(f * M_PI))/2.f;
+
+    return mix(x1, x2, f2);
+}
+
 __kernel
 void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global struct lightray* metric_rays, __global int* metric_ray_count, int width, int height, int flip_geodesic_direction, float2 angle_offset)
 {
@@ -1944,7 +1951,7 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
         theta_quat = aa_to_quat((float3)(0, 1, 0), (polar_camera_in.z - M_PI/2));
     }*/
 
-    float base_angle = mix(M_PI/2, angle_offset.x, clamp(1 - fabs(polar_camera_in.y), 0.f, 1.f));
+    float base_angle = cos_mix(M_PI/2, angle_offset.x, clamp(1 - fabs(polar_camera_in.y), 0.f, 1.f));
 
     float4 theta_quat = aa_to_quat((float3)(0, 1, 0), -polar_camera_in.z + base_angle);
 
