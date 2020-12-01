@@ -1668,106 +1668,6 @@ float4 euler_to_polar_quaternion(float2 angles)
     return quat_multiply(q1, q2);
 }
 
-struct mat3f
-{
-    float v[9];
-};
-
-///i really hate C
-///https://stackoverflow.com/questions/983999/simple-3x3-matrix-inverse-code-c
-struct mat3f matrix_3x3_invert(struct mat3f m)
-{
-    float m00 = m.v[0 * 3 + 0];
-    float m01 = m.v[0 * 3 + 1];
-    float m02 = m.v[0 * 3 + 2];
-    float m10 = m.v[1 * 3 + 0];
-    float m11 = m.v[1 * 3 + 1];
-    float m12 = m.v[1 * 3 + 2];
-    float m20 = m.v[2 * 3 + 0];
-    float m21 = m.v[2 * 3 + 1];
-    float m22 = m.v[2 * 3 + 2];
-
-    float det = m.v[0 * 3 + 0] * (m.v[1 * 3 + 1] * m.v[2 * 3 + 2] - m.v[2 * 3 + 1] * m.v[1 * 3 + 2]) -
-             m.v[0 * 3 + 1] * (m.v[1 * 3 + 0] * m.v[2 * 3 + 2] - m.v[1 * 3 + 2] * m.v[2 * 3 + 0]) +
-             m.v[0 * 3 + 2] * (m.v[1 * 3 + 0] * m.v[2 * 3 + 1] - m.v[1 * 3 + 1] * m.v[2 * 3 + 0]);
-
-    float invdet = 1 / det;
-
-    struct mat3f o;
-
-    o.v[0 * 3 + 0] = (m.v[1 * 3 + 1] * m.v[2 * 3 + 2] - m.v[2 * 3 + 1] * m.v[1 * 3 + 2]) * invdet;
-    o.v[0 * 3 + 1] = (m.v[0 * 3 + 2] * m.v[2 * 3 + 1] - m.v[0 * 3 + 1] * m.v[2 * 3 + 2]) * invdet;
-    o.v[0 * 3 + 2] = (m.v[0 * 3 + 1] * m.v[1 * 3 + 2] - m.v[0 * 3 + 2] * m.v[1 * 3 + 1]) * invdet;
-    o.v[1 * 3 + 0] = (m.v[1 * 3 + 2] * m.v[2 * 3 + 0] - m.v[1 * 3 + 0] * m.v[2 * 3 + 2]) * invdet;
-    o.v[1 * 3 + 1] = (m.v[0 * 3 + 0] * m.v[2 * 3 + 2] - m.v[0 * 3 + 2] * m.v[2 * 3 + 0]) * invdet;
-    o.v[1 * 3 + 2] = (m.v[1 * 3 + 0] * m.v[0 * 3 + 2] - m.v[0 * 3 + 0] * m.v[1 * 3 + 2]) * invdet;
-    o.v[2 * 3 + 0] = (m.v[1 * 3 + 0] * m.v[2 * 3 + 1] - m.v[2 * 3 + 0] * m.v[1 * 3 + 1]) * invdet;
-    o.v[2 * 3 + 1] = (m.v[2 * 3 + 0] * m.v[0 * 3 + 1] - m.v[0 * 3 + 0] * m.v[2 * 3 + 1]) * invdet;
-    o.v[2 * 3 + 2] = (m.v[0 * 3 + 0] * m.v[1 * 3 + 1] - m.v[1 * 3 + 0] * m.v[0 * 3 + 1]) * invdet;
-
-    return o;
-}
-
-///I don't know if I already mentioned how much I dislike C
-float3 matrix_3x3_contract(struct mat3f m, float3 vec)
-{
-    float3 ret;
-
-    ret.x = m.v[0] * vec.x + m.v[1] * vec.y + m.v[2] * vec.z;
-    ret.y = m.v[3] * vec.x + m.v[4] * vec.y + m.v[5] * vec.z;
-    ret.z = m.v[6] * vec.x + m.v[7] * vec.y + m.v[8] * vec.z;
-
-    return ret;
-}
-
-struct mat3f matrix_3x3_multiply(struct mat3f mat, struct mat3f mat2)
-{
-    struct mat3f o;
-
-    for(int j=0; j < 3; j++)
-    {
-        for(int i=0; i < 3; i++)
-        {
-            float sum = 0;
-
-            for(int k=0; k < 3; k++)
-            {
-                sum += mat.v[i * 3 + k] * mat2.v[k * 3 + j];
-            }
-
-            o.v[i * 3 + j] = sum;
-        }
-    }
-
-    return o;
-}
-
-struct mat3f quat_to_mat(float4 quat)
-{
-    struct mat3f m;
-
-    float qx2 = quat.x * quat.x;
-    float qy2 = quat.y * quat.y;
-    float qz2 = quat.z * quat.z;
-
-    float qy = quat.y;
-    float qx = quat.x;
-    float qz = quat.z;
-    float qw = quat.w;
-
-    m.v[0] = 1 - 2 * qy2 - 2 * qz2;
-    m.v[1] = 2 * qx * qy - 2 * qz * qw;
-    m.v[2] = 2 * qx * qz + 2 * qy * qw;
-    m.v[3] = 2 * qx * qy + 2 * qz * qw;
-    m.v[4] = 1 - 2 * qx2 - 2 * qz2;
-    m.v[5] = 2 * qy * qz - 2 * qx * qw;
-    m.v[6] = 2 * qx * qz - 2 * qy * qw;
-    m.v[7] = 2 * qy * qz + 2 * qx * qw;
-    m.v[8] = 1 - 2 * qx2 - 2 * qy2;
-
-    return m;
-};
-
 float cos_mix(float x1, float x2, float f)
 {
     float f2 = (1 - cos(f * M_PI))/2.f;
@@ -1910,19 +1810,9 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
     ///the entire problem here is handedness, and the trouble's with correctly defining what I want
     ///sit down and figure it
     #if 1
-    /*if(polar_camera_in.y < 0)
-    {
-        at_metric.w = -at_metric.w;
-        sVy = -sVy;
-    }*/
     float4 polar_x = generic_velocity_to_spherical_velocity(at_metric, sVx);
     float4 polar_y = generic_velocity_to_spherical_velocity(at_metric, sVy);
     float4 polar_z = -generic_velocity_to_spherical_velocity(at_metric, sVz);
-
-    if(polar_camera_in.y < 0)
-    {
-        //polar_y = -polar_y;
-    }
 
     pixel_direction = (float3){nonphysical_f_stop, cx - width/2, cy - height/2};
     pixel_direction = normalize(pixel_direction);
@@ -1935,21 +1825,11 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
 
     if(polar_camera_in.y < 0)
     {
-        //phi_quat = aa_to_quat((float3)(0, 0, 1), -(-polar_camera_in.w - M_PI/2));
-        //phi_quat = aa_to_quat((float3)(0, 0, 1), -polar_camera_in.w);
-        //phi_quat = aa_to_quat((float3)(0, 0, 1), -polar_camera_in.w);
         phi_quat = aa_to_quat((float3)(0, 0, 1), polar_camera_in.w);
         point_at_wormhole_phi = aa_to_quat((float3)(0, 0, 1), -M_PI/2);
         global_offset = aa_to_quat((float3)(0, 0, 1), -(angle_offset.y + M_PI/2));
     }
 
-    /*float4 theta_quat = aa_to_quat((float3)(0, 1, 0), -(polar_camera_in.z - M_PI/2));
-
-    if(polar_camera_in.y < 0)
-    {
-        //theta_quat = -theta_quat;
-        theta_quat = aa_to_quat((float3)(0, 1, 0), (polar_camera_in.z - M_PI/2));
-    }*/
 
     float base_angle = cos_mix(M_PI/2, angle_offset.x, clamp(1 - fabs(polar_camera_in.y), 0.f, 1.f));
 
@@ -2040,29 +1920,6 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
         #endif // GENERIC_BIG_METRIC
     }
     #endif // 0
-
-    /*if(polar_camera_in.y < 0)
-    {
-        lightray_velocity.w = -lightray_velocity.w;
-        lightray_acceleration.w = -lightray_acceleration.w;
-    }*/
-
-    //if(cx == 500 && cy == 400)
-    //    printf("Posr %f %f %f\n", polar_camera.y, polar_camera.z, polar_camera.w);
-    //    printf("DS %f\n", dot_product_big(lightray_velocity, lightray_velocity, g_metric_big));
-
-    /*if(polar_camera_in.y < 0)
-    {
-        lightray_velocity.w = -lightray_velocity.w;
-        lightray_spacetime_position.w = -lightray_spacetime_position.w;
-        lightray_acceleration.w = -lightray_acceleration.w;
-    }*/
-
-    /*if(polar_camera_in.y < 0)
-    {
-        lightray_velocity.w = -lightray_velocity.w;
-        lightray_acceleration.w = -lightray_acceleration.w;
-    }*/
 
     struct lightray ray;
     ray.sx = cx;
