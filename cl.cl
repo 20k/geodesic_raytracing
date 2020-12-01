@@ -1810,9 +1810,10 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
     ///the entire problem here is handedness, and the trouble's with correctly defining what I want
     ///sit down and figure it
     #if 1
+
     float4 polar_x = generic_velocity_to_spherical_velocity(at_metric, sVx);
     float4 polar_y = generic_velocity_to_spherical_velocity(at_metric, sVy);
-    float4 polar_z = -generic_velocity_to_spherical_velocity(at_metric, sVz);
+    float4 polar_z = generic_velocity_to_spherical_velocity(at_metric, sVz);
 
     pixel_direction = (float3){nonphysical_f_stop, cx - width/2, cy - height/2};
     pixel_direction = normalize(pixel_direction);
@@ -1830,14 +1831,13 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
         global_offset = aa_to_quat((float3)(0, 0, 1), -(angle_offset.y + M_PI/2));
     }
 
-
     float base_angle = cos_mix(M_PI/2, angle_offset.x, clamp(1 - fabs(polar_camera_in.y), 0.f, 1.f));
 
-    float4 theta_quat = aa_to_quat((float3)(0, 1, 0), -polar_camera_in.z + base_angle);
+    float4 theta_quat = aa_to_quat((float3)(0, 1, 0), polar_camera_in.z - base_angle);
 
     if(polar_camera_in.y < 0)
     {
-        theta_quat = aa_to_quat((float3)(0, 1, 0), -(-polar_camera_in.z + base_angle));
+        theta_quat = aa_to_quat((float3)(0, 1, 0), -(polar_camera_in.z - base_angle));
     }
 
     pixel_direction = rot_quat(pixel_direction, polar_quat);
