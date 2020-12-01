@@ -1936,21 +1936,20 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
         global_offset = aa_to_quat((float3)(0, 0, 1), -(phi_offset + M_PI/2));
     }
 
-    /*float4 theta_quat = aa_to_quat((float3)(0, 1, 0), polar_camera_in.z - M_PI/2);
+    float4 theta_quat = aa_to_quat((float3)(0, 1, 0), -(polar_camera_in.z - M_PI/2));
 
     if(polar_camera_in.y < 0)
     {
         //theta_quat = -theta_quat;
-        theta_quat = aa_to_quat((float3)(0, 1, 0), -(polar_camera_in.z - M_PI/2));
-    }*/
+        theta_quat = aa_to_quat((float3)(0, 1, 0), (polar_camera_in.z - M_PI/2));
+    }
 
     pixel_direction = rot_quat(pixel_direction, polar_quat);
+    pixel_direction = rot_quat(pixel_direction, theta_quat);
+
     pixel_direction = rot_quat(pixel_direction, phi_quat);
     pixel_direction = rot_quat(pixel_direction, point_at_wormhole_phi);
     pixel_direction = rot_quat(pixel_direction, global_offset);
-
-
-    //pixel_direction = rot_quat(pixel_direction, theta_quat);
 
     pixel_direction = normalize(pixel_direction);
     float4 pixel_x = pixel_direction.x * polar_x;
