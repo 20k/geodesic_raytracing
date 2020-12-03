@@ -1663,6 +1663,7 @@ float4 euler_to_quaternion(float2 angles)
 float4 euler_to_polar_quaternion(float2 angles)
 {
     float4 q1 = aa_to_quat((float3){0, 0, 1}, angles.y);
+
     float4 q2 = aa_to_quat((float3){0, 1, 0}, -angles.x);
 
     return quat_multiply(q1, q2);
@@ -1840,16 +1841,18 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
         theta_quat = aa_to_quat((float3)(0, 1, 0), -(polar_camera_in.z - base_angle));
     }
 
+
+    //float4 full_phi_quat = quat_multiply(quat_multiply(phi_quat, point_at_wormhole_phi), global_offset);
+
     pixel_direction = rot_quat(pixel_direction, polar_quat);
 
-    float4 full_phi_quat = quat_multiply(quat_multiply(phi_quat, point_at_wormhole_phi), global_offset);
-
-    /*pixel_direction = rot_quat(pixel_direction, phi_quat);
+    pixel_direction = rot_quat(pixel_direction, phi_quat);
     pixel_direction = rot_quat(pixel_direction, point_at_wormhole_phi);
-    pixel_direction = rot_quat(pixel_direction, global_offset);*/
+    pixel_direction = rot_quat(pixel_direction, global_offset);
 
-    pixel_direction = rot_quat(pixel_direction, full_phi_quat);
+    //pixel_direction = rot_quat(pixel_direction, full_phi_quat);
     pixel_direction = rot_quat(pixel_direction, theta_quat);
+
 
     pixel_direction = normalize(pixel_direction);
     float4 pixel_x = pixel_direction.x * polar_x;

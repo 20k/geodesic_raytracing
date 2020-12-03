@@ -1134,10 +1134,10 @@ int main()
 
     //auto current_metric = symmetric_warp_obj;
     //auto current_metric = kerr_obj;
-    auto current_metric = alcubierre_metric_obj;
+    //auto current_metric = alcubierre_metric_obj;
     //auto current_metric = kerr_newman_obj;
     //auto current_metric = kerr_schild_obj;
-    //auto current_metric = simple_wormhole;
+    auto current_metric = simple_wormhole;
     //auto current_metric = schwarzs_polar;
     //auto current_metric = minkowski_polar_obj;
     //auto current_metric = krasnikov_tube_cart_obj;
@@ -1348,7 +1348,7 @@ int main()
     float current_geodesic_time = 0;
     bool camera_on_geodesic = false;
     bool camera_time_progresses = false;
-    vec2f angle_offset = {M_PI/2,0};
+    vec2f angle_offset = {0,0};
 
     vec2f camera_euler = {0,0};
 
