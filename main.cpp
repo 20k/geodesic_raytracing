@@ -926,6 +926,16 @@ std::array<dual, 4> test_metric(dual t, dual p, dual theta, dual phi)
 
 #define GENERIC_METRIC
 
+int positive_signum(float val)
+{
+    int sign = signum(val);
+
+    if(sign == 0)
+        return 1;
+
+    return sign;
+}
+
 vec4f interpolate_geodesic(const std::vector<cl_float4>& geodesic, float coordinate_time, const std::vector<cl_float4>& v, const std::vector<cl_float>& affine)
 {
     for(int i=0; i < (int)geodesic.size() - 1; i++)
@@ -975,7 +985,7 @@ vec2f get_geodesic_intersection(const std::vector<cl_float4>& geodesic)
 {
     for(int i=0; i < (int)geodesic.size() - 1; i++)
     {
-        if(signum(geodesic[i].s[1]) != signum(geodesic[i + 1].s[1]))
+        if(positive_signum(geodesic[i].s[1]) != positive_signum(geodesic[i + 1].s[1]))
         {
             return {geodesic[i].s[2], geodesic[i].s[3]};
         }
@@ -1140,10 +1150,10 @@ int main()
 
     //auto current_metric = symmetric_warp_obj;
     //auto current_metric = kerr_obj;
-    //auto current_metric = alcubierre_metric_obj;
+    auto current_metric = alcubierre_metric_obj;
     //auto current_metric = kerr_newman_obj;
     //auto current_metric = kerr_schild_obj;
-    auto current_metric = simple_wormhole;
+    //auto current_metric = simple_wormhole;
     //auto current_metric = schwarzs_polar;
     //auto current_metric = minkowski_polar_obj;
     //auto current_metric = krasnikov_tube_cart_obj;
@@ -1695,6 +1705,8 @@ int main()
             if(should_snapshot_geodesic)
             {
                 int idx = (height/2) * width + width/2;
+
+                geodesic_trace_buffer.set_to_zero(clctx.cqueue);
 
                 cl::args snapshot_args;
                 snapshot_args.push_back(*b1);
