@@ -1005,11 +1005,11 @@ quat euler_to_polar_quaternion(vec2f angles, vec3f right, vec3f up)
     return q1 * q2;
 }
 
-metric::coordinate_space<polar_to_polar, polar_to_polar> polar_coordinates({0, 0, 1}, {0, 1, 0});
-metric::coordinate_space<lemaitre_to_polar, polar_to_lemaitre> lemaitre_coordinates({0, 0, 1}, {0, 1, 0});
-metric::coordinate_space<cartesian_to_polar_dual, polar_to_cartesian_dual> cartesian_coordinates({1, 0, 0}, {0, 1, 0});
-metric::coordinate_space<rational_to_polar, polar_to_rational> rational_coordinates({0, 0, 1}, {0, 1, 0});
-metric::coordinate_space<cylindrical_to_polar, polar_to_cylindrical> cylindrical_coordinates({0, 0, 1}, {0, 1, 0});
+metric::coordinate_space<polar_to_polar, polar_to_polar> polar_coordinates({0, 0, 1}, {0, 1, 0}, {1, 0, 0});
+metric::coordinate_space<lemaitre_to_polar, polar_to_lemaitre> lemaitre_coordinates({0, 0, 1}, {0, 1, 0}, {1, 0, 0});
+metric::coordinate_space<cartesian_to_polar_dual, polar_to_cartesian_dual> cartesian_coordinates({1, 0, 0}, {0, 1, 0}, {0, 0, 1});
+metric::coordinate_space<rational_to_polar, polar_to_rational> rational_coordinates({0, 0, 1}, {0, 1, 0}, {1, 0, 0});
+metric::coordinate_space<cylindrical_to_polar, polar_to_cylindrical> cylindrical_coordinates({0, 0, 1}, {0, 1, 0}, {1, 0, 0});
 
 ///i need the ability to have dynamic parameters
 int main()

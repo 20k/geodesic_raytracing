@@ -21,8 +21,9 @@ namespace metric
 
         vec3f up;
         vec3f right;
+        vec3f forward;
 
-        coordinate_space(vec3f _up, vec3f _right) : up(_up), right(_right) {}
+        coordinate_space(vec3f _up, vec3f _right, vec3f _forward) : up(_up), right(_right), forward(_forward) {}
     };
 
     template<auto T, auto distance_function, auto& U>
