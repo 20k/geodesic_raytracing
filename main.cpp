@@ -981,7 +981,7 @@ vec2f get_geodesic_intersection(const std::vector<cl_float4>& geodesic)
         }
     }
 
-    return {0, 0};
+    return {M_PI/2, 0};
 }
 
 quat euler_to_polar_quaternion(vec2f angles, vec3f right, vec3f up)
