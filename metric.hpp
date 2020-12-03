@@ -13,9 +13,23 @@ namespace metric
         OTHER
     };
 
-    template<auto T, auto U, auto V, auto distance_function>
+    template<auto T, auto U>
+    struct coordinate_space
+    {
+        decltype(T) to_polar = T;
+        decltype(U) from_polar = U;
+
+        vec3f right;
+        vec3f up;
+
+        coordinate_space(vec3f _right, vec3f _up) : right(_right), up(_up){}
+    };
+
+    template<auto T, auto distance_function, auto& U>
     struct metric
     {
+        decltype(U) space = U;
+
         std::string name;
 
         bool singular = false;
@@ -44,9 +58,9 @@ namespace metric
         bool redshift = false;
     };
 
-    template<auto T, auto U, auto V, auto distance_function>
+    template<auto T, auto distance_function, auto& U>
     inline
-    std::string build_argument_string(const metric<T, U, V, distance_function>& in, const config& cfg)
+    std::string build_argument_string(const metric<T, distance_function, U>& in, const config& cfg)
     {
         std::string argument_string = " -DRS_IMPL=1 -DC_IMPL=1 ";
 
@@ -105,8 +119,8 @@ namespace metric
         }
 
         {
-            auto [to_polar, dt_to_spherical] = total_diff(U, "v1", "v2", "v3", "v4");
-            auto [from_polar, dt_from_spherical] = total_diff(V, "v1", "v2", "v3", "v4");
+            auto [to_polar, dt_to_spherical] = total_diff(in.space.to_polar, "v1", "v2", "v3", "v4");
+            auto [from_polar, dt_from_spherical] = total_diff(in.space.from_polar, "v1", "v2", "v3", "v4");
 
             for(int i=0; i < to_polar.size(); i++)
             {

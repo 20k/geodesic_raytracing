@@ -995,6 +995,12 @@ quat euler_to_polar_quaternion(vec2f angles)
     return q1 * q2;
 }
 
+metric::coordinate_space<polar_to_polar, polar_to_polar> polar_coordinates({0, 0, 1}, {0, 1, 0});
+metric::coordinate_space<lemaitre_to_polar, polar_to_lemaitre> lemaitre_coordinates({0, 0, 1}, {0, 1, 0});
+metric::coordinate_space<cartesian_to_polar_dual, polar_to_cartesian_dual> cartesian_coordinates({1, 0, 0}, {0, 1, 0});
+metric::coordinate_space<rational_to_polar, polar_to_rational> rational_coordinates({0, 0, 1}, {0, 1, 0});
+metric::coordinate_space<cylindrical_to_polar, polar_to_cylindrical> cylindrical_coordinates({0, 0, 1}, {0, 1, 0});
+
 ///i need the ability to have dynamic parameters
 int main()
 {
@@ -1015,12 +1021,12 @@ int main()
     #if 1
     #ifdef GENERIC_METRIC
 
-    metric::metric<schwarzschild_blackhole, polar_to_polar, polar_to_polar, at_origin> schwarzs_polar;
+    metric::metric<schwarzschild_blackhole, at_origin, polar_coordinates> schwarzs_polar;
     schwarzs_polar.name = "schwarzschild";
     schwarzs_polar.singular = true;
     //schwarzs_polar.adaptive_precision = false;
 
-    metric::metric<schwarzschild_blackhole_lemaitre, lemaitre_to_polar, polar_to_lemaitre, at_origin> schwarzs_lemaitre;
+    metric::metric<schwarzschild_blackhole_lemaitre, at_origin, lemaitre_coordinates> schwarzs_lemaitre;
     schwarzs_lemaitre.name = "schwarzs_lemaitre";
     //schwarzs_lemaitre.singular = true;
     //schwarzs_lemaitre.traversible_event_horizon = true;
@@ -1033,93 +1039,93 @@ int main()
     //schwarzs_lemaitre.system = metric::coordinate_system::OTHER;
     //schwarzs_lemaitre.detect_singularities = true;
 
-    metric::metric<schwarzschild_eddington_finkelstein_outgoing, outgoing_eddington_finkelstein_to_polar, polar_to_outgoing_eddington_finkelstein, at_origin> schwarzschild_ef_outgoing;
+    /*metric::metric<schwarzschild_eddington_finkelstein_outgoing, outgoing_eddington_finkelstein_to_polar, polar_to_outgoing_eddington_finkelstein, at_origin> schwarzschild_ef_outgoing;
     schwarzschild_ef_outgoing.name = "schwarzs_ef_out";
     schwarzschild_ef_outgoing.adaptive_precision = true;
     schwarzschild_ef_outgoing.singular = true;
     schwarzschild_ef_outgoing.singular_terminator = 0.5;
-    schwarzschild_ef_outgoing.traversable_event_horizon = true;
+    schwarzschild_ef_outgoing.traversable_event_horizon = true;*/
 
-    metric::metric<traversible_wormhole, polar_to_polar, polar_to_polar, at_origin> simple_wormhole;
+    metric::metric<traversible_wormhole, at_origin, polar_coordinates> simple_wormhole;
     simple_wormhole.name = "wormhole";
     simple_wormhole.adaptive_precision = false;
 
-    metric::metric<cosmic_string, polar_to_polar, polar_to_polar, at_origin> cosmic_string_obj;
+    metric::metric<cosmic_string, at_origin, polar_coordinates> cosmic_string_obj;
     cosmic_string_obj.name = "cosmic_string";
     cosmic_string_obj.adaptive_precision = true;
     cosmic_string_obj.detect_singularities = true;
 
     ///todo: i forgot what this is and what parameters it might need
-    metric::metric<ernst_metric, polar_to_polar, polar_to_polar, at_origin> ernst_metric_obj;
+    metric::metric<ernst_metric, at_origin, polar_coordinates> ernst_metric_obj;
     ernst_metric_obj.name = "ernst";
     ernst_metric_obj.adaptive_precision = true;
     ernst_metric_obj.detect_singularities = true;
 
-    metric::metric<janis_newman_winicour, polar_to_polar, polar_to_polar, at_origin> janis_newman_winicour_obj;
+    metric::metric<janis_newman_winicour, at_origin, polar_coordinates> janis_newman_winicour_obj;
     janis_newman_winicour_obj.name = "janis_newman_winicour";
     janis_newman_winicour_obj.detect_singularities = false;
 
-    metric::metric<ellis_drainhole, polar_to_polar, polar_to_polar, at_origin> ellis_drainhole_obj;
+    metric::metric<ellis_drainhole, at_origin, polar_coordinates> ellis_drainhole_obj;
     ellis_drainhole_obj.name = "ellis_drainhole";
     ellis_drainhole_obj.adaptive_precision = false;
 
     ///kerr family
-    metric::metric<kerr_metric, polar_to_polar, polar_to_polar, at_origin> kerr_obj;
+    metric::metric<kerr_metric, at_origin, polar_coordinates> kerr_obj;
     kerr_obj.name = "kerr_boyer";
     kerr_obj.adaptive_precision = true;
     //kerr_obj.detect_singularities = true;
 
-    metric::metric<kerr_newman, polar_to_polar, polar_to_polar, at_origin> kerr_newman_obj;
+    metric::metric<kerr_newman, at_origin, polar_coordinates> kerr_newman_obj;
     kerr_newman_obj.name = "kerrnewman_boyer";
     kerr_newman_obj.adaptive_precision = true;
     //kerr_newman_obj.detect_singularities = true;
 
-    metric::metric<kerr_schild_metric, cartesian_to_polar_dual, polar_to_cartesian_dual, at_origin> kerr_schild_obj;
+    metric::metric<kerr_schild_metric, at_origin, cartesian_coordinates> kerr_schild_obj;
     kerr_schild_obj.name = "kerr_schild";
     kerr_schild_obj.adaptive_precision = true;
     kerr_schild_obj.detect_singularities = true;
     kerr_schild_obj.system = metric::coordinate_system::CARTESIAN;
 
-    metric::metric<kerr_rational_polynomial, rational_to_polar, polar_to_rational, at_origin> kerr_rational_polynomial_obj;
+    metric::metric<kerr_rational_polynomial, at_origin, rational_coordinates> kerr_rational_polynomial_obj;
     kerr_rational_polynomial_obj.name = "kerr_rational_poly";
     kerr_rational_polynomial_obj.adaptive_precision = true;
     kerr_rational_polynomial_obj.detect_singularities = true;
 
-    metric::metric<de_sitter, polar_to_polar, polar_to_polar, at_origin> de_sitter_obj;
+    metric::metric<de_sitter, at_origin, polar_coordinates> de_sitter_obj;
     de_sitter_obj.name = "desitter";
     de_sitter_obj.adaptive_precision = false;
 
-    metric::metric<minkowski_space, cartesian_to_polar_dual, polar_to_cartesian_dual, at_origin> minkowski_space_obj;
+    metric::metric<minkowski_space, at_origin, cartesian_coordinates> minkowski_space_obj;
     minkowski_space_obj.name = "minkowski";
     minkowski_space_obj.adaptive_precision = false;
     minkowski_space_obj.system = metric::coordinate_system::CARTESIAN;
 
-    metric::metric<minkowski_polar, polar_to_polar, polar_to_polar, at_origin> minkowski_polar_obj;
+    metric::metric<minkowski_polar, at_origin, polar_coordinates> minkowski_polar_obj;
     minkowski_space_obj.name = "minkowski_polar";
     minkowski_space_obj.adaptive_precision = false;
 
-    metric::metric<minkowski_cylindrical, cylindrical_to_polar, polar_to_cylindrical, at_origin> minkowski_cylindrical_obj;
+    metric::metric<minkowski_cylindrical, at_origin, cylindrical_coordinates> minkowski_cylindrical_obj;
     minkowski_cylindrical_obj.name = "minkowski_cylindrical";
     minkowski_cylindrical_obj.adaptive_precision = false;
     minkowski_cylindrical_obj.system = metric::coordinate_system::OTHER;
 
-    metric::metric<alcubierre_metric, cartesian_to_polar_dual, polar_to_cartesian_dual, alcubierre_distance> alcubierre_metric_obj;
+    metric::metric<alcubierre_metric, alcubierre_distance, cartesian_coordinates> alcubierre_metric_obj;
     alcubierre_metric_obj.name = "alcubierre";
     alcubierre_metric_obj.system = metric::coordinate_system::CARTESIAN;
 
-    metric::metric<symmetric_warp_drive, polar_to_polar, polar_to_polar, at_origin> symmetric_warp_obj;
+    metric::metric<symmetric_warp_drive, at_origin, polar_coordinates> symmetric_warp_obj;
     symmetric_warp_obj.name = "symmetric_warp";
     symmetric_warp_obj.detect_singularities = true;
     symmetric_warp_obj.singular = true;
     symmetric_warp_obj.singular_terminator = 1.001f;
     //symmetric_warp_obj.adaptive_precision = false;
 
-    metric::metric<krasnikov_tube_metric, cylindrical_to_polar, polar_to_cylindrical, at_origin> krasnikov_tube_obj;
+    metric::metric<krasnikov_tube_metric, at_origin, cylindrical_coordinates> krasnikov_tube_obj;
     krasnikov_tube_obj.name = "krasnikov_tube";
     krasnikov_tube_obj.adaptive_precision = true;
     krasnikov_tube_obj.system = metric::coordinate_system::OTHER;
 
-    metric::metric<krasnikov_tube_metric_cart, cartesian_to_polar_dual, polar_to_cartesian_dual, at_origin> krasnikov_tube_cart_obj;
+    metric::metric<krasnikov_tube_metric_cart, at_origin, cartesian_coordinates> krasnikov_tube_cart_obj;
     krasnikov_tube_cart_obj.name = "krasnikov_tube_cart";
     krasnikov_tube_cart_obj.adaptive_precision = true;
     krasnikov_tube_cart_obj.system = metric::coordinate_system::CARTESIAN;
