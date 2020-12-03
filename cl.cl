@@ -1820,13 +1820,11 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     pixel_direction = normalize(pixel_direction);
 
     float4 phi_quat = aa_to_quat((float3)(0, 0, 1), (-polar_camera_in.w));
-    float4 point_at_wormhole_phi = aa_to_quat((float3)(0, 0, 1), +M_PI/2);
     float4 global_offset = aa_to_quat((float3)(0, 0, 1), angle_offset.y);
 
     if(polar_camera_in.y < 0)
     {
         phi_quat = aa_to_quat((float3)(0, 0, 1), polar_camera_in.w);
-        point_at_wormhole_phi = aa_to_quat((float3)(0, 0, 1), -M_PI/2);
         global_offset = aa_to_quat((float3)(0, 0, 1), -(angle_offset.y));
     }
 
@@ -1840,12 +1838,9 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     }
 
 
-    //float4 full_phi_quat = quat_multiply(quat_multiply(phi_quat, point_at_wormhole_phi), global_offset);
-
     pixel_direction = rot_quat(pixel_direction, camera_quat);
 
     pixel_direction = rot_quat(pixel_direction, phi_quat);
-    //pixel_direction = rot_quat(pixel_direction, point_at_wormhole_phi);
     pixel_direction = rot_quat(pixel_direction, global_offset);
 
     pixel_direction = rot_quat(pixel_direction, theta_quat);
