@@ -1474,33 +1474,19 @@ int main()
 
         if(ImGui::IsKeyDown(GLFW_KEY_RIGHT))
         {
-            mat3f m = mat3f().ZRot(-M_PI/128);
-
             quat q;
-            q.load_from_matrix(m);
-
-            quat qi;
-            qi.load_from_axis_angle({0, 0, 1, -M_PI/128});
+            q.load_from_axis_angle({0, 0, 1, -M_PI/128});
 
             camera_quat = q * camera_quat;
-            camera_quati = qi * camera_quati;
-
             camera_euler.y() += M_PI/128;
         }
 
         if(ImGui::IsKeyDown(GLFW_KEY_LEFT))
         {
-            mat3f m = mat3f().ZRot(M_PI/128);
-
             quat q;
-            q.load_from_matrix(m);
-
-            quat qi;
-            qi.load_from_axis_angle({0, 0, 1, M_PI/128});
+            q.load_from_axis_angle({0, 0, 1, M_PI/128});
 
             camera_quat = q * camera_quat;
-            camera_quati = qi * camera_quati;
-
             camera_euler.y() += -M_PI/128;
         }
 
@@ -1511,24 +1497,16 @@ int main()
 
         vec3f up = {0, 0, -1};
         //vec3f right = rot_quat({1, 0, 0}, camera_quat);
-        vec3f righti = rot_quat({1, 0, 0}, camera_quati);
         //vec3f forward_axis = rot_quat({0, 0, 1}, camera_quat);
-        vec3f forward_axisi = rot_quat({0, 0, 1}, camera_quati);
-
-        vec3f right = rot_quat({1, 0, 0}, euler_to_polar_quaternion(camera_euler));
-        vec3f forward_axis = rot_quat({0, 0, 1}, euler_to_polar_quaternion(camera_euler));
+        vec3f right = rot_quat({0, 1, 0}, camera_quat);
+        vec3f forward_axis = rot_quat({1, 0, 0}, camera_quat);
 
         if(ImGui::IsKeyDown(GLFW_KEY_DOWN))
         {
             quat q;
             q.load_from_axis_angle({right.x(), right.y(), right.z(), M_PI/128});
 
-            quat qi;
-            qi.load_from_axis_angle({righti.x(), righti.y(), righti.z(), M_PI/128});
-
             camera_quat = q * camera_quat;
-            camera_quati = qi * camera_quati;
-
             camera_euler.x() -= M_PI/128;
         }
 
@@ -1536,12 +1514,8 @@ int main()
         {
             quat q;
             q.load_from_axis_angle({right.x(), right.y(), right.z(), -M_PI/128});
-            quat qi;
-            qi.load_from_axis_angle({righti.x(), righti.y(), righti.z(), -M_PI/128});
 
             camera_quat = q * camera_quat;
-            camera_quati = qi * camera_quati;
-
             camera_euler.x() += M_PI/128;
         }
 
