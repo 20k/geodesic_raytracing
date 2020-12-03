@@ -1348,7 +1348,7 @@ int main()
     float current_geodesic_time = 0;
     bool camera_on_geodesic = false;
     bool camera_time_progresses = false;
-    vec2f angle_offset = {0,0};
+    vec2f angle_offset = {M_PI/2,0};
 
     vec2f camera_euler = {0,0};
 
@@ -1557,6 +1557,8 @@ int main()
 
         vec4f scamera = cartesian_to_schwarz(camera);
 
+        quat camera_quat = euler_to_polar_quaternion(camera_euler);
+
         if(flip_sign)
         {
             scamera.y() = -scamera.y();
@@ -1700,12 +1702,7 @@ int main()
 
             cl::args init_args;
             init_args.push_back(scamera);
-
-            if(scamera.y() >= 0)
-                init_args.push_back(camera_euler);
-            else
-                init_args.push_back(camera_euler);
-
+            init_args.push_back(camera_quat);
             init_args.push_back(*b1);
             init_args.push_back(*c1);
             init_args.push_back(width);
@@ -1756,11 +1753,7 @@ int main()
             texture_args.push_back(width);
             texture_args.push_back(height);
             texture_args.push_back(scamera);
-
-            if(scamera.y() >= 0)
-                texture_args.push_back(camera_euler);
-            else
-                texture_args.push_back(camera_euler);
+            texture_args.push_back(camera_quat);
 
             clctx.cqueue.exec("calculate_texture_coordinates", texture_args, {width * height}, {256});
 

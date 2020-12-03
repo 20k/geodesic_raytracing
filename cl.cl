@@ -1677,7 +1677,7 @@ float cos_mix(float x1, float x2, float f)
 }
 
 __kernel
-void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global struct lightray* metric_rays, __global int* metric_ray_count, int width, int height, int flip_geodesic_direction, float2 angle_offset)
+void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global struct lightray* metric_rays, __global int* metric_ray_count, int width, int height, int flip_geodesic_direction, float2 angle_offset)
 {
     #define FOV 90
 
@@ -1689,7 +1689,7 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
     if(cx >= width || cy >= height)
         return;
 
-    float4 camera_quat = euler_to_quaternion(camera_euler);
+    //float4 camera_quat = euler_to_quaternion(camera_euler);
 
     float3 cartesian_camera_pos = polar_to_cartesian(polar_camera_in.yzw);
 
@@ -1819,8 +1819,6 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
     pixel_direction = (float3){nonphysical_f_stop, cx - width/2, cy - height/2};
     pixel_direction = normalize(pixel_direction);
 
-    float4 polar_quat = euler_to_polar_quaternion(camera_euler);
-
     float4 phi_quat = aa_to_quat((float3)(0, 0, 1), (-polar_camera_in.w));
     float4 point_at_wormhole_phi = aa_to_quat((float3)(0, 0, 1), +M_PI/2);
     float4 global_offset = aa_to_quat((float3)(0, 0, 1), angle_offset.y + M_PI/2);
@@ -1844,15 +1842,15 @@ void init_rays_generic(float4 polar_camera_in, float2 camera_euler, __global str
 
     //float4 full_phi_quat = quat_multiply(quat_multiply(phi_quat, point_at_wormhole_phi), global_offset);
 
-    pixel_direction = rot_quat(pixel_direction, polar_quat);
+    pixel_direction = rot_quat(pixel_direction, camera_quat);
 
     pixel_direction = rot_quat(pixel_direction, phi_quat);
     pixel_direction = rot_quat(pixel_direction, point_at_wormhole_phi);
     pixel_direction = rot_quat(pixel_direction, global_offset);
 
-    //pixel_direction = rot_quat(pixel_direction, full_phi_quat);
     pixel_direction = rot_quat(pixel_direction, theta_quat);
 
+    //pixel_direction = rot_quat(pixel_direction, full_phi_quat);
 
     pixel_direction = normalize(pixel_direction);
     float4 pixel_x = pixel_direction.x * polar_x;
@@ -3379,14 +3377,12 @@ void relauncher(__global struct lightray* schwarzs_rays_in, __global struct ligh
 }
 
 __kernel
-void calculate_texture_coordinates(__global struct lightray* finished_rays, __global int* finished_count_in, __global float2* texture_coordinates, int width, int height, float4 polar_camera_pos, float2 camera_euler)
+void calculate_texture_coordinates(__global struct lightray* finished_rays, __global int* finished_count_in, __global float2* texture_coordinates, int width, int height, float4 polar_camera_pos, float4 camera_quat)
 {
     int id = get_global_id(0);
 
     if(id >= *finished_count_in)
         return;
-
-    float4 camera_quat = euler_to_quaternion(camera_euler);
 
     struct lightray* ray = &finished_rays[id];
 
