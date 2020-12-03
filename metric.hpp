@@ -19,10 +19,10 @@ namespace metric
         decltype(T) to_polar = T;
         decltype(U) from_polar = U;
 
-        vec3f right;
         vec3f up;
+        vec3f right;
 
-        coordinate_space(vec3f _right, vec3f _up) : right(_right), up(_up){}
+        coordinate_space(vec3f _up, vec3f _right) : up(_up), right(_right) {}
     };
 
     template<auto T, auto distance_function, auto& U>

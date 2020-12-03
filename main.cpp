@@ -984,13 +984,13 @@ vec2f get_geodesic_intersection(const std::vector<cl_float4>& geodesic)
     return {0, 0};
 }
 
-quat euler_to_polar_quaternion(vec2f angles)
+quat euler_to_polar_quaternion(vec2f angles, vec3f right, vec3f up)
 {
     quat q1;
-    q1.load_from_axis_angle({0, 0, 1, angles.y()});
+    q1.load_from_axis_angle({up.x(), up.y(), up.z(), angles.y()});
 
     quat q2;
-    q2.load_from_axis_angle({0, 1, 0, -angles.x()});
+    q2.load_from_axis_angle({right.x(), right.y(), right.z(), -angles.x()});
 
     return q1 * q2;
 }
@@ -1537,7 +1537,7 @@ int main()
 
         vec4f scamera = cartesian_to_schwarz(camera);
 
-        quat camera_quat = euler_to_polar_quaternion(camera_euler);
+        quat camera_quat = euler_to_polar_quaternion(camera_euler, current_metric.space.right, current_metric.space.up);
 
         if(flip_sign)
         {
