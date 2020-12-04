@@ -1640,6 +1640,18 @@ float4 aa_to_quat(float3 axis, float angle)
     return normalize(q);
 }
 
+float4 quat_multiply(float4 q1, float4 q2)
+{
+    float4 ret;
+
+    ret.x = q1.w * q2.x + q1.x * q2.w + q1.y * q2.z - q1.z * q2.y;
+    ret.y = q1.w * q2.y + q1.y * q2.w + q1.z * q2.x - q1.x * q2.z;
+    ret.z = q1.w * q2.z + q1.z * q2.w + q1.x * q2.y - q1.y * q2.x;
+    ret.w = q1.w * q2.w - q1.x * q2.x - q1.y * q2.y - q1.z * q2.z;
+
+    return ret;
+}
+
 __kernel
 void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global struct lightray* metric_rays, __global int* metric_ray_count, int width, int height, int flip_geodesic_direction, float2 base_angle)
 {
@@ -1787,10 +1799,42 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
         //cartesian_cy = -cartesian_cy;
         global_offset = aa_to_quat((float3)(0, 0, 1), -base_angle.y);
 
-        float4 new_quat = aa_to_quat((float3)(0, 0, 1), polar_camera.w * 2);
-        //float4 new_quat = aa_to_quat((float3)(0, 0, 1), M_PI/3);
+        /*float4 new_quat = aa_to_quat((float3)(0, 0, 1), polar_camera.w);
+        //float4 new_thetaquat = aa_to_quat((float3)(1, 0, 0), polar_camera.z);
+
+        float3 right = rot_quat((float3)(1, 0, 0), camera_quat);
+
+        float4 new_thetaquat = aa_to_quat(right, polar_camera.z);
 
         pixel_direction = rot_quat(pixel_direction, new_quat);
+        pixel_direction = rot_quat(pixel_direction, new_thetaquat);*/
+
+        /*float4 new_quat = aa_to_quat((float3)(0, 0, 1), polar_camera.w*2);
+
+        pixel_direction = rot_quat(pixel_direction, new_quat);
+
+        float4 new_thetaquat = aa_to_quat(cartesian_cy, polar_camera.z*2);
+
+        pixel_direction = rot_quat(pixel_direction, new_thetaquat);*/
+
+        /*float4 new_thetaquat = aa_to_quat(cartesian_cx, polar_camera.z);
+        pixel_direction = rot_quat(pixel_direction, new_thetaquat);
+
+        float4 new_quat = aa_to_quat((float3)(0, 0, 1), polar_camera.w);
+        pixel_direction = rot_quat(pixel_direction, new_quat);*/
+
+
+        float4 new_thetaquat = aa_to_quat(normalize(cartesian_cy), -polar_camera.z + M_PI/2);
+
+        cartesian_cx = rot_quat(normalize(cartesian_cx), new_thetaquat);
+        cartesian_cy = rot_quat(normalize(cartesian_cy), new_thetaquat);
+        cartesian_cz = rot_quat(normalize(cartesian_cz), new_thetaquat);
+
+        float4 new_quat = aa_to_quat(normalize(cartesian_cx), polar_camera.w + M_PI/2);
+
+        cartesian_cx = rot_quat(normalize(cartesian_cx), new_quat);
+        cartesian_cy = rot_quat(normalize(cartesian_cy), new_quat);
+        cartesian_cz = rot_quat(normalize(cartesian_cz), new_quat);
     }
 
     pixel_direction = rot_quat(pixel_direction, global_offset);
