@@ -1652,6 +1652,13 @@ float4 quat_multiply(float4 q1, float4 q2)
     return ret;
 }
 
+float cos_mix(float x1, float x2, float f)
+{
+    float f2 = (1 - cos(f * M_PI))/2.f;
+
+    return mix(x1, x2, f2);
+}
+
 __kernel
 void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global struct lightray* metric_rays, __global int* metric_ray_count, int width, int height, int flip_geodesic_direction, float2 base_angle)
 {
@@ -1793,6 +1800,9 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     float3 cartesian_cz = spherical_velocity_to_cartesian_velocity(apolar, polar_z.yzw);
 
     float4 global_offset = aa_to_quat((float3)(0, 0, 1), base_angle.y);
+    float base_theta_angle = cos_mix(M_PI/2, base_angle.x, clamp(1 - fabs(polar_camera_in.y), 0.f, 1.f));
+
+    float4 global_theta_offset = aa_to_quat((float3)(1, 0, 0), base_theta_angle - M_PI/2);
 
     if(polar_camera.y < 0)
     {
@@ -1850,6 +1860,9 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     }
 
     pixel_direction = rot_quat(pixel_direction, global_offset);
+
+    ///the axis of rotation here isn't right
+    //pixel_direction = rot_quat(pixel_direction, global_theta_offset);
 
     /*cartesian_cx = rot_quat(normalize(cartesian_cx), rotation_offset);
     cartesian_cy = rot_quat(normalize(cartesian_cy), rotation_offset);
