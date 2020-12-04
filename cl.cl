@@ -1802,41 +1802,11 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     float4 global_offset = aa_to_quat((float3)(0, 0, 1), base_angle.y);
     float base_theta_angle = cos_mix(M_PI/2, base_angle.x, clamp(1 - fabs(polar_camera_in.y), 0.f, 1.f));
 
-    //float4 global_theta_offset = aa_to_quat((float3)(1, 0, 0), base_theta_angle);
-
     float4 global_theta_offset = aa_to_quat(normalize(cartesian_cy), -base_theta_angle + M_PI/2);
-
 
     if(polar_camera.y < 0)
     {
-        //cartesian_cy = -cartesian_cy;
         global_offset = aa_to_quat((float3)(0, 0, 1), -base_angle.y);
-
-        /*float4 new_quat = aa_to_quat((float3)(0, 0, 1), polar_camera.w);
-        //float4 new_thetaquat = aa_to_quat((float3)(1, 0, 0), polar_camera.z);
-
-        float3 right = rot_quat((float3)(1, 0, 0), camera_quat);
-
-        float4 new_thetaquat = aa_to_quat(right, polar_camera.z);
-
-        pixel_direction = rot_quat(pixel_direction, new_quat);
-        pixel_direction = rot_quat(pixel_direction, new_thetaquat);*/
-
-        /*float4 new_quat = aa_to_quat((float3)(0, 0, 1), polar_camera.w*2);
-
-        pixel_direction = rot_quat(pixel_direction, new_quat);
-
-        float4 new_thetaquat = aa_to_quat(cartesian_cy, polar_camera.z*2);
-
-        pixel_direction = rot_quat(pixel_direction, new_thetaquat);*/
-
-        /*float4 new_thetaquat = aa_to_quat(cartesian_cx, polar_camera.z);
-        pixel_direction = rot_quat(pixel_direction, new_thetaquat);
-
-        float4 new_quat = aa_to_quat((float3)(0, 0, 1), polar_camera.w);
-        pixel_direction = rot_quat(pixel_direction, new_quat);*/
-
-
         float4 new_thetaquat = aa_to_quat(normalize(cartesian_cy), -polar_camera.z + M_PI/2);
 
         cartesian_cx = rot_quat(normalize(cartesian_cx), new_thetaquat);
@@ -1862,31 +1832,14 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
         cartesian_cz = rot_quat(normalize(cartesian_cz), new_thetaquat2);
 
         global_theta_offset = aa_to_quat(normalize(cartesian_cy), base_theta_angle - M_PI/2);
-
     }
 
     pixel_direction = rot_quat(pixel_direction, global_offset);
-
-    ///the axis of rotation here isn't right
-    //
-
-    /*cartesian_cx = rot_quat(normalize(cartesian_cx), rotation_offset);
-    cartesian_cy = rot_quat(normalize(cartesian_cy), rotation_offset);
-    cartesian_cz = rot_quat(normalize(cartesian_cz), rotation_offset);*/
-
-    /*cartesian_cx = rot_quat(normalize(cartesian_cx), global_offset);
-    cartesian_cy = rot_quat(normalize(cartesian_cy), global_offset);
-    cartesian_cz = rot_quat(normalize(cartesian_cz), global_offset);*/
-
-
     cartesian_cx = rot_quat(normalize(cartesian_cx), global_theta_offset);
     cartesian_cy = rot_quat(normalize(cartesian_cy), global_theta_offset);
     cartesian_cz = rot_quat(normalize(cartesian_cz), global_theta_offset);
 
-    //pixel_direction = rot_quat(pixel_direction, global_offset);
     pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
-
-    //pixel_direction = rot_quat(pixel_direction, global_theta_offset);
 
     pixel_direction = normalize(pixel_direction);
     float4 pixel_x = pixel_direction.x * polar_x;
