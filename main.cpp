@@ -101,6 +101,7 @@ struct lightray
     cl_float4 acceleration;
     cl_uint sx, sy;
     cl_float ku_uobsu;
+    cl_float original_theta;
 };
 
 inline

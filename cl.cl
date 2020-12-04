@@ -1802,7 +1802,7 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     ///all of this code is only relevant to the case where polar_camera.y might be < 0
     {
         ///gets the rotation associated with the phi intersection of r=0
-        float4 global_offset = aa_to_quat((float3)(0, 0, 1), base_angle.y);
+        float4 global_offset = aa_to_quat((float3)(0, 0, 1), -base_angle.y);
         ///gets the rotation associated with the theta intersection of r=0
         float base_theta_angle = cos_mix(M_PI/2, base_angle.x, clamp(1 - fabs(polar_camera_in.y), 0.f, 1.f));
 
@@ -1816,7 +1816,7 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
         ///this firstly undoes the incorrect camera rotation, then applies the correct (backwards) camera rotation
         if(polar_camera.y < 0)
         {
-            global_offset = aa_to_quat((float3)(0, 0, 1), -base_angle.y);
+            global_offset = aa_to_quat((float3)(0, 0, 1), base_angle.y);
             float4 new_thetaquat = aa_to_quat(normalize(cartesian_cy), -polar_camera.z + M_PI/2);
 
             cartesian_cx = rot_quat(normalize(cartesian_cx), new_thetaquat);
@@ -1844,10 +1844,13 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
             global_theta_offset = aa_to_quat(normalize(cartesian_cy), base_theta_angle - M_PI/2);
         }
 
-        pixel_direction = rot_quat(pixel_direction, global_offset);
         cartesian_cx = rot_quat(normalize(cartesian_cx), global_theta_offset);
         cartesian_cy = rot_quat(normalize(cartesian_cy), global_theta_offset);
         cartesian_cz = rot_quat(normalize(cartesian_cz), global_theta_offset);
+
+        cartesian_cx = rot_quat(normalize(cartesian_cx), global_offset);
+        cartesian_cy = rot_quat(normalize(cartesian_cy), global_offset);
+        cartesian_cz = rot_quat(normalize(cartesian_cz), global_offset);
     }
 
     pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
@@ -2487,7 +2490,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
     float next_ds = 0.00001;
 
     float subambient_precision = 0.5;
-    float ambient_precision = 0.02;
+    float ambient_precision = 0.002;
 
     float rs = 1;
 
