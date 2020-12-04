@@ -1842,17 +1842,11 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
         cartesian_cy = rot_quat(normalize(cartesian_cy), new_quat2);
         cartesian_cz = rot_quat(normalize(cartesian_cz), new_quat2);
 
-        /*float4 new_quat2 = aa_to_quat(normalize(cartesian_cx), -polar_camera.w);
-
-        cartesian_cx = rot_quat(normalize(cartesian_cx), new_quat2);
-        cartesian_cy = rot_quat(normalize(cartesian_cy), new_quat2);
-        cartesian_cz = rot_quat(normalize(cartesian_cz), new_quat2);
-
-        float4 new_thetaquat2 = aa_to_quat(normalize(cartesian_cy), -polar_camera.z);
+        float4 new_thetaquat2 = aa_to_quat(normalize(cartesian_cy), -polar_camera.z + M_PI/2);
 
         cartesian_cx = rot_quat(normalize(cartesian_cx), new_thetaquat2);
         cartesian_cy = rot_quat(normalize(cartesian_cy), new_thetaquat2);
-        cartesian_cz = rot_quat(normalize(cartesian_cz), new_thetaquat2);*/
+        cartesian_cz = rot_quat(normalize(cartesian_cz), new_thetaquat2);
     }
 
     pixel_direction = rot_quat(pixel_direction, global_offset);
