@@ -1511,11 +1511,15 @@ int main()
             flip_sign = !flip_sign;
         }
 
-        vec3f up = {0, 0, -1};
+        /*vec3f up = {0, 0, -1};
         //vec3f right = rot_quat({1, 0, 0}, camera_quat);
         //vec3f forward_axis = rot_quat({0, 0, 1}, camera_quat);
         vec3f right = rot_quat({0, 1, 0}, camera_quat);
-        vec3f forward_axis = rot_quat({1, 0, 0}, camera_quat);
+        vec3f forward_axis = rot_quat({1, 0, 0}, camera_quat);*/
+
+        vec3f up = current_metric.space.up;
+        vec3f right = rot_quat(current_metric.space.right, camera_quat);
+        vec3f forward_axis = rot_quat(current_metric.space.forward, camera_quat);
 
         if(ImGui::IsKeyDown(GLFW_KEY_DOWN))
         {
