@@ -1682,29 +1682,28 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     pixel_direction = normalize(pixel_direction);
     pixel_direction = rot_quat(pixel_direction, camera_quat);
 
-    float3 cartesian_velocity = normalize(pixel_direction);
-
-    float3 new_basis_x = normalize(cartesian_velocity);
-    float3 new_basis_y = normalize(-cartesian_camera_pos);
-
-    new_basis_x = rejection(new_basis_x, new_basis_y);
-
-    float3 new_basis_z = -normalize(cross(new_basis_x, new_basis_y));
-
-    #ifdef GENERIC_CONSTANT_THETA
     {
-        float3 cartesian_camera_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_camera_pos);
-        float3 cartesian_velocity_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_velocity);
+        float3 cartesian_velocity = normalize(pixel_direction);
 
-        cartesian_camera_pos = cartesian_camera_new_basis;
-        pixel_direction = normalize(cartesian_velocity_new_basis);
+        float3 new_basis_x = normalize(cartesian_velocity);
+        float3 new_basis_y = normalize(-cartesian_camera_pos);
+
+        new_basis_x = rejection(new_basis_x, new_basis_y);
+
+        float3 new_basis_z = -normalize(cross(new_basis_x, new_basis_y));
+
+        #ifdef GENERIC_CONSTANT_THETA
+        {
+            float3 cartesian_camera_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_camera_pos);
+            float3 cartesian_velocity_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_velocity);
+
+            cartesian_camera_pos = cartesian_camera_new_basis;
+            pixel_direction = normalize(cartesian_velocity_new_basis);
+        }
+        #endif // GENERIC_CONSTANT_THETA
     }
-    #endif // GENERIC_CONSTANT_THETA
 
     float4 polar_camera = (float4)(polar_camera_in.x, cartesian_to_polar_signed(cartesian_camera_pos, polar_camera_in.y >= 0));
-
-    float4 lightray_velocity;
-    float4 lightray_spacetime_position;
 
     float4 at_metric = spherical_to_generic(polar_camera);
 
@@ -1795,9 +1794,14 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     float3 apolar = polar_camera.yzw;
     apolar.x = fabs(apolar.x);
 
-    float3 cartesian_cx = spherical_velocity_to_cartesian_velocity(apolar, polar_x.yzw);
-    float3 cartesian_cy = spherical_velocity_to_cartesian_velocity(apolar, polar_y.yzw);
-    float3 cartesian_cz = spherical_velocity_to_cartesian_velocity(apolar, polar_z.yzw);
+    float3 cartesian_cx = normalize(spherical_velocity_to_cartesian_velocity(apolar, polar_x.yzw));
+    float3 cartesian_cy = normalize(spherical_velocity_to_cartesian_velocity(apolar, polar_y.yzw));
+    float3 cartesian_cz = normalize(spherical_velocity_to_cartesian_velocity(apolar, polar_z.yzw));
+
+    if(cx == 500 && cy == 400)
+    {
+        printf("ANGLES %f %f\n", base_angle.y, base_angle.x);
+    }
 
     ///all of this code is only relevant to the case where polar_camera.y might be < 0
     {
@@ -1805,6 +1809,10 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
         float4 global_offset = aa_to_quat((float3)(0, 0, 1), -base_angle.y);
         ///gets the rotation associated with the theta intersection of r=0
         float base_theta_angle = cos_mix(M_PI/2, base_angle.x, clamp(1 - fabs(polar_camera.y), 0.f, 1.f));
+
+        #ifdef GENERIC_CONSTANT_THETA
+        base_theta_angle = M_PI/2;
+        #endif // GENERIC_CONSTANT_THETA
 
         ///above as axis angle in the correct coordinate space
         float4 global_theta_offset = aa_to_quat(normalize(cartesian_cy), -base_theta_angle + M_PI/2);
@@ -1816,7 +1824,6 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
         ///this firstly undoes the incorrect camera rotation, then applies the correct (backwards) camera rotation
         if(polar_camera.y < 0)
         {
-            global_offset = aa_to_quat((float3)(0, 0, 1), base_angle.y);
             float4 new_thetaquat = aa_to_quat(normalize(cartesian_cy), -polar_camera.z + M_PI/2);
 
             cartesian_cx = rot_quat(normalize(cartesian_cx), new_thetaquat);
@@ -1841,6 +1848,7 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
             cartesian_cy = rot_quat(normalize(cartesian_cy), new_thetaquat2);
             cartesian_cz = rot_quat(normalize(cartesian_cz), new_thetaquat2);
 
+            global_offset = aa_to_quat((float3)(0, 0, 1), base_angle.y);
             global_theta_offset = aa_to_quat(normalize(cartesian_cy), base_theta_angle - M_PI/2);
         }
 
@@ -1881,12 +1889,8 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     pixel_y = spherical_velocity_to_generic_velocity(polar_camera, pixel_y);
     pixel_z = spherical_velocity_to_generic_velocity(polar_camera, pixel_z);
 
-    float4 vec = pixel_x + pixel_y + pixel_z + pixel_t;
-
-    float4 pixel_N = vec;
-
-    lightray_velocity = pixel_N;
-    lightray_spacetime_position = at_metric;
+    float4 lightray_velocity = pixel_x + pixel_y + pixel_z + pixel_t;
+    float4 lightray_spacetime_position = at_metric;
 
     float4 lightray_acceleration = (float4)(0,0,0,0);
 
