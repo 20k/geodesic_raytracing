@@ -1804,7 +1804,7 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
         ///gets the rotation associated with the phi intersection of r=0
         float4 global_offset = aa_to_quat((float3)(0, 0, 1), -base_angle.y);
         ///gets the rotation associated with the theta intersection of r=0
-        float base_theta_angle = cos_mix(M_PI/2, base_angle.x, clamp(1 - fabs(polar_camera_in.y), 0.f, 1.f));
+        float base_theta_angle = cos_mix(M_PI/2, base_angle.x, clamp(1 - fabs(polar_camera.y), 0.f, 1.f));
 
         ///above as axis angle in the correct coordinate space
         float4 global_theta_offset = aa_to_quat(normalize(cartesian_cy), -base_theta_angle + M_PI/2);

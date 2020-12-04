@@ -143,7 +143,7 @@ namespace metric
 
         if(is_polar_spherically_symmetric)
         {
-            //argument_string += " -DGENERIC_CONSTANT_THETA";
+            argument_string += " -DGENERIC_CONSTANT_THETA";
         }
 
         if(in.singular)
