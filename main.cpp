@@ -1250,7 +1250,7 @@ int main()
     quat camera_quat;
 
     quat q;
-    q.load_from_axis_angle({1, 0, 0, 0});
+    q.load_from_axis_angle({1, 0, 0, -M_PI/2});
 
     camera_quat = q * camera_quat;
 

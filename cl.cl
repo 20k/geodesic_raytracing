@@ -1682,6 +1682,8 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     pixel_direction = normalize(pixel_direction);
     pixel_direction = rot_quat(pixel_direction, camera_quat);
 
+    float3 up = {0, 0, 1};
+
     {
         float3 cartesian_velocity = normalize(pixel_direction);
 
