@@ -91,6 +91,8 @@ float calculate_ds(float4 velocity, float g_metric[])
 #define IS_CONSTANT_THETA
 #endif
 
+#define DEBUG_CONSTANT_THETA
+
 ///ds2 = guv dx^u dx^v
 float4 fix_light_velocity2(float4 v, float g_metric[])
 {
@@ -1688,7 +1690,7 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
         goff2 = aa_to_quat(up, -base_angle.y);
     }
 
-    pixel_direction = rot_quat(pixel_direction, goff2);
+    //pixel_direction = rot_quat(pixel_direction, goff2);
 
     float4 polar_camera = polar_camera_in;
 
@@ -1704,7 +1706,12 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
 
         float3 new_basis_z = -normalize(cross(new_basis_x, new_basis_y));
 
-        #ifdef GENERIC_CONSTANT_THETA
+        if(polar_camera_in.y < 0)
+        {
+            //new_basis_z = -new_basis_z;
+        }
+
+        #if defined(GENERIC_CONSTANT_THETA) || defined(DEBUG_CONSTANT_THETA)
         {
             float3 cartesian_camera_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_camera_pos);
             float3 cartesian_velocity_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_velocity);
@@ -3499,7 +3506,7 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
 
     pixel_direction = normalize(pixel_direction);
     pixel_direction = rot_quat(pixel_direction, camera_quat);
-	
+
 	float3 up = {0, 0, 1};
     float4 goff2 = aa_to_quat(up, base_angle.y);
 
@@ -3507,8 +3514,8 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
     {
         goff2 = aa_to_quat(up, -base_angle.y);
     }
-	
-	pixel_direction = rot_quat(pixel_direction, goff2);
+
+	//pixel_direction = rot_quat(pixel_direction, goff2);
 
     float3 cartesian_velocity = normalize(pixel_direction);
 
@@ -3519,7 +3526,12 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
 
     float3 new_basis_z = -normalize(cross(new_basis_x, new_basis_y));
 
-    #if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC)
+	if(polar_camera_pos.y < 0)
+	{
+		//new_basis_y = -new_basis_y;
+	}
+
+    #if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC) || defined(DEBUG_CONSTANT_THETA)
 
 	/*float3 up = (float3)(0, 0, 1);
 
@@ -3527,11 +3539,11 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
 
 
     cart_here = rotate_vector(new_basis_x, new_basis_y, new_basis_z, cart_here);
-	
+
 	/*if(polar_camera_pos.y >= 0)
-		cart_here = rot_quat(cart_here, aa_to_quat((float3)(0, 0, 1), base_angle.y));
+		cart_here = rot_quat(cart_here, aa_to_quat((float3)(0, 0, 1), -base_angle.y));
 	else
-		cart_here = rot_quat(cart_here, aa_to_quat((float3)(0, 0, 1), -base_angle.y));*/
+		cart_here = rot_quat(cart_here, aa_to_quat((float3)(0, 0, 1), base_angle.y));*/
 
     #endif // GENERIC_CONSTANT_THETA
 
