@@ -1681,6 +1681,14 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     pixel_direction = rot_quat(pixel_direction, camera_quat);
 
     float3 up = {0, 0, 1};
+    float4 goff2 = aa_to_quat(up, base_angle.y);
+
+    if(polar_camera_in.y < 0)
+    {
+        goff2 = aa_to_quat(up, -base_angle.y);
+    }
+
+    pixel_direction = rot_quat(pixel_direction, goff2);
 
     float4 polar_camera = polar_camera_in;
 
@@ -1862,9 +1870,9 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
         cartesian_cy = rot_quat(normalize(cartesian_cy), global_theta_offset);
         cartesian_cz = rot_quat(normalize(cartesian_cz), global_theta_offset);
 
-        cartesian_cx = rot_quat(normalize(cartesian_cx), global_offset);
+        /*cartesian_cx = rot_quat(normalize(cartesian_cx), global_offset);
         cartesian_cy = rot_quat(normalize(cartesian_cy), global_offset);
-        cartesian_cz = rot_quat(normalize(cartesian_cz), global_offset);
+        cartesian_cz = rot_quat(normalize(cartesian_cz), global_offset);*/
     }
 
     /*{
@@ -1882,6 +1890,10 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
         {
             float3 cartesian_camera_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_camera_pos);
             float3 cartesian_velocity_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_velocity);
+
+            cartesian_cx = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_cx);
+            cartesian_cy = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_cy);
+            cartesian_cz = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_cz);
 
             cartesian_camera_pos = cartesian_camera_new_basis;
             pixel_direction = normalize(cartesian_velocity_new_basis);
@@ -1930,6 +1942,7 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     lightray_acceleration.z = 0;
     #endif // IS_CONSTANT_THETA
 
+    #if 0
     {
         #ifndef GENERIC_BIG_METRIC
         float g_partials[16] = {0};
@@ -1958,6 +1971,7 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
         lightray_acceleration = calculate_acceleration_big(lightray_velocity, g_metric_big, g_partials_big);
         #endif // GENERIC_BIG_METRIC
     }
+    #endif // 0
 
     //if(cx == 500 && cy == 400)
     //    printf("Posr %f %f %f\n", polar_camera.y, polar_camera.z, polar_camera.w);
