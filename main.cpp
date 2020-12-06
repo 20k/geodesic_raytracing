@@ -1337,6 +1337,7 @@ int main()
     bool camera_on_geodesic = false;
     bool camera_time_progresses = false;
     vec2f base_angle = {M_PI/2, 0};
+    //vec2f base_angle = {M_PI/2, M_PI/2};
 
     while(!win.should_close())
     {
@@ -1706,6 +1707,7 @@ int main()
             texture_args.push_back(height);
             texture_args.push_back(scamera);
             texture_args.push_back(camera_quat);
+            texture_args.push_back(base_angle);
 
             clctx.cqueue.exec("calculate_texture_coordinates", texture_args, {width * height}, {256});
 

@@ -1672,8 +1672,6 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     if(cx >= width || cy >= height)
         return;
 
-    float3 cartesian_camera_pos = polar_to_cartesian(polar_camera_in.yzw);
-
     float nonphysical_plane_half_width = width/2;
     float nonphysical_f_stop = nonphysical_plane_half_width / tan(fov_rad/2);
 
@@ -1684,7 +1682,11 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
 
     float3 up = {0, 0, 1};
 
+    float4 polar_camera = polar_camera_in;
+
     {
+        float3 cartesian_camera_pos = polar_to_cartesian(polar_camera_in.yzw);
+
         float3 cartesian_velocity = normalize(pixel_direction);
 
         float3 new_basis_x = normalize(cartesian_velocity);
@@ -1701,11 +1703,11 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
 
             cartesian_camera_pos = cartesian_camera_new_basis;
             pixel_direction = normalize(cartesian_velocity_new_basis);
+
+            polar_camera = (float4)(polar_camera_in.x, cartesian_to_polar_signed(cartesian_camera_pos, polar_camera_in.y >= 0));
         }
         #endif // GENERIC_CONSTANT_THETA
     }
-
-    float4 polar_camera = (float4)(polar_camera_in.x, cartesian_to_polar_signed(cartesian_camera_pos, polar_camera_in.y >= 0));
 
     float4 at_metric = spherical_to_generic(polar_camera);
 
@@ -1800,15 +1802,17 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     float3 cartesian_cy = normalize(spherical_velocity_to_cartesian_velocity(apolar, polar_y.yzw));
     float3 cartesian_cz = normalize(spherical_velocity_to_cartesian_velocity(apolar, polar_z.yzw));
 
-    if(cx == 500 && cy == 400)
+    /*if(cx == 500 && cy == 400)
     {
         printf("ANGLES %f %f\n", base_angle.y, base_angle.x);
-    }
+    }*/
+
+    float4 global_offset;
 
     ///all of this code is only relevant to the case where polar_camera.y might be < 0
     {
         ///gets the rotation associated with the phi intersection of r=0
-        float4 global_offset = aa_to_quat((float3)(0, 0, 1), -base_angle.y);
+        global_offset = aa_to_quat(up, -base_angle.y);
         ///gets the rotation associated with the theta intersection of r=0
         float base_theta_angle = cos_mix(M_PI/2, base_angle.x, clamp(1 - fabs(polar_camera.y), 0.f, 1.f));
 
@@ -1862,6 +1866,30 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
         cartesian_cy = rot_quat(normalize(cartesian_cy), global_offset);
         cartesian_cz = rot_quat(normalize(cartesian_cz), global_offset);
     }
+
+    /*{
+        float3 cartesian_camera_pos = polar_to_cartesian(polar_camera_in.yzw);
+        float3 cartesian_velocity = normalize(pixel_direction);
+
+        float3 new_basis_x = normalize(cartesian_velocity);
+        float3 new_basis_y = normalize(-cartesian_camera_pos);
+
+        new_basis_x = rejection(new_basis_x, new_basis_y);
+
+        float3 new_basis_z = -normalize(cross(new_basis_x, new_basis_y));
+
+        #ifdef GENERIC_CONSTANT_THETA
+        {
+            float3 cartesian_camera_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_camera_pos);
+            float3 cartesian_velocity_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_velocity);
+
+            cartesian_camera_pos = cartesian_camera_new_basis;
+            pixel_direction = normalize(cartesian_velocity_new_basis);
+        }
+        #endif // GENERIC_CONSTANT_THETA
+
+        at_metric = (float4)(polar_camera_in.x, cartesian_to_polar_signed(cartesian_camera_pos, polar_camera_in.y >= 0));
+    }*/
 
     pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
 
@@ -1934,6 +1962,10 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     //if(cx == 500 && cy == 400)
     //    printf("Posr %f %f %f\n", polar_camera.y, polar_camera.z, polar_camera.w);
     //    printf("DS %f\n", dot_product_big(lightray_velocity, lightray_velocity, g_metric_big));
+
+    /*lightray_spacetime_position.z = M_PI/2;
+    lightray_velocity.z = 0;
+    lightray_acceleration.z = 0;*/
 
     struct lightray ray;
     ray.sx = cx;
@@ -3390,7 +3422,7 @@ void relauncher(__global struct lightray* schwarzs_rays_in, __global struct ligh
 }
 
 __kernel
-void calculate_texture_coordinates(__global struct lightray* finished_rays, __global int* finished_count_in, __global float2* texture_coordinates, int width, int height, float4 polar_camera_pos, float4 camera_quat)
+void calculate_texture_coordinates(__global struct lightray* finished_rays, __global int* finished_count_in, __global float2* texture_coordinates, int width, int height, float4 polar_camera_pos, float4 camera_quat, float2 base_angle)
 {
     int id = get_global_id(0);
 
@@ -3464,6 +3496,13 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
     float3 new_basis_z = -normalize(cross(new_basis_x, new_basis_y));
 
     #if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC)
+
+	/*float3 up = (float3)(0, 0, 1);
+
+	up = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, up);
+
+	cart_here = rot_quat(cart_here, aa_to_quat(up, base_angle.y));*/
+
     cart_here = rotate_vector(new_basis_x, new_basis_y, new_basis_z, cart_here);
     #endif // GENERIC_CONSTANT_THETA
 
