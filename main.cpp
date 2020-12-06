@@ -1336,8 +1336,8 @@ int main()
     float current_geodesic_time = 0;
     bool camera_on_geodesic = false;
     bool camera_time_progresses = false;
-    vec2f base_angle = {M_PI/2, 0};
-    //vec2f base_angle = {M_PI/2, M_PI/2};
+    //vec2f base_angle = {M_PI/2, 0};
+    vec2f base_angle = {M_PI/2, M_PI/4};
 
     while(!win.should_close())
     {

@@ -3499,6 +3499,16 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
 
     pixel_direction = normalize(pixel_direction);
     pixel_direction = rot_quat(pixel_direction, camera_quat);
+	
+	float3 up = {0, 0, 1};
+    float4 goff2 = aa_to_quat(up, base_angle.y);
+
+    if(polar_camera_pos.y < 0)
+    {
+        goff2 = aa_to_quat(up, -base_angle.y);
+    }
+	
+	pixel_direction = rot_quat(pixel_direction, goff2);
 
     float3 cartesian_velocity = normalize(pixel_direction);
 
@@ -3513,11 +3523,16 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
 
 	/*float3 up = (float3)(0, 0, 1);
 
-	up = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, up);
+	up = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, up);*/
 
-	cart_here = rot_quat(cart_here, aa_to_quat(up, base_angle.y));*/
 
     cart_here = rotate_vector(new_basis_x, new_basis_y, new_basis_z, cart_here);
+	
+	/*if(polar_camera_pos.y >= 0)
+		cart_here = rot_quat(cart_here, aa_to_quat((float3)(0, 0, 1), base_angle.y));
+	else
+		cart_here = rot_quat(cart_here, aa_to_quat((float3)(0, 0, 1), -base_angle.y));*/
+
     #endif // GENERIC_CONSTANT_THETA
 
     ///npolar.x aka radius isn't used here, so it doesn't really matter
