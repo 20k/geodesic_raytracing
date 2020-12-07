@@ -1668,11 +1668,11 @@ void calculate_constant_theta_basis(float3 pixel_direction, float4 camera_pos, f
     float3 apolar = camera_pos.yzw;
     apolar.x = fabs(apolar.x);
 
-    if(camera_pos.y < 0)
+    /*if(camera_pos.y < 0)
     {
         apolar.y = -apolar.y;
         apolar.z = -apolar.z;
-    }
+    }*/
 
     float3 cartesian_camera_pos = polar_to_cartesian(apolar);
 
@@ -1683,7 +1683,11 @@ void calculate_constant_theta_basis(float3 pixel_direction, float4 camera_pos, f
 
     new_basis_x = rejection(new_basis_x, new_basis_y);
 
-    float3 new_basis_z = -normalize(cross(new_basis_x, new_basis_y));
+    float3 new_basis_z = normalize(cross(new_basis_x, new_basis_y));
+
+    /*new_basis_x = rot_quat(new_basis_x, qt);
+    new_basis_y = rot_quat(new_basis_y, qt);
+    new_basis_z = rot_quat(new_basis_z, qt);*/
 
     *bx = new_basis_x;
     *by = new_basis_y;
@@ -1691,6 +1695,26 @@ void calculate_constant_theta_basis(float3 pixel_direction, float4 camera_pos, f
 
     *cartesian_pixel_out = cartesian_velocity;
     *cartesian_camera_out = cartesian_camera_pos;
+}
+
+void adjust_pixel_direction_and_camera_theta(float3 pixel_direction, float4 polar_camera_in, float3* pixel_direction_out, float4* polar_camera_out)
+{
+    float3 new_basis_x, new_basis_y, new_basis_z;
+    float3 cartesian_camera_pos;
+    float3 cartesian_velocity;
+
+    calculate_constant_theta_basis(pixel_direction, polar_camera_in, &new_basis_x, &new_basis_y, &new_basis_z, &cartesian_velocity, &cartesian_camera_pos);
+
+    float3 cartesian_camera_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_camera_pos);
+    float3 cartesian_velocity_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_velocity);
+    *pixel_direction_out = normalize(cartesian_velocity_new_basis);
+
+    float3 raw_polar = cartesian_to_polar(cartesian_camera_new_basis);
+
+    if(polar_camera_in.y < 0)
+        raw_polar.x = -raw_polar.x;
+
+    *polar_camera_out = (float4)(polar_camera_in.x, raw_polar.xyz);
 }
 
 float3 get_texture_constant_theta_rotation(float3 pixel_direction, float4 camera_pos, float4 final_position)
@@ -1704,11 +1728,11 @@ float3 get_texture_constant_theta_rotation(float3 pixel_direction, float4 camera
 	float3 apolar = final_position.yzw;
 	apolar.x = fabs(apolar.x);
 
-	if(final_position.y < 0)
+	/*if(final_position.y < 0)
     {
         apolar.y = -apolar.y;
 		apolar.z = -apolar.z;
-    }
+    }*/
 
 	float3 cart_here = rotate_vector(new_basis_x, new_basis_y, new_basis_z, polar_to_cartesian(apolar.xyz));
 
@@ -1750,22 +1774,7 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
 
     #if defined(GENERIC_CONSTANT_THETA) || defined(DEBUG_CONSTANT_THETA)
     {
-        float3 new_basis_x, new_basis_y, new_basis_z;
-        float3 cartesian_camera_pos;
-        float3 cartesian_velocity;
-
-        calculate_constant_theta_basis(pixel_direction, polar_camera_in, &new_basis_x, &new_basis_y, &new_basis_z, &cartesian_velocity, &cartesian_camera_pos);
-
-        float3 cartesian_camera_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_camera_pos);
-        float3 cartesian_velocity_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_velocity);
-        pixel_direction = normalize(cartesian_velocity_new_basis);
-
-        float3 raw_polar = cartesian_to_polar(cartesian_camera_new_basis);
-
-        if(polar_camera_in.y < 0)
-            raw_polar.x = -raw_polar.x;
-
-        polar_camera = (float4)(polar_camera_in.x, raw_polar.xyz);
+        adjust_pixel_direction_and_camera_theta(pixel_direction, polar_camera, &pixel_direction, &polar_camera);
     }
     #endif // GENERIC_CONSTANT_THETA
 

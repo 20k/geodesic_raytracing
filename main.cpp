@@ -1337,7 +1337,7 @@ int main()
     bool camera_on_geodesic = false;
     bool camera_time_progresses = false;
     //vec2f base_angle = {M_PI/2, 0};
-    vec2f base_angle = {M_PI/2, M_PI/4};
+    vec2f base_angle = {M_PI/2, 0};
 
     while(!win.should_close())
     {
