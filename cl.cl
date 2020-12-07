@@ -3513,15 +3513,6 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
     }
     #endif
 
-	float3 apolar = polar_camera_pos.yzw;
-    apolar.x = fabs(apolar.x);
-
-    float4 cartesian_camera_pos = (float4)(polar_camera_pos.x, polar_to_cartesian(apolar));
-
-    //float4 cartesian_camera_pos = (float4)(polar_camera_pos.x, polar_to_cartesian(polar_camera_pos.yzw));
-
-    float3 cart_here = polar_to_cartesian((float3)(fabs(r_value), position.zw));
-
     #define FOV 90
 
     float fov_rad = (FOV / 360.f) * 2 * M_PI;
@@ -3543,35 +3534,23 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
     }
 
 	//pixel_direction = rot_quat(pixel_direction, goff2);
-
-    float3 cartesian_velocity = normalize(pixel_direction);
-
-    float3 new_basis_x = normalize(cartesian_velocity);
-    float3 new_basis_y = normalize(-cartesian_camera_pos.yzw);
-
-    new_basis_x = rejection(new_basis_x, new_basis_y);
-
-    float3 new_basis_z = -normalize(cross(new_basis_x, new_basis_y));
+	
+	float3 npolar = position.yzw;
 
     #if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC) || defined(DEBUG_CONSTANT_THETA)
+	float3 new_basis_x, new_basis_y, new_basis_z;
+	float3 cartesian_camera_pos;
+	float3 cartesian_velocity;
 
-	/*float3 up = (float3)(0, 0, 1);
-
-	up = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, up);*/
-
-
-    cart_here = rotate_vector(new_basis_x, new_basis_y, new_basis_z, cart_here);
-
-	/*if(polar_camera_pos.y >= 0)
-		cart_here = rot_quat(cart_here, aa_to_quat((float3)(0, 0, 1), -base_angle.y));
-	else
-		cart_here = rot_quat(cart_here, aa_to_quat((float3)(0, 0, 1), base_angle.y));*/
-
+	calculate_constant_theta_basis(pixel_direction, polar_camera_pos, &new_basis_x, &new_basis_y, &new_basis_z, &cartesian_velocity, &cartesian_camera_pos);
+	
+	float3 apolar = npolar;
+	apolar.x = fabs(apolar.x);
+	
+	float3 cart_here = rotate_vector(new_basis_x, new_basis_y, new_basis_z, polar_to_cartesian(apolar.xyz));
+	
+	npolar = cartesian_to_polar(cart_here);
     #endif // GENERIC_CONSTANT_THETA
-
-    ///npolar.x aka radius isn't used here, so it doesn't really matter
-    float3 npolar = cartesian_to_polar(cart_here);
-    //float3 npolar = cartesian_to_polar_signed(cart_here, r_value >= 0);
 
     float thetaf = fmod(npolar.y, 2 * M_PI);
     float phif = npolar.z;
