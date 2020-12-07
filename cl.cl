@@ -3515,9 +3515,14 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
     }
     #endif
 
-    float4 cartesian_camera_pos = (float4)(polar_camera_pos.x, polar_to_cartesian(polar_camera_pos.yzw));
+	float3 apolar = polar_camera_pos.yzw;
+    apolar.x = fabs(apolar.x);
 
-    float3 cart_here = polar_to_cartesian((float3)(r_value, position.zw));
+    float4 cartesian_camera_pos = (float4)(polar_camera_pos.x, polar_to_cartesian(apolar));
+
+    //float4 cartesian_camera_pos = (float4)(polar_camera_pos.x, polar_to_cartesian(polar_camera_pos.yzw));
+
+    float3 cart_here = polar_to_cartesian((float3)(fabs(r_value), position.zw));
 
     #define FOV 90
 
@@ -3540,17 +3545,6 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
     }
 
 	//pixel_direction = rot_quat(pixel_direction, goff2);
-
-
-	/*if(polar_camera_pos.y < 0)
-	{
-		//new_basis_x = new_basis_x;
-
-		float4 qrot = aa_to_quat((float3)(0, 0, 1), M_PI/2);
-
-		pixel_direction = rot_quat(pixel_direction, qrot);
-	}*/
-
 
     float3 cartesian_velocity = normalize(pixel_direction);
 
@@ -3578,7 +3572,8 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
     #endif // GENERIC_CONSTANT_THETA
 
     ///npolar.x aka radius isn't used here, so it doesn't really matter
-    float3 npolar = cartesian_to_polar_signed(cart_here, r_value >= 0);
+    float3 npolar = cartesian_to_polar(cart_here);
+    //float3 npolar = cartesian_to_polar_signed(cart_here, r_value >= 0);
 
     float thetaf = fmod(npolar.y, 2 * M_PI);
     float phif = npolar.z;
