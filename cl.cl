@@ -1663,6 +1663,30 @@ float cos_mix(float x1, float x2, float f)
 
 //#undef DEBUG_CONSTANT_THETA
 
+void calculate_constant_theta_basis(float3 pixel_direction, float4 camera_pos, float3* bx, float3* by, float3* bz, float3* cartesian_pixel_out, float3* cartesian_camera_out)
+{
+    float3 apolar = camera_pos.yzw;
+    apolar.x = fabs(apolar.x);
+
+    float3 cartesian_camera_pos = polar_to_cartesian(apolar);
+
+    float3 cartesian_velocity = normalize(pixel_direction);
+
+    float3 new_basis_x = normalize(cartesian_velocity);
+    float3 new_basis_y = normalize(-cartesian_camera_pos);
+
+    new_basis_x = rejection(new_basis_x, new_basis_y);
+
+    float3 new_basis_z = -normalize(cross(new_basis_x, new_basis_y));
+
+    *bx = new_basis_x;
+    *by = new_basis_y;
+    *bz = new_basis_z;
+
+    *cartesian_pixel_out = cartesian_velocity;
+    *cartesian_camera_out = cartesian_camera_pos;
+}
+
 __kernel
 void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global struct lightray* metric_rays, __global int* metric_ray_count, int width, int height, int flip_geodesic_direction, float2 base_angle)
 {
@@ -1696,52 +1720,26 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
 
     float4 polar_camera = polar_camera_in;
 
+    #if defined(GENERIC_CONSTANT_THETA) || defined(DEBUG_CONSTANT_THETA)
     {
-        float3 apolar = polar_camera_in.yzw;
-        apolar.x = fabs(apolar.x);
+        float3 new_basis_x, new_basis_y, new_basis_z;
+        float3 cartesian_camera_pos;
+        float3 cartesian_velocity;
 
-        float3 cartesian_camera_pos = polar_to_cartesian(apolar);
+        calculate_constant_theta_basis(pixel_direction, polar_camera_in, &new_basis_x, &new_basis_y, &new_basis_z, &cartesian_velocity, &cartesian_camera_pos);
 
-        /*if(polar_camera_in.y < 0)
-        {
-            float4 qrot = aa_to_quat((float3)(0, 0, 1), M_PI/2);
+        float3 cartesian_camera_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_camera_pos);
+        float3 cartesian_velocity_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_velocity);
+        pixel_direction = normalize(cartesian_velocity_new_basis);
 
-            pixel_direction = rot_quat(pixel_direction, qrot);
-        }*/
+        float3 raw_polar = cartesian_to_polar(cartesian_camera_new_basis);
 
-        float3 cartesian_velocity = normalize(pixel_direction);
+        if(polar_camera_in.y < 0)
+            raw_polar.x = -raw_polar.x;
 
-        float3 new_basis_x = normalize(cartesian_velocity);
-        float3 new_basis_y = normalize(-cartesian_camera_pos);
-
-        new_basis_x = rejection(new_basis_x, new_basis_y);
-
-        /*if(polar_camera_in.y < 0)
-        {
-            new_basis_x = -new_basis_x;
-        }*/
-
-        float3 new_basis_z = -normalize(cross(new_basis_x, new_basis_y));
-
-        #if defined(GENERIC_CONSTANT_THETA) || defined(DEBUG_CONSTANT_THETA)
-        {
-            float3 cartesian_camera_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_camera_pos);
-            float3 cartesian_velocity_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_velocity);
-
-            cartesian_camera_pos = cartesian_camera_new_basis;
-            pixel_direction = normalize(cartesian_velocity_new_basis);
-
-            float3 raw_polar = cartesian_to_polar(cartesian_camera_pos);
-
-            if(polar_camera_in.y < 0)
-                raw_polar.x = -raw_polar.x;
-
-            polar_camera = (float4)(polar_camera_in.x, raw_polar.xyz);
-
-            //polar_camera = (float4)(polar_camera_in.x, cartesian_to_polar_signed(cartesian_camera_pos, polar_camera_in.y >= 0));
-        }
-        #endif // GENERIC_CONSTANT_THETA
+        polar_camera = (float4)(polar_camera_in.x, raw_polar.xyz);
     }
+    #endif // GENERIC_CONSTANT_THETA
 
     if(cx == 500 && cy == 400)
     {
