@@ -1670,6 +1670,7 @@ void calculate_constant_theta_basis(float3 pixel_direction, float4 camera_pos, f
 
     if(camera_pos.y < 0)
     {
+        apolar.y = -apolar.y;
         apolar.z = -apolar.z;
     }
 
@@ -1704,7 +1705,10 @@ float3 get_texture_constant_theta_rotation(float3 pixel_direction, float4 camera
 	apolar.x = fabs(apolar.x);
 
 	if(final_position.y < 0)
+    {
+        apolar.y = -apolar.y;
 		apolar.z = -apolar.z;
+    }
 
 	float3 cart_here = rotate_vector(new_basis_x, new_basis_y, new_basis_z, polar_to_cartesian(apolar.xyz));
 
@@ -1740,7 +1744,7 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
         goff2 = aa_to_quat(up, -base_angle.y);
     }
 
-    //pixel_direction = rot_quat(pixel_direction, goff2);
+    pixel_direction = rot_quat(pixel_direction, goff2);
 
     float4 polar_camera = polar_camera_in;
 
@@ -3557,7 +3561,7 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
         goff2 = aa_to_quat(up, -base_angle.y);
     }
 
-	//pixel_direction = rot_quat(pixel_direction, goff2);
+	pixel_direction = rot_quat(pixel_direction, goff2);
 
 	float3 npolar = position.yzw;
 
