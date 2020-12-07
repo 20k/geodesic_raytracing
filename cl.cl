@@ -3534,7 +3534,7 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
     }
 
 	//pixel_direction = rot_quat(pixel_direction, goff2);
-	
+
 	float3 npolar = position.yzw;
 
     #if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC) || defined(DEBUG_CONSTANT_THETA)
@@ -3543,12 +3543,12 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
 	float3 cartesian_velocity;
 
 	calculate_constant_theta_basis(pixel_direction, polar_camera_pos, &new_basis_x, &new_basis_y, &new_basis_z, &cartesian_velocity, &cartesian_camera_pos);
-	
+
 	float3 apolar = npolar;
 	apolar.x = fabs(apolar.x);
-	
+
 	float3 cart_here = rotate_vector(new_basis_x, new_basis_y, new_basis_z, polar_to_cartesian(apolar.xyz));
-	
+
 	npolar = cartesian_to_polar(cart_here);
     #endif // GENERIC_CONSTANT_THETA
 
