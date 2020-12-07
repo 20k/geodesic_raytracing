@@ -1661,6 +1661,8 @@ float cos_mix(float x1, float x2, float f)
     return mix(x1, x2, f2);
 }
 
+//#undef DEBUG_CONSTANT_THETA
+
 __kernel
 void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global struct lightray* metric_rays, __global int* metric_ray_count, int width, int height, int flip_geodesic_direction, float2 base_angle)
 {
@@ -1695,7 +1697,17 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     float4 polar_camera = polar_camera_in;
 
     {
-        float3 cartesian_camera_pos = polar_to_cartesian(polar_camera_in.yzw);
+        float3 apolar = polar_camera_in.yzw;
+        apolar.x = fabs(apolar.x);
+
+        float3 cartesian_camera_pos = polar_to_cartesian(apolar);
+
+        /*if(polar_camera_in.y < 0)
+        {
+            float4 qrot = aa_to_quat((float3)(0, 0, 1), M_PI/2);
+
+            pixel_direction = rot_quat(pixel_direction, qrot);
+        }*/
 
         float3 cartesian_velocity = normalize(pixel_direction);
 
@@ -1704,12 +1716,12 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
 
         new_basis_x = rejection(new_basis_x, new_basis_y);
 
-        float3 new_basis_z = -normalize(cross(new_basis_x, new_basis_y));
-
-        if(polar_camera_in.y < 0)
+        /*if(polar_camera_in.y < 0)
         {
-            //new_basis_z = -new_basis_z;
-        }
+            new_basis_x = -new_basis_x;
+        }*/
+
+        float3 new_basis_z = -normalize(cross(new_basis_x, new_basis_y));
 
         #if defined(GENERIC_CONSTANT_THETA) || defined(DEBUG_CONSTANT_THETA)
         {
@@ -1719,9 +1731,21 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
             cartesian_camera_pos = cartesian_camera_new_basis;
             pixel_direction = normalize(cartesian_velocity_new_basis);
 
-            polar_camera = (float4)(polar_camera_in.x, cartesian_to_polar_signed(cartesian_camera_pos, polar_camera_in.y >= 0));
+            float3 raw_polar = cartesian_to_polar(cartesian_camera_pos);
+
+            if(polar_camera_in.y < 0)
+                raw_polar.x = -raw_polar.x;
+
+            polar_camera = (float4)(polar_camera_in.x, raw_polar.xyz);
+
+            //polar_camera = (float4)(polar_camera_in.x, cartesian_to_polar_signed(cartesian_camera_pos, polar_camera_in.y >= 0));
         }
         #endif // GENERIC_CONSTANT_THETA
+    }
+
+    if(cx == 500 && cy == 400)
+    {
+        printf("Pixel direction %f %f %f cam %f %f %f\n", pixel_direction.x, pixel_direction.y, pixel_direction.z, polar_camera.y, polar_camera.z, polar_camera.w);
     }
 
     float4 at_metric = spherical_to_generic(polar_camera);
@@ -3517,6 +3541,17 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
 
 	//pixel_direction = rot_quat(pixel_direction, goff2);
 
+
+	/*if(polar_camera_pos.y < 0)
+	{
+		//new_basis_x = new_basis_x;
+
+		float4 qrot = aa_to_quat((float3)(0, 0, 1), M_PI/2);
+
+		pixel_direction = rot_quat(pixel_direction, qrot);
+	}*/
+
+
     float3 cartesian_velocity = normalize(pixel_direction);
 
     float3 new_basis_x = normalize(cartesian_velocity);
@@ -3525,11 +3560,6 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
     new_basis_x = rejection(new_basis_x, new_basis_y);
 
     float3 new_basis_z = -normalize(cross(new_basis_x, new_basis_y));
-
-	if(polar_camera_pos.y < 0)
-	{
-		//new_basis_y = -new_basis_y;
-	}
 
     #if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC) || defined(DEBUG_CONSTANT_THETA)
 
