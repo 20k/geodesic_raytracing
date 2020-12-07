@@ -1668,6 +1668,11 @@ void calculate_constant_theta_basis(float3 pixel_direction, float4 camera_pos, f
     float3 apolar = camera_pos.yzw;
     apolar.x = fabs(apolar.x);
 
+    if(camera_pos.y < 0)
+    {
+        apolar.z = -apolar.z;
+    }
+
     float3 cartesian_camera_pos = polar_to_cartesian(apolar);
 
     float3 cartesian_velocity = normalize(pixel_direction);
@@ -1685,6 +1690,25 @@ void calculate_constant_theta_basis(float3 pixel_direction, float4 camera_pos, f
 
     *cartesian_pixel_out = cartesian_velocity;
     *cartesian_camera_out = cartesian_camera_pos;
+}
+
+float3 get_texture_constant_theta_rotation(float3 pixel_direction, float4 camera_pos, float4 final_position)
+{
+    float3 new_basis_x, new_basis_y, new_basis_z;
+	float3 cartesian_camera_pos;
+	float3 cartesian_velocity;
+
+	calculate_constant_theta_basis(pixel_direction, camera_pos, &new_basis_x, &new_basis_y, &new_basis_z, &cartesian_velocity, &cartesian_camera_pos);
+
+	float3 apolar = final_position.yzw;
+	apolar.x = fabs(apolar.x);
+
+	if(final_position.y < 0)
+		apolar.z = -apolar.z;
+
+	float3 cart_here = rotate_vector(new_basis_x, new_basis_y, new_basis_z, polar_to_cartesian(apolar.xyz));
+
+	return cartesian_to_polar(cart_here);
 }
 
 __kernel
@@ -3538,18 +3562,7 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
 	float3 npolar = position.yzw;
 
     #if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC) || defined(DEBUG_CONSTANT_THETA)
-	float3 new_basis_x, new_basis_y, new_basis_z;
-	float3 cartesian_camera_pos;
-	float3 cartesian_velocity;
-
-	calculate_constant_theta_basis(pixel_direction, polar_camera_pos, &new_basis_x, &new_basis_y, &new_basis_z, &cartesian_velocity, &cartesian_camera_pos);
-
-	float3 apolar = npolar;
-	apolar.x = fabs(apolar.x);
-
-	float3 cart_here = rotate_vector(new_basis_x, new_basis_y, new_basis_z, polar_to_cartesian(apolar.xyz));
-
-	npolar = cartesian_to_polar(cart_here);
+	npolar = get_texture_constant_theta_rotation(pixel_direction, polar_camera_pos, position);
     #endif // GENERIC_CONSTANT_THETA
 
     float thetaf = fmod(npolar.y, 2 * M_PI);
