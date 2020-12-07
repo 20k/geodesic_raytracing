@@ -1663,7 +1663,8 @@ float cos_mix(float x1, float x2, float f)
 
 //#undef DEBUG_CONSTANT_THETA
 
-void calculate_constant_theta_basis(float3 pixel_direction, float4 camera_pos, float3* bx, float3* by, float3* bz, float3* cartesian_pixel_out, float3* cartesian_camera_out)
+#if 0
+void calculate_constant_theta_basis(float3 pixel_direction, float4 camera_pos, float3* bx, float3* by, float3* bz, float3* cartesian_pixel_out, float3* cartesian_camera_out, bool debug)
 {
     float3 apolar = camera_pos.yzw;
     apolar.x = fabs(apolar.x);
@@ -1685,10 +1686,6 @@ void calculate_constant_theta_basis(float3 pixel_direction, float4 camera_pos, f
 
     float3 new_basis_z = normalize(cross(new_basis_x, new_basis_y));
 
-    /*new_basis_x = rot_quat(new_basis_x, qt);
-    new_basis_y = rot_quat(new_basis_y, qt);
-    new_basis_z = rot_quat(new_basis_z, qt);*/
-
     *bx = new_basis_x;
     *by = new_basis_y;
     *bz = new_basis_z;
@@ -1696,34 +1693,108 @@ void calculate_constant_theta_basis(float3 pixel_direction, float4 camera_pos, f
     *cartesian_pixel_out = cartesian_velocity;
     *cartesian_camera_out = cartesian_camera_pos;
 }
+#endif // 0
 
-void adjust_pixel_direction_and_camera_theta(float3 pixel_direction, float4 polar_camera_in, float3* pixel_direction_out, float4* polar_camera_out)
+float4 get_theta_adjustment_quat(float3 pixel_direction, float4 polar_camera_in)
+{
+    float3 apolar = polar_camera_in.yzw;
+    apolar.x = fabs(apolar.x);
+
+    float3 cartesian_camera_pos = polar_to_cartesian(apolar);
+
+    float3 bx = normalize(pixel_direction);
+    float3 by = normalize(-cartesian_camera_pos);
+
+    bx = rejection(bx, by);
+
+    float3 bz = normalize(cross(bx, by));
+
+    float angle_from_theta = acos(dot(bz, (float3)(0, 0, 1)));
+
+    float3 rotation_axis = normalize(bx);
+
+    return aa_to_quat(rotation_axis, (M_PI/2 - angle_from_theta));
+}
+
+void adjust_pixel_direction_and_camera_theta(float3 pixel_direction, float4 polar_camera_in, float3* pixel_direction_out, float4* polar_camera_out, bool debug)
+{
+    float4 theta_quat = get_theta_adjustment_quat(pixel_direction, polar_camera_in);
+
+    float3 apolar = polar_camera_in.yzw;
+    apolar.x = fabs(apolar.x);
+
+    float3 cartesian_camera =  polar_to_cartesian(apolar);
+
+    pixel_direction = rot_quat(pixel_direction, theta_quat);
+    cartesian_camera = rot_quat(cartesian_camera, theta_quat);
+
+    float3 polar_camera = cartesian_to_polar(cartesian_camera);
+
+    if(polar_camera_in.y < 0)
+    {
+        polar_camera.x = -polar_camera.x;
+    }
+
+    *pixel_direction_out = pixel_direction;
+    *polar_camera_out = (float4)(polar_camera_in.x, polar_camera);
+}
+
+float3 get_texture_constant_theta_rotation(float3 pixel_direction, float4 polar_camera_in, float4 final_position)
+{
+    float4 theta_quat = get_theta_adjustment_quat(pixel_direction, polar_camera_in);
+
+    float3 apolar = polar_camera_in.yzw;
+    apolar.x = fabs(apolar.x);
+
+    float3 cartesian_position = polar_to_cartesian(final_position.yzw);
+
+    cartesian_position = rot_quat(cartesian_position, theta_quat);
+
+    float3 polar_position = cartesian_to_polar(cartesian_position);
+
+    if(final_position.y < 0)
+    {
+        polar_position.x = -polar_position.x;
+    }
+
+	return polar_position;
+}
+
+#if 0
+void adjust_pixel_direction_and_camera_theta(float3 pixel_direction, float4 polar_camera_in, float3* pixel_direction_out, float4* polar_camera_out, bool debug)
 {
     float3 new_basis_x, new_basis_y, new_basis_z;
     float3 cartesian_camera_pos;
     float3 cartesian_velocity;
 
-    calculate_constant_theta_basis(pixel_direction, polar_camera_in, &new_basis_x, &new_basis_y, &new_basis_z, &cartesian_velocity, &cartesian_camera_pos);
+    calculate_constant_theta_basis(pixel_direction, polar_camera_in, &new_basis_x, &new_basis_y, &new_basis_z, &cartesian_velocity, &cartesian_camera_pos, debug);
 
     float3 cartesian_camera_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_camera_pos);
     float3 cartesian_velocity_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_velocity);
-    *pixel_direction_out = normalize(cartesian_velocity_new_basis);
 
     float3 raw_polar = cartesian_to_polar(cartesian_camera_new_basis);
 
     if(polar_camera_in.y < 0)
         raw_polar.x = -raw_polar.x;
 
+    /*float4 qt = aa_to_quat((float3)(0, 0, 1), polar_camera_in.w - raw_polar.z);
+
+    cartesian_velocity_new_basis = rot_quat(cartesian_velocity_new_basis, qt);
+    raw_polar.z = polar_camera_in.w;*/
+
+    *pixel_direction_out = normalize(cartesian_velocity_new_basis);
     *polar_camera_out = (float4)(polar_camera_in.x, raw_polar.xyz);
 }
+#endif // 0
 
+#if 0
 float3 get_texture_constant_theta_rotation(float3 pixel_direction, float4 camera_pos, float4 final_position)
 {
     float3 new_basis_x, new_basis_y, new_basis_z;
 	float3 cartesian_camera_pos;
 	float3 cartesian_velocity;
 
-	calculate_constant_theta_basis(pixel_direction, camera_pos, &new_basis_x, &new_basis_y, &new_basis_z, &cartesian_velocity, &cartesian_camera_pos);
+	calculate_constant_theta_basis(pixel_direction, camera_pos, &new_basis_x, &new_basis_y, &new_basis_z, &cartesian_velocity, &cartesian_camera_pos, false);
 
 	float3 apolar = final_position.yzw;
 	apolar.x = fabs(apolar.x);
@@ -1738,6 +1809,7 @@ float3 get_texture_constant_theta_rotation(float3 pixel_direction, float4 camera
 
 	return cartesian_to_polar(cart_here);
 }
+#endif // 0
 
 __kernel
 void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global struct lightray* metric_rays, __global int* metric_ray_count, int width, int height, int flip_geodesic_direction, float2 base_angle)
@@ -1774,7 +1846,7 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
 
     #if defined(GENERIC_CONSTANT_THETA) || defined(DEBUG_CONSTANT_THETA)
     {
-        adjust_pixel_direction_and_camera_theta(pixel_direction, polar_camera, &pixel_direction, &polar_camera);
+        adjust_pixel_direction_and_camera_theta(pixel_direction, polar_camera, &pixel_direction, &polar_camera, cx==500&&cy==400);
     }
     #endif // GENERIC_CONSTANT_THETA
 
