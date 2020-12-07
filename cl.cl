@@ -1715,26 +1715,9 @@ float4 get_theta_adjustment_quat(float3 pixel_direction, float4 polar_camera_in,
     float3 bx = normalize(pixel_direction);
     float3 by = normalize(-cartesian_camera_pos);
 
-    /*float3 plane_n = (float3)(0, 0, 1);
-
-    float plane_angle2 = acos(dot(by, plane_n));
-
-    float angle_to_flat = M_PI/2 - plane_angle2;
-
-    float3 rvector = -normalize(cross((float3)(0, 0, 1), by));
-
-    if(debug)
-    {
-        printf("Angle %f\n", angle_to_flat);
-    }
-
-    return aa_to_quat(rvector, -angle_to_flat);*/
-
     bx = normalize(rejection(bx, by));
 
     float3 plane_n = -normalize(cross(bx, by));
-
-    //float angle_to_flat = M_PI/2 - acos(dot(by, plane_n));
 
     float angle_to_flat = angle_between_vectors3(plane_n, (float3)(0, 0, 1));
 
@@ -1744,16 +1727,6 @@ float4 get_theta_adjustment_quat(float3 pixel_direction, float4 polar_camera_in,
     }
 
     return aa_to_quat(normalize(cross(plane_n, (float3)(0, 0, 1))), angle_to_flat);
-
-    //float3 rbx = rejection(bx, by);
-
-    //float3 bz = normalize(-cross(rbx, by));
-
-    //float angle_from_theta = acos(dot(bz, (float3)(0, 0, 1)));
-
-    //float angle_from_flat = acos(dot(bz, ))
-
-    //return aa_to_quat(bx, (M_PI/2 - angle_from_theta));
 }
 
 void adjust_pixel_direction_and_camera_theta(float3 pixel_direction, float4 polar_camera_in, float3* pixel_direction_out, float4* polar_camera_out, bool debug)
