@@ -1695,7 +1695,7 @@ void calculate_constant_theta_basis(float3 pixel_direction, float4 camera_pos, f
 }
 #endif // 0
 
-float4 get_theta_adjustment_quat(float3 pixel_direction, float4 polar_camera_in)
+float4 get_theta_adjustment_quat(float3 pixel_direction, float4 polar_camera_in, bool debug)
 {
     float3 apolar = polar_camera_in.yzw;
     apolar.x = fabs(apolar.x);
@@ -1705,20 +1705,38 @@ float4 get_theta_adjustment_quat(float3 pixel_direction, float4 polar_camera_in)
     float3 bx = normalize(pixel_direction);
     float3 by = normalize(-cartesian_camera_pos);
 
-    bx = rejection(bx, by);
+    float3 plane_n = (float3)(0, 0, 1);
 
-    float3 bz = normalize(cross(bx, by));
+    float plane_angle2 = acos(dot(by, plane_n));
 
-    float angle_from_theta = acos(dot(bz, (float3)(0, 0, 1)));
+    float angle_to_flat = M_PI/2 - plane_angle2;
 
-    float3 rotation_axis = normalize(bx);
+    //float3 rjbx = rejection(bx, by);
 
-    return aa_to_quat(rotation_axis, (M_PI/2 - angle_from_theta));
+    float3 rvector = -normalize(cross((float3)(0, 0, 1), by));
+
+    if(debug)
+    {
+        printf("Angle %f\n", angle_to_flat);
+    }
+
+    return aa_to_quat(rvector, -angle_to_flat);
+
+
+    //float3 rbx = rejection(bx, by);
+
+    //float3 bz = normalize(-cross(rbx, by));
+
+    //float angle_from_theta = acos(dot(bz, (float3)(0, 0, 1)));
+
+    //float angle_from_flat = acos(dot(bz, ))
+
+    //return aa_to_quat(bx, (M_PI/2 - angle_from_theta));
 }
 
 void adjust_pixel_direction_and_camera_theta(float3 pixel_direction, float4 polar_camera_in, float3* pixel_direction_out, float4* polar_camera_out, bool debug)
 {
-    float4 theta_quat = get_theta_adjustment_quat(pixel_direction, polar_camera_in);
+    float4 theta_quat = get_theta_adjustment_quat(pixel_direction, polar_camera_in, debug);
 
     float3 apolar = polar_camera_in.yzw;
     apolar.x = fabs(apolar.x);
@@ -1741,7 +1759,7 @@ void adjust_pixel_direction_and_camera_theta(float3 pixel_direction, float4 pola
 
 float3 get_texture_constant_theta_rotation(float3 pixel_direction, float4 polar_camera_in, float4 final_position)
 {
-    float4 theta_quat = get_theta_adjustment_quat(pixel_direction, polar_camera_in);
+    float4 theta_quat = get_theta_adjustment_quat(pixel_direction, polar_camera_in, false);
 
     float3 apolar = polar_camera_in.yzw;
     apolar.x = fabs(apolar.x);
