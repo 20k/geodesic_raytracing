@@ -2010,7 +2010,6 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
             cartesian_cy = rot_quat(normalize(cartesian_cy), new_thetaquat2);
             cartesian_cz = rot_quat(normalize(cartesian_cz), new_thetaquat2);
 
-            global_offset = aa_to_quat((float3)(0, 0, 1), base_angle.y);
             global_theta_offset = aa_to_quat(normalize(cartesian_cy), base_theta_angle - M_PI/2);
         }
 
