@@ -1705,7 +1705,7 @@ float angle_between_vectors3(float3 v1, float3 v2)
     return acos(dot(normalize(v1), normalize(v2)));
 }
 
-float4 get_theta_adjustment_quat(float3 pixel_direction, float4 polar_camera_in, bool debug)
+float4 get_theta_adjustment_quat(float3 pixel_direction, float4 polar_camera_in, float angle_sign, bool debug)
 {
     float3 apolar = polar_camera_in.yzw;
     apolar.x = fabs(apolar.x);
@@ -1726,12 +1726,12 @@ float4 get_theta_adjustment_quat(float3 pixel_direction, float4 polar_camera_in,
         printf("Angle %f\n", angle_to_flat);
     }
 
-    return aa_to_quat(normalize(cross(plane_n, (float3)(0, 0, 1))), angle_to_flat);
+    return aa_to_quat(normalize(cross(plane_n, (float3)(0, 0, 1))), angle_to_flat * angle_sign);
 }
 
 void adjust_pixel_direction_and_camera_theta(float3 pixel_direction, float4 polar_camera_in, float3* pixel_direction_out, float4* polar_camera_out, bool debug)
 {
-    float4 theta_quat = get_theta_adjustment_quat(pixel_direction, polar_camera_in, debug);
+    float4 theta_quat = get_theta_adjustment_quat(pixel_direction, polar_camera_in, 1, debug);
 
     float3 apolar = polar_camera_in.yzw;
     apolar.x = fabs(apolar.x);
@@ -1754,12 +1754,12 @@ void adjust_pixel_direction_and_camera_theta(float3 pixel_direction, float4 pola
 
 float3 get_texture_constant_theta_rotation(float3 pixel_direction, float4 polar_camera_in, float4 final_position)
 {
-    float4 theta_quat = get_theta_adjustment_quat(pixel_direction, polar_camera_in, false);
+    float4 theta_quat = get_theta_adjustment_quat(pixel_direction, polar_camera_in, -1, false);
 
-    float3 apolar = polar_camera_in.yzw;
-    apolar.x = fabs(apolar.x);
+    float3 afinal_position = final_position.yzw;
+    afinal_position.x = fabs(afinal_position.x);
 
-    float3 cartesian_position = polar_to_cartesian(final_position.yzw);
+    float3 cartesian_position = polar_to_cartesian(afinal_position);
 
     cartesian_position = rot_quat(cartesian_position, theta_quat);
 
@@ -2025,34 +2025,6 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
         cartesian_cy = rot_quat(normalize(cartesian_cy), global_offset);
         cartesian_cz = rot_quat(normalize(cartesian_cz), global_offset);*/
     }
-
-    /*{
-        float3 cartesian_camera_pos = polar_to_cartesian(polar_camera_in.yzw);
-        float3 cartesian_velocity = normalize(pixel_direction);
-
-        float3 new_basis_x = normalize(cartesian_velocity);
-        float3 new_basis_y = normalize(-cartesian_camera_pos);
-
-        new_basis_x = rejection(new_basis_x, new_basis_y);
-
-        float3 new_basis_z = -normalize(cross(new_basis_x, new_basis_y));
-
-        #ifdef GENERIC_CONSTANT_THETA
-        {
-            float3 cartesian_camera_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_camera_pos);
-            float3 cartesian_velocity_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_velocity);
-
-            cartesian_cx = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_cx);
-            cartesian_cy = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_cy);
-            cartesian_cz = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_cz);
-
-            cartesian_camera_pos = cartesian_camera_new_basis;
-            pixel_direction = normalize(cartesian_velocity_new_basis);
-        }
-        #endif // GENERIC_CONSTANT_THETA
-
-        at_metric = (float4)(polar_camera_in.x, cartesian_to_polar_signed(cartesian_camera_pos, polar_camera_in.y >= 0));
-    }*/
 
     pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
 
