@@ -1966,12 +1966,9 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
         printf("ANGLES %f %f\n", base_angle.y, base_angle.x);
     }*/
 
-    float4 global_offset;
 
     ///all of this code is only relevant to the case where polar_camera.y might be < 0
     {
-        ///gets the rotation associated with the phi intersection of r=0
-        global_offset = aa_to_quat(up, -base_angle.y);
         ///gets the rotation associated with the theta intersection of r=0
         float base_theta_angle = cos_mix(M_PI/2, base_angle.x, clamp(1 - fabs(polar_camera.y), 0.f, 1.f));
 
@@ -2020,10 +2017,6 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
         cartesian_cx = rot_quat(normalize(cartesian_cx), global_theta_offset);
         cartesian_cy = rot_quat(normalize(cartesian_cy), global_theta_offset);
         cartesian_cz = rot_quat(normalize(cartesian_cz), global_theta_offset);
-
-        /*cartesian_cx = rot_quat(normalize(cartesian_cx), global_offset);
-        cartesian_cy = rot_quat(normalize(cartesian_cy), global_offset);
-        cartesian_cz = rot_quat(normalize(cartesian_cz), global_offset);*/
     }
 
     pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
