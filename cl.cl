@@ -1880,6 +1880,7 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     pixel_direction = rot_quat(pixel_direction, camera_quat);
 
     float3 up = {0, 0, 1};
+
     float4 goff2 = aa_to_quat(up, base_angle.y);
 
     if(polar_camera_in.y < 0)
@@ -1887,22 +1888,34 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
         goff2 = aa_to_quat(up, -base_angle.y);
     }
 
+
     pixel_direction = rot_quat(pixel_direction, goff2);
 
     float4 polar_camera = polar_camera_in;
 
-    ///gets the rotation associated with the theta intersection of r=0
-    float base_theta_angle = cos_mix(M_PI/2, base_angle.x, clamp(1 - fabs(polar_camera_in.y), 0.f, 1.f));
+    /*{
+        ///gets the rotation associated with the theta intersection of r=0
+        float base_theta_angle = cos_mix(M_PI/2, base_angle.x, clamp(1 - fabs(polar_camera_in.y), 0.f, 1.f));
 
-    #ifdef GENERIC_CONSTANT_THETA
-    base_theta_angle = M_PI/2;
-    #endif // GENERIC_CONSTANT_THETA
+        #ifdef GENERIC_CONSTANT_THETA
+        base_theta_angle = M_PI/2;
+        #endif // GENERIC_CONSTANT_THETA
+
+        float3 theta_axis = get_theta_axis(pixel_direction, polar_camera);
+        float4 global_theta_offset = aa_to_quat(theta_axis, -base_theta_angle + M_PI/2);
+
+        if(polar_camera.y < 0)
+        {
+            global_theta_offset = aa_to_quat(theta_axis, base_theta_angle - M_PI/2);
+        }
+
+        pixel_direction = rot_quat(pixel_direction, global_theta_offset);
+    }*/
 
     {
-        float3 theta_axis = get_theta_axis(pixel_direction, polar_camera);
         float3 phi_axis = get_phi_axis(pixel_direction, polar_camera);
 
-        //float4 global_theta_offset = aa_to_quat(normalize(cartesian_cy), -base_theta_angle + M_PI/2);
+        float3 theta_axis = get_theta_axis(pixel_direction, polar_camera);
 
         if(polar_camera.y < 0)
         {
@@ -3731,6 +3744,30 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
     }
 
 	pixel_direction = rot_quat(pixel_direction, goff2);
+
+	{
+        float3 theta_axis = get_theta_axis(pixel_direction, polar_camera_pos);
+        float3 phi_axis = get_phi_axis(pixel_direction, polar_camera_pos);
+
+        //float4 global_theta_offset = aa_to_quat(normalize(cartesian_cy), -base_theta_angle + M_PI/2);
+
+        if(polar_camera_pos.y < 0)
+        {
+            float4 new_quat = aa_to_quat(phi_axis, polar_camera_pos.w - M_PI/2);
+            float4 new_thetaquat = aa_to_quat(theta_axis, -polar_camera_pos.z + M_PI/2);
+
+            pixel_direction = rot_quat(pixel_direction, new_quat);
+            pixel_direction = rot_quat(pixel_direction, new_thetaquat);
+
+            float4 next_thetaquat = aa_to_quat(theta_axis, -polar_camera_pos.z + M_PI/2);
+
+            pixel_direction = rot_quat(pixel_direction, next_thetaquat);
+
+            float4 next_phiquat = aa_to_quat(phi_axis, polar_camera_pos.w + M_PI/2);
+
+            pixel_direction = rot_quat(pixel_direction, next_phiquat);
+        }
+    }
 
 	float3 npolar = position.yzw;
 
