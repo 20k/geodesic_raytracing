@@ -1661,7 +1661,7 @@ float cos_mix(float x1, float x2, float f)
     return mix(x1, x2, f2);
 }
 
-#undef DEBUG_CONSTANT_THETA
+//#undef DEBUG_CONSTANT_THETA
 
 #if 0
 void calculate_constant_theta_basis(float3 pixel_direction, float4 camera_pos, float3* bx, float3* by, float3* bz, float3* cartesian_pixel_out, float3* cartesian_camera_out, bool debug)
@@ -2046,60 +2046,6 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     {
         printf("ANGLES %f %f\n", base_angle.y, base_angle.x);
     }*/
-
-
-    ///all of this code is only relevant to the case where polar_camera.y might be < 0
-    #if 1
-    {
-        ///gets the rotation associated with the theta intersection of r=0
-        float base_theta_angle = cos_mix(M_PI/2, base_angle.x, clamp(1 - fabs(polar_camera.y), 0.f, 1.f));
-
-        #ifdef GENERIC_CONSTANT_THETA
-        base_theta_angle = M_PI/2;
-        #endif // GENERIC_CONSTANT_THETA
-
-        ///above as axis angle in the correct coordinate space
-        float4 global_theta_offset = aa_to_quat(normalize(cartesian_cy), -base_theta_angle + M_PI/2);
-
-        ///so: this is a giant, unmitigated disaster
-        ///when r < 0, the coordinate system has an opposite handedness, but to get a consistent forward vector, we are inverting the basis
-        ///which is equivalent to backwards rotating by {camera.theta, camera.phi}
-        ///which does not produce a correct vector that always consistently points in the same direction in coordinate space
-        ///this firstly undoes the incorrect camera rotation, then applies the correct (backwards) camera rotation
-        if(polar_camera.y < 0)
-        {
-            /*float4 new_thetaquat = aa_to_quat(normalize(cartesian_cy), -polar_camera.z + M_PI/2);
-
-            cartesian_cx = rot_quat(normalize(cartesian_cx), new_thetaquat);
-            cartesian_cy = rot_quat(normalize(cartesian_cy), new_thetaquat);
-            cartesian_cz = rot_quat(normalize(cartesian_cz), new_thetaquat);*/
-
-            /*float4 new_quat = aa_to_quat(normalize(cartesian_cx), polar_camera.w + M_PI/2);
-
-            cartesian_cx = rot_quat(normalize(cartesian_cx), new_quat);
-            cartesian_cy = rot_quat(normalize(cartesian_cy), new_quat);
-            cartesian_cz = rot_quat(normalize(cartesian_cz), new_quat);*/
-
-            /*float4 new_quat2 = aa_to_quat(normalize(cartesian_cx), polar_camera.w - M_PI/2);
-
-            cartesian_cx = rot_quat(normalize(cartesian_cx), new_quat2);
-            cartesian_cy = rot_quat(normalize(cartesian_cy), new_quat2);
-            cartesian_cz = rot_quat(normalize(cartesian_cz), new_quat2);*/
-
-            /*float4 new_thetaquat2 = aa_to_quat(normalize(cartesian_cy), -polar_camera.z + M_PI/2);
-
-            cartesian_cx = rot_quat(normalize(cartesian_cx), new_thetaquat2);
-            cartesian_cy = rot_quat(normalize(cartesian_cy), new_thetaquat2);
-            cartesian_cz = rot_quat(normalize(cartesian_cz), new_thetaquat2);*/
-
-            global_theta_offset = aa_to_quat(normalize(cartesian_cy), base_theta_angle - M_PI/2);
-        }
-
-        /*cartesian_cx = rot_quat(normalize(cartesian_cx), global_theta_offset);
-        cartesian_cy = rot_quat(normalize(cartesian_cy), global_theta_offset);
-        cartesian_cz = rot_quat(normalize(cartesian_cz), global_theta_offset);*/
-    }
-    #endif // 0
 
     pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
 
@@ -3704,28 +3650,45 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
 
 	pixel_direction = rot_quat(pixel_direction, goff2);
 
-	{
-        float3 theta_axis = get_theta_axis(pixel_direction, polar_camera_pos);
-        float3 phi_axis = get_phi_axis(pixel_direction, polar_camera_pos);
+    float4 polar_camera = polar_camera_pos;
 
-        //float4 global_theta_offset = aa_to_quat(normalize(cartesian_cy), -base_theta_angle + M_PI/2);
+    {
+        ///gets the rotation associated with the theta intersection of r=0
+        float base_theta_angle = cos_mix(M_PI/2, base_angle.x, clamp(1 - fabs(polar_camera_pos.y), 0.f, 1.f));
 
-        if(polar_camera_pos.y < 0)
+        #ifdef GENERIC_CONSTANT_THETA
+        base_theta_angle = M_PI/2;
+        #endif // GENERIC_CONSTANT_THETA
+
+        float4 theta_goff = aa_to_quat(get_theta_axis(pixel_direction, polar_camera), -(-base_theta_angle + M_PI/2));
+
+        if(polar_camera.y < 0)
         {
-            float4 new_quat = aa_to_quat(phi_axis, polar_camera_pos.w - M_PI/2);
-            float4 new_thetaquat = aa_to_quat(theta_axis, -polar_camera_pos.z + M_PI/2);
+            float3 theta_axis = get_theta_axis(pixel_direction, polar_camera);
 
-            pixel_direction = rot_quat(pixel_direction, new_quat);
+            float4 new_thetaquat = aa_to_quat(theta_axis, -(-polar_camera.z + M_PI/2));
+
             pixel_direction = rot_quat(pixel_direction, new_thetaquat);
 
-            float4 next_thetaquat = aa_to_quat(theta_axis, -polar_camera_pos.z + M_PI/2);
+            float3 phi_axis = get_phi_axis(pixel_direction, polar_camera);
 
-            pixel_direction = rot_quat(pixel_direction, next_thetaquat);
+            ///the phi axis... is a basis up axis?
+            float4 new_quat = aa_to_quat(phi_axis, -(polar_camera.w + M_PI/2));
 
-            float4 next_phiquat = aa_to_quat(phi_axis, polar_camera_pos.w + M_PI/2);
+            pixel_direction = rot_quat(pixel_direction, new_quat);
 
-            pixel_direction = rot_quat(pixel_direction, next_phiquat);
+            float4 new_quat2 = aa_to_quat(phi_axis, -(polar_camera.w - M_PI/2));
+
+            pixel_direction = rot_quat(pixel_direction, new_quat2);
+
+            float4 new_thetaquat2 = aa_to_quat(theta_axis, -(-polar_camera.z + M_PI/2));
+
+            pixel_direction = rot_quat(pixel_direction, new_thetaquat2);
+
+            theta_goff = aa_to_quat(get_theta_axis(pixel_direction, polar_camera), (-base_theta_angle + M_PI/2));
         }
+
+        pixel_direction = rot_quat(pixel_direction, theta_goff);
     }
 
 	float3 npolar = position.yzw;
