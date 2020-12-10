@@ -2571,7 +2571,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 __kernel
 void get_geodesic_path(__global struct lightray* generic_rays_in,
                        __global float4* positions_out, __global float4* velocities_out, __global float* affine_out,
-                       __global int* generic_count_in, int geodesic_start)
+                       __global int* generic_count_in, int geodesic_start, int width, int height)
 {
     int id = geodesic_start;
 
@@ -2608,7 +2608,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
     float next_ds = 0.00001;
 
     float subambient_precision = 0.5;
-    float ambient_precision = 0.002;
+    float ambient_precision = 0.2;
 
     float rs = 1;
 

@@ -928,10 +928,13 @@ std::array<dual, 4> test_metric(dual t, dual p, dual theta, dual phi)
 
 vec4f interpolate_geodesic(const std::vector<cl_float4>& geodesic, float coordinate_time, const std::vector<cl_float4>& v, const std::vector<cl_float>& affine)
 {
-    for(int i=0; i < (int)geodesic.size() - 1; i++)
+    for(int i=0; i < (int)geodesic.size() - 2; i++)
     {
         vec4f cur = {geodesic[i].s[0], geodesic[i].s[1], geodesic[i].s[2], geodesic[i].s[3]};
         vec4f next = {geodesic[i + 1].s[0], geodesic[i + 1].s[1], geodesic[i + 1].s[2], geodesic[i + 1].s[3]};
+
+        if(geodesic[i + 2].s[0] == 0 && geodesic[i + 1].s[0] == 0)
+            break;
 
         if(next.x() < cur.x())
             std::swap(next, cur);
@@ -1127,9 +1130,9 @@ int main()
     //auto current_metric = symmetric_warp_obj;
     //auto current_metric = kerr_obj;
     //auto current_metric = alcubierre_metric_obj;
-    auto current_metric = kerr_newman_obj;
+    //auto current_metric = kerr_newman_obj;
     //auto current_metric = kerr_schild_obj;
-    //auto current_metric = simple_wormhole;
+    auto current_metric = simple_wormhole;
     //auto current_metric = schwarzs_polar;
     //auto current_metric = minkowski_polar_obj;
     //auto current_metric = krasnikov_tube_cart_obj;
@@ -1341,6 +1344,7 @@ int main()
     float current_geodesic_time = 0;
     bool camera_on_geodesic = false;
     bool camera_time_progresses = false;
+    bool camera_geodesics_go_foward = true;
     //vec2f base_angle = {M_PI/2, 0};
     vec2f base_angle = {M_PI/2, 0};
 
@@ -1568,6 +1572,8 @@ int main()
                 should_snapshot_geodesic = true;
             }
 
+            ImGui::Checkbox("Camera Geodesics go forward", &camera_geodesics_go_foward);
+
             ImGui::End();
         }
 
@@ -1658,6 +1664,18 @@ int main()
 
             int isnap = should_snapshot_geodesic;
 
+            if(should_snapshot_geodesic)
+            {
+                if(camera_geodesics_go_foward)
+                {
+                    isnap = 1;
+                }
+                else
+                {
+                    isnap = 0;
+                }
+            }
+
             cl::args init_args;
             init_args.push_back(scamera);
             init_args.push_back(camera_quat);
@@ -1681,6 +1699,8 @@ int main()
                 snapshot_args.push_back(geodesic_affine_buffer);
                 snapshot_args.push_back(*c1);
                 snapshot_args.push_back(idx);
+                snapshot_args.push_back(width);
+                snapshot_args.push_back(height);
 
                 clctx.cqueue.exec("get_geodesic_path", snapshot_args, {1}, {1});
 
