@@ -1778,20 +1778,11 @@ float3 get_texture_constant_theta_rotation(float3 pixel_direction, float4 polar_
 	return polar_position;
 }
 
-///so: the remaining issue is because the geodesic itself is tracing a constant theta path, which we follow
-///need to un-constant theta it?
-__kernel
-void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global struct lightray* metric_rays, __global int* metric_ray_count, int width, int height, int flip_geodesic_direction, float2 base_angle)
+float3 calculate_pixel_direction(int cx, int cy, float width, float height, float4 polar_camera, float4 camera_quat, float2 base_angle)
 {
     #define FOV 90
 
     float fov_rad = (FOV / 360.f) * 2 * M_PI;
-
-    int cx = get_global_id(0);
-    int cy = get_global_id(1);
-
-    if(cx >= width || cy >= height)
-        return;
 
     float nonphysical_plane_half_width = width/2;
     float nonphysical_f_stop = nonphysical_plane_half_width / tan(fov_rad/2);
@@ -1805,18 +1796,16 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
 
     float4 goff2 = aa_to_quat(up, base_angle.y);
 
-    if(polar_camera_in.y < 0)
+    if(polar_camera.y < 0)
     {
         goff2 = aa_to_quat(up, -base_angle.y);
     }
 
     pixel_direction = rot_quat(pixel_direction, goff2);
 
-    float4 polar_camera = polar_camera_in;
-
     {
         ///gets the rotation associated with the theta intersection of r=0
-        float base_theta_angle = cos_mix(M_PI/2, base_angle.x, clamp(1 - fabs(polar_camera_in.y), 0.f, 1.f));
+        float base_theta_angle = cos_mix(M_PI/2, base_angle.x, clamp(1 - fabs(polar_camera.y), 0.f, 1.f));
 
         #ifdef GENERIC_CONSTANT_THETA
         base_theta_angle = M_PI/2;
@@ -1852,6 +1841,24 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
 
         pixel_direction = rot_quat(pixel_direction, theta_goff);
     }
+
+    return pixel_direction;
+}
+
+///so: the remaining issue is because the geodesic itself is tracing a constant theta path, which we follow
+///need to un-constant theta it?
+__kernel
+void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global struct lightray* metric_rays, __global int* metric_ray_count, int width, int height, int flip_geodesic_direction, float2 base_angle)
+{
+    int cx = get_global_id(0);
+    int cy = get_global_id(1);
+
+    if(cx >= width || cy >= height)
+        return;
+
+    float3 pixel_direction = calculate_pixel_direction(cx, cy, width, height, polar_camera_in, camera_quat, base_angle);
+
+    float4 polar_camera = polar_camera_in;
 
     #if defined(GENERIC_CONSTANT_THETA) || defined(DEBUG_CONSTANT_THETA)
     {
@@ -3543,68 +3550,7 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
     }
     #endif
 
-    #define FOV 90
-
-    float fov_rad = (FOV / 360.f) * 2 * M_PI;
-
-    float nonphysical_plane_half_width = width/2;
-    float nonphysical_f_stop = nonphysical_plane_half_width / tan(fov_rad/2);
-
-    float3 pixel_direction = (float3){sx - width/2, sy - height/2, nonphysical_f_stop};
-
-    pixel_direction = normalize(pixel_direction);
-    pixel_direction = rot_quat(pixel_direction, camera_quat);
-
-	float3 up = {0, 0, 1};
-    float4 goff2 = aa_to_quat(up, base_angle.y);
-
-    if(polar_camera_pos.y < 0)
-    {
-        goff2 = aa_to_quat(up, -base_angle.y);
-    }
-
-	pixel_direction = rot_quat(pixel_direction, goff2);
-
-    float4 polar_camera = polar_camera_pos;
-
-    {
-        ///gets the rotation associated with the theta intersection of r=0
-        float base_theta_angle = cos_mix(M_PI/2, base_angle.x, clamp(1 - fabs(polar_camera_pos.y), 0.f, 1.f));
-
-        #ifdef GENERIC_CONSTANT_THETA
-        base_theta_angle = M_PI/2;
-        #endif // GENERIC_CONSTANT_THETA
-
-        float4 theta_goff = aa_to_quat(get_theta_axis(pixel_direction, polar_camera), -(-base_theta_angle + M_PI/2));
-
-        if(polar_camera.y < 0)
-        {
-            float3 theta_axis = get_theta_axis(pixel_direction, polar_camera);
-
-            float4 new_thetaquat = aa_to_quat(theta_axis, -(-polar_camera.z + M_PI/2));
-
-            pixel_direction = rot_quat(pixel_direction, new_thetaquat);
-
-            float3 phi_axis = get_phi_axis(pixel_direction, polar_camera);
-
-            ///the phi axis... is a basis up axis?
-            float4 new_quat = aa_to_quat(phi_axis, -(polar_camera.w + M_PI/2));
-
-            pixel_direction = rot_quat(pixel_direction, new_quat);
-
-            float4 new_quat2 = aa_to_quat(phi_axis, -(polar_camera.w - M_PI/2));
-
-            pixel_direction = rot_quat(pixel_direction, new_quat2);
-
-            float4 new_thetaquat2 = aa_to_quat(theta_axis, -(-polar_camera.z + M_PI/2));
-
-            pixel_direction = rot_quat(pixel_direction, new_thetaquat2);
-
-            theta_goff = aa_to_quat(get_theta_axis(pixel_direction, polar_camera), (-base_theta_angle + M_PI/2));
-        }
-
-        pixel_direction = rot_quat(pixel_direction, theta_goff);
-    }
+    float3 pixel_direction = calculate_pixel_direction(sx, sy, width, height, polar_camera_pos, camera_quat, base_angle);
 
 	float3 npolar = position.yzw;
 
