@@ -1899,7 +1899,7 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
 
     float4 polar_camera = polar_camera_in;
 
-    /*{
+    {
         ///gets the rotation associated with the theta intersection of r=0
         float base_theta_angle = cos_mix(M_PI/2, base_angle.x, clamp(1 - fabs(polar_camera_in.y), 0.f, 1.f));
 
@@ -1907,57 +1907,8 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
         base_theta_angle = M_PI/2;
         #endif // GENERIC_CONSTANT_THETA
 
-        float3 theta_axis = get_theta_axis(pixel_direction, polar_camera);
-        float4 global_theta_offset = aa_to_quat(theta_axis, -base_theta_angle + M_PI/2);
+        float4 theta_goff = aa_to_quat(get_theta_axis(pixel_direction, polar_camera), -(-base_theta_angle + M_PI/2));
 
-        if(polar_camera.y < 0)
-        {
-            global_theta_offset = aa_to_quat(theta_axis, base_theta_angle - M_PI/2);
-        }
-
-        pixel_direction = rot_quat(pixel_direction, global_theta_offset);
-    }*/
-
-    #if 0
-    {
-        float3 phi_axis = get_phi_axis(pixel_direction, polar_camera);
-
-        float3 theta_axis = get_theta_axis(pixel_direction, polar_camera);
-
-        if(polar_camera.y < 0)
-        {
-
-            /*float4 next_thetaquat = aa_to_quat(theta_axis, -polar_camera.z + M_PI/2);
-            float4 next_phiquat = aa_to_quat(phi_axis, polar_camera.w + M_PI/2);
-
-            pixel_direction = rot_quat(pixel_direction, next_phiquat);
-            pixel_direction = rot_quat(pixel_direction, next_thetaquat);*/
-
-            theta_axis = get_theta_axis(pixel_direction, polar_camera);
-
-
-            /*float4 new_quat = aa_to_quat(phi_axis, polar_camera.w - M_PI/2);
-            float4 new_thetaquat = aa_to_quat(theta_axis, polar_camera.z - M_PI/2);
-
-            pixel_direction = rot_quat(pixel_direction, new_thetaquat);
-            pixel_direction = rot_quat(pixel_direction, new_quat);
-
-            //phi_axis = get_phi_axis(pixel_direction, polar_camera);
-
-            float4 next_thetaquat = aa_to_quat(theta_axis, polar_camera.z - M_PI/2);
-            float4 next_phiquat = aa_to_quat(phi_axis, polar_camera.w + M_PI/2);
-
-            pixel_direction = rot_quat(pixel_direction, next_thetaquat);
-            pixel_direction = rot_quat(pixel_direction, next_phiquat);*/
-
-
-            float4 new_thetaquat2 = aa_to_quat(theta_axis, -(-polar_camera.z + M_PI/2));
-            pixel_direction = rot_quat(pixel_direction, new_thetaquat2);
-        }
-    }
-    #endif // 0
-
-    {
         if(polar_camera.y < 0)
         {
             float3 theta_axis = get_theta_axis(pixel_direction, polar_camera);
@@ -1980,7 +1931,11 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
             float4 new_thetaquat2 = aa_to_quat(theta_axis, -(-polar_camera.z + M_PI/2));
 
             pixel_direction = rot_quat(pixel_direction, new_thetaquat2);
+
+            theta_goff = aa_to_quat(get_theta_axis(pixel_direction, polar_camera), (-base_theta_angle + M_PI/2));
         }
+
+        pixel_direction = rot_quat(pixel_direction, theta_goff);
     }
 
     #if defined(GENERIC_CONSTANT_THETA) || defined(DEBUG_CONSTANT_THETA)
@@ -2140,9 +2095,9 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
             global_theta_offset = aa_to_quat(normalize(cartesian_cy), base_theta_angle - M_PI/2);
         }
 
-        cartesian_cx = rot_quat(normalize(cartesian_cx), global_theta_offset);
+        /*cartesian_cx = rot_quat(normalize(cartesian_cx), global_theta_offset);
         cartesian_cy = rot_quat(normalize(cartesian_cy), global_theta_offset);
-        cartesian_cz = rot_quat(normalize(cartesian_cz), global_theta_offset);
+        cartesian_cz = rot_quat(normalize(cartesian_cz), global_theta_offset);*/
     }
     #endif // 0
 
