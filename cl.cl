@@ -91,8 +91,6 @@ float calculate_ds(float4 velocity, float g_metric[])
 #define IS_CONSTANT_THETA
 #endif
 
-//#define DEBUG_CONSTANT_THETA
-
 ///ds2 = guv dx^u dx^v
 float4 fix_light_velocity2(float4 v, float g_metric[])
 {
@@ -1661,40 +1659,6 @@ float cos_mix(float x1, float x2, float f)
     return mix(x1, x2, f2);
 }
 
-//#undef DEBUG_CONSTANT_THETA
-
-#if 0
-void calculate_constant_theta_basis(float3 pixel_direction, float4 camera_pos, float3* bx, float3* by, float3* bz, float3* cartesian_pixel_out, float3* cartesian_camera_out, bool debug)
-{
-    float3 apolar = camera_pos.yzw;
-    apolar.x = fabs(apolar.x);
-
-    /*if(camera_pos.y < 0)
-    {
-        apolar.y = -apolar.y;
-        apolar.z = -apolar.z;
-    }*/
-
-    float3 cartesian_camera_pos = polar_to_cartesian(apolar);
-
-    float3 cartesian_velocity = normalize(pixel_direction);
-
-    float3 new_basis_x = normalize(cartesian_velocity);
-    float3 new_basis_y = normalize(-cartesian_camera_pos);
-
-    new_basis_x = rejection(new_basis_x, new_basis_y);
-
-    float3 new_basis_z = normalize(cross(new_basis_x, new_basis_y));
-
-    *bx = new_basis_x;
-    *by = new_basis_y;
-    *bz = new_basis_z;
-
-    *cartesian_pixel_out = cartesian_velocity;
-    *cartesian_camera_out = cartesian_camera_pos;
-}
-#endif // 0
-
 float angle_to_plane(float3 vec, float3 plane_normal)
 {
     return M_PI/2 - acos(dot(normalize(vec), normalize(plane_normal)));
@@ -1813,57 +1777,6 @@ float3 get_texture_constant_theta_rotation(float3 pixel_direction, float4 polar_
 
 	return polar_position;
 }
-
-#if 0
-void adjust_pixel_direction_and_camera_theta(float3 pixel_direction, float4 polar_camera_in, float3* pixel_direction_out, float4* polar_camera_out, bool debug)
-{
-    float3 new_basis_x, new_basis_y, new_basis_z;
-    float3 cartesian_camera_pos;
-    float3 cartesian_velocity;
-
-    calculate_constant_theta_basis(pixel_direction, polar_camera_in, &new_basis_x, &new_basis_y, &new_basis_z, &cartesian_velocity, &cartesian_camera_pos, debug);
-
-    float3 cartesian_camera_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_camera_pos);
-    float3 cartesian_velocity_new_basis = unrotate_vector(new_basis_x, new_basis_y, new_basis_z, cartesian_velocity);
-
-    float3 raw_polar = cartesian_to_polar(cartesian_camera_new_basis);
-
-    if(polar_camera_in.y < 0)
-        raw_polar.x = -raw_polar.x;
-
-    /*float4 qt = aa_to_quat((float3)(0, 0, 1), polar_camera_in.w - raw_polar.z);
-
-    cartesian_velocity_new_basis = rot_quat(cartesian_velocity_new_basis, qt);
-    raw_polar.z = polar_camera_in.w;*/
-
-    *pixel_direction_out = normalize(cartesian_velocity_new_basis);
-    *polar_camera_out = (float4)(polar_camera_in.x, raw_polar.xyz);
-}
-#endif // 0
-
-#if 0
-float3 get_texture_constant_theta_rotation(float3 pixel_direction, float4 camera_pos, float4 final_position)
-{
-    float3 new_basis_x, new_basis_y, new_basis_z;
-	float3 cartesian_camera_pos;
-	float3 cartesian_velocity;
-
-	calculate_constant_theta_basis(pixel_direction, camera_pos, &new_basis_x, &new_basis_y, &new_basis_z, &cartesian_velocity, &cartesian_camera_pos, false);
-
-	float3 apolar = final_position.yzw;
-	apolar.x = fabs(apolar.x);
-
-	/*if(final_position.y < 0)
-    {
-        apolar.y = -apolar.y;
-		apolar.z = -apolar.z;
-    }*/
-
-	float3 cart_here = rotate_vector(new_basis_x, new_basis_y, new_basis_z, polar_to_cartesian(apolar.xyz));
-
-	return cartesian_to_polar(cart_here);
-}
-#endif // 0
 
 ///so: the remaining issue is because the geodesic itself is tracing a constant theta path, which we follow
 ///need to un-constant theta it?
