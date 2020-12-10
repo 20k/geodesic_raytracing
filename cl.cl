@@ -91,7 +91,7 @@ float calculate_ds(float4 velocity, float g_metric[])
 #define IS_CONSTANT_THETA
 #endif
 
-#define DEBUG_CONSTANT_THETA
+//#define DEBUG_CONSTANT_THETA
 
 ///ds2 = guv dx^u dx^v
 float4 fix_light_velocity2(float4 v, float g_metric[])
@@ -1764,7 +1764,7 @@ float4 get_theta_adjustment_quat(float3 pixel_direction, float4 polar_camera_in,
 
     if(debug)
     {
-        printf("Angle %f\n", angle_to_flat);
+        //printf("Angle %f\n", angle_to_flat);
     }
 
     return aa_to_quat(normalize(cross(plane_n, (float3)(0, 0, 1))), angle_to_flat * angle_sign);
@@ -1948,7 +1948,7 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
 
     if(cx == 500 && cy == 400)
     {
-        printf("Pixel direction %f %f %f cam %f %f %f\n", pixel_direction.x, pixel_direction.y, pixel_direction.z, polar_camera.y, polar_camera.z, polar_camera.w);
+        //printf("Pixel direction %f %f %f cam %f %f %f\n", pixel_direction.x, pixel_direction.y, pixel_direction.z, polar_camera.y, polar_camera.z, polar_camera.w);
     }
 
     float4 at_metric = spherical_to_generic(polar_camera);
