@@ -53,6 +53,7 @@ namespace dual_types
         symbol_complex(float v1, float v2) : real(v1), imaginary(v2) {}
         symbol_complex(float v1) : real(v1), imaginary(0) {}
         symbol_complex(symbol v1, symbol v2) : real(v1), imaginary(v2) {}
+        symbol_complex(symbol v1) : real(v1) {}
 
         void set_dual_constant()
         {
@@ -85,6 +86,13 @@ namespace dual_types
         dual_v(const U& _real) : real(_real)
         {
             dual = T();
+        }
+
+        template<typename U>
+        requires std::is_constructible_v<T, U>
+        dual_v(const dual_v<U>& other) : real(other.real), dual(other.dual)
+        {
+
         }
 
         void make_constant(T val)

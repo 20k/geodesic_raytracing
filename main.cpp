@@ -479,6 +479,32 @@ std::array<dual, 16> kerr_newman(dual t, dual r, dual theta, dual phi)
 }
 
 inline
+std::array<dual, 16> double_kerr(dual t, dual p, dual phi, dual z)
+{
+    ///distance between black holes
+    dual R = 5;
+
+    dual M = 1;
+    dual a = 0.2;
+
+    dual d = 2 * M * a * (R * R - 4 * M * M + 4 * a * a) / (R * R + 2 * M * R + 4 * a * a);
+
+    dual sigmap = sqrt(M * M - a * a + (4 * M * M * a * a * (R * R - 4 * M * M + 4 * a * a) / pow((R * R + 2 * M * R + 4 * a * a), 2)));
+
+    dual sigman = -sigmap;
+
+    //dual_complex sigma(dual_types::symbol_complex(0.5f));
+
+    dual_complex ia(dual_types::symbol_complex(0, a.real));
+    dual_complex id(dual_types::symbol_complex(0, d.real));
+
+    dual_complex tset = ia * dual_complex(d);
+
+    //dual_complex Rp
+
+}
+
+inline
 std::array<dual_complex, 16> big_imaginary_metric_test(dual_complex t, dual_complex p, dual_complex theta, dual_complex phi)
 {
     dual_complex c = 1;
