@@ -498,18 +498,16 @@ std::array<dual, 16> double_kerr(dual t, dual p, dual phi, dual z)
     dual_complex ia(dual_types::symbol_complex(0, a.real));
     dual_complex id(dual_types::symbol_complex(0, d.real));
 
-    dual_complex dM = M;
-    dual_complex da = a;
-    dual_complex dd = d;
-    dual_complex dsigmap = sigmap;
-    dual_complex dsigman = sigman;
-    dual_complex dR = R;
+    dual_complex Rp = ((-M * (2 * sigmap + R) + id) / (2 * M * M + (R + 2 * ia) * (sigmap + ia))) * sqrt(p * p + pow((z + 0.5 * R + sigmap), 2));
+    dual_complex Rn = ((-M * (2 * sigman + R) + id) / (2 * M * M + (R + 2 * ia) * (sigman + ia))) * sqrt(p * p + pow((z + 0.5 * R + sigman), 2));
 
-    dual_complex Rp = ((-dM * (2 * dsigmap + dR) + id) / (2 * dM * dM + (dR + 2 * ia) * (dsigmap + ia))) * dual_complex(sqrt(p * p + pow((z + 0.5 * R + sigmap), 2)));
-    dual_complex Rn = ((-dM * (2 * dsigman + dR) + id) / (2 * dM * dM + (dR + 2 * ia) * (dsigman + ia))) * dual_complex(sqrt(p * p + pow((z + 0.5 * R + sigman), 2)));
+    dual_complex rp = ((-M * (2 * sigmap - R) + id) / (2 * M * M - (R - 2 * ia) * (sigmap + ia))) * sqrt(p * p + pow((z - 0.5 * R + sigmap), 2));
+    dual_complex rn = ((-M * (2 * sigman - R) + id) / (2 * M * M - (R - 2 * ia) * (sigman + ia))) * sqrt(p * p + pow((z - 0.5 * R + sigman), 2));
 
-    dual_complex rp = ((-dM * (2 * dsigmap - dR) + id) / (2 * dM * dM - (dR - 2 * ia) * (dsigmap + ia))) * dual_complex(sqrt(p * p + pow((z - 0.5 * R + sigmap), 2)));
-    dual_complex rn = ((-dM * (2 * dsigman - dR) + id) / (2 * dM * dM - (dR - 2 * ia) * (dsigman + ia))) * dual_complex(sqrt(p * p + pow((z - 0.5 * R + sigman), 2)));
+    dual K0 = (4 * R * R * sigmap * sigmap * (R * R - 4 * sigmap * sigmap) * ((R * R + 4 * a * a) * (sigmap * sigmap + a * a) - 4 * M * (M * M * M + a * d))) / ((M * M * pow(R + 2 * sigmap, 2) + d * d) * (M * M * pow(R - 2 * sigmap, 2) + d * d));
+
+    dual_complex A = R * R * (Rp - Rn) * (rp - rn) - 4 * sigmap * sigmap * (Rp - rp) * (Rn - rn);
+    dual_complex B = 2 * R * sigmap * ((R + 2 * sigmap) * (Rn - rp) - (R - 2 * sigmap) * (Rp - rn));
 
     //dual_complex Rp
 

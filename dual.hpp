@@ -610,6 +610,22 @@ namespace dual_types
         return dual_types::dual_v<T>(T(v) + d1.real, d1.dual);
     }
 
+    template<typename T, typename U>
+    requires DualValue<T, U>
+    inline
+    dual_types::dual_v<T> operator+(const dual_types::dual_v<T>& d1, const dual_types::dual_v<U>& d2)
+    {
+        return d1 + dual_types::dual_v<T>(d2.real, d2.dual);
+    }
+
+    template<typename T, typename U>
+    requires DualValue<T, U>
+    inline
+    dual_types::dual_v<T> operator+(const dual_types::dual_v<U>& d1, const dual_types::dual_v<T>& d2)
+    {
+        return dual_types::dual_v<T>(d1.real, d1.dual) + d2;
+    }
+
     template<typename T>
     inline
     void operator+=(dual_types::dual_v<T>& d1, const dual_types::dual_v<T>& d2)
@@ -633,10 +649,27 @@ namespace dual_types
     }
 
     template<typename T, typename U>
+    requires DualValue<T, U>
     inline
     dual_types::dual_v<T> operator-(const U& v, const dual_types::dual_v<T>& d1)
     {
         return dual_types::dual_v<T>(T(v) - d1.real, -d1.dual);
+    }
+
+    template<typename T, typename U>
+    requires DualValue<T, U>
+    inline
+    dual_types::dual_v<T> operator-(const dual_types::dual_v<T>& d1, const dual_types::dual_v<U>& d2)
+    {
+        return d1 - dual_types::dual_v<T>(d2.real, d2.dual);
+    }
+
+    template<typename T, typename U>
+    requires DualValue<T, U>
+    inline
+    dual_types::dual_v<T> operator-(const dual_types::dual_v<U>& d1, const dual_types::dual_v<T>& d2)
+    {
+        return dual_types::dual_v<T>(d1.real, d1.dual) - d2;
     }
 
     template<typename T>
@@ -669,6 +702,22 @@ namespace dual_types
         return dual_types::dual_v<T>(T(v), T()) * d1;
     }
 
+    template<typename T, typename U>
+    requires DualValue<T, U>
+    inline
+    dual_types::dual_v<T> operator*(const dual_types::dual_v<T>& d1, const dual_types::dual_v<U>& d2)
+    {
+        return d1 * dual_types::dual_v<T>(d2.real, d2.dual);
+    }
+
+    template<typename T, typename U>
+    requires DualValue<T, U>
+    inline
+    dual_types::dual_v<T> operator*(const dual_types::dual_v<U>& d1, const dual_types::dual_v<T>& d2)
+    {
+        return dual_types::dual_v<T>(d1.real, d1.dual) * d2;
+    }
+
     template<typename T>
     inline
     dual_types::dual_v<T> operator/(const dual_types::dual_v<T>& d1, const dual_types::dual_v<T>& d2)
@@ -690,6 +739,22 @@ namespace dual_types
     dual_types::dual_v<T> operator/(const U& v, const dual_types::dual_v<T>& d1)
     {
         return dual_types::dual_v<T>(T(v), T()) / d1;
+    }
+
+    template<typename T, typename U>
+    requires DualValue<T, U>
+    inline
+    dual_types::dual_v<T> operator/(const dual_types::dual_v<T>& d1, const dual_types::dual_v<U>& d2)
+    {
+        return d1 / dual_types::dual_v<T>(d2.real, d2.dual);
+    }
+
+    template<typename T, typename U>
+    requires DualValue<T, U>
+    inline
+    dual_types::dual_v<T> operator/(const dual_types::dual_v<U>& d1, const dual_types::dual_v<T>& d2)
+    {
+        return dual_types::dual_v<T>(d1.real, d1.dual) / d2;
     }
 
     template<typename T>
