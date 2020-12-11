@@ -1132,9 +1132,9 @@ int main()
     //auto current_metric = symmetric_warp_obj;
     //auto current_metric = kerr_obj;
     //auto current_metric = alcubierre_metric_obj;
-    auto current_metric = kerr_newman_obj;
+    //auto current_metric = kerr_newman_obj;
     //auto current_metric = kerr_schild_obj;
-    //auto current_metric = simple_wormhole;
+    auto current_metric = simple_wormhole;
     //auto current_metric = schwarzs_polar;
     //auto current_metric = minkowski_polar_obj;
     //auto current_metric = krasnikov_tube_cart_obj;
@@ -1697,6 +1697,9 @@ int main()
                 snapshot_args.push_back(idx);
                 snapshot_args.push_back(width);
                 snapshot_args.push_back(height);
+                snapshot_args.push_back(scamera);
+                snapshot_args.push_back(camera_quat);
+                snapshot_args.push_back(base_angle);
 
                 clctx.cqueue.exec("get_geodesic_path", snapshot_args, {1}, {1});
 

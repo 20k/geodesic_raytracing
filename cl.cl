@@ -2571,7 +2571,8 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 __kernel
 void get_geodesic_path(__global struct lightray* generic_rays_in,
                        __global float4* positions_out,
-                       __global int* generic_count_in, int geodesic_start, int width, int height)
+                       __global int* generic_count_in, int geodesic_start, int width, int height,
+                       float4 polar_camera_pos, float4 camera_quat, float2 base_angle)
 {
     int id = geodesic_start;
 
@@ -2613,6 +2614,14 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
     float rs = 1;
 
     int bufc = 0;
+
+    float3 pixel_direction = calculate_pixel_direction(sx, sy, width, height, polar_camera_pos, camera_quat, base_angle);
+
+	//float3 npolar = position.yzw;
+
+    #if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC) || defined(DEBUG_CONSTANT_THETA)
+	//npolar = get_texture_constant_theta_rotation(pixel_direction, polar_camera_pos, position);
+    #endif // GENERIC_CONSTANT_THETA
 
     #pragma unroll
     for(int i=0; i < 64000; i++)
@@ -2680,7 +2689,13 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         velocity = next_velocity;
         acceleration = next_acceleration;
 
-        positions_out[bufc] = generic_to_spherical(position);
+        float4 polar_out = generic_to_spherical(position);
+
+        #if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC) || defined(DEBUG_CONSTANT_THETA)
+        polar_out.yzw = get_texture_constant_theta_rotation(pixel_direction, polar_camera_pos, polar_out);
+        #endif
+
+        positions_out[bufc] = polar_out;
         bufc++;
 
         if(any(isnan(position)) || any(isnan(velocity)) || any(isnan(acceleration)))
