@@ -581,6 +581,12 @@ namespace dual_types
         return complex_v(c1.real, -c1.imaginary);
     }
 
+    inline
+    complex_v makefinite(const complex_v& c1)
+    {
+        return complex_v(makefinite(c1.real), makefinite(c1.imaginary));
+    }
+
     template<typename T>
     inline
     dual_types::dual_v<T> operator+(const dual_types::dual_v<T>& d1, const dual_types::dual_v<T>& d2)
