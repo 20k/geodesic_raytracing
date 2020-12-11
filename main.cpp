@@ -1132,9 +1132,9 @@ int main()
     //auto current_metric = symmetric_warp_obj;
     //auto current_metric = kerr_obj;
     //auto current_metric = alcubierre_metric_obj;
-    //auto current_metric = kerr_newman_obj;
+    auto current_metric = kerr_newman_obj;
     //auto current_metric = kerr_schild_obj;
-    auto current_metric = simple_wormhole;
+    //auto current_metric = simple_wormhole;
     //auto current_metric = schwarzs_polar;
     //auto current_metric = minkowski_polar_obj;
     //auto current_metric = krasnikov_tube_cart_obj;
@@ -1693,6 +1693,10 @@ int main()
             if(should_snapshot_geodesic)
             {
                 int idx = (height/2) * width + width/2;
+
+                geodesic_trace_buffer.set_to_zero(clctx.cqueue);
+                geodesic_velocity_buffer.set_to_zero(clctx.cqueue);
+                geodesic_affine_buffer.set_to_zero(clctx.cqueue);
 
                 cl::args snapshot_args;
                 snapshot_args.push_back(*b1);

@@ -2608,7 +2608,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
     float next_ds = 0.00001;
 
     float subambient_precision = 0.5;
-    float ambient_precision = 0.2;
+    float ambient_precision = 0.002;
 
     float rs = 1;
 
