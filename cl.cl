@@ -1807,10 +1807,6 @@ float3 calculate_pixel_direction(int cx, int cy, float width, float height, floa
         ///gets the rotation associated with the theta intersection of r=0
         float base_theta_angle = cos_mix(M_PI/2, base_angle.x, clamp(1 - fabs(polar_camera.y), 0.f, 1.f));
 
-        #ifdef GENERIC_CONSTANT_THETA
-        //base_theta_angle = M_PI/2;
-        #endif // GENERIC_CONSTANT_THETA
-
         float4 theta_goff = aa_to_quat(get_theta_axis(pixel_direction, polar_camera), -(-base_theta_angle + M_PI/2));
 
         if(polar_camera.y < 0)
