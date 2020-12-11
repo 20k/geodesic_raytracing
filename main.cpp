@@ -926,7 +926,7 @@ std::array<dual, 4> test_metric(dual t, dual p, dual theta, dual phi)
 
 #define GENERIC_METRIC
 
-vec4f interpolate_geodesic(const std::vector<cl_float4>& geodesic, float coordinate_time, const std::vector<cl_float4>& v, const std::vector<cl_float>& affine)
+vec4f interpolate_geodesic(const std::vector<cl_float4>& geodesic, float coordinate_time)
 {
     for(int i=0; i < (int)geodesic.size() - 2; i++)
     {
@@ -1288,15 +1288,9 @@ int main()
     cl::buffer finished_count_1(clctx.ctx);
 
     cl::buffer geodesic_trace_buffer(clctx.ctx);
-    cl::buffer geodesic_velocity_buffer(clctx.ctx);
-    cl::buffer geodesic_affine_buffer(clctx.ctx);
     geodesic_trace_buffer.alloc(64000 * sizeof(cl_float4));
-    geodesic_velocity_buffer.alloc(64000 * sizeof(cl_float4));
-    geodesic_affine_buffer.alloc(64000 * sizeof(cl_float));
 
     std::vector<cl_float4> current_geodesic_path;
-    std::vector<cl_float4> current_geodesic_velocity;
-    std::vector<cl_float> current_geodesic_affine;
 
     cl::buffer texture_coordinates[2] = {clctx.ctx, clctx.ctx};
 
@@ -1534,7 +1528,7 @@ int main()
 
         if(camera_on_geodesic)
         {
-            scamera = interpolate_geodesic(current_geodesic_path, current_geodesic_time, current_geodesic_velocity, current_geodesic_affine);
+            scamera = interpolate_geodesic(current_geodesic_path, current_geodesic_time);
             base_angle = get_geodesic_intersection(current_geodesic_path);
         }
 
@@ -1574,7 +1568,7 @@ int main()
                 should_snapshot_geodesic = true;
             }
 
-            ImGui::Checkbox("Camera Geodesics go forward", &camera_geodesics_go_foward);
+            ImGui::Checkbox("Camera Snapshot Geodesic goes forward", &camera_geodesics_go_foward);
 
             ImGui::End();
         }
@@ -1695,14 +1689,10 @@ int main()
                 int idx = (height/2) * width + width/2;
 
                 geodesic_trace_buffer.set_to_zero(clctx.cqueue);
-                geodesic_velocity_buffer.set_to_zero(clctx.cqueue);
-                geodesic_affine_buffer.set_to_zero(clctx.cqueue);
 
                 cl::args snapshot_args;
                 snapshot_args.push_back(*b1);
                 snapshot_args.push_back(geodesic_trace_buffer);
-                snapshot_args.push_back(geodesic_velocity_buffer);
-                snapshot_args.push_back(geodesic_affine_buffer);
                 snapshot_args.push_back(*c1);
                 snapshot_args.push_back(idx);
                 snapshot_args.push_back(width);
@@ -1711,8 +1701,6 @@ int main()
                 clctx.cqueue.exec("get_geodesic_path", snapshot_args, {1}, {1});
 
                 current_geodesic_path = geodesic_trace_buffer.read<cl_float4>(clctx.cqueue);
-                current_geodesic_velocity = geodesic_velocity_buffer.read<cl_float4>(clctx.cqueue);
-                current_geodesic_affine = geodesic_affine_buffer.read<cl_float>(clctx.cqueue);
             }
 
             cl::args run_args;

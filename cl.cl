@@ -2570,7 +2570,7 @@ void do_generic_rays (__global struct lightray* generic_rays_in, __global struct
 
 __kernel
 void get_geodesic_path(__global struct lightray* generic_rays_in,
-                       __global float4* positions_out, __global float4* velocities_out, __global float* affine_out,
+                       __global float4* positions_out,
                        __global int* generic_count_in, int geodesic_start, int width, int height)
 {
     int id = geodesic_start;
@@ -2681,8 +2681,6 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         acceleration = next_acceleration;
 
         positions_out[bufc] = generic_to_spherical(position);
-        velocities_out[bufc] = generic_velocity_to_spherical_velocity(position, velocity);
-        affine_out[bufc] = ds;
         bufc++;
 
         if(any(isnan(position)) || any(isnan(velocity)) || any(isnan(acceleration)))
