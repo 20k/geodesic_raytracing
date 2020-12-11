@@ -1669,23 +1669,6 @@ float angle_between_vectors3(float3 v1, float3 v2)
     return acos(dot(normalize(v1), normalize(v2)));
 }
 
-float3 get_unified_axis(float3 pixel_direction, float4 polar_camera_in)
-{
-    float3 apolar = polar_camera_in.yzw;
-    apolar.x = fabs(apolar.x);
-
-    float3 cartesian_camera_pos = polar_to_cartesian(apolar);
-
-    float3 bx = normalize(pixel_direction);
-    float3 by = normalize(-cartesian_camera_pos);
-
-    bx = normalize(rejection(bx, by));
-
-    float3 plane_n = -normalize(cross(bx, by));
-
-    return normalize(cross(plane_n, (float3)(0, 0, 1)));
-}
-
 float3 get_theta_axis(float3 pixel_direction, float4 polar_camera_in)
 {
     float3 apolar = polar_camera_in.yzw;

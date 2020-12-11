@@ -76,6 +76,7 @@ https://arxiv.org/pdf/0704.0986.pdf - tetrad info
 https://www.researchgate.net/figure/View-of-a-static-observer-located-at-x-0-y-4-in-the-positive-y-direction-for-t_fig2_225428633 - alcubierre. Successfully managed to replicate this https://imgur.com/a/48SONjV. This paper is an absolute goldmine of useful information
 
 https://arxiv.org/pdf/astro-ph/9707230.pdf - neutron star numerical relativity
+https://www.aanda.org/articles/aa/full_html/2012/07/aa19209-12/aa19209-12.html - a* with a thin disk
 
 "how do i convert rgb to wavelengths"
 https://github.com/colour-science/smits1999
@@ -1126,15 +1127,15 @@ int main()
     //cfg.error_override = 100.f;
     //cfg.error_override = 0.000001f;
     //cfg.error_override = 0.00001f;
-    cfg.error_override = 0.0001f;
+    //cfg.error_override = 0.0001f;
     cfg.redshift = true;
 
     //auto current_metric = symmetric_warp_obj;
     //auto current_metric = kerr_obj;
     //auto current_metric = alcubierre_metric_obj;
-    //auto current_metric = kerr_newman_obj;
+    auto current_metric = kerr_newman_obj;
     //auto current_metric = kerr_schild_obj;
-    auto current_metric = simple_wormhole;
+    //auto current_metric = simple_wormhole;
     //auto current_metric = schwarzs_polar;
     //auto current_metric = minkowski_polar_obj;
     //auto current_metric = krasnikov_tube_cart_obj;
