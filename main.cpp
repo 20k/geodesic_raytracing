@@ -77,6 +77,7 @@ https://www.researchgate.net/figure/View-of-a-static-observer-located-at-x-0-y-4
 
 https://arxiv.org/pdf/astro-ph/9707230.pdf - neutron star numerical relativity
 https://www.aanda.org/articles/aa/full_html/2012/07/aa19209-12/aa19209-12.html - a* with a thin disk
+https://gyoto.obspm.fr/GyotoManual.pdf - gyoto, general relativity tracer
 
 "how do i convert rgb to wavelengths"
 https://github.com/colour-science/smits1999
