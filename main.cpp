@@ -941,38 +941,20 @@ vec4f interpolate_geodesic(const std::vector<cl_float4>& geodesic, float coordin
 
         if(coordinate_time >= cur.x() && coordinate_time < next.x())
         {
-            if(signum(cur.y()) == signum(next.y()))
-            {
-                vec3f as_cart1 = polar_to_cartesian<float>({fabs(cur.y()), cur.z(), cur.w()});
-                vec3f as_cart2 = polar_to_cartesian<float>({fabs(next.y()), next.z(), next.w()});
+            vec3f as_cart1 = polar_to_cartesian<float>({fabs(cur.y()), cur.z(), cur.w()});
+            vec3f as_cart2 = polar_to_cartesian<float>({fabs(next.y()), next.z(), next.w()});
 
-                float dx = (coordinate_time - cur.x()) / (next.x() - cur.x());
+            float r1 = cur.y();
+            float r2 = next.y();
 
-                vec3f next_cart = cartesian_to_polar(mix(as_cart1, as_cart2, dx));
+            float dx = (coordinate_time - cur.x()) / (next.x() - cur.x());
 
-                float sign = mix(cur.y(), next.y(), dx) > 0 ? 1 : -1;
+            vec3f next_cart = cartesian_to_polar(mix(as_cart1, as_cart2, dx));
+            float next_r = mix(r1, r2, dx);
 
-                vec4f next_polar = {coordinate_time, next_cart.x() * sign, next_cart.y(), next_cart.z()};
+            next_cart.x() = next_r;
 
-                return next_polar;
-            }
-            else
-            {
-                vec3f as_cart1 = polar_to_cartesian<float>({fabs(cur.y()), cur.z(), cur.w()});
-                vec3f as_cart2 = polar_to_cartesian<float>({fabs(next.y()), next.z(), next.w()});
-
-                float r1 = cur.y();
-                float r2 = next.y();
-
-                float dx = (coordinate_time - cur.x()) / (next.x() - cur.x());
-
-                vec3f next_cart = cartesian_to_polar(mix(as_cart1, as_cart2, dx));
-                float next_r = mix(r1, r2, dx);
-
-                next_cart.x() = next_r;
-
-                return {coordinate_time, next_cart.x(), next_cart.y(), next_cart.z()};
-            }
+            return {coordinate_time, next_cart.x(), next_cart.y(), next_cart.z()};
         }
     }
 
@@ -989,9 +971,21 @@ vec2f get_geodesic_intersection(const std::vector<cl_float4>& geodesic)
         if(geodesic[i + 2].s[0] == 0 && geodesic[i + 1].s[0] == 0)
             break;
 
+        vec4f cur = {geodesic[i].s[0], geodesic[i].s[1], geodesic[i].s[2], geodesic[i].s[3]};
+        vec4f next = {geodesic[i + 1].s[0], geodesic[i + 1].s[1], geodesic[i + 1].s[2], geodesic[i + 1].s[3]};
+
         if(signum(geodesic[i].s[1]) != signum(geodesic[i + 1].s[1]))
         {
-            return {geodesic[i].s[2], geodesic[i].s[3]};
+            float total_r = fabs(geodesic[i].s[1]) + fabs(geodesic[i + 1].s[1]);
+
+            float dx = fabs(geodesic[i].s[1]) / total_r;
+
+            vec3f as_cart1 = polar_to_cartesian<float>({fabs(cur.y()), cur.z(), cur.w()});
+            vec3f as_cart2 = polar_to_cartesian<float>({fabs(next.y()), next.z(), next.w()});
+
+            vec3f next_cart = cartesian_to_polar(mix(as_cart1, as_cart2, dx));
+
+            return {next_cart.y(), next_cart.z()};
         }
     }
 
