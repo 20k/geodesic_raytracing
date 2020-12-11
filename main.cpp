@@ -958,15 +958,20 @@ vec4f interpolate_geodesic(const std::vector<cl_float4>& geodesic, float coordin
             }
             else
             {
-                vec4f v1 = {v[i].s[0], v[i].s[1], v[i].s[2], v[i].s[3]};
+                vec3f as_cart1 = polar_to_cartesian<float>({fabs(cur.y()), cur.z(), cur.w()});
+                vec3f as_cart2 = polar_to_cartesian<float>({fabs(next.y()), next.z(), next.w()});
 
-                float affine_elapsed = affine[i];
+                float r1 = cur.y();
+                float r2 = next.y();
 
-                float fraction = (coordinate_time - cur.x()) / (next.x() - cur.x());
+                float dx = (coordinate_time - cur.x()) / (next.x() - cur.x());
 
-                vec4f result = cur + v1 * fraction * affine_elapsed;
+                vec3f next_cart = cartesian_to_polar(mix(as_cart1, as_cart2, dx));
+                float next_r = mix(r1, r2, dx);
 
-                return result;
+                next_cart.x() = next_r;
+
+                return {coordinate_time, next_cart.x(), next_cart.y(), next_cart.z()};
             }
         }
     }
@@ -979,8 +984,11 @@ vec4f interpolate_geodesic(const std::vector<cl_float4>& geodesic, float coordin
 
 vec2f get_geodesic_intersection(const std::vector<cl_float4>& geodesic)
 {
-    for(int i=0; i < (int)geodesic.size() - 1; i++)
+    for(int i=0; i < (int)geodesic.size() - 2; i++)
     {
+        if(geodesic[i + 2].s[0] == 0 && geodesic[i + 1].s[0] == 0)
+            break;
+
         if(signum(geodesic[i].s[1]) != signum(geodesic[i + 1].s[1]))
         {
             return {geodesic[i].s[2], geodesic[i].s[3]};
