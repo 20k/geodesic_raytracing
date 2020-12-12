@@ -486,7 +486,7 @@ std::array<dual, 16> double_kerr(dual t, dual p, dual phi, dual z)
     dual R = 8;
 
     dual M = 0.1;
-    dual a = 0.01;
+    dual a = 0.09;
 
     dual d = 2 * M * a * (R * R - 4 * M * M + 4 * a * a) / (R * R + 2 * M * R + 4 * a * a);
 
@@ -1201,7 +1201,7 @@ int main()
     //cfg.error_override = 100.f;
     //cfg.error_override = 0.000001f;
     //cfg.error_override = 0.00001f;
-    cfg.error_override = 0.0001f;
+    //cfg.error_override = 0.0001f;
     cfg.redshift = true;
 
     //auto current_metric = symmetric_warp_obj;

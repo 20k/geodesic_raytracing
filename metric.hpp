@@ -187,7 +187,7 @@ namespace metric
         else if(in.system == CYLINDRICAL)
         {
             ///t, p, phi, z
-            argument_string += " -DW_V1=1 -DW_V2=1 -DW_V3=4 -DW_V4=1";
+            argument_string += " -DW_V1=1 -DW_V2=1 -DW_V3=8 -DW_V4=1";
         }
         else
         {
