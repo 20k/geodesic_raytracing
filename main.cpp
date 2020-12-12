@@ -525,7 +525,7 @@ std::array<dual, 16> double_kerr(dual t, dual p, dual phi, dual z)
     ///I'm not sure if the denominator is real... but I guess it must be?
     dual e2g = (self_conjugate_multiply(A) - self_conjugate_multiply(B)) / Real(K0 * K0 * Rp * Rn * rp * rn);
 
-    dual dphi2 = -w * -w * -f;
+    dual dphi2 = w * w * -f;
     dual dphi1 = i_f * p * p;
 
     dual dt_dphi = -f * -w * 2;
@@ -534,7 +534,7 @@ std::array<dual, 16> double_kerr(dual t, dual p, dual phi, dual z)
     dual dz = i_f_e2g;
 
     std::array<dual, 16> ret;
-    ret[0 * 4 + 0] = -f * f;
+    ret[0 * 4 + 0] = -f;
     ret[2 * 4 + 2] = dphi1 + dphi2;
     ret[0 * 4 + 2] = dt_dphi * 0.5;
     ret[2 * 4 + 0] = dt_dphi * 0.5;
