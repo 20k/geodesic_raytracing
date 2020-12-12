@@ -78,6 +78,7 @@ https://www.researchgate.net/figure/View-of-a-static-observer-located-at-x-0-y-4
 https://arxiv.org/pdf/astro-ph/9707230.pdf - neutron star numerical relativity
 https://www.aanda.org/articles/aa/full_html/2012/07/aa19209-12/aa19209-12.html - a* with a thin disk
 https://gyoto.obspm.fr/GyotoManual.pdf - gyoto, general relativity tracer
+https://core.ac.uk/download/pdf/25279526.pdf - binary black hole approximation?
 
 "how do i convert rgb to wavelengths"
 https://github.com/colour-science/smits1999
@@ -489,19 +490,14 @@ std::array<dual, 16> double_kerr(dual t, dual p, dual phi, dual z)
 
     dual d = 2 * M * a * (R * R - 4 * M * M + 4 * a * a) / (R * R + 2 * M * R + 4 * a * a);
 
-    dual sigma_sq = M * M - a * a + (4 * M * M * a * a * (R * R - 4 * M * M + 4 * a * a) / pow((R * R + 2 * M * R + 4 * a * a), 2));
-
-    ///slower to write it in terms of d
-    //dual sigma_sq = M * M - a * a + d * d / (R * R - 4 * M * M + 4 * a * a);
+    dual sigma_sq = M * M - a * a + (4 * M * M * a * a * (R * R - 4 * M * M + 4 * a * a)) / pow(R * R + 2 * M * R + 4 * a * a, 2);
 
     dual sigmap = sqrt(sigma_sq);
 
     dual sigman = -sigmap;
 
-    //dual_complex sigma(dual_types::symbol_complex(0.5f));
-
-    dual_complex ia(dual_types::symbol_complex(0, a.real));
-    dual_complex id(dual_types::symbol_complex(0, d.real));
+    dual_complex ia(dual_types::symbol_complex(0, a.real), dual_types::symbol_complex(0, a.dual));
+    dual_complex id(dual_types::symbol_complex(0, d.real), dual_types::symbol_complex(0, d.dual));
 
     dual_complex Rp = ((-M * (2 * sigmap + R) + id) / (2 * M * M + (R + 2 * ia) * (sigmap + ia))) * sqrt(p * p + pow((z + 0.5 * R + sigmap), 2));
     dual_complex Rn = ((-M * (2 * sigman + R) + id) / (2 * M * M + (R + 2 * ia) * (sigman + ia))) * sqrt(p * p + pow((z + 0.5 * R + sigman), 2));
@@ -510,8 +506,6 @@ std::array<dual, 16> double_kerr(dual t, dual p, dual phi, dual z)
     dual_complex rn = ((-M * (2 * sigman - R) + id) / (2 * M * M - (R - 2 * ia) * (sigman + ia))) * sqrt(p * p + pow((z - 0.5 * R + sigman), 2));
 
     //dual K0 = (4 * R * R * sigmap * sigmap * (R * R - 4 * sigmap * sigmap) * ((R * R + 4 * a * a) * (sigmap * sigmap + a * a) - 4 * M * (M * M * M + a * d))) / ((M * M * pow(R + 2 * sigmap, 2) + d * d) * (M * M * pow(R - 2 * sigmap, 2) + d * d));
-
-    //dual K0 = (4 * R * R * sigmap * sigmap * (R * R - 4 * sigmap * sigmap) * ((R * R + 4 * a * a) * (sigmap * sigmap + a * a) - 4 * M * (M * M * M + a * d)))
 
     dual K0 = 4 * sigma_sq * (pow(R * R + 2 * M * R + 4 * a * a, 2) - 16 * M * M * a * a) / (M * M * (pow(R + 2 * M, 2) + 4 * a * a));
 
@@ -528,10 +522,8 @@ std::array<dual, 16> double_kerr(dual t, dual p, dual phi, dual z)
 
     dual i_f_e2g = Real((A + B) * (conjugate(A) + conjugate(B))) / Real(K0 * K0 * Rp * Rn * rp * rn);
 
-
     ///I'm not sure if the denominator is real... but I guess it must be?
     dual e2g = (self_conjugate_multiply(A) - self_conjugate_multiply(B)) / Real(K0 * K0 * Rp * Rn * rp * rn);
-
 
     dual dphi2 = -w * -w * -f;
     dual dphi1 = i_f * p * p;
@@ -551,12 +543,6 @@ std::array<dual, 16> double_kerr(dual t, dual p, dual phi, dual z)
     ret[3 * 4 + 3] = dz;
 
     return ret;
-
-
-    //dual E = (A - B) / (A + B);
-
-    //dual_complex Rp
-
 }
 
 inline
