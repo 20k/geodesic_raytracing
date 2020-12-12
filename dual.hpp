@@ -932,13 +932,13 @@ namespace dual_types
     inline
     dual_types::dual_v<dual_types::symbol> Real(const dual_types::dual_v<dual_types::symbol_complex>& c1)
     {
-        return dual_types::dual_v(Real(c1.real), Real(c1.dual));
+        return dual_types::dual_v<dual_types::symbol>(Real(c1.real), Real(c1.dual));
     }
 
     inline
     dual_types::dual_v<dual_types::symbol> Imaginary(const dual_types::dual_v<dual_types::symbol_complex>& c1)
     {
-        return dual_types::dual_v(Imaginary(c1.real), Imaginary(c1.dual));
+        return dual_types::dual_v<dual_types::symbol>(Imaginary(c1.real), Imaginary(c1.dual));
     }
 
     ///(a + bi) (a - bi) = a^2 - b^2
