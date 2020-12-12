@@ -587,6 +587,16 @@ namespace dual_types
         return complex_v(makefinite(c1.real), makefinite(c1.imaginary));
     }
 
+    dual_types::symbol Imaginary(const complex_v& c1)
+    {
+        return c1.imaginary;
+    }
+
+    dual_types::symbol Real(const complex_v& c1)
+    {
+        return c1.real;
+    }
+
     template<typename T>
     inline
     dual_types::dual_v<T> operator+(const dual_types::dual_v<T>& d1, const dual_types::dual_v<T>& d2)
@@ -907,6 +917,25 @@ namespace dual_types
         T bottom = 2 * fast_length(d1.real, d2.real, d3.real);
 
         return dual_types::dual_v<T>(fast_length(d1.real, d2.real, d3.real), (2 * d1.real * d1.dual + 2 * d2.real * d2.dual + 2 * d3.real * d3.dual) / bottom);
+    }
+
+    inline
+    dual_types::dual_v<dual_types::symbol> Real(const dual_types::dual_v<dual_types::symbol_complex>& c1)
+    {
+        return dual_types::dual_v(Real(c1.real), Real(c1.dual));
+    }
+
+    inline
+    dual_types::dual_v<dual_types::symbol> Imaginary(const dual_types::dual_v<dual_types::symbol_complex>& c1)
+    {
+        return dual_types::dual_v(Imaginary(c1.real), Imaginary(c1.dual));
+    }
+
+    ///(a + bi) (a - bi) = a^2 - b^2
+    inline
+    dual_types::dual_v<dual_types::symbol> self_conjugate_multiply(const dual_types::dual_v<dual_types::symbol_complex>& c1)
+    {
+        return Real(c1 * conjugate(c1));
     }
 
 };

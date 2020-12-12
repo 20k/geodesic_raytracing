@@ -509,6 +509,39 @@ std::array<dual, 16> double_kerr(dual t, dual p, dual phi, dual z)
     dual_complex A = R * R * (Rp - Rn) * (rp - rn) - 4 * sigmap * sigmap * (Rp - rp) * (Rn - rn);
     dual_complex B = 2 * R * sigmap * ((R + 2 * sigmap) * (Rn - rp) - (R - 2 * sigmap) * (Rp - rn));
 
+    dual_complex G = -z * B + R * sigmap * (2 * R * (Rn * rn - Rp * rp) + 4 * sigmap * (Rp * Rn - rp * rn) - (R * R - 4 * sigmap * sigmap) * (Rp - Rn - rp - rn));
+
+    dual w = 4 * a - (2 * Imaginary(G * (conjugate(A) + conjugate(B))) / (self_conjugate_multiply(A) - self_conjugate_multiply(B)));
+
+    ///the denominator only has real components
+    dual f = (self_conjugate_multiply(A) - self_conjugate_multiply(B)) / Real((A + B) * (conjugate(A) + conjugate(B)));
+
+    ///I'm not sure if the denominator is real... but I guess it must be?
+    dual e2g = (self_conjugate_multiply(A) - self_conjugate_multiply(B)) / Real(K0 * K0 * Rp * Rn * rp * rn);
+
+
+    dual dphi2 = -w * -w * -f;
+    dual dphi1 = (1/f) * p * p;
+
+    dual dt_dphi = -f * -w * 2;
+
+    dual dp = (1/f) * e2g;
+    dual dz = (1/f) * e2g;
+
+    std::array<dual, 16> ret;
+    ret[0 * 4 + 0] = -f * f;
+    ret[2 * 4 + 2] = dphi1 + dphi2;
+    ret[0 * 4 + 2] = dt_dphi * 0.5;
+    ret[2 * 4 + 0] = dt_dphi * 0.5;
+
+    ret[1 * 4 + 1] = dp;
+    ret[3 * 4 + 3] = dz;
+
+    return ret;
+
+
+    //dual E = (A - B) / (A + B);
+
     //dual_complex Rp
 
 }
