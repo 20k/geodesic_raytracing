@@ -482,14 +482,16 @@ inline
 std::array<dual, 16> double_kerr(dual t, dual p, dual phi, dual z)
 {
     ///distance between black holes
-    dual R = 3;
+    dual R = 5;
 
-    dual M = 1;
-    dual a = 0.4;
+    dual M = 0.1;
+    dual a = 0.05;
 
     dual d = 2 * M * a * (R * R - 4 * M * M + 4 * a * a) / (R * R + 2 * M * R + 4 * a * a);
 
-    dual sigmap = sqrt(M * M - a * a + (4 * M * M * a * a * (R * R - 4 * M * M + 4 * a * a) / pow((R * R + 2 * M * R + 4 * a * a), 2)));
+    dual sigma_sq = M * M - a * a + (4 * M * M * a * a * (R * R - 4 * M * M + 4 * a * a) / pow((R * R + 2 * M * R + 4 * a * a), 2));
+
+    dual sigmap = sqrt(sigma_sq);
 
     dual sigman = -sigmap;
 
@@ -504,12 +506,16 @@ std::array<dual, 16> double_kerr(dual t, dual p, dual phi, dual z)
     dual_complex rp = ((-M * (2 * sigmap - R) + id) / (2 * M * M - (R - 2 * ia) * (sigmap + ia))) * sqrt(p * p + pow((z - 0.5 * R + sigmap), 2));
     dual_complex rn = ((-M * (2 * sigman - R) + id) / (2 * M * M - (R - 2 * ia) * (sigman + ia))) * sqrt(p * p + pow((z - 0.5 * R + sigman), 2));
 
-    dual K0 = (4 * R * R * sigmap * sigmap * (R * R - 4 * sigmap * sigmap) * ((R * R + 4 * a * a) * (sigmap * sigmap + a * a) - 4 * M * (M * M * M + a * d))) / ((M * M * pow(R + 2 * sigmap, 2) + d * d) * (M * M * pow(R - 2 * sigmap, 2) + d * d));
+    //dual K0 = (4 * R * R * sigmap * sigmap * (R * R - 4 * sigmap * sigmap) * ((R * R + 4 * a * a) * (sigmap * sigmap + a * a) - 4 * M * (M * M * M + a * d))) / ((M * M * pow(R + 2 * sigmap, 2) + d * d) * (M * M * pow(R - 2 * sigmap, 2) + d * d));
 
-    dual_complex A = R * R * (Rp - Rn) * (rp - rn) - 4 * sigmap * sigmap * (Rp - rp) * (Rn - rn);
+    //dual K0 = (4 * R * R * sigmap * sigmap * (R * R - 4 * sigmap * sigmap) * ((R * R + 4 * a * a) * (sigmap * sigmap + a * a) - 4 * M * (M * M * M + a * d)))
+
+    dual K0 = 4 * sigma_sq * (pow(R * R + 2 * M * R + 4 * a * a, 2) - 16 * M * M * a * a) / (M * M * (pow(R + 2 * M, 2) + 4 * a * a));
+
+    dual_complex A = R * R * (Rp - Rn) * (rp - rn) - 4 * sigma_sq * (Rp - rp) * (Rn - rn);
     dual_complex B = 2 * R * sigmap * ((R + 2 * sigmap) * (Rn - rp) - (R - 2 * sigmap) * (Rp - rn));
 
-    dual_complex G = -z * B + R * sigmap * (2 * R * (Rn * rn - Rp * rp) + 4 * sigmap * (Rp * Rn - rp * rn) - (R * R - 4 * sigmap * sigmap) * (Rp - Rn - rp + rn));
+    dual_complex G = -z * B + R * sigmap * (2 * R * (Rn * rn - Rp * rp) + 4 * sigmap * (Rp * Rn - rp * rn) - (R * R - 4 * sigma_sq) * (Rp - Rn - rp + rn));
 
     dual w = 4 * a - (2 * Imaginary(G * (conjugate(A) + conjugate(B))) / (self_conjugate_multiply(A) - self_conjugate_multiply(B)));
 
@@ -1194,14 +1200,14 @@ int main()
     metric::metric<double_kerr, cylindrical_to_polar, polar_to_cylindrical, at_origin> double_kerr_obj;
     double_kerr_obj.name = "double_kerr";
     double_kerr_obj.adaptive_precision = true;
-    double_kerr_obj.system = metric::coordinate_system::OTHER;
+    double_kerr_obj.system = metric::coordinate_system::CYLINDRICAL;
 
     metric::config cfg;
     cfg.universe_size = 10000;
     //cfg.error_override = 100.f;
     //cfg.error_override = 0.000001f;
     //cfg.error_override = 0.00001f;
-    cfg.error_override = 0.0001f;
+    //cfg.error_override = 0.0001f;
     cfg.redshift = true;
 
     //auto current_metric = symmetric_warp_obj;
