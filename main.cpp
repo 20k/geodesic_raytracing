@@ -482,14 +482,17 @@ inline
 std::array<dual, 16> double_kerr(dual t, dual p, dual phi, dual z)
 {
     ///distance between black holes
-    dual R = 5;
+    dual R = 8;
 
     dual M = 0.1;
-    dual a = 0.05;
+    dual a = 0.01;
 
     dual d = 2 * M * a * (R * R - 4 * M * M + 4 * a * a) / (R * R + 2 * M * R + 4 * a * a);
 
     dual sigma_sq = M * M - a * a + (4 * M * M * a * a * (R * R - 4 * M * M + 4 * a * a) / pow((R * R + 2 * M * R + 4 * a * a), 2));
+
+    ///slower to write it in terms of d
+    //dual sigma_sq = M * M - a * a + d * d / (R * R - 4 * M * M + 4 * a * a);
 
     dual sigmap = sqrt(sigma_sq);
 
@@ -1200,6 +1203,7 @@ int main()
     metric::metric<double_kerr, cylindrical_to_polar, polar_to_cylindrical, at_origin> double_kerr_obj;
     double_kerr_obj.name = "double_kerr";
     double_kerr_obj.adaptive_precision = true;
+    double_kerr_obj.detect_singularities = true;
     double_kerr_obj.system = metric::coordinate_system::CYLINDRICAL;
 
     metric::config cfg;

@@ -568,7 +568,7 @@ namespace dual_types
     {
         dual_types::symbol divisor = c2.real * c2.real + c2.imaginary * c2.imaginary;
 
-        return complex_v((c1.real * c2.real + c1.imaginary * c2.imaginary) / divisor, (c1.imaginary * c2.real - c1.real * c2.imaginary));
+        return complex_v((c1.real * c2.real + c1.imaginary * c2.imaginary) / divisor, (c1.imaginary * c2.real - c1.real * c2.imaginary) / divisor);
     }
 
     inline
