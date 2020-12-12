@@ -482,7 +482,7 @@ inline
 std::array<dual, 16> double_kerr(dual t, dual p, dual phi, dual z)
 {
     ///distance between black holes
-    dual R = 5;
+    dual R = 3;
 
     dual M = 1;
     dual a = 0.2;
@@ -1191,23 +1191,29 @@ int main()
     krasnikov_tube_cart_obj.adaptive_precision = true;
     krasnikov_tube_cart_obj.system = metric::coordinate_system::CARTESIAN;
 
+    metric::metric<double_kerr, cylindrical_to_polar, polar_to_cylindrical, at_origin> double_kerr_obj;
+    double_kerr_obj.name = "double_kerr";
+    double_kerr_obj.adaptive_precision = true;
+    double_kerr_obj.system = metric::coordinate_system::OTHER;
+
     metric::config cfg;
     cfg.universe_size = 10000;
     //cfg.error_override = 100.f;
     //cfg.error_override = 0.000001f;
     //cfg.error_override = 0.00001f;
-    //cfg.error_override = 0.0001f;
+    cfg.error_override = 0.0001f;
     cfg.redshift = true;
 
     //auto current_metric = symmetric_warp_obj;
     //auto current_metric = kerr_obj;
     //auto current_metric = alcubierre_metric_obj;
-    auto current_metric = kerr_newman_obj;
+    //auto current_metric = kerr_newman_obj;
     //auto current_metric = kerr_schild_obj;
     //auto current_metric = simple_wormhole;
     //auto current_metric = schwarzs_polar;
     //auto current_metric = minkowski_polar_obj;
     //auto current_metric = krasnikov_tube_cart_obj;
+    auto current_metric = double_kerr_obj;
 
     argument_string += build_argument_string(current_metric, cfg);
     #endif // GENERIC_METRIC

@@ -177,6 +177,11 @@ namespace dual_types
                 if(c2.has_value() && c2.value() == 0)
                     return "0";
 
+                if(c2.has_value())
+                {
+                    return "(" + to_string_s(-c2.value()) + ")";
+                }
+
                 return "(-(" + v2 + "))";
             }
 
@@ -259,8 +264,11 @@ namespace dual_types
     {
         auto c1 = get_value(v1);
 
-        if(op == "-" && c1.has_value() && c1.value() == 0)
-            return "0";
+        if(op == "-")
+        {
+            if(c1.has_value())
+                return "(" + to_string_s(-c1.value()) + ")";
+        }
 
         if(op == "sin" || op == "native_sin")
         {
