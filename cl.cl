@@ -1987,7 +1987,7 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     lightray_acceleration.z = 0;
     #endif // IS_CONSTANT_THETA
 
-    #if 0
+    #if 1
     {
         #ifndef GENERIC_BIG_METRIC
         float g_partials[16] = {0};
