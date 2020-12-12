@@ -595,11 +595,13 @@ namespace dual_types
         return complex_v(makefinite(c1.real), makefinite(c1.imaginary));
     }
 
+    inline
     dual_types::symbol Imaginary(const complex_v& c1)
     {
         return c1.imaginary;
     }
 
+    inline
     dual_types::symbol Real(const complex_v& c1)
     {
         return c1.real;

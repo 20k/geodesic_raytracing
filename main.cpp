@@ -485,7 +485,7 @@ std::array<dual, 16> double_kerr(dual t, dual p, dual phi, dual z)
     dual R = 3;
 
     dual M = 1;
-    dual a = 0.2;
+    dual a = 0.4;
 
     dual d = 2 * M * a * (R * R - 4 * M * M + 4 * a * a) / (R * R + 2 * M * R + 4 * a * a);
 
@@ -509,7 +509,7 @@ std::array<dual, 16> double_kerr(dual t, dual p, dual phi, dual z)
     dual_complex A = R * R * (Rp - Rn) * (rp - rn) - 4 * sigmap * sigmap * (Rp - rp) * (Rn - rn);
     dual_complex B = 2 * R * sigmap * ((R + 2 * sigmap) * (Rn - rp) - (R - 2 * sigmap) * (Rp - rn));
 
-    dual_complex G = -z * B + R * sigmap * (2 * R * (Rn * rn - Rp * rp) + 4 * sigmap * (Rp * Rn - rp * rn) - (R * R - 4 * sigmap * sigmap) * (Rp - Rn - rp - rn));
+    dual_complex G = -z * B + R * sigmap * (2 * R * (Rn * rn - Rp * rp) + 4 * sigmap * (Rp * Rn - rp * rn) - (R * R - 4 * sigmap * sigmap) * (Rp - Rn - rp + rn));
 
     dual w = 4 * a - (2 * Imaginary(G * (conjugate(A) + conjugate(B))) / (self_conjugate_multiply(A) - self_conjugate_multiply(B)));
 
