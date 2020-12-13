@@ -482,6 +482,8 @@ std::array<dual, 16> kerr_newman(dual t, dual r, dual theta, dual phi)
 inline
 std::array<dual, 16> double_kerr(dual t, dual p, dual phi, dual z)
 {
+    dual_complex i = dual_types::unit_i();
+
     ///distance between black holes
     dual R = 8;
 
@@ -496,8 +498,8 @@ std::array<dual, 16> double_kerr(dual t, dual p, dual phi, dual z)
 
     dual sigman = -sigmap;
 
-    dual_complex ia(dual_types::symbol_complex(0, a.real), dual_types::symbol_complex(0, a.dual));
-    dual_complex id(dual_types::symbol_complex(0, d.real), dual_types::symbol_complex(0, d.dual));
+    dual_complex ia = i * a;
+    dual_complex id = i * d;
 
     dual_complex Rp = ((-M * (2 * sigmap + R) + id) / (2 * M * M + (R + 2 * ia) * (sigmap + ia))) * sqrt(p * p + pow((z + 0.5 * R + sigmap), 2));
     dual_complex Rn = ((-M * (2 * sigman + R) + id) / (2 * M * M + (R + 2 * ia) * (sigman + ia))) * sqrt(p * p + pow((z + 0.5 * R + sigman), 2));
@@ -571,7 +573,6 @@ std::array<dual, 16> unequal_double_kerr(dual t, dual p, dual phi, dual z)
                   4*pow(3*(M*M + 2*M*R + R*R) - pow(-a1 - a2, 2), 3)) - 36*a1*M*M - 36*a2*M*M - 18*a1*M*R - 18*a2*M*R + 18*a1*R*R + 18*a2*R*R + 2*a1*a1*a1 + 6*a2*a1*a1 + 6*a2*a2*a1 + 2*a2*a2*a2 + 54*J*M + 54*J*R, 1.f/3.f)) +
                   pow(sqrt(pow(-36*a1*M*M - 36*a2*M*M - 18*a1*M*R - 18*a2*M*R + 18*a1*R*R + 18*a2*R*R + 2*a1*a1*a1 + 6*a2*a1*a1 + 6*a2*a2*a1 + 2*a2*a2*a2 + 54*J*M + 54*J*R, 2) + 4*pow(3*(M*M + 2*M*R + R*R) - pow(-a1 - a2, 2), 3)) - 36*a1*M*M - 36*a2*M*M - 18*a1*M*R -
                    18*a2*M*R + 18*a1*R*R + 18*a2*R*R + 2*a1*a1*a1 + 6*a2*a1*a1 + 6*a2*a2*a1 + 2*a2*a2*a2 + 54*J*M + 54*J*R, 1.f/3.f)/(3.f*pow(2, 1.f/3.f)) + 1.f/3.f*(a1 + a2);
-
 
     dual d1 = ((m1 * (a1 - a2 + a) + R * a) * (pow(R + M, 2) + a * a) + m2 * a1 * a*a) / pow(pow(R + M, 2) + a*a, 2);
     dual d2 = ((m2 * (a2 - a1 + a) + R * a) * (pow(R + M, 2) + a * a) + m1 * a2 * a*a) / pow(pow(R + M, 2) + a*a, 2);
