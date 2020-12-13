@@ -551,17 +551,22 @@ std::array<dual, 16> double_kerr(dual t, dual p, dual phi, dual z)
     return ret;
 }
 
+void debugp(dual_complex p)
+{
+    std::cout << p.real.real.sym << std::endl;
+}
+
 ///https://www.sciencedirect.com/science/article/pii/S0370269319303375
 inline
 std::array<dual, 16> unequal_double_kerr(dual t, dual p, dual phi, dual z)
 {
     dual_complex i = dual_types::unit_i();
 
-    dual a1 = 0.3;
-    dual a2 = 0.0;
+    dual a1 = -0.09;
+    dual a2 = 0.091;
 
-    dual m1 = 0.4;
-    dual m2 = 0.4;
+    dual m1 = 0.1;
+    dual m2 = 0.1;
 
     dual R = 4;
 
@@ -588,6 +593,14 @@ std::array<dual, 16> unequal_double_kerr(dual t, dual p, dual phi, dual z)
     dual rsp = sqrt(p * p + pow(z - 0.5 * R + s1, 2));
     dual rsn = sqrt(p * p + pow(z - 0.5 * R - s1, 2));
 
+    //std::cout << "S1 " << d1.real.sym << " S2 " << d2.real.sym << std::endl;
+
+    //assert(false);
+
+    //std::cout << "S1 " << Rsp.real.sym << " S2 " << Rsn.real.sym << " S3 " << rsp.real.sym << " S4 " << rsn.real.sym << std::endl;
+
+    //throw std::runtime_error("Err");
+
     dual_complex mu0 = (R + M - i * a) / (R + M + i * a);
 
 
@@ -607,8 +620,20 @@ std::array<dual, 16> unequal_double_kerr(dual t, dual p, dual phi, dual z)
                                  ((-s2 + m2 + i * a2) * (pow(R + M, 2) + a*a) - 2 * a2 * (m2 * a + i * M * (R + M))))
                                  * Rsn;
 
+    //std::cout << "S1 " << rp.real.real.sym << " S2 " << rn.real.real.sym << " S3 " << Rp.real.real.sym << " S4 " << Rn.real.real.sym << std::endl;
+    //std::cout << "S1I " << rp.real.imaginary.sym << " S2I " << rn.real.imaginary.sym << " S3I " << Rp.real.imaginary.sym << " S4I " << Rn.real.imaginary.sym << std::endl;
+
+    //throw std::runtime_error("Err");
+
+    /*dual_complex A = R * R * (Rp - Rn) * (rp - rn) - 4 * sigma_sq * (Rp - rp) * (Rn - rn);
+    dual_complex B = 2 * R * sigmap * ((R + 2 * sigmap) * (Rn - rp) - (R - 2 * sigmap) * (Rp - rn));*/
+
     dual_complex A = (R*R - pow(s1 + s2, 2)) * (Rp - Rn) * (rp - rn) - 4 * s1 * s2 * (Rp - rn) * (Rn - rp);
     dual_complex B = 2 * s1 * (R*R - s1*s1 + s2*s2) * (Rn - Rp) + 2 * s2 * (R * R + s1 * s1 - s2 * s2) * (rn - rp) + 4 * R * s1 * s2 * (Rp + Rn - rp - rn);
+
+    //std::cout << "A " << A.real.real.sym << " AI " << A.real.imaginary.sym << std::endl;
+
+    //throw std::runtime_error("Err");
 
     dual_complex G = -z * B + s1 * (R * R - s1 * s1 + s2 * s2) * (Rn - Rp) * (rp + rn + R) + s2 * (R * R + s1 * s1 - s2*s2) * (rn - rp) * (Rp + Rn - R)
                      -2 * s1 * s2 * (2 * R * (rp * rn - Rp * Rn - s1 * (rn - rp) + s2 * (Rn - Rp)) + (s1 * s1 - s2 * s2) * (rp + rn - Rp - Rn));
