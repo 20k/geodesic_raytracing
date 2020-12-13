@@ -562,11 +562,23 @@ std::array<dual, 16> unequal_double_kerr(dual t, dual p, dual phi, dual z)
 {
     dual_complex i = dual_types::unit_i();
 
-    dual a1 = -0.09;
-    dual a2 = 0.091;
+    /*dual a1 = -0.09;
+    dual a2 = 0.091;*/
 
     dual m1 = 0.1;
-    dual m2 = 0.1;
+    dual m2 = 0.2;
+
+    dual fa1 = 0.9;
+    dual fa2 = -0.8;
+
+    dual a1 = fa1 * m1;
+    dual a2 = fa2 * m2;
+
+    /*dual a1 = 0.3;
+    dual a2 = 0.1;
+
+    dual m1 = 0.4;
+    dual m2 = 0.4;*/
 
     dual R = 4;
 
