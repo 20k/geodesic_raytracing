@@ -948,6 +948,7 @@ namespace dual_types
         return dual_types::dual_v<T>(lambert_w0(d1.real), d1.dual * lambert_w0(d1.real) / (d1.real * lambert_w0(d1.real) + d1.real));
     }
 
+    ///https://math.stackexchange.com/questions/1052500/what-is-the-general-definition-of-the-conjugate-of-a-multiple-component-number
     template<typename T>
     inline
     dual_types::dual_v<T> conjugate(const dual_types::dual_v<T>& d1)
@@ -985,11 +986,17 @@ namespace dual_types
         return dual_types::dual_v<dual_types::symbol>(Imaginary(c1.real), Imaginary(c1.dual));
     }
 
-    ///(a + bi) (a - bi) = a^2 - b^2
+    ///(a + bi) (a - bi) = a^2 + b^2
     inline
     dual_types::dual_v<dual_types::symbol> self_conjugate_multiply(const dual_types::dual_v<dual_types::symbol_complex>& c1)
     {
         return Real(c1 * conjugate(c1));
+    }
+
+    inline
+    dual_types::dual_v<dual_types::symbol> self_conjugate_multiply(const dual_types::dual_v<dual_types::symbol>& c1)
+    {
+        return c1 * c1;
     }
 
     inline
