@@ -565,11 +565,11 @@ std::array<dual, 16> unequal_double_kerr(dual t, dual p, dual phi, dual z)
     /*dual a1 = -0.09;
     dual a2 = 0.091;*/
 
-    dual m1 = 0.1;
+    dual m1 = 0.01;
     dual m2 = 1;
 
     dual fa1 = 0.4;
-    dual fa2 = -0.34;
+    dual fa2 = 0.34;
 
     dual a1 = fa1 * m1;
     dual a2 = fa2 * m2;
