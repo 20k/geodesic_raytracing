@@ -550,6 +550,33 @@ std::array<dual, 16> double_kerr(dual t, dual p, dual phi, dual z)
 }
 
 inline
+std::array<dual, 16> unequal_double_kerr(dual t, dual p, dual phi, dual z)
+{
+    dual a1 = 0.2;
+    dual a2 = 0.9;
+
+    dual m1 = 0.8;
+    dual m2 = 1;
+
+    dual R = 8;
+
+    dual J = m1 * a1 + m2 * a2;
+    dual M = m1 + m2;
+
+    ///https://www.wolframalpha.com/input/?i=%28%28a_1+%2B+a_2+-+x%29+*+%28R%5E2+-+M%5E2+%2B+x%5E2%29+%2F+%282+*+%28R+%2B+M%29%29%29+-+M+*+x+%2B+J+%3D+0+Solve+for+x
+    dual a = -(pow(2, (1.f/3)) * (3 * (M*M + 2*M*R + R*R) - pow(-a1 - a2, 2)))/(3*pow(sqrt(pow(-36*a1*M*M - 36*a2*M*M - 18*a1*M*R - 18*a2*M*R + 18*a1*R*R + 18*a2*R*R + 2*a1*a1*a1 + 6*a2*a1*a1 + 6*a2*a2*a1 + 2*a2*a2*a2 + 54*J*M + 54*J*R, 2) +
+                  4*pow(3*(M*M + 2*M*R + R*R) - pow(-a1 - a2, 2), 3)) - 36*a1*M*M - 36*a2*M*M - 18*a1*M*R - 18*a2*M*R + 18*a1*R*R + 18*a2*R*R + 2*a1*a1*a1 + 6*a2*a1*a1 + 6*a2*a2*a1 + 2*a2*a2*a2 + 54*J*M + 54*J*R, 1.f/3.f)) +
+                  pow(sqrt(pow(-36*a1*M*M - 36*a2*M*M - 18*a1*M*R - 18*a2*M*R + 18*a1*R*R + 18*a2*R*R + 2*a1*a1*a1 + 6*a2*a1*a1 + 6*a2*a2*a1 + 2*a2*a2*a2 + 54*J*M + 54*J*R, 2) + 4*pow(3*(M*M + 2*M*R + R*R) - pow(-a1 - a2, 2), 3)) - 36*a1*M*M - 36*a2*M*M - 18*a1*M*R -
+                   18*a2*M*R + 18*a1*R*R + 18*a2*R*R + 2*a1*a1*a1 + 6*a2*a1*a1 + 6*a2*a2*a1 + 2*a2*a2*a2 + 54*J*M + 54*J*R, 1.f/3.f)/(3.f*pow(2, 1.f/3.f)) + 1.f/3.f*(a1 + a2);
+
+
+    /*dual d1 = (m1 * (a1 - a2 + a))
+
+    dual s1 = sqrt(m1 * m1 - a1 * a1 + 4 * m2 * a1 * d1);
+    dual s2 = sqrt(m2 * m2 - a2 * a2 + 4 * m1 * a2 * d2);*/
+}
+
+inline
 std::array<dual_complex, 16> big_imaginary_metric_test(dual_complex t, dual_complex p, dual_complex theta, dual_complex phi)
 {
     dual_complex c = 1;
