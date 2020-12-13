@@ -485,10 +485,10 @@ std::array<dual, 16> double_kerr(dual t, dual p, dual phi, dual z)
     dual_complex i = dual_types::unit_i();
 
     ///distance between black holes
-    dual R = 8;
+    dual R = 3;
 
-    dual M = 0.1;
-    dual a = 0.07;
+    dual M = 0.3;
+    dual a = 0.27;
 
     dual d = 2 * M * a * (R * R - 4 * M * M + 4 * a * a) / (R * R + 2 * M * R + 4 * a * a);
 
@@ -1362,8 +1362,8 @@ int main()
     //auto current_metric = schwarzs_polar;
     //auto current_metric = minkowski_polar_obj;
     //auto current_metric = krasnikov_tube_cart_obj;
-    //auto current_metric = double_kerr_obj;
-    auto current_metric = unequal_double_kerr_obj;
+    auto current_metric = double_kerr_obj;
+    //auto current_metric = unequal_double_kerr_obj;
 
     argument_string += build_argument_string(current_metric, cfg);
     #endif // GENERIC_METRIC
