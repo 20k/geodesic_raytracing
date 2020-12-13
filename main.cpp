@@ -549,9 +549,12 @@ std::array<dual, 16> double_kerr(dual t, dual p, dual phi, dual z)
     return ret;
 }
 
+///https://www.sciencedirect.com/science/article/pii/S0370269319303375
 inline
 std::array<dual, 16> unequal_double_kerr(dual t, dual p, dual phi, dual z)
 {
+    dual_complex i = dual_types::unit_i();
+
     dual a1 = 0.2;
     dual a2 = 0.9;
 
@@ -570,10 +573,46 @@ std::array<dual, 16> unequal_double_kerr(dual t, dual p, dual phi, dual z)
                    18*a2*M*R + 18*a1*R*R + 18*a2*R*R + 2*a1*a1*a1 + 6*a2*a1*a1 + 6*a2*a2*a1 + 2*a2*a2*a2 + 54*J*M + 54*J*R, 1.f/3.f)/(3.f*pow(2, 1.f/3.f)) + 1.f/3.f*(a1 + a2);
 
 
-    /*dual d1 = (m1 * (a1 - a2 + a))
+    dual d1 = ((m1 * (a1 - a2 + a) + R * a) * (pow(R + M, 2) + a * a) + m2 * a1 * a*a) / pow(pow(R + M, 2) + a*a, 2);
+    dual d2 = ((m2 * (a2 - a1 + a) + R * a) * (pow(R + M, 2) + a * a) + m1 * a2 * a*a) / pow(pow(R + M, 2) + a*a, 2);
 
+    ///todo: need complex sqrt
     dual s1 = sqrt(m1 * m1 - a1 * a1 + 4 * m2 * a1 * d1);
-    dual s2 = sqrt(m2 * m2 - a2 * a2 + 4 * m1 * a2 * d2);*/
+    dual s2 = sqrt(m2 * m2 - a2 * a2 + 4 * m1 * a2 * d2);
+
+    ///R+ with a squiggle on
+    dual Rsp = sqrt(p * p + pow(z + 0.5 * R + s2, 2));
+    dual Rsn = sqrt(p * p + pow(z + 0.5 * R - s2, 2));
+
+    dual rsp = sqrt(p * p + pow(z - 0.5 * R + s1, 2));
+    dual rsn = sqrt(p * p + pow(z - 0.5 * R - s1, 2));
+
+    dual_complex mu0 = (R + M - i * a) / (R + M + i * a);
+
+
+    dual_complex rp = (1/mu0) *  (((s1 - m1 - i * a1) * (pow(R + M, 2) + a*a) + 2 * a1 * (m1 * a + i * M * (R + M))) /
+                                  ((s1 - m1 + i * a1) * (pow(R + M, 2) + a*a) + 2 * a1 * (m1 * a - i * M * (R + M))))
+                                  * rsp;
+
+    dual_complex rn = (1/mu0) * (((-s1 - m1 - i * a1) * (pow(R + M, 2) + a*a) + 2 * a1 * (m1 * a + i * M * (R + M))) /
+                                 ((-s1 - m1 + i * a1) * (pow(R + M, 2) + a*a) + 2 * a1 * (m1 * a - i * M * (R + M))))
+                                 * rsn;
+
+    dual_complex Rp = -mu0    *  (((s2 + m2 - i * a2) * (pow(R + M, 2) + a*a) - 2 * a2 * (m2 * a - i * M * (R + M))) /
+                                  ((s2 + m2 + i * a2) * (pow(R + M, 2) + a*a) - 2 * a2 * (m2 * a + i * M * (R + M))))
+                                 * Rsp;
+
+    dual_complex Rn = -mu0    * (((-s2 + m2 - i * a2) * (pow(R + M, 2) + a*a) - 2 * a2 * (m2 * a - i * M * (R + M))) /
+                                 ((-s2 + m2 + i * a2) * (pow(R + M, 2) + a*a) - 2 * a2 * (m2 * a + i * M * (R + M))))
+                                 * Rsn;
+
+    dual_complex A = (R*R - pow(s1 + s2, 2)) * (Rp - Rn) * (rp - rn) - 4 * s1 * s2 * (Rp - rn) * (Rn - rp);
+    dual_complex B = 2 * s1 * (R*R - s1*s1 + s2*s2) * (Rn - Rp) + 2 * s2 * (R * R + s1 * s1 - s2 * s2) * (rn - rp) + 4 * R * s1 * s2 * (Rp + Rn - rp - rn);
+
+    dual_complex G = -z * B + s1 * (R * R - s1 * s1 + s2 * s2) * (Rn - Rp) * (rp + rn + R) + s2 * (R * R + s1 * s1 - s2*s2) * (rn - rp) * (Rp + Rn - R)
+                     -2 * s1 * s2 * (2 * R * (rp * rn - Rp * Rn - s1 * (rn - rp) + s2 * (Rn - Rp)) + (s1 * s1 - s2 * s2) * (rp + rn - Rp - Rn));
+
+
 }
 
 inline

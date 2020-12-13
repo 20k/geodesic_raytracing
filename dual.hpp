@@ -948,6 +948,11 @@ namespace dual_types
         return Real(c1 * conjugate(c1));
     }
 
+    inline
+    dual_types::dual_v<dual_types::symbol_complex> unit_i()
+    {
+        return symbol_complex(0, 1);
+    }
 };
 
 inline
