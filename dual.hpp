@@ -112,7 +112,7 @@ namespace dual_types
     concept DualValue = std::is_constructible_v<dual_v<T>, U>;
 
     inline
-    std::optional<float> get_value(std::string in)
+    std::optional<double> get_value(std::string in)
     {
         if(in.size() == 0)
             throw std::runtime_error("Bad in size, 0");
@@ -127,7 +127,7 @@ namespace dual_types
         }
 
         char* ptr = nullptr;
-        float val = std::strtof(in.c_str(), &ptr);
+        double val = std::strtod(in.c_str(), &ptr);
 
         if(ptr == in.c_str() + in.size())
             return val;
