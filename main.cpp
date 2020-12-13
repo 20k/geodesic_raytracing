@@ -612,7 +612,31 @@ std::array<dual, 16> unequal_double_kerr(dual t, dual p, dual phi, dual z)
     dual_complex G = -z * B + s1 * (R * R - s1 * s1 + s2 * s2) * (Rn - Rp) * (rp + rn + R) + s2 * (R * R + s1 * s1 - s2*s2) * (rn - rp) * (Rp + Rn - R)
                      -2 * s1 * s2 * (2 * R * (rp * rn - Rp * Rn - s1 * (rn - rp) + s2 * (Rn - Rp)) + (s1 * s1 - s2 * s2) * (rp + rn - Rp - Rn));
 
-    dual_complex K0 = ((pow(R + M, 2) + a*a) * (R*R - pow(m1 - m2, 2) + a*a) - 4 * m1*m1 + m2*m2 + a*a) / (m1 * m2 * (pow(R + M, 2) + a*a));
+    dual K0 = ((pow(R + M, 2) + a*a) * (R*R - pow(m1 - m2, 2) + a*a) - 4 * m1*m1 + m2*m2 + a*a) / (m1 * m2 * (pow(R + M, 2) + a*a));
+
+    dual w = 2 * a - (2 * Imaginary(G * (conjugate(A) + conjugate(B))) / (self_conjugate_multiply(A) - self_conjugate_multiply(B)));
+
+    dual f = (self_conjugate_multiply(A) - self_conjugate_multiply(B)) / Real((A + B) * (conjugate(A) + conjugate(B)));
+    dual e2g = (self_conjugate_multiply(A) - self_conjugate_multiply(B)) / (16 * pow(fabs(s1), 2) * pow(fabs(s2), 2) * K0*K0 * Rsp * Rsn * rsp * rsn);
+
+    dual dphi2 = w * w * -f;
+    dual dphi1 = (1/f) * p * p;
+
+    dual dt_dphi = f * w * 2;
+
+    dual dp = (1/f) * e2g;
+    dual dz = (1/f) * e2g;
+
+    std::array<dual, 16> ret;
+    ret[0 * 4 + 0] = -f;
+    ret[2 * 4 + 2] = dphi1 + dphi2;
+    ret[0 * 4 + 2] = dt_dphi * 0.5;
+    ret[2 * 4 + 0] = dt_dphi * 0.5;
+
+    ret[1 * 4 + 1] = dp;
+    ret[3 * 4 + 3] = dz;
+
+    return ret;
 }
 
 inline
