@@ -568,8 +568,8 @@ std::array<dual, 16> unequal_double_kerr(dual t, dual p, dual phi, dual z)
     dual m1 = 0.1;
     dual m2 = 0.2;
 
-    dual fa1 = 0.9;
-    dual fa2 = -0.8;
+    dual fa1 = 0.4;
+    dual fa2 = -0.34;
 
     dual a1 = fa1 * m1;
     dual a2 = fa2 * m2;
@@ -586,10 +586,21 @@ std::array<dual, 16> unequal_double_kerr(dual t, dual p, dual phi, dual z)
     dual M = m1 + m2;
 
     ///https://www.wolframalpha.com/input/?i=%28%28a_1+%2B+a_2+-+x%29+*+%28R%5E2+-+M%5E2+%2B+x%5E2%29+%2F+%282+*+%28R+%2B+M%29%29%29+-+M+*+x+%2B+J+%3D+0+Solve+for+x
-    dual a = -(pow(2, (1.f/3)) * (3 * (M*M + 2*M*R + R*R) - pow(-a1 - a2, 2)))/(3*pow(sqrt(pow(-36*a1*M*M - 36*a2*M*M - 18*a1*M*R - 18*a2*M*R + 18*a1*R*R + 18*a2*R*R + 2*a1*a1*a1 + 6*a2*a1*a1 + 6*a2*a2*a1 + 2*a2*a2*a2 + 54*J*M + 54*J*R, 2) +
-                  4*pow(3*(M*M + 2*M*R + R*R) - pow(-a1 - a2, 2), 3)) - 36*a1*M*M - 36*a2*M*M - 18*a1*M*R - 18*a2*M*R + 18*a1*R*R + 18*a2*R*R + 2*a1*a1*a1 + 6*a2*a1*a1 + 6*a2*a2*a1 + 2*a2*a2*a2 + 54*J*M + 54*J*R, 1.f/3.f)) +
-                  pow(sqrt(pow(-36*a1*M*M - 36*a2*M*M - 18*a1*M*R - 18*a2*M*R + 18*a1*R*R + 18*a2*R*R + 2*a1*a1*a1 + 6*a2*a1*a1 + 6*a2*a2*a1 + 2*a2*a2*a2 + 54*J*M + 54*J*R, 2) + 4*pow(3*(M*M + 2*M*R + R*R) - pow(-a1 - a2, 2), 3)) - 36*a1*M*M - 36*a2*M*M - 18*a1*M*R -
-                   18*a2*M*R + 18*a1*R*R + 18*a2*R*R + 2*a1*a1*a1 + 6*a2*a1*a1 + 6*a2*a2*a1 + 2*a2*a2*a2 + 54*J*M + 54*J*R, 1.f/3.f)/(3.f*pow(2, 1.f/3.f)) + 1.f/3.f*(a1 + a2);
+    ///https://www.wolframalpha.com/input/?i=%28%28k+-+a%29+*+%28B+%2B+a%5E2%29+%2F+C%29+-+M+*+a+%2B+J+solve+for+a
+
+    dual a = 0;
+
+    {
+        dual k = a1 + a2;
+        dual B = R*R - M*M;
+        dual C = 2 * (R + M);
+
+        dual inner_val = pow(sqrt(pow(18 * B * k + 27 * C * J - 9 * C * k * M + 2 * k*k*k, 2) + 4 * pow(3 * B + 3 * C * M - k*k, 3)) + 18 * B * k + 27 * C * J - 9 * C * k * M + 2 *k*k*k, 1.f/3.f);
+
+        dual third_root_2 = pow(2.f, 1.f/3.f);
+
+        a = (1.f / (3 * third_root_2)) * inner_val - ((third_root_2 * (3 * B + 3 * C * M - k*k)) / (3 * inner_val)) + k/3;
+    }
 
     dual d1 = ((m1 * (a1 - a2 + a) + R * a) * (pow(R + M, 2) + a * a) + m2 * a1 * a*a) / pow(pow(R + M, 2) + a*a, 2);
     dual d2 = ((m2 * (a2 - a1 + a) + R * a) * (pow(R + M, 2) + a * a) + m1 * a2 * a*a) / pow(pow(R + M, 2) + a*a, 2);
