@@ -596,6 +596,12 @@ namespace dual_types
     }
 
     inline
+    dual_types::symbol fabs(const complex_v& c1)
+    {
+        return sqrt(c1.real * c1.real + c1.imaginary * c1.imaginary);
+    }
+
+    inline
     dual_types::symbol Imaginary(const complex_v& c1)
     {
         return c1.imaginary;
@@ -810,7 +816,16 @@ namespace dual_types
     inline
     dual_types::dual_v<T> fabs(const dual_types::dual_v<T>& d1)
     {
+        static_assert(!std::is_same_v<T, dual_types::symbol_complex>);
+
         return dual_types::dual_v<T>(fabs(d1.real), d1.real * d1.dual / fabs(d1.real));
+    }
+
+    ///https://math.stackexchange.com/questions/2352341/the-derivative-of-absolute-value-of-complex-function-fx-z-where-x-in-math
+    inline
+    dual_types::dual_v<dual_types::symbol> fabs(const dual_types::dual_v<dual_types::symbol_complex>& d1)
+    {
+        return dual_types::dual_v<dual_types::symbol>(fabs(d1.real), Real(d1.real * conjugate(d1.dual)) / fabs(d1.real));
     }
 
     template<typename T>

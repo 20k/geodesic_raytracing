@@ -612,7 +612,7 @@ std::array<dual, 16> unequal_double_kerr(dual t, dual p, dual phi, dual z)
     dual_complex G = -z * B + s1 * (R * R - s1 * s1 + s2 * s2) * (Rn - Rp) * (rp + rn + R) + s2 * (R * R + s1 * s1 - s2*s2) * (rn - rp) * (Rp + Rn - R)
                      -2 * s1 * s2 * (2 * R * (rp * rn - Rp * Rn - s1 * (rn - rp) + s2 * (Rn - Rp)) + (s1 * s1 - s2 * s2) * (rp + rn - Rp - Rn));
 
-
+    dual_complex K0 = ((pow(R + M, 2) + a*a) * (R*R - pow(m1 - m2, 2) + a*a) - 4 * m1*m1 + m2*m2 + a*a) / (m1 * m2 * (pow(R + M, 2) + a*a));
 }
 
 inline
