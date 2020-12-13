@@ -580,7 +580,7 @@ std::array<dual, 16> unequal_double_kerr(dual t, dual p, dual phi, dual z)
     dual m1 = 0.4;
     dual m2 = 0.4;*/
 
-    dual R = 4;
+    dual R = 0;
 
     dual J = m1 * a1 + m2 * a2;
     dual M = m1 + m2;
