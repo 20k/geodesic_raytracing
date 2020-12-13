@@ -625,6 +625,8 @@ namespace dual_types
     inline
     dual_types::dual_v<T> operator+(const dual_types::dual_v<T>& d1, const U& v)
     {
+        static_assert(!std::is_same_v<U, dual_types::dual_v<dual_types::symbol>>);
+
         return dual_types::dual_v<T>(d1.real + T(v), d1.dual);
     }
 
@@ -633,6 +635,8 @@ namespace dual_types
     inline
     dual_types::dual_v<T> operator+(const U& v, const dual_types::dual_v<T>& d1)
     {
+        static_assert(!std::is_same_v<U, dual_types::dual_v<dual_types::symbol>>);
+
         return dual_types::dual_v<T>(T(v) + d1.real, d1.dual);
     }
 
@@ -671,6 +675,8 @@ namespace dual_types
     inline
     dual_types::dual_v<T> operator-(const dual_types::dual_v<T>& d1, const U& v)
     {
+        static_assert(!std::is_same_v<U, dual_types::dual_v<dual_types::symbol>>);
+
         return dual_types::dual_v<T>(d1.real - T(v), d1.dual);
     }
 
@@ -679,6 +685,8 @@ namespace dual_types
     inline
     dual_types::dual_v<T> operator-(const U& v, const dual_types::dual_v<T>& d1)
     {
+        static_assert(!std::is_same_v<U, dual_types::dual_v<dual_types::symbol>>);
+
         return dual_types::dual_v<T>(T(v) - d1.real, -d1.dual);
     }
 
@@ -717,6 +725,8 @@ namespace dual_types
     inline
     dual_types::dual_v<T> operator*(const dual_types::dual_v<T>& d1, const U& v)
     {
+        static_assert(!std::is_same_v<U, dual_types::dual_v<dual_types::symbol>>);
+
         return d1 * dual_types::dual_v<T>(T(v), T());
     }
 
@@ -725,6 +735,8 @@ namespace dual_types
     inline
     dual_types::dual_v<T> operator*(const U& v, const dual_types::dual_v<T>& d1)
     {
+        static_assert(!std::is_same_v<U, dual_types::dual_v<dual_types::symbol>>);
+
         return dual_types::dual_v<T>(T(v), T()) * d1;
     }
 
@@ -756,6 +768,8 @@ namespace dual_types
     inline
     dual_types::dual_v<T> operator/(const dual_types::dual_v<T>& d1, const U& v)
     {
+        static_assert(!std::is_same_v<U, dual_types::dual_v<dual_types::symbol>>);
+
         return d1 / dual_types::dual_v<T>(T(v), T());
     }
 
@@ -764,6 +778,8 @@ namespace dual_types
     inline
     dual_types::dual_v<T> operator/(const U& v, const dual_types::dual_v<T>& d1)
     {
+        static_assert(!std::is_same_v<U, dual_types::dual_v<dual_types::symbol>>);
+
         return dual_types::dual_v<T>(T(v), T()) / d1;
     }
 
