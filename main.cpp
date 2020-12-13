@@ -486,7 +486,7 @@ std::array<dual, 16> double_kerr(dual t, dual p, dual phi, dual z)
     dual R = 8;
 
     dual M = 0.1;
-    dual a = 0.09;
+    dual a = 0.07;
 
     dual d = 2 * M * a * (R * R - 4 * M * M + 4 * a * a) / (R * R + 2 * M * R + 4 * a * a);
 
@@ -522,13 +522,17 @@ std::array<dual, 16> double_kerr(dual t, dual p, dual phi, dual z)
 
     dual i_f_e2g = Real((A + B) * (conjugate(A) + conjugate(B))) / Real(K0 * K0 * Rp * Rn * rp * rn);
 
+    //dual i_f = 1/f;
+
     ///I'm not sure if the denominator is real... but I guess it must be?
     dual e2g = (self_conjugate_multiply(A) - self_conjugate_multiply(B)) / Real(K0 * K0 * Rp * Rn * rp * rn);
+
+    //dual i_f_e2g = i_f * e2g;
 
     dual dphi2 = w * w * -f;
     dual dphi1 = i_f * p * p;
 
-    dual dt_dphi = -f * -w * 2;
+    dual dt_dphi = f * w * 2;
 
     dual dp = i_f_e2g;
     dual dz = i_f_e2g;
@@ -1201,7 +1205,7 @@ int main()
     //cfg.error_override = 100.f;
     //cfg.error_override = 0.000001f;
     //cfg.error_override = 0.00001f;
-    //cfg.error_override = 0.0001f;
+    cfg.error_override = 0.00001f;
     cfg.redshift = true;
 
     //auto current_metric = symmetric_warp_obj;
