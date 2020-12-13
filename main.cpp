@@ -566,7 +566,7 @@ std::array<dual, 16> unequal_double_kerr(dual t, dual p, dual phi, dual z)
     dual a2 = 0.091;*/
 
     dual m1 = 0.1;
-    dual m2 = 0.2;
+    dual m2 = 1;
 
     dual fa1 = 0.4;
     dual fa2 = -0.34;
@@ -1362,8 +1362,8 @@ int main()
     //auto current_metric = schwarzs_polar;
     //auto current_metric = minkowski_polar_obj;
     //auto current_metric = krasnikov_tube_cart_obj;
-    auto current_metric = double_kerr_obj;
-    //auto current_metric = unequal_double_kerr_obj;
+    //auto current_metric = double_kerr_obj;
+    auto current_metric = unequal_double_kerr_obj;
 
     argument_string += build_argument_string(current_metric, cfg);
     #endif // GENERIC_METRIC

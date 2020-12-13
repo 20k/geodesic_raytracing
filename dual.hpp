@@ -126,6 +126,9 @@ namespace dual_types
             }
         }
 
+        if(in == "nan")
+            throw std::runtime_error("Nan");
+
         char* ptr = nullptr;
         double val = std::strtod(in.c_str(), &ptr);
 
@@ -818,7 +821,9 @@ namespace dual_types
     inline
     dual_types::dual_v<T> pow(const dual_types::dual_v<T>& d1, const U& d2)
     {
-        return pow(d1, dual_types::dual_v<T>(T(d2), T()));
+        static_assert(!std::is_same_v<U, complex_v> && !std::is_same_v<U, dual_types::dual_v<complex_v>> && !std::is_same_v<T, complex_v>);
+
+        return dual_types::dual_v<T>(pow(d1.real, d2), pow(d1.real, d2 - 1) * d2 * d1.dual);
     }
 
     template<typename T>
