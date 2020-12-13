@@ -111,7 +111,6 @@ namespace dual_types
     template<typename T, typename U>
     concept DualValue = std::is_constructible_v<dual_v<T>, U>;
 
-    inline
     std::optional<float> get_value(std::string in)
     {
         if(in.size() == 0)

@@ -555,13 +555,13 @@ std::array<dual, 16> unequal_double_kerr(dual t, dual p, dual phi, dual z)
 {
     dual_complex i = dual_types::unit_i();
 
-    dual a1 = 0.2;
-    dual a2 = 0.9;
+    dual a1 = 0.3;
+    dual a2 = 0.0;
 
-    dual m1 = 0.8;
-    dual m2 = 1;
+    dual m1 = 0.4;
+    dual m2 = 0.4;
 
-    dual R = 8;
+    dual R = 4;
 
     dual J = m1 * a1 + m2 * a2;
     dual M = m1 + m2;
@@ -1290,12 +1290,18 @@ int main()
     double_kerr_obj.detect_singularities = true;
     double_kerr_obj.system = metric::coordinate_system::CYLINDRICAL;
 
+    metric::metric<unequal_double_kerr, cylindrical_to_polar, polar_to_cylindrical, at_origin> unequal_double_kerr_obj;
+    unequal_double_kerr_obj.name = "unequal_double_kerr";
+    unequal_double_kerr_obj.adaptive_precision = true;
+    unequal_double_kerr_obj.detect_singularities = true;
+    unequal_double_kerr_obj.system = metric::coordinate_system::CYLINDRICAL;
+
     metric::config cfg;
     cfg.universe_size = 10000;
     //cfg.error_override = 100.f;
     //cfg.error_override = 0.000001f;
     //cfg.error_override = 0.00001f;
-    cfg.error_override = 0.00001f;
+    //cfg.error_override = 0.0001f;
     cfg.redshift = true;
 
     //auto current_metric = symmetric_warp_obj;
@@ -1307,7 +1313,8 @@ int main()
     //auto current_metric = schwarzs_polar;
     //auto current_metric = minkowski_polar_obj;
     //auto current_metric = krasnikov_tube_cart_obj;
-    auto current_metric = double_kerr_obj;
+    //auto current_metric = double_kerr_obj;
+    auto current_metric = unequal_double_kerr_obj;
 
     argument_string += build_argument_string(current_metric, cfg);
     #endif // GENERIC_METRIC
