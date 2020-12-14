@@ -117,13 +117,10 @@ namespace dual_types
         if(in.size() == 0)
             throw std::runtime_error("Bad in size, 0");
 
-        if(in.size() > 2)
+        while(in.size() > 2 && in.front() == '(' && in.back() == ')')
         {
-            if(in.front() == '(' && in.back() == ')')
-            {
-                in.remove_prefix(1);
-                in.remove_suffix(1);
-            }
+            in.remove_prefix(1);
+            in.remove_suffix(1);
         }
 
         if(in == "nan")
@@ -213,6 +210,7 @@ namespace dual_types
             if(c1.has_value() && c2.has_value())
                 return to_string_s(c1.value() / c2.value());
 
+            #define RECIPROCAL_CONSTANTS
             #ifdef RECIPROCAL_CONSTANTS
             if(!c1.has_value() && c2.has_value())
             {
@@ -224,7 +222,7 @@ namespace dual_types
             #endif // RECIPROCAL_CONSTANTS
         }
 
-        return "(" + v1 + "" + op + "" + v2 + ")";
+        return "(" + v1 + op + v2 + ")";
     }
 
     inline
@@ -299,7 +297,7 @@ namespace dual_types
                 return to_string_s(exp(c1.value()));
         }
 
-        if(op == "native_sqrt")
+        if(op == "sqrt" || op == "native_sqrt")
         {
             if(c1.has_value())
                 return to_string_s(sqrt(c1.value()));
@@ -771,7 +769,7 @@ namespace dual_types
     inline
     dual_types::dual_v<T> operator/(const dual_types::dual_v<T>& d1, const dual_types::dual_v<T>& d2)
     {
-        return dual_types::dual_v<T>(d1.real / d2.real, makefinite((d1.dual * d2.real - d1.real * d2.dual) / (d2.real * d2.real)));
+        return dual_types::dual_v<T>(d1.real / d2.real, ((d1.dual * d2.real - d1.real * d2.dual) / (d2.real * d2.real)));
     }
 
     template<typename T, typename U>

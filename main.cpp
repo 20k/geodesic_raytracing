@@ -1436,8 +1436,8 @@ int main()
     //auto current_metric = schwarzs_polar;
     //auto current_metric = minkowski_polar_obj;
     //auto current_metric = krasnikov_tube_cart_obj;
-    auto current_metric = double_kerr_alt_obj;
-    //auto current_metric = double_kerr_obj;
+    //auto current_metric = double_kerr_alt_obj;
+    auto current_metric = double_kerr_obj;
     //auto current_metric = unequal_double_kerr_obj;
 
     argument_string += build_argument_string(current_metric, cfg);
