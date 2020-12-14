@@ -36,6 +36,7 @@ https://iopscience.iop.org/article/10.1088/0067-0049/184/2/387/pdf - radiative t
 https://javierrubioblog.files.wordpress.com/2015/12/chapter4.pdf - coordinate transforms
 https://arxiv.org/pdf/1308.2298.pdf - double balanced kerr
 https://www.researchgate.net/figure/Shadows-of-the-double-Schwarzschild-BH-solution-with-equal-masses-0-and-different-BH_fig1_323026854 - binary schwarzs
+https://www2.mpia-hd.mpg.de/homes/tmueller/pdfs/catalogue_2014-05-21.pdf - loads of good information about everything, metric catalogue
 
 https://www.reed.edu/physics/courses/Physics411/html/page2/page2.html - some useful info
 https://www.uio.no/studier/emner/matnat/astro/nedlagte-emner/AST1100/h11/undervisningsmateriale/lecture15.pdf - useful basic info
@@ -761,13 +762,13 @@ std::array<dual, 16> unequal_double_kerr(dual t, dual p, dual phi, dual z)
 inline
 std::array<dual, 16> double_schwarzschild(dual t, dual p, dual phi, dual z)
 {
-    dual M1 = 0.1;
+    dual M1 = 1;
     dual M2 = 0.1;
 
     dual e = M2 - M1;
     dual M = M1 + M2;
 
-    dual z0 = 0.2;
+    dual z0 = 2;
 
     dual a1 = -0.5 * (M - e) - z0;
     dual a2 = 0.5 * (M - e) - z0;
@@ -1497,12 +1498,12 @@ int main()
 
     metric::config cfg;
     ///necessary for double schwarzs
-    cfg.universe_size = 100;
+    cfg.universe_size = 200;
     //cfg.error_override = 100.f;
     //cfg.error_override = 0.000001f;
     //cfg.error_override = 0.00001f;
     //cfg.error_override = 0.0001f;
-    cfg.redshift = true;
+    //cfg.redshift = true;
 
     //auto current_metric = symmetric_warp_obj;
     //auto current_metric = kerr_obj;
@@ -1515,8 +1516,8 @@ int main()
     //auto current_metric = krasnikov_tube_cart_obj;
     //auto current_metric = double_kerr_alt_obj;
     //auto current_metric = double_kerr_obj;
-    //auto current_metric = unequal_double_kerr_obj;
-    auto current_metric = double_schwarzschild_obj;
+    auto current_metric = unequal_double_kerr_obj;
+    //auto current_metric = double_schwarzschild_obj;
 
     argument_string += build_argument_string(current_metric, cfg);
     #endif // GENERIC_METRIC

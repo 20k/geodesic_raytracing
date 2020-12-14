@@ -1225,7 +1225,7 @@ std::pair<std::vector<std::string>, std::vector<std::string>> total_diff(Func&& 
 
         for(int j=0; j < N; j++)
         {
-            accum += partial_differentials[j * N + i] + "*d" + variable_names[j];
+            accum += "(" + partial_differentials[j * N + i] + ")*d" + variable_names[j];
 
             if(j != N-1)
                 accum += "+";
