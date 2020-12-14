@@ -112,7 +112,7 @@ namespace dual_types
     concept DualValue = std::is_constructible_v<dual_v<T>, U>;
 
     inline
-    std::optional<double> get_value(std::string in)
+    std::optional<double> get_value(std::string_view in)
     {
         if(in.size() == 0)
             throw std::runtime_error("Bad in size, 0");
@@ -121,25 +121,27 @@ namespace dual_types
         {
             if(in.front() == '(' && in.back() == ')')
             {
-                in.erase(in.begin());
-                in.pop_back();
+                in.remove_prefix(1);
+                in.remove_suffix(1);
             }
         }
 
         if(in == "nan")
             throw std::runtime_error("Nan");
 
-        char* ptr = nullptr;
-        double val = std::strtod(in.c_str(), &ptr);
+        std::string cstr(in);
 
-        if(ptr == in.c_str() + in.size())
+        char* ptr = nullptr;
+        double val = std::strtod(cstr.c_str(), &ptr);
+
+        if(ptr == cstr.c_str() + cstr.size())
             return val;
 
         return std::nullopt;
     }
 
     inline
-    std::string infix(std::string v1, std::string v2, std::string op)
+    std::string infix(const std::string& v1, const std::string& v2, const std::string& op)
     {
         auto c1 = get_value(v1);
         auto c2 = get_value(v2);
@@ -226,7 +228,7 @@ namespace dual_types
     }
 
     inline
-    std::string outer(std::string v1, std::string v2, std::string op)
+    std::string outer(const std::string& v1, const std::string& v2, const std::string& op)
     {
         if(op == "pow")
         {
@@ -244,7 +246,7 @@ namespace dual_types
     }
 
     inline
-    std::string threearg(std::string v1, std::string v2, std::string v3, std::string op)
+    std::string threearg(const std::string& v1, const std::string& v2, const std::string& v3, const std::string& op)
     {
         if(op == "select")
         {
@@ -263,7 +265,7 @@ namespace dual_types
     }
 
     inline
-    std::string unary(std::string v1, std::string op)
+    std::string unary(const std::string& v1, const std::string& op)
     {
         auto c1 = get_value(v1);
 
