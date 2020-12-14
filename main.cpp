@@ -551,6 +551,74 @@ std::array<dual, 16> double_kerr(dual t, dual p, dual phi, dual z)
     return ret;
 }
 
+///gives exactly the same weird results as double_kerr regular
+///https://arxiv.org/pdf/1702.02209.pdf
+///something must be wrong somewhere
+inline
+std::array<dual, 16> double_kerr_alt(dual t, dual p, dual phi, dual z)
+{
+    dual_complex i = dual_types::unit_i();
+
+    dual R = 4;
+    dual M = 0.3;
+    dual q = 0.2;
+
+    dual sigma = sqrt(M*M - q*q * (1 - (4 * M * M * (R * R - 4 * M * M + 4 * q * q)) / pow(R * (R + 2 * M) + 4 * q * q, 2)));
+
+    dual r1 = sqrt(p*p + pow(z - R/2 - sigma, 2));
+    dual r2 = sqrt(p*p + pow(z - R/2 + sigma, 2));
+
+    dual r3 = sqrt(p*p + pow(z + R/2 - sigma, 2));
+    dual r4 = sqrt(p*p + pow(z + R/2 + sigma, 2));
+
+    dual littled = 2 * M * q * (R * R - 4 * M * M + 4 * q * q) / (R * (R + 2 * M) + 4 * q * q);
+
+    dual_complex pp = 2 * (M*M - q*q) - (R + 2 * M) * sigma + M * R + i * (q * (R - 2 * sigma) + littled);
+    dual_complex pn = 2 * (M*M - q*q) - (R - 2 * M) * sigma - M * R + i * (q * (R - 2 * sigma) - littled);
+
+    dual_complex sp = 2 * (M*M - q*q) + (R - 2 * M) * sigma - M * R + i * (q * (R + 2 * sigma) - littled);
+    dual_complex sn = 2 * (M*M - q*q) + (R + 2 * M) * sigma + M * R + i * (q * (R + 2 * sigma) + littled);
+
+    dual k0 = (R * R - 4 * sigma * sigma) * ((R * R - 4 * M * M) * (M * M - sigma * sigma) + 4 * q * q * q * q + 4 * M * q * littled);
+    dual_complex kp = R + 2 * (sigma + 2 * i * q);
+    dual_complex kn = R - 2 * (sigma + 2 * i * q);
+
+    dual_complex delta = 4 * sigma * sigma * (pp * pn * sp * sn * r1 * r2 + conjugate(pp) * conjugate(pn) * conjugate(sp) * conjugate(sn) * r3 * r4)
+                        -R * R * (conjugate(pp) * conjugate(pn) * sp * sn * r1 * r3 + pp * pn * conjugate(sp) * conjugate(sn) * r2 * r4)
+                        +(R * R - 4 * sigma * sigma) * (conjugate(pp) * pn * conjugate(sp) * sn * r1 * r4 + pp * conjugate(pn) * sp * conjugate(sn) * r2 * r3);
+
+    dual_complex gamma = -2 * i * sigma * R * ((R - 2 * sigma) * Imaginary(pp * conjugate(pn)) * (sp * sn * r1 - conjugate(sp) * conjugate(sn) * r4) + (R + 2 * sigma) * Imaginary(sp * conjugate(sn)) * (pp * pn * r2 - conjugate(pp) * conjugate(pn) * r3));
+
+    dual_complex G = 4 * sigma * sigma * ((R - 2 * i * q) * pp * pn * sp * sn * r1 * r2 - (R + 2 * i * q) * conjugate(pp) * conjugate(pn) * conjugate(sp) * conjugate(sn) * r3 * r4)
+                    -2 * R * R * ((sigma - i * q) * conjugate(pp) * conjugate(pn) * sp * sn * r1 * r3 - (sigma + i * q) * pp * pn * conjugate(sp) * conjugate(sn) * r2 * r4)
+                    - 2 * i * q * (R * R - 4 * sigma * sigma) * Real(pp * conjugate(pn) * sp * conjugate(sn)) * (r1 * r4 + r2 * r3)
+                    - i * sigma * R * ((R - 2 * sigma) * Imaginary(pp * conjugate(pn)) * (conjugate(kp) * sp * sn * r1 + kp * conjugate(sp) * conjugate(sn) * r4)
+                                       + (R + 2 * sigma) * Imaginary(sp * conjugate(sn)) * (kn * pp * pn * r2 + conjugate(kn) * conjugate(pp) * conjugate(pn) * r3));
+
+    dual w = 2 * Imaginary((delta - gamma) * (z * conjugate(gamma) + conjugate(G))) / (self_conjugate_multiply(delta) - self_conjugate_multiply(gamma));
+
+    dual e2y = (self_conjugate_multiply(delta) - self_conjugate_multiply(gamma)) / (256 * sigma * sigma * sigma * sigma * R * R * R * R * k0 * k0 * r1 * r2 * r3 * r4);
+    dual f = (self_conjugate_multiply(delta) - self_conjugate_multiply(gamma)) / Real((delta - gamma) * (conjugate(delta) - conjugate(gamma)));
+
+    dual dp = (e2y / f);
+    dual dz = e2y / f;
+    dual dphi_1 = p * p / f;
+    dual dt = -f;
+    dual dphi_2 = -f * w * w;
+    dual dt_dphi = f * 2 * w;
+
+    std::array<dual, 16> ret;
+    ret[0 * 4 + 0] = dt;
+    ret[1 * 4 + 1] = dp;
+    ret[2 * 4 + 2] = dphi_1 + dphi_2;
+    ret[3 * 4 + 3] = dz;
+
+    ret[0 * 4 + 2] = dt_dphi * 0.5;
+    ret[2 * 4 + 0] = dt_dphi * 0.5;
+
+    return ret;
+}
+
 void debugp(dual_complex p)
 {
     std::cout << p.real.real.sym << std::endl;
@@ -1333,6 +1401,12 @@ int main()
     krasnikov_tube_cart_obj.adaptive_precision = true;
     krasnikov_tube_cart_obj.system = metric::coordinate_system::CARTESIAN;
 
+    metric::metric<double_kerr_alt, cylindrical_to_polar, polar_to_cylindrical, at_origin> double_kerr_alt_obj;
+    double_kerr_alt_obj.name = "double_kerr_alt";
+    double_kerr_alt_obj.adaptive_precision = true;
+    double_kerr_alt_obj.detect_singularities = true;
+    double_kerr_alt_obj.system = metric::coordinate_system::CYLINDRICAL;
+
     metric::metric<double_kerr, cylindrical_to_polar, polar_to_cylindrical, at_origin> double_kerr_obj;
     double_kerr_obj.name = "double_kerr";
     double_kerr_obj.adaptive_precision = true;
@@ -1362,7 +1436,8 @@ int main()
     //auto current_metric = schwarzs_polar;
     //auto current_metric = minkowski_polar_obj;
     //auto current_metric = krasnikov_tube_cart_obj;
-    auto current_metric = double_kerr_obj;
+    auto current_metric = double_kerr_alt_obj;
+    //auto current_metric = double_kerr_obj;
     //auto current_metric = unequal_double_kerr_obj;
 
     argument_string += build_argument_string(current_metric, cfg);
