@@ -34,6 +34,7 @@ https://www.wolframalpha.com/input/?i=%28x%5E2+%2B+y%5E2%29+%2F+%28r%5E2+%2B+a%5
 https://arxiv.org/pdf/0807.0734.pdf - symplectic integrators
 https://iopscience.iop.org/article/10.1088/0067-0049/184/2/387/pdf - radiative transport
 https://javierrubioblog.files.wordpress.com/2015/12/chapter4.pdf - coordinate transforms
+https://arxiv.org/pdf/1308.2298.pdf - double balanced kerr
 
 https://www.reed.edu/physics/courses/Physics411/html/page2/page2.html - some useful info
 https://www.uio.no/studier/emner/matnat/astro/nedlagte-emner/AST1100/h11/undervisningsmateriale/lecture15.pdf - useful basic info
