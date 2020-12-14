@@ -35,6 +35,7 @@ https://arxiv.org/pdf/0807.0734.pdf - symplectic integrators
 https://iopscience.iop.org/article/10.1088/0067-0049/184/2/387/pdf - radiative transport
 https://javierrubioblog.files.wordpress.com/2015/12/chapter4.pdf - coordinate transforms
 https://arxiv.org/pdf/1308.2298.pdf - double balanced kerr
+https://www.researchgate.net/figure/Shadows-of-the-double-Schwarzschild-BH-solution-with-equal-masses-0-and-different-BH_fig1_323026854 - binary schwarzs
 
 https://www.reed.edu/physics/courses/Physics411/html/page2/page2.html - some useful info
 https://www.uio.no/studier/emner/matnat/astro/nedlagte-emner/AST1100/h11/undervisningsmateriale/lecture15.pdf - useful basic info
@@ -758,6 +759,74 @@ std::array<dual, 16> unequal_double_kerr(dual t, dual p, dual phi, dual z)
 }
 
 inline
+std::array<dual, 16> double_schwarzschild(dual t, dual p, dual phi, dual z)
+{
+    dual M1 = 0.1;
+    dual M2 = 0.1;
+
+    dual e = M2 - M1;
+    dual M = M1 + M2;
+
+    dual z0 = 0.2;
+
+    dual a1 = -0.5 * (M - e) - z0;
+    dual a2 = 0.5 * (M - e) - z0;
+    dual a3 = -0.5 * (M + e) + z0;
+    dual a4 = 0.5 * (M + e) + z0;
+
+    ///idx [1, 4]
+    auto ak = [&](int idx)
+    {
+        if(idx == 1)
+            return a1;
+
+        if(idx == 2)
+            return a2;
+
+        if(idx == 3)
+            return a3;
+
+        if(idx == 4)
+            return a4;
+
+        assert(false);
+    };
+
+    auto Rk = [&](int idx)
+    {
+        return sqrt(p*p + (z - ak(idx)) * (z - ak(idx)));
+    };
+
+    auto Yk = [&](int idx)
+    {
+        return Rk(idx) + ak(idx) - z;
+    };
+
+    auto Yij = [&](int i1, int j1)
+    {
+        return Rk(i1) * Rk(j1) + (z - ak(i1)) * (z - ak(j1)) + p*p;
+    };
+
+    dual e2k = (Yij(4, 3) * Yij(2, 1) * Yij(4, 1) * Yij(3, 2)) / (4 * Yij(4, 2) * Yij(3, 1) * Rk(1) * Rk(2) * Rk(3) * Rk(4));
+
+    dual e_2U = (Yk(1) * Yk(3)) / (Yk(2) * Yk(4));
+    dual e_m2U = (Yk(2) * Yk(4)) / (Yk(1) * Yk(3));
+
+    dual dt = -e_2U;
+    dual dp = e_m2U * e2k;
+    dual dphi = e_m2U * p * p;
+    dual dz = e_m2U * e2k;
+
+    std::array<dual, 16> ret;
+    ret[0 * 4 + 0] = dt;
+    ret[1 * 4 + 1] = dp;
+    ret[2 * 4 + 2] = dphi;
+    ret[3 * 4 + 3] = dz;
+
+    return ret;
+}
+
+inline
 std::array<dual_complex, 16> big_imaginary_metric_test(dual_complex t, dual_complex p, dual_complex theta, dual_complex phi)
 {
     dual_complex c = 1;
@@ -1420,8 +1489,15 @@ int main()
     unequal_double_kerr_obj.detect_singularities = true;
     unequal_double_kerr_obj.system = metric::coordinate_system::CYLINDRICAL;
 
+    metric::metric<double_schwarzschild, cylindrical_to_polar, polar_to_cylindrical, at_origin> double_schwarzschild_obj;
+    double_schwarzschild_obj.name = "double_schwarzschild";
+    double_schwarzschild_obj.adaptive_precision = true;
+    double_schwarzschild_obj.detect_singularities = true;
+    double_schwarzschild_obj.system = metric::coordinate_system::CYLINDRICAL;
+
     metric::config cfg;
-    cfg.universe_size = 10000;
+    ///necessary for double schwarzs
+    cfg.universe_size = 100;
     //cfg.error_override = 100.f;
     //cfg.error_override = 0.000001f;
     //cfg.error_override = 0.00001f;
@@ -1438,8 +1514,9 @@ int main()
     //auto current_metric = minkowski_polar_obj;
     //auto current_metric = krasnikov_tube_cart_obj;
     //auto current_metric = double_kerr_alt_obj;
-    auto current_metric = double_kerr_obj;
+    //auto current_metric = double_kerr_obj;
     //auto current_metric = unequal_double_kerr_obj;
+    auto current_metric = double_schwarzschild_obj;
 
     argument_string += build_argument_string(current_metric, cfg);
     #endif // GENERIC_METRIC
