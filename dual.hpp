@@ -170,6 +170,9 @@ namespace dual_types
 
             if(c1.has_value() && c2.has_value())
                 return to_string_s(c1.value() + c2.value());
+
+            if(v1 == v2)
+                return infix("2", v1, "*");
         }
 
         if(op == "-")
@@ -196,6 +199,9 @@ namespace dual_types
             if(c1.has_value() && c2.has_value())
                 return to_string_s(c1.value() - c2.value());
 
+            if(v1 == v2)
+                return "0";
+
             return "(" + v1 + op + "(" + v2 + "))";
         }
 
@@ -220,6 +226,9 @@ namespace dual_types
                 return infix(v1, to_string_s(1/c2.value()), "*");
             }
             #endif // RECIPROCAL_CONSTANTS
+
+            if(v1 == v2)
+                return "1";
         }
 
         return "(" + v1 + op + v2 + ")";
