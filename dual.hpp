@@ -342,6 +342,18 @@ namespace dual_types
                 return to_string_s(isfinite(c1.value()));
         }
 
+        if(op == "signbit")
+        {
+            if(c1.has_value())
+                return to_string_s((int)(c1.value() < 0));
+        }
+
+        if(op == "fabs")
+        {
+            if(c1.has_value())
+                return to_string_s(fabs(c1.value()));
+        }
+
         if(op == "-")
         {
             return "(" + op + "(" + v1 + "))";
@@ -516,6 +528,28 @@ namespace dual_types
     dual_types::symbol atan2(const dual_types::symbol& d1, const dual_types::symbol& d2)
     {
         return dual_types::symbol(outer(d1.sym, d2.sym, "atan2"));
+    }
+
+    inline
+    dual_types::symbol signbit(const dual_types::symbol& d1)
+    {
+        return unary(d1.sym, "signbit");
+    }
+
+    inline
+    dual_types::symbol select(const dual_types::symbol& d1, const dual_types::symbol& d2, const dual_types::symbol& d3)
+    {
+        return threearg(d1.sym, d2.sym, d3.sym, "select");
+    }
+
+    inline
+    dual_types::symbol_complex csqrt(const dual_types::symbol& d1)
+    {
+        dual_types::symbol is_negative = signbit(d1);
+
+        dual_types::symbol positive_sqrt = sqrt(fabs(d1));
+
+        return dual_types::symbol_complex(select(positive_sqrt, 0, is_negative), select(0, positive_sqrt, is_negative));
     }
 
     inline
@@ -824,6 +858,12 @@ namespace dual_types
     dual_types::dual_v<T> sqrt(const dual_types::dual_v<T>& d1)
     {
         return dual_types::dual_v<T>(sqrt(d1.real), 0.5f * d1.dual / sqrt(d1.real));
+    }
+
+    inline
+    dual_types::dual_v<dual_types::symbol_complex> csqrt(const dual_types::dual_v<dual_types::symbol>& d1)
+    {
+        return dual_types::dual_v<dual_types::symbol_complex>(csqrt(d1.real), 0.5f * d1.dual / csqrt(d1.real));
     }
 
     template<typename T>
