@@ -611,8 +611,7 @@ namespace dual_types
     inline
     dual_types::symbol sign(const dual_types::symbol& d1)
     {
-        return (signbit(d1) - 0.5) * -2;
-        //return select(1, -1, signbit(d1));
+        return -2 * signbit(d1) + 1;
     }
 
     using complex_v = dual_types::symbol_complex;
