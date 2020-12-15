@@ -679,6 +679,11 @@ namespace dual_types
     inline
     dual_types::symbol_complex sqrt(const dual_types::symbol_complex& d1)
     {
+        auto i_cst_opt = get_value(d1.imaginary.sym);
+
+        if(i_cst_opt.has_value() && i_cst_opt.value() == 0)
+            return csqrt(d1.real);
+
         dual_types::symbol r_part = sqrt(max((d1.real + sqrt(d1.real * d1.real + d1.imaginary * d1.imaginary))/2, 0));
         dual_types::symbol i_part = sign(d1.imaginary) * sqrt(max((-d1.real + sqrt(d1.real * d1.real + d1.imaginary * d1.imaginary))/2, 0));
 
