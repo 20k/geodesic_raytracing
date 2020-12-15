@@ -682,11 +682,11 @@ std::array<dual, 16> unequal_double_kerr(dual t, dual p, dual phi, dual z)
     dual_complex s2 = csqrt(m2 * m2 - a2 * a2 + 4 * m1 * a2 * d2);
 
     ///R+ with a squiggle on
-    dual Rsp = sqrt(p * p + pow(z + 0.5 * R + Real(s2), 2));
-    dual Rsn = sqrt(p * p + pow(z + 0.5 * R - Real(s2), 2));
+    dual_complex Rsp = sqrt(p * p + (pow(z + 0.5 * R + s2, 2)));
+    dual_complex Rsn = sqrt(p * p + (pow(z + 0.5 * R - s2, 2)));
 
-    dual rsp = sqrt(p * p + pow(z - 0.5 * R + Real(s1), 2));
-    dual rsn = sqrt(p * p + pow(z - 0.5 * R - Real(s1), 2));
+    dual_complex rsp = sqrt(p * p + (pow(z - 0.5 * R + s1, 2)));
+    dual_complex rsn = sqrt(p * p + (pow(z - 0.5 * R - s1, 2)));
 
     //std::cout << "S1 " << d1.real.sym << " S2 " << d2.real.sym << std::endl;
 

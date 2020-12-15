@@ -11,7 +11,7 @@ inline
 std::string to_string_s(float v)
 {
     std::ostringstream oss;
-    oss << std::setprecision(16) << std::noshowpoint << v;
+    oss << std::setprecision(16) << std::showpoint << v;
     std::string str = oss.str();
 
     return str;
@@ -237,16 +237,22 @@ namespace dual_types
     inline
     std::string outer(const std::string& v1, const std::string& v2, const std::string& op)
     {
+        auto c1 = get_value(v1);
+        auto c2 = get_value(v2);
+
         if(op == "pow")
         {
             if(v2 == "0")
                 return "1";
 
-            auto c1 = get_value(v1);
-            auto c2 = get_value(v2);
-
             if(c1.has_value() && c2.has_value())
                 return to_string_s(pow(c1.value(), c2.value()));
+        }
+
+        if(op == "max")
+        {
+            if(c1.has_value() && c2.has_value())
+                return to_string_s(max(c1.value(), c2.value()));
         }
 
         return op + "(" + v1 + "," + v2 + ")";
@@ -567,7 +573,6 @@ namespace dual_types
     inline
     dual_types::symbol makefinite(const dual_types::symbol& d1)
     {
-        //return d1.sym;
         return dual_types::symbol(threearg("0.f", d1.sym, unary(d1.sym, "isfinite"), "select"));
     }
 
@@ -666,9 +671,18 @@ namespace dual_types
     }
 
     inline
+    dual_types::symbol max(const dual_types::symbol& d1, const dual_types::symbol& d2)
+    {
+        return outer(d1.sym, d2.sym, "max");
+    }
+
+    inline
     dual_types::symbol_complex sqrt(const dual_types::symbol_complex& d1)
     {
-        return dual_types::symbol_complex(sqrt((d1.real + sqrt(d1.real * d1.real + d1.imaginary * d1.imaginary))/2), sign(d1.imaginary) * sqrt((-d1.real + sqrt(d1.real * d1.real + d1.imaginary * d1.imaginary))/2));
+        dual_types::symbol r_part = sqrt(max((d1.real + sqrt(d1.real * d1.real + d1.imaginary * d1.imaginary))/2, 0));
+        dual_types::symbol i_part = sign(d1.imaginary) * sqrt(max((-d1.real + sqrt(d1.real * d1.real + d1.imaginary * d1.imaginary))/2, 0));
+
+        return dual_types::symbol_complex(r_part, i_part);
     }
 
     inline
