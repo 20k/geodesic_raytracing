@@ -143,6 +143,8 @@ namespace dual_types
         return std::nullopt;
     }
 
+    std::string unary(const std::string& v1, const std::string& op);
+
     inline
     std::string infix(const std::string& v1, const std::string& v2, const std::string& op)
     {
@@ -164,6 +166,12 @@ namespace dual_types
 
             if(c2.has_value() && c2.value() == 1)
                 return v1;
+
+            if(c1.has_value() && c1.value() == -1)
+                return unary(v2, "-");
+
+            if(c2.has_value() && c2.value() == -1)
+                return unary(v1, "-");
         }
 
         if(op == "+")
