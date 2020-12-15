@@ -38,6 +38,7 @@ https://arxiv.org/pdf/1308.2298.pdf - double balanced kerr
 https://www.researchgate.net/figure/Shadows-of-the-double-Schwarzschild-BH-solution-with-equal-masses-0-and-different-BH_fig1_323026854 - binary schwarzs
 https://www2.mpia-hd.mpg.de/homes/tmueller/pdfs/catalogue_2014-05-21.pdf - loads of good information about everything, metric catalogue
 https://www.sciencedirect.com/science/article/pii/S0370269319304563 - binary kerr
+https://www.sciencedirect.com/science/article/pii/S0370269320307206 - binary kerr newman, equal
 
 https://www.reed.edu/physics/courses/Physics411/html/page2/page2.html - some useful info
 https://www.uio.no/studier/emner/matnat/astro/nedlagte-emner/AST1100/h11/undervisningsmateriale/lecture15.pdf - useful basic info
@@ -313,27 +314,26 @@ std::array<dual, 16> ellis_drainhole(dual t, dual r, dual theta, dual phi)
 
     dual alpha = sqrt(n * n - m * m);
 
-    dual pseudophi = (n / alpha) * (M_PI/2 - atan((r - m) / alpha));
+    dual pseudophi = (n / alpha) * (M_PI/2 - atan2((r - m), alpha));
 
     dual Fp = -sqrt(1 - exp(-(2 * m/n) * pseudophi));
 
     dual Rp = sqrt(((r - m) * (r - m) + alpha * alpha) / (1 - Fp * Fp));
 
-    dual dt1 = - c * c;
-    dual dp = 1 * 1;
-    dual dt = dt1 - Fp * Fp * c * c;
-    dual dpdt = -2 * Fp * c;
-
-    dual dtheta = Rp * Rp;
-    dual dphi = Rp * Rp * sin(theta) * sin(theta);
+    dual dt1 = c*c;
+    dual dt2 = -Fp * Fp * c * c;
+    dual dp = -1;
+    dual dpdt = 2 * Fp * c;
+    dual dtheta = -Rp * Rp;
+    dual dphi = -Rp * Rp * sin(theta) * sin(theta);
 
     std::array<dual, 16> ret;
-    ret[0] = dt;
-    ret[1 * 4 + 1] = dp;
-    ret[2 * 4 + 2] = dtheta;
-    ret[3 * 4 + 3] = dphi;
-    ret[0 * 4 + 1] = dpdt * 0.5;
-    ret[1 * 4 + 0] = dpdt * 0.5;
+    ret[0] = -dt1 - dt2;
+    ret[1 * 4 + 1] = -dp;
+    ret[2 * 4 + 2] = -dtheta;
+    ret[3 * 4 + 3] = -dphi;
+    ret[0 * 4 + 1] = -dpdt * 0.5;
+    ret[1 * 4 + 0] = -dpdt * 0.5;
 
     return ret;
 }
@@ -1516,8 +1516,9 @@ int main()
     //auto current_metric = krasnikov_tube_cart_obj;
     //auto current_metric = double_kerr_alt_obj;
     //auto current_metric = double_kerr_obj;
-    auto current_metric = unequal_double_kerr_obj;
+    //auto current_metric = unequal_double_kerr_obj;
     //auto current_metric = double_schwarzschild_obj;
+    auto current_metric = ellis_drainhole_obj;
 
     argument_string += build_argument_string(current_metric, cfg);
     #endif // GENERIC_METRIC
