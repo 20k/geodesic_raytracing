@@ -677,16 +677,15 @@ std::array<dual, 16> unequal_double_kerr(dual t, dual p, dual phi, dual z)
     dual d1 = ((m1 * (a1 - a2 + a) + R * a) * (pow(R + M, 2) + a * a) + m2 * a1 * a*a) / pow(pow(R + M, 2) + a*a, 2);
     dual d2 = ((m2 * (a2 - a1 + a) + R * a) * (pow(R + M, 2) + a * a) + m1 * a2 * a*a) / pow(pow(R + M, 2) + a*a, 2);
 
-    ///todo: need complex sqrt
     dual_complex s1 = csqrt(m1 * m1 - a1 * a1 + 4 * m2 * a1 * d1);
     dual_complex s2 = csqrt(m2 * m2 - a2 * a2 + 4 * m1 * a2 * d2);
 
     ///R+ with a squiggle on
-    dual_complex Rsp = sqrt(p * p + (pow(z + 0.5 * R + s2, 2)));
-    dual_complex Rsn = sqrt(p * p + (pow(z + 0.5 * R - s2, 2)));
+    dual_complex Rsp = psqrt(p * p + pow(z + 0.5 * R + s2, 2));
+    dual_complex Rsn = psqrt(p * p + pow(z + 0.5 * R - s2, 2));
 
-    dual_complex rsp = sqrt(p * p + (pow(z - 0.5 * R + s1, 2)));
-    dual_complex rsn = sqrt(p * p + (pow(z - 0.5 * R - s1, 2)));
+    dual_complex rsp = psqrt(p * p + pow(z - 0.5 * R + s1, 2));
+    dual_complex rsn = psqrt(p * p + pow(z - 0.5 * R - s1, 2));
 
     //std::cout << "S1 " << d1.real.sym << " S2 " << d2.real.sym << std::endl;
 

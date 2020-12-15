@@ -467,6 +467,12 @@ namespace dual_types
     }
 
     inline
+    dual_types::symbol psqrt(const dual_types::symbol& d1)
+    {
+        return sqrt(d1);
+    }
+
+    inline
     dual_types::symbol pow(const dual_types::symbol& d1, const dual_types::symbol& d2)
     {
         return dual_types::symbol(outer(d1.sym, d2.sym, "pow"));
@@ -704,6 +710,19 @@ namespace dual_types
         return dual_types::symbol_complex(r_part, i_part);
     }
 
+    ///if this is known to have no imaginary components, the real component is guaranteed to be >= 0
+    ///otherwise, it calls regular complex square root
+    inline
+    dual_types::symbol_complex psqrt(const dual_types::symbol_complex& d1)
+    {
+        auto v = get_value(d1.imaginary.sym);
+
+        if(v.has_value() && v.value() == 0)
+            return sqrt(d1.real);
+
+        return sqrt(d1);
+    }
+
     inline
     dual_types::symbol_complex pow(const dual_types::symbol_complex& d1, int exponent)
     {
@@ -916,6 +935,15 @@ namespace dual_types
     dual_types::dual_v<T> sqrt(const dual_types::dual_v<T>& d1)
     {
         return dual_types::dual_v<T>(sqrt(d1.real), 0.5f * d1.dual / sqrt(d1.real));
+    }
+
+    ///if this has no imaginary components, its guaranteed to be >= 0
+    ///if it has imaginary components, all bets are off
+    template<typename T>
+    inline
+    dual_types::dual_v<T> psqrt(const dual_types::dual_v<T>& d1)
+    {
+        return dual_types::dual_v<T>(psqrt(d1.real), 0.5f * d1.dual / psqrt(d1.real));
     }
 
     inline
