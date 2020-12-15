@@ -14,6 +14,12 @@ std::string to_string_s(float v)
     oss << std::setprecision(16) << std::showpoint << v;
     std::string str = oss.str();
 
+    while(str.size() > 0 && str.back() == '0')
+        str.pop_back();
+
+    if(str.size() > 0 && str.back() == '.')
+        str += "0";
+
     return str;
 }
 
