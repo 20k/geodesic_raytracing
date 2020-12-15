@@ -637,7 +637,7 @@ std::array<dual, 16> unequal_double_kerr(dual t, dual p, dual phi, dual z)
     /*dual a1 = -0.09;
     dual a2 = 0.091;*/
 
-    dual m1 = 0.01;
+    dual m1 = 1;
     dual m2 = 1;
 
     dual fa1 = 0.4;
@@ -678,15 +678,15 @@ std::array<dual, 16> unequal_double_kerr(dual t, dual p, dual phi, dual z)
     dual d2 = ((m2 * (a2 - a1 + a) + R * a) * (pow(R + M, 2) + a * a) + m1 * a2 * a*a) / pow(pow(R + M, 2) + a*a, 2);
 
     ///todo: need complex sqrt
-    dual s1 = sqrt(m1 * m1 - a1 * a1 + 4 * m2 * a1 * d1);
-    dual s2 = sqrt(m2 * m2 - a2 * a2 + 4 * m1 * a2 * d2);
+    dual_complex s1 = csqrt(m1 * m1 - a1 * a1 + 4 * m2 * a1 * d1);
+    dual_complex s2 = csqrt(m2 * m2 - a2 * a2 + 4 * m1 * a2 * d2);
 
     ///R+ with a squiggle on
-    dual Rsp = sqrt(p * p + pow(z + 0.5 * R + s2, 2));
-    dual Rsn = sqrt(p * p + pow(z + 0.5 * R - s2, 2));
+    dual Rsp = sqrt(p * p + pow(z + 0.5 * R + Real(s2), 2));
+    dual Rsn = sqrt(p * p + pow(z + 0.5 * R - Real(s2), 2));
 
-    dual rsp = sqrt(p * p + pow(z - 0.5 * R + s1, 2));
-    dual rsn = sqrt(p * p + pow(z - 0.5 * R - s1, 2));
+    dual rsp = sqrt(p * p + pow(z - 0.5 * R + Real(s1), 2));
+    dual rsn = sqrt(p * p + pow(z - 0.5 * R - Real(s1), 2));
 
     //std::cout << "S1 " << d1.real.sym << " S2 " << d2.real.sym << std::endl;
 
@@ -738,7 +738,7 @@ std::array<dual, 16> unequal_double_kerr(dual t, dual p, dual phi, dual z)
     dual w = 2 * a - (2 * Imaginary(G * (conjugate(A) + conjugate(B))) / (self_conjugate_multiply(A) - self_conjugate_multiply(B)));
 
     dual f = (self_conjugate_multiply(A) - self_conjugate_multiply(B)) / Real((A + B) * (conjugate(A) + conjugate(B)));
-    dual e2g = (self_conjugate_multiply(A) - self_conjugate_multiply(B)) / (16 * pow(fabs(s1), 2) * pow(fabs(s2), 2) * K0*K0 * Rsp * Rsn * rsp * rsn);
+    dual e2g = (self_conjugate_multiply(A) - self_conjugate_multiply(B)) / Real(16 * pow(fabs(s1), 2) * pow(fabs(s2), 2) * K0*K0 * Rsp * Rsn * rsp * rsn);
 
     dual dphi2 = w * w * -f;
     dual dphi1 = (1/f) * p * p;

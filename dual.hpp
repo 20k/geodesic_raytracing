@@ -583,6 +583,12 @@ namespace dual_types
         return dual_types::symbol("fast_length((float3){" + d1.sym + "," + d2.sym + "," + d3.sym + "})");
     }
 
+    inline
+    dual_types::symbol sign(const dual_types::symbol& d1)
+    {
+        return select(1, -1, signbit(d1));
+    }
+
     using complex_v = dual_types::symbol_complex;
 
     inline
@@ -657,6 +663,25 @@ namespace dual_types
     dual_types::symbol Real(const complex_v& c1)
     {
         return c1.real;
+    }
+
+    inline
+    dual_types::symbol_complex sqrt(const dual_types::symbol_complex& d1)
+    {
+        return dual_types::symbol_complex(sqrt((d1.real + sqrt(d1.real * d1.real + d1.imaginary * d1.imaginary))/2), sign(d1.imaginary) * sqrt((-d1.real + sqrt(d1.real * d1.real + d1.imaginary * d1.imaginary))/2));
+    }
+
+    inline
+    dual_types::symbol_complex pow(const dual_types::symbol_complex& d1, int exponent)
+    {
+        dual_types::symbol_complex ret = d1;
+
+        for(int i=0; i < exponent - 1; i++)
+        {
+            ret = ret * d1;
+        }
+
+        return ret;
     }
 
     template<typename T>
@@ -878,9 +903,18 @@ namespace dual_types
     inline
     dual_types::dual_v<T> pow(const dual_types::dual_v<T>& d1, const U& d2)
     {
-        static_assert(!std::is_same_v<U, complex_v> && !std::is_same_v<U, dual_types::dual_v<complex_v>> && !std::is_same_v<T, complex_v>);
+        static_assert(!std::is_same_v<U, complex_v> && !std::is_same_v<U, dual_types::dual_v<complex_v>>);
 
-        return dual_types::dual_v<T>(pow(d1.real, d2), pow(d1.real, d2 - 1) * d2 * d1.dual);
+        if constexpr(std::is_same_v<T, complex_v>)
+        {
+            static_assert(std::is_same_v<U, int>);
+
+            return dual_types::dual_v<T>(pow(d1.real, d2), pow(d1.real, d2 - 1) * T(d2) * d1.dual);
+        }
+        else
+        {
+            return dual_types::dual_v<T>(pow(d1.real, T(d2)), pow(d1.real, T(d2 - 1)) * T(d2) * d1.dual);
+        }
     }
 
     template<typename T>
