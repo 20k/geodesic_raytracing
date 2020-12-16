@@ -1535,7 +1535,7 @@ int main()
     //cfg.error_override = 100.f;
     //cfg.error_override = 0.000001f;
     //cfg.error_override = 0.00001f;
-    //cfg.error_override = 0.0001f;
+    cfg.error_override = 0.00001f;
     //cfg.redshift = true;
 
     //auto current_metric = symmetric_warp_obj;
