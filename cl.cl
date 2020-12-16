@@ -174,6 +174,8 @@ float3 fix_ray_position(float3 polar_pos, float3 polar_velocity, float sphere_ra
     float3 cpolar_pos = polar_pos;
     cpolar_pos.x = fabs(cpolar_pos.x);
 
+    polar_velocity.x *= position_sign;
+
     float3 cartesian_velocity = spherical_velocity_to_cartesian_velocity(cpolar_pos, polar_velocity);
 
     float3 cartesian_pos = polar_to_cartesian(cpolar_pos);
