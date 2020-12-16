@@ -2451,8 +2451,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
         }
         else
         {
-            //ds = 0.1 * pow((fabs(r_value) - new_max), 1) + subambient_precision;
-            ds = 0.1 * pow((fabs(r_value) - new_max), 1) + subambient_precision;
+            ds = 0.1f * pow((fabs(r_value) - new_max), 1) + ambient_precision;
             //ds = (0.1 * pow((fabs(r_value) - new_max), 2) / (uniform_coordinate_precision_divisor * uniform_coordinate_precision_divisor)) + subambient_precision;
         }
 
@@ -2634,7 +2633,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         }
         else
         {
-            ds = 0.1 * pow((fabs(r_value) - new_max), 1) + subambient_precision;
+            ds = 0.1 * pow((fabs(r_value) - new_max), 1) + ambient_precision;
         }
 
         #ifndef SINGULAR
