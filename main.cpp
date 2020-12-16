@@ -210,7 +210,7 @@ std::array<dual, 4> traversible_wormhole(dual t, dual p, dual theta, dual phi)
 inline
 std::array<dual, 4> configurable_wormhole(dual t, dual l, dual theta, dual phi)
 {
-    dual M = 0.001;
+    dual M = 0.01;
     dual p = 1;
     dual a = 0.001;
 
