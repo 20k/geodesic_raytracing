@@ -2597,12 +2597,6 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
 
     float3 pixel_direction = calculate_pixel_direction(sx, sy, width, height, polar_camera_pos, camera_quat, base_angle);
 
-	//float3 npolar = position.yzw;
-
-    #if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC) || defined(DEBUG_CONSTANT_THETA)
-	//npolar = get_texture_constant_theta_rotation(pixel_direction, polar_camera_pos, position);
-    #endif // GENERIC_CONSTANT_THETA
-
     #pragma unroll
     for(int i=0; i < 64000; i++)
     {
