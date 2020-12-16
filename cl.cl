@@ -2366,10 +2366,10 @@ int calculate_ds_error(float current_ds, float4 next_acceleration, float4 accele
 #endif // ADAPTIVE_PRECISION
 
 __kernel
-void do_generic_rays (__global struct lightray* generic_rays_in, __global struct lightray* generic_rays_out,
-                      __global struct lightray* finished_rays,
-                      __global int* generic_count_in, __global int* generic_count_out,
-                      __global int* finished_count_out)
+void do_generic_rays (__global struct lightray* restrict generic_rays_in, __global struct lightray* restrict generic_rays_out,
+                      __global struct lightray* restrict finished_rays,
+                      __global int* restrict generic_count_in, __global int* restrict generic_count_out,
+                      __global int* restrict finished_count_out)
 {
     int id = get_global_id(0);
 
