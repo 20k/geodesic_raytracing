@@ -206,6 +206,34 @@ std::array<dual, 4> traversible_wormhole(dual t, dual p, dual theta, dual phi)
     return {dt, dr, dtheta, dphi};
 }
 
+///https://arxiv.org/pdf/1502.03809.pdf
+inline
+std::array<dual, 4> configurable_wormhole(dual t, dual l, dual theta, dual phi)
+{
+    dual M = 1;
+    dual p = 0.25;
+    dual a = 1;
+
+    dual x = 2 * (fabs(l) - a) / (M_PI * M);
+
+    dual r = dual_if(fabs(l) < a,
+    [&]()
+    {
+        return p;
+    },
+    [&]()
+    {
+        return p + M * (x * atan(x) - 0.5 * log(1 + x * x));
+    });
+
+    dual dt = -(1 - 2 * M/r);
+    dual dl = 1 / (1 - 2 * M/r);
+    dual dtheta = r * r;
+    dual dphi = r * r * sin(theta) * sin(theta);
+
+    return {dt, dl, dtheta, dphi};
+}
+
 /*
 ///suffers from event horizonitus
 inline
@@ -1393,6 +1421,10 @@ int main()
     simple_wormhole.name = "wormhole";
     simple_wormhole.adaptive_precision = false;
 
+    metric::metric<configurable_wormhole, polar_to_polar, polar_to_polar, at_origin> configurable_wormhole_obj;
+    configurable_wormhole_obj.name = "configurable_wormhole";
+    configurable_wormhole_obj.adaptive_precision = false;
+
     metric::metric<cosmic_string, polar_to_polar, polar_to_polar, at_origin> cosmic_string_obj;
     cosmic_string_obj.name = "cosmic_string";
     cosmic_string_obj.adaptive_precision = true;
@@ -1519,7 +1551,8 @@ int main()
     //auto current_metric = double_kerr_obj;
     //auto current_metric = unequal_double_kerr_obj;
     //auto current_metric = double_schwarzschild_obj;
-    auto current_metric = ellis_drainhole_obj;
+    //auto current_metric = ellis_drainhole_obj;
+    auto current_metric = configurable_wormhole_obj;
 
     argument_string += build_argument_string(current_metric, cfg);
     #endif // GENERIC_METRIC

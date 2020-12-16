@@ -30,7 +30,7 @@ namespace dual_types
 
     struct symbol
     {
-        std::string sym = "0";
+        std::string sym = "0.0";
 
         symbol(){}
         symbol(const std::string& value){sym = value;}
@@ -40,12 +40,12 @@ namespace dual_types
 
         void set_dual_constant()
         {
-            sym = "0";
+            sym = "0.0";
         }
 
         void set_dual_variable()
         {
-            sym = "1";
+            sym = "1.0";
         }
     };
 
@@ -156,7 +156,7 @@ namespace dual_types
         if(op == "*")
         {
             if((c1.has_value() && c1.value() == 0) || (c2.has_value() && c2.value() == 0))
-                return "0";
+                return to_string_s(0);
 
             if(c1.has_value() && c2.has_value())
                 return to_string_s(c1.value() * c2.value());
@@ -194,7 +194,7 @@ namespace dual_types
             if(c1.has_value() && c1.value() == 0)
             {
                 if(c2.has_value() && c2.value() == 0)
-                    return "0";
+                    return to_string_s(0);
 
                 if(c2.has_value())
                 {
@@ -208,13 +208,13 @@ namespace dual_types
                 return v1;
 
             if(c1.has_value() && c2.has_value() && c1.value() == c2.value())
-                return "0";
+                return to_string_s(0);
 
             if(c1.has_value() && c2.has_value())
                 return to_string_s(c1.value() - c2.value());
 
             if(v1 == v2)
-                return "0";
+                return to_string_s(0);
 
             return "(" + v1 + op + "(" + v2 + "))";
         }
@@ -222,7 +222,7 @@ namespace dual_types
         if(op == "/")
         {
             if(c1.has_value() && c1.value() == 0)
-                return "0";
+                return to_string_s(0);
 
             if(c2.has_value() && c2.value() == 1)
                 return v1;
@@ -242,7 +242,15 @@ namespace dual_types
             #endif // RECIPROCAL_CONSTANTS
 
             if(v1 == v2)
-                return "1";
+                return to_string_s(1);
+        }
+
+        if(op == "<")
+        {
+            if(c1.has_value() && c2.has_value())
+                return to_string_s((int)(c1.value() < c2.value()));
+
+            return "((float)(" + v1 + op + v2 + "))";
         }
 
         return "(" + v1 + op + v2 + ")";
@@ -256,8 +264,8 @@ namespace dual_types
 
         if(op == "pow")
         {
-            if(v2 == "0")
-                return "1";
+            if(c2.has_value() && c2.value() == 0)
+                return to_string_s(1);
 
             if(c1.has_value() && c2.has_value())
                 return to_string_s(pow(c1.value(), c2.value()));
@@ -286,6 +294,8 @@ namespace dual_types
 
             if(c3)
                 return c3.value() != 0 ? v2 : v1;
+
+            return op + "(" + v1 + "," + v2 + ",((int)(" + v3 + ")))";
         }
 
         return op + "(" + v1 + "," + v2 + "," + v3 + ")";
@@ -380,6 +390,12 @@ namespace dual_types
         }
 
         return op + "(" + v1 + ")";
+    }
+
+    inline
+    dual_types::symbol operator<(const dual_types::symbol& d1, const dual_types::symbol& d2)
+    {
+        return infix(d1.sym, d2.sym, "<");
     }
 
     inline
@@ -1147,6 +1163,25 @@ namespace dual_types
     dual_types::dual_v<dual_types::symbol_complex> unit_i()
     {
         return symbol_complex(0, 1);
+    }
+
+    template<typename T>
+    inline
+    dual_types::dual_v<T> select(const dual_types::dual_v<T>& d1, const dual_types::dual_v<T>& d2, const T& d3)
+    {
+        return dual_types::dual_v<T>(select(d1.real, d2.real, d3), select(d1.dual, d2.dual, d3));
+    }
+
+    template<typename T, typename U, typename V>
+    auto dual_if(const T& condition, U&& if_true, V&& if_false)
+    {
+        return select(if_false(), if_true(), condition);
+    }
+
+    template<typename T>
+    T operator<(const dual_types::dual_v<T>& d1, const dual_types::dual_v<T>& d2)
+    {
+        return d1.real < d2.real;
     }
 };
 
