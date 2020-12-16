@@ -39,6 +39,7 @@ https://www.researchgate.net/figure/Shadows-of-the-double-Schwarzschild-BH-solut
 https://www2.mpia-hd.mpg.de/homes/tmueller/pdfs/catalogue_2014-05-21.pdf - loads of good information about everything, metric catalogue
 https://www.sciencedirect.com/science/article/pii/S0370269319304563 - binary kerr
 https://www.sciencedirect.com/science/article/pii/S0370269320307206 - binary kerr newman, equal
+https://arxiv.org/abs/1502.03809 - the interstellar paper
 
 https://www.reed.edu/physics/courses/Physics411/html/page2/page2.html - some useful info
 https://www.uio.no/studier/emner/matnat/astro/nedlagte-emner/AST1100/h11/undervisningsmateriale/lecture15.pdf - useful basic info
