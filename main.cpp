@@ -210,9 +210,9 @@ std::array<dual, 4> traversible_wormhole(dual t, dual p, dual theta, dual phi)
 inline
 std::array<dual, 4> configurable_wormhole(dual t, dual l, dual theta, dual phi)
 {
-    dual M = 1;
-    dual p = 2;
-    dual a = 2;
+    dual M = 0.001;
+    dual p = 1;
+    dual a = 0.001;
 
     dual x = 2 * (fabs(l) - a) / (M_PI * M);
 
@@ -1423,7 +1423,7 @@ int main()
 
     metric::metric<configurable_wormhole, polar_to_polar, polar_to_polar, at_origin> configurable_wormhole_obj;
     configurable_wormhole_obj.name = "configurable_wormhole";
-    configurable_wormhole_obj.adaptive_precision = false;
+    configurable_wormhole_obj.adaptive_precision = true;
 
     metric::metric<cosmic_string, polar_to_polar, polar_to_polar, at_origin> cosmic_string_obj;
     cosmic_string_obj.name = "cosmic_string";
