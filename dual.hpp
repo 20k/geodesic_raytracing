@@ -386,6 +386,32 @@ namespace dual_types
                 return to_string_s((int)(c1.value() < 0));
         }
 
+        if(op == "sign")
+        {
+            if(c1.has_value())
+            {
+                ///very deliberately a float
+                float val = c1.value();
+
+                if(val == -0.0f)
+                    return to_string_s(-0.0f);
+
+                if(val == 0.0f)
+                    return to_string_s(0.0f);
+
+                if(val > 0)
+                    return to_string_s(1);
+
+                if(val < 0)
+                    return to_string_s(-1);
+
+                if(std::isnan(val))
+                    return to_string_s(0);
+
+                throw std::runtime_error("Bad value for sign");
+            }
+        }
+
         if(op == "fabs")
         {
             if(c1.has_value())
@@ -641,7 +667,7 @@ namespace dual_types
     inline
     dual_types::symbol sign(const dual_types::symbol& d1)
     {
-        return -2 * signbit(d1) + 1;
+        return unary(d1.sym, "sign");
     }
 
     using complex_v = dual_types::symbol_complex;
