@@ -253,6 +253,14 @@ namespace dual_types
             return "((float)(" + v1 + op + v2 + "))";
         }
 
+        if(op == "<=")
+        {
+            if(c1.has_value() && c2.has_value())
+                return to_string_s((int)(c1.value() <= c2.value()));
+
+            return "((float)(" + v1 + op + v2 + "))";
+        }
+
         return "(" + v1 + op + v2 + ")";
     }
 
@@ -396,6 +404,12 @@ namespace dual_types
     dual_types::symbol operator<(const dual_types::symbol& d1, const dual_types::symbol& d2)
     {
         return infix(d1.sym, d2.sym, "<");
+    }
+
+    inline
+    dual_types::symbol operator<=(const dual_types::symbol& d1, const dual_types::symbol& d2)
+    {
+        return infix(d1.sym, d2.sym, "<=");
     }
 
     inline
@@ -1173,15 +1187,24 @@ namespace dual_types
     }
 
     template<typename T, typename U, typename V>
+    inline
     auto dual_if(const T& condition, U&& if_true, V&& if_false)
     {
         return select(if_false(), if_true(), condition);
     }
 
     template<typename T>
+    inline
     T operator<(const dual_types::dual_v<T>& d1, const dual_types::dual_v<T>& d2)
     {
         return d1.real < d2.real;
+    }
+
+    template<typename T>
+    inline
+    T operator<=(const dual_types::dual_v<T>& d1, const dual_types::dual_v<T>& d2)
+    {
+        return d1.real <= d2.real;
     }
 };
 

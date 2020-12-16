@@ -211,12 +211,12 @@ inline
 std::array<dual, 4> configurable_wormhole(dual t, dual l, dual theta, dual phi)
 {
     dual M = 1;
-    dual p = 0.25;
-    dual a = 1;
+    dual p = 2;
+    dual a = 2;
 
     dual x = 2 * (fabs(l) - a) / (M_PI * M);
 
-    dual r = dual_if(fabs(l) < a,
+    dual r = dual_if(fabs(l) <= a,
     [&]()
     {
         return p;
@@ -226,8 +226,8 @@ std::array<dual, 4> configurable_wormhole(dual t, dual l, dual theta, dual phi)
         return p + M * (x * atan(x) - 0.5 * log(1 + x * x));
     });
 
-    dual dt = -(1 - 2 * M/r);
-    dual dl = 1 / (1 - 2 * M/r);
+    dual dt = -1;
+    dual dl = 1;
     dual dtheta = r * r;
     dual dphi = r * r * sin(theta) * sin(theta);
 
