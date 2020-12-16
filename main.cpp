@@ -1591,9 +1591,6 @@ int main()
     sf::Image img;
     img.loadFromFile("background.png");
 
-    cl::image clbackground(clctx.ctx);
-
-    std::vector<vec4f> as_float;
     std::vector<uint8_t> as_uint8;
 
     for(int y=0; y < img.getSize().y; y++)
@@ -1602,22 +1599,12 @@ int main()
         {
             auto col = img.getPixel(x, y);
 
-            vec4f val = {col.r / 255.f, col.g / 255.f, col.b / 255.f, col.a / 255.f};
-
-            as_float.push_back(val);
             as_uint8.push_back(col.r);
             as_uint8.push_back(col.g);
             as_uint8.push_back(col.b);
             as_uint8.push_back(col.a);
         }
     }
-
-    clbackground.alloc({img.getSize().x, img.getSize().y}, {CL_RGBA, CL_FLOAT});
-
-    vec<2, size_t> origin = {0,0};
-    vec<2, size_t> region = {img.getSize().x, img.getSize().y};
-
-    clbackground.write(clctx.cqueue, (const char*)&as_float[0], origin, region);
 
     texture_settings bsett;
     bsett.width = img.getSize().x;
