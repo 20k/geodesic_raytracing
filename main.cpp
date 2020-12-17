@@ -1372,6 +1372,74 @@ vec2f get_geodesic_intersection(const std::vector<cl_float4>& geodesic)
     return {0, 0};
 }
 
+cl::image_with_mipmaps load_mipped_image(const std::string& fname, opencl_context& clctx)
+{
+    sf::Image img;
+    img.loadFromFile(fname);
+
+    std::vector<uint8_t> as_uint8;
+
+    for(int y=0; y < img.getSize().y; y++)
+    {
+        for(int x=0; x < img.getSize().x; x++)
+        {
+            auto col = img.getPixel(x, y);
+
+            as_uint8.push_back(col.r);
+            as_uint8.push_back(col.g);
+            as_uint8.push_back(col.b);
+            as_uint8.push_back(col.a);
+        }
+    }
+
+    texture_settings bsett;
+    bsett.width = img.getSize().x;
+    bsett.height = img.getSize().y;
+    bsett.is_srgb = false;
+
+    texture opengl_tex;
+    opengl_tex.load_from_memory(bsett, &as_uint8[0]);
+
+    #define MIP_LEVELS 11
+
+    cl::image_with_mipmaps image_mipped(clctx.ctx);
+    image_mipped.alloc((vec2i){img.getSize().x, img.getSize().y}, MIP_LEVELS, {CL_RGBA, CL_FLOAT});
+
+    int swidth = img.getSize().x;
+    int sheight = img.getSize().y;
+
+    for(int i=0; i < MIP_LEVELS; i++)
+    {
+        printf("I is %i\n", i);
+
+        int cwidth = swidth;
+        int cheight = sheight;
+
+        swidth /= 2;
+        sheight /= 2;
+
+        cl::gl_rendertexture temp(clctx.ctx);
+        temp.create_from_texture_with_mipmaps(opengl_tex.handle, i);
+        temp.acquire(clctx.cqueue);
+
+        std::vector<cl_uchar4> res = temp.read<2, cl_uchar4>(clctx.cqueue, (vec<2, size_t>){0,0}, (vec<2, size_t>){cwidth, cheight});
+
+        temp.unacquire(clctx.cqueue);
+
+        std::vector<cl_float4> converted;
+        converted.reserve(res.size());
+
+        for(auto& i : res)
+        {
+            converted.push_back({i.s[0] / 255.f, i.s[1] / 255.f, i.s[2] / 255.f, i.s[3] / 255.f});
+        }
+
+        image_mipped.write(clctx.cqueue, (char*)&converted[0], vec<2, size_t>{0, 0}, vec<2, size_t>{cwidth, cheight}, i);
+    }
+
+    return image_mipped;
+}
+
 ///i need the ability to have dynamic parameters
 int main()
 {
@@ -1588,68 +1656,8 @@ int main()
 
     int which_buffer = 0;
 
-    sf::Image img;
-    img.loadFromFile("background.png");
-
-    std::vector<uint8_t> as_uint8;
-
-    for(int y=0; y < img.getSize().y; y++)
-    {
-        for(int x=0; x < img.getSize().x; x++)
-        {
-            auto col = img.getPixel(x, y);
-
-            as_uint8.push_back(col.r);
-            as_uint8.push_back(col.g);
-            as_uint8.push_back(col.b);
-            as_uint8.push_back(col.a);
-        }
-    }
-
-    texture_settings bsett;
-    bsett.width = img.getSize().x;
-    bsett.height = img.getSize().y;
-    bsett.is_srgb = false;
-
-    texture background_with_mips;
-    background_with_mips.load_from_memory(bsett, &as_uint8[0]);
-
-    #define MIP_LEVELS 11
-
-    cl::image_with_mipmaps background_mipped(clctx.ctx);
-    background_mipped.alloc((vec2i){img.getSize().x, img.getSize().y}, MIP_LEVELS, {CL_RGBA, CL_FLOAT});
-
-    int swidth = img.getSize().x;
-    int sheight = img.getSize().y;
-
-    for(int i=0; i < MIP_LEVELS; i++)
-    {
-        printf("I is %i\n", i);
-
-        int cwidth = swidth;
-        int cheight = sheight;
-
-        swidth /= 2;
-        sheight /= 2;
-
-        cl::gl_rendertexture temp(clctx.ctx);
-        temp.create_from_texture_with_mipmaps(background_with_mips.handle, i);
-        temp.acquire(clctx.cqueue);
-
-        std::vector<cl_uchar4> res = temp.read<2, cl_uchar4>(clctx.cqueue, (vec<2, size_t>){0,0}, (vec<2, size_t>){cwidth, cheight});
-
-        temp.unacquire(clctx.cqueue);
-
-        std::vector<cl_float4> converted;
-        converted.reserve(res.size());
-
-        for(auto& i : res)
-        {
-            converted.push_back({i.s[0] / 255.f, i.s[1] / 255.f, i.s[2] / 255.f, i.s[3] / 255.f});
-        }
-
-        background_mipped.write(clctx.cqueue, (char*)&converted[0], vec<2, size_t>{0, 0}, vec<2, size_t>{cwidth, cheight}, i);
-    }
+    cl::image_with_mipmaps background_mipped = load_mipped_image("background.png", clctx);
+    cl::image_with_mipmaps background_mipped2 = load_mipped_image("background2.png", clctx);
 
     cl::device_command_queue dqueue(clctx.ctx);
 
@@ -2140,6 +2148,7 @@ int main()
             render_args.push_back(finished_count_1);
             render_args.push_back(rtex[which_buffer]);
             render_args.push_back(background_mipped);
+            render_args.push_back(background_mipped2);
             render_args.push_back(width);
             render_args.push_back(height);
             render_args.push_back(texture_coordinates[which_buffer]);
