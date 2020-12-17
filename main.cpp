@@ -1400,15 +1400,19 @@ cl::image_with_mipmaps load_mipped_image(const std::string& fname, opencl_contex
     texture opengl_tex;
     opengl_tex.load_from_memory(bsett, &as_uint8[0]);
 
-    #define MIP_LEVELS 11
+    #define MIP_LEVELS 20
+
+    int max_mips = floor(log2(std::min(img.getSize().x, img.getSize().y))) + 1;
+
+    max_mips = std::min(max_mips, MIP_LEVELS);
 
     cl::image_with_mipmaps image_mipped(clctx.ctx);
-    image_mipped.alloc((vec2i){img.getSize().x, img.getSize().y}, MIP_LEVELS, {CL_RGBA, CL_FLOAT});
+    image_mipped.alloc((vec2i){img.getSize().x, img.getSize().y}, max_mips, {CL_RGBA, CL_FLOAT});
 
     int swidth = img.getSize().x;
     int sheight = img.getSize().y;
 
-    for(int i=0; i < MIP_LEVELS; i++)
+    for(int i=0; i < max_mips; i++)
     {
         printf("I is %i\n", i);
 
