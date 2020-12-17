@@ -3817,8 +3817,8 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
     float a_prime = (A + C - root) / 2;
     float c_prime = (A + C + root) / 2;
 
-    float majorRadius = sqrt(1/a_prime);
-    float minorRadius = sqrt(1/c_prime);
+    float majorRadius = native_rsqrt(a_prime);
+    float minorRadius = native_rsqrt(c_prime);
 
     float theta = atan2(B, (A - C)/2);
 
