@@ -2312,21 +2312,13 @@ int calculate_ds_error(float current_ds, float4 next_acceleration, float4 accele
 {
     float uniform_coordinate_precision_divisor = max(max(W_V1, W_V2), max(W_V3, W_V4));
 
-    float4 curve4 = next_acceleration - acceleration;
-
-    //float experienced_acceleration_change = max(max(fabs(curve4.x * W_V1), fabs(curve4.y * W_V2)), max(fabs(curve4.z * W_V3), fabs(curve4.w * W_V4)));
-    //float experienced_acceleration_change = fast_length(curve4 * (float4){W_V1, W_V2, W_V3, W_V4});
-
-    float maximum_space_curvature = max(max(fabs(curve4.x * W_V1), fabs(curve4.y * W_V2)), max(fabs(curve4.z * W_V3), fabs(curve4.w * W_V4)));
-    maximum_space_curvature /= uniform_coordinate_precision_divisor;
-
-    float current_acceleration_err = fast_length(next_acceleration * (float4)(W_V1, W_V2, W_V3, W_V4)) * 0.01;
+    float current_acceleration_err = fast_length(next_acceleration * (float4)(W_V1, W_V2, W_V3, W_V4)) * 0.01f;
     current_acceleration_err /= uniform_coordinate_precision_divisor;
 
-    float experienced_acceleration_change = mix(maximum_space_curvature, current_acceleration_err, 0.8);
+    float experienced_acceleration_change = current_acceleration_err;
 
     float err = MAX_ACCELERATION_CHANGE;
-    float i_hate_computers = 100;
+    float i_hate_computers = 256*256;
 
     //#define MIN_STEP 0.00001f
     #define MIN_STEP 0.000001f
@@ -2335,8 +2327,6 @@ int calculate_ds_error(float current_ds, float4 next_acceleration, float4 accele
 
     float diff = experienced_acceleration_change * i_hate_computers;
 
-    //float diff = fast_length(next_acceleration * i_hate_computers - acceleration * i_hate_computers);
-
     if(diff < err * i_hate_computers / pow(max_timestep, 2))
         diff = err * i_hate_computers / pow(max_timestep, 2);
 
@@ -2344,10 +2334,9 @@ int calculate_ds_error(float current_ds, float4 next_acceleration, float4 accele
     ///the sqrt error calculation is significantly better for alcubierre, largely in terms of having no visual artifacts at all
     ///whereas the pow version is nearly 2x faster for kerr
     float next_ds = native_sqrt(((err * i_hate_computers) / diff));
-    //next_ds = pow(err * i_hate_computers / diff, 0.7) * 20;
 
     ///produces strictly worse results for kerr
-    next_ds = 0.99f * current_ds * clamp(next_ds / current_ds, 0.3, 2.f);
+    next_ds = 0.99f * current_ds * clamp(next_ds / current_ds, 0.3f, 2.f);
 
     next_ds = max(next_ds, MIN_STEP);
 

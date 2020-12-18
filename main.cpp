@@ -1603,10 +1603,10 @@ int main()
 
     metric::config cfg;
     ///necessary for double schwarzs
-    cfg.universe_size = 200;
+    cfg.universe_size = 20000;
     //cfg.error_override = 100.f;
     //cfg.error_override = 0.000001f;
-    //cfg.error_override = 0.00001f;
+    cfg.error_override = 0.000001f;
     //cfg.error_override = 0.0001f;
     //cfg.redshift = true;
 
@@ -1615,7 +1615,7 @@ int main()
     //auto current_metric = alcubierre_metric_obj;
     //auto current_metric = kerr_newman_obj;
     //auto current_metric = kerr_schild_obj;
-    auto current_metric = simple_wormhole;
+    //auto current_metric = simple_wormhole;
     //auto current_metric = schwarzs_polar;
     //auto current_metric = minkowski_polar_obj;
     //auto current_metric = krasnikov_tube_cart_obj;
@@ -1624,7 +1624,7 @@ int main()
     //auto current_metric = unequal_double_kerr_obj;
     //auto current_metric = double_schwarzschild_obj;
     //auto current_metric = ellis_drainhole_obj;
-    //auto current_metric = configurable_wormhole_obj;
+    auto current_metric = configurable_wormhole_obj;
 
     argument_string += build_argument_string(current_metric, cfg);
     #endif // GENERIC_METRIC
