@@ -394,7 +394,7 @@ std::array<dual, 16> kerr_metric(dual t, dual r, dual theta, dual phi)
 {
     dual rs = 1;
 
-    dual a = -2;
+    dual a = -0.5;
     dual E = r * r + a * a * cos(theta) * cos(theta);
     dual D = r * r  - rs * r + a * a;
 
@@ -1520,7 +1520,7 @@ int main()
     metric::metric<kerr_metric, polar_to_polar, polar_to_polar, at_origin> kerr_obj;
     kerr_obj.name = "kerr_boyer";
     kerr_obj.adaptive_precision = true;
-    //kerr_obj.detect_singularities = true;
+    kerr_obj.detect_singularities = true;
 
     metric::metric<kerr_newman, polar_to_polar, polar_to_polar, at_origin> kerr_newman_obj;
     kerr_newman_obj.name = "kerrnewman_boyer";
@@ -1606,12 +1606,12 @@ int main()
     cfg.universe_size = 20000;
     //cfg.error_override = 100.f;
     //cfg.error_override = 0.000001f;
-    cfg.error_override = 0.000001f;
+    //cfg.error_override = 0.000001f;
     //cfg.error_override = 0.0001f;
     //cfg.redshift = true;
 
     //auto current_metric = symmetric_warp_obj;
-    //auto current_metric = kerr_obj;
+    auto current_metric = kerr_obj;
     //auto current_metric = alcubierre_metric_obj;
     //auto current_metric = kerr_newman_obj;
     //auto current_metric = kerr_schild_obj;
@@ -1624,7 +1624,7 @@ int main()
     //auto current_metric = unequal_double_kerr_obj;
     //auto current_metric = double_schwarzschild_obj;
     //auto current_metric = ellis_drainhole_obj;
-    auto current_metric = configurable_wormhole_obj;
+    //auto current_metric = configurable_wormhole_obj;
 
     argument_string += build_argument_string(current_metric, cfg);
     #endif // GENERIC_METRIC
