@@ -1827,7 +1827,12 @@ float3 calculate_pixel_direction(int cx, int cy, float width, float height, floa
 }
 
 __kernel
-void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global struct lightray* metric_rays, __global int* metric_ray_count, int width, int height, int flip_geodesic_direction, float2 base_angle)
+void init_rays_generic(float4 polar_camera_in, float4 camera_quat,
+                       __global struct lightray* metric_rays, __global int* metric_ray_count,
+                       int width, int height,
+                       __global int* termination_buffer,
+                       int prepass_width, int prepass_height,
+                       int flip_geodesic_direction, float2 base_angle)
 {
     int id = get_global_id(0);
 
@@ -2713,6 +2718,32 @@ void relauncher_generic(__global struct lightray* generic_rays_in, __global stru
                    });
 
     release_event(f3);
+}
+
+__kernel
+void clear_termination_buffer(__global int* termination_buffer, int width, int height)
+{
+    int x = get_global_id(0);
+    int y = get_global_id(1);
+
+    if(x >= width || y >= height)
+        return;
+
+    termination_buffer[y * width + x] = 1;
+}
+
+__kernel
+void calculate_singularities(__global struct lightray* finished_rays, __global int* finished_count, __global int* termination_buffer, int width, int height)
+{
+    int id = get_global_id(0);
+
+    if(id >= *finished_count)
+        return;
+
+    int sx = finished_rays[id].sx;
+    int sy = finished_rays[id].sy;
+
+    termination_buffer[sy * width + sx] = 0;
 }
 
 #endif // GENERIC_METRIC
