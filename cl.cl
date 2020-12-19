@@ -1831,11 +1831,13 @@ float3 calculate_pixel_direction(int cx, int cy, float width, float height, floa
 __kernel
 void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global struct lightray* metric_rays, __global int* metric_ray_count, int width, int height, int flip_geodesic_direction, float2 base_angle)
 {
-    int cx = get_global_id(0);
-    int cy = get_global_id(1);
+    int id = get_global_id(0);
 
-    if(cx >= width || cy >= height)
+    if(id >= width * height)
         return;
+
+    int cx = id % width;
+    int cy = id / width;
 
     float3 pixel_direction = calculate_pixel_direction(cx, cy, width, height, polar_camera_in, camera_quat, base_angle);
 
@@ -2048,8 +2050,6 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
 
         ray.ku_uobsu = final_val;
     }
-
-    int id = cy * width + cx;
 
     if(id == 0)
         *metric_ray_count = (height - 1) * width + width - 1;

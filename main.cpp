@@ -2096,7 +2096,7 @@ int main()
             init_args.push_back(isnap);
             init_args.push_back(base_angle);
 
-            clctx.cqueue.exec("init_rays_generic", init_args, {width, height}, {16, 16});
+            clctx.cqueue.exec("init_rays_generic", init_args, {width*height}, {16*16});
 
             if(should_snapshot_geodesic)
             {
