@@ -1832,7 +1832,7 @@ int should_early_terminate(int x, int y, int width, int height, __global int* te
     x = clamp(x, 0, width-1);
     y = clamp(y, 0, height-1);
 
-    return termination_buffer[y * width + x] == 0;
+    return termination_buffer[y * width + x] == 1;
 }
 
 __kernel
@@ -2769,7 +2769,7 @@ void clear_termination_buffer(__global int* termination_buffer, int width, int h
     if(id >= width * height)
         return;
 
-    termination_buffer[id] = 0;
+    termination_buffer[id] = 1;
 }
 
 __kernel
@@ -2783,7 +2783,7 @@ void calculate_singularities(__global struct lightray* finished_rays, __global i
     int sx = finished_rays[id].sx;
     int sy = finished_rays[id].sy;
 
-    termination_buffer[sy * width + sx] = 1;
+    termination_buffer[sy * width + sx] = 0;
 }
 
 #endif // GENERIC_METRIC
