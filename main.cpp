@@ -1688,7 +1688,7 @@ int main()
     int ray_count = supersample_width * supersample_height;
 
     cl::buffer schwarzs_1(clctx.ctx);
-    cl::buffer schwarzs_2(clctx.ctx);
+    cl::buffer schwarzs_scratch(clctx.ctx);
     #ifndef GENERIC_METRIC
     cl::buffer kruskal_1(clctx.ctx);
     cl::buffer kruskal_2(clctx.ctx);
@@ -1696,7 +1696,7 @@ int main()
     cl::buffer finished_1(clctx.ctx);
 
     cl::buffer schwarzs_count_1(clctx.ctx);
-    cl::buffer schwarzs_count_2(clctx.ctx);
+    cl::buffer schwarzs_count_scratch(clctx.ctx);
     cl::buffer kruskal_count_1(clctx.ctx);
     cl::buffer kruskal_count_2(clctx.ctx);
     cl::buffer finished_count_1(clctx.ctx);
@@ -1715,7 +1715,7 @@ int main()
     }
 
     schwarzs_1.alloc(sizeof(lightray) * ray_count);
-    schwarzs_2.alloc(sizeof(lightray) * ray_count);
+    schwarzs_scratch.alloc(sizeof(lightray) * ray_count);
     #ifndef GENERIC_METRIC
     kruskal_1.alloc(sizeof(lightray) * ray_count);
     kruskal_2.alloc(sizeof(lightray) * ray_count);
@@ -1723,7 +1723,7 @@ int main()
     finished_1.alloc(sizeof(lightray) * ray_count);
 
     schwarzs_count_1.alloc(sizeof(int));
-    schwarzs_count_2.alloc(sizeof(int));
+    schwarzs_count_scratch.alloc(sizeof(int));
     kruskal_count_1.alloc(sizeof(int));
     kruskal_count_2.alloc(sizeof(int));
     finished_count_1.alloc(sizeof(int));
@@ -1803,7 +1803,7 @@ int main()
             rtex[1].create_from_texture(tex[1].handle);
 
             schwarzs_1.alloc(sizeof(lightray) * ray_count);
-            schwarzs_2.alloc(sizeof(lightray) * ray_count);
+            schwarzs_scratch.alloc(sizeof(lightray) * ray_count);
             #ifndef GENERIC_METRIC
             kruskal_1.alloc(sizeof(lightray) * ray_count);
             kruskal_2.alloc(sizeof(lightray) * ray_count);
@@ -2026,17 +2026,12 @@ int main()
 
         #if 1
         schwarzs_count_1.set_to_zero(clctx.cqueue);
-        schwarzs_count_2.set_to_zero(clctx.cqueue);
+        schwarzs_count_scratch.set_to_zero(clctx.cqueue);
         kruskal_count_1.set_to_zero(clctx.cqueue);
         kruskal_count_2.set_to_zero(clctx.cqueue);
         finished_count_1.set_to_zero(clctx.cqueue);
 
         int fallback = 0;
-
-        cl::buffer* b1 = &schwarzs_1;
-        cl::buffer* b2 = &schwarzs_2;
-        cl::buffer* c1 = &schwarzs_count_1;
-        cl::buffer* c2 = &schwarzs_count_2;
 
         cl::event next;
 
@@ -2045,9 +2040,9 @@ int main()
             cl::args init_args;
             init_args.push_back(camera);
             init_args.push_back(camera_quat);
-            init_args.push_back(*b1);
+            init_args.push_back(schwarzs_1);
             init_args.push_back(kruskal_1); ///temp
-            init_args.push_back(*c1);
+            init_args.push_back(schwarzs_count_1);
             init_args.push_back(kruskal_count_1); ///temp
             init_args.push_back(width);
             init_args.push_back(height);
@@ -2055,13 +2050,13 @@ int main()
             clctx.cqueue.exec("init_rays", init_args, {width, height}, {16, 16});
 
             cl::args run_args;
-            run_args.push_back(*b1);
-            run_args.push_back(*b2);
+            run_args.push_back(schwarzs_1);
+            run_args.push_back(schwarzs_scratch);
             run_args.push_back(kruskal_1);
             run_args.push_back(kruskal_2);
             run_args.push_back(finished_1);
-            run_args.push_back(*c1);
-            run_args.push_back(*c2);
+            run_args.push_back(schwarzs_count_1);
+            run_args.push_back(schwarzs_count_scratch);
             run_args.push_back(kruskal_count_1);
             run_args.push_back(kruskal_count_2);
             run_args.push_back(finished_count_1);
@@ -2089,8 +2084,8 @@ int main()
             cl::args init_args;
             init_args.push_back(scamera);
             init_args.push_back(camera_quat);
-            init_args.push_back(*b1);
-            init_args.push_back(*c1);
+            init_args.push_back(schwarzs_1);
+            init_args.push_back(schwarzs_count_1);
             init_args.push_back(width);
             init_args.push_back(height);
             init_args.push_back(isnap);
@@ -2105,9 +2100,9 @@ int main()
                 geodesic_trace_buffer.set_to_zero(clctx.cqueue);
 
                 cl::args snapshot_args;
-                snapshot_args.push_back(*b1);
+                snapshot_args.push_back(schwarzs_1);
                 snapshot_args.push_back(geodesic_trace_buffer);
-                snapshot_args.push_back(*c1);
+                snapshot_args.push_back(schwarzs_count_1);
                 snapshot_args.push_back(idx);
                 snapshot_args.push_back(width);
                 snapshot_args.push_back(height);
@@ -2121,11 +2116,11 @@ int main()
             }
 
             cl::args run_args;
-            run_args.push_back(*b1);
-            run_args.push_back(*b2);
+            run_args.push_back(schwarzs_1);
+            run_args.push_back(schwarzs_scratch);
             run_args.push_back(finished_1);
-            run_args.push_back(*c1);
-            run_args.push_back(*c2);
+            run_args.push_back(schwarzs_count_1);
+            run_args.push_back(schwarzs_count_scratch);
             run_args.push_back(finished_count_1);
             run_args.push_back(width);
             run_args.push_back(height);
