@@ -2129,8 +2129,6 @@ int main()
             run_args.push_back(schwarzs_count_1);
             run_args.push_back(schwarzs_count_scratch);
             run_args.push_back(finished_count_1);
-            run_args.push_back(width);
-            run_args.push_back(height);
             run_args.push_back(fallback);
 
             clctx.cqueue.exec("relauncher_generic", run_args, {1}, {1});
@@ -2142,8 +2140,6 @@ int main()
             run_args2.push_back(schwarzs_count_2);
             run_args2.push_back(schwarzs_count_scratch);
             run_args2.push_back(finished_count_1);
-            run_args2.push_back(width);
-            run_args2.push_back(height);
             run_args2.push_back(fallback);
 
             clctx.cqueue.exec("relauncher_generic", run_args2, {1}, {1});

@@ -2728,7 +2728,7 @@ void relauncher_generic(__global struct lightray* generic_rays_in, __global stru
                         __global struct lightray* finished_rays,
                         __global int* generic_count_in, __global int* generic_count_out,
                         __global int* finished_count_out,
-                        int width, int height, int fallback)
+                        int fallback)
 {
     ///failed to converge
     if(fallback > 125)
@@ -2766,7 +2766,7 @@ void relauncher_generic(__global struct lightray* generic_rays_in, __global stru
                         relauncher_generic(generic_rays_out, generic_rays_in,
                                            finished_rays,
                                            generic_count_out, generic_count_in,
-                                           finished_count_out, width, height, fallback + 1);
+                                           finished_count_out, fallback + 1);
                    });
 
     release_event(f3);
