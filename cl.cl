@@ -890,6 +890,7 @@ struct lightray
     float4 acceleration;
     int sx, sy;
     float ku_uobsu;
+    int early_terminate;
 };
 
 #ifdef GENERIC_METRIC
@@ -1839,8 +1840,8 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat,
     if(id >= width * height)
         return;
 
-    int cx = id % width;
-    int cy = id / width;
+    const int cx = id % width;
+    const int cy = id / width;
 
     float3 pixel_direction = calculate_pixel_direction(cx, cy, width, height, polar_camera_in, camera_quat, base_angle);
 
@@ -2039,6 +2040,7 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat,
     ray.position = lightray_spacetime_position;
     ray.velocity = lightray_velocity;
     ray.acceleration = lightray_acceleration;
+    ray.early_terminate = 0;
 
     {
         float4 uobsu_upper = observer_velocity;
@@ -2053,6 +2055,23 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat,
 
         ray.ku_uobsu = final_val;
     }
+
+    #define USE_PREPASS
+    #ifdef USE_PREPASS
+    if(prepass_width != width && prepass_height != height)
+    {
+        float fx = (float)cx / width;
+        float fy = (float)cy / height;
+
+        int lx = fx * prepass_width;
+        int ly = fy * prepass_height;
+
+        if(termination_buffer[ly * prepass_width + lx] == 0)
+        {
+            ray.early_terminate = 1;
+        }
+    }
+    #endif // USE_PREPASS
 
     if(id == 0)
         *metric_ray_count = (height - 1) * width + width - 1;
@@ -2370,6 +2389,9 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
     __global struct lightray* ray = &generic_rays_in[id];
 
+    if(ray->early_terminate)
+        return;
+
     float4 position = ray->position;
     float4 velocity = ray->velocity;
     float4 acceleration = ray->acceleration;
@@ -2464,6 +2486,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
             out_ray.velocity = polar_velocity;
             out_ray.acceleration = 0;
             out_ray.ku_uobsu = ray->ku_uobsu;
+            out_ray.early_terminate = 0;
 
             finished_rays[out_id] = out_ray;
             return;
@@ -2535,6 +2558,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
     out_ray.velocity = velocity;
     out_ray.acceleration = acceleration;
     out_ray.ku_uobsu = ray->ku_uobsu;
+    out_ray.early_terminate = 0;
 
     generic_rays_out[out_id] = out_ray;
 }
@@ -2723,13 +2747,12 @@ void relauncher_generic(__global struct lightray* generic_rays_in, __global stru
 __kernel
 void clear_termination_buffer(__global int* termination_buffer, int width, int height)
 {
-    int x = get_global_id(0);
-    int y = get_global_id(1);
+    int id = get_global_id(0);
 
-    if(x >= width || y >= height)
+    if(id >= width * height)
         return;
 
-    termination_buffer[y * width + x] = 1;
+    termination_buffer[id] = 0;
 }
 
 __kernel
@@ -2743,7 +2766,7 @@ void calculate_singularities(__global struct lightray* finished_rays, __global i
     int sx = finished_rays[id].sx;
     int sy = finished_rays[id].sy;
 
-    termination_buffer[sy * width + sx] = 0;
+    termination_buffer[sy * width + sx] = 1;
 }
 
 #endif // GENERIC_METRIC

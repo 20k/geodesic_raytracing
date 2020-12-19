@@ -113,6 +113,7 @@ struct lightray
     cl_uint sx, sy;
     cl_float ku_uobsu;
     cl_float original_theta;
+    cl_int early_terminate;
 };
 
 inline
@@ -2105,7 +2106,7 @@ int main()
                 clear_args.push_back(prepass_width);
                 clear_args.push_back(prepass_height);
 
-                clctx.cqueue.exec("clear_termination_buffer", clear_args, {prepass_width, prepass_height}, {16, 16});
+                clctx.cqueue.exec("clear_termination_buffer", clear_args, {prepass_width*prepass_height}, {256});
 
                 cl::args init_args_prepass;
 
@@ -2121,7 +2122,7 @@ int main()
                 init_args_prepass.push_back(isnap);
                 init_args_prepass.push_back(base_angle);
 
-                clctx.cqueue.exec("init_rays_generic", init_args_prepass, {prepass_width*prepass_height}, {16*16});
+                clctx.cqueue.exec("init_rays_generic", init_args_prepass, {prepass_width*prepass_height}, {256});
 
                 cl::args run_args;
                 run_args.push_back(schwarzs_prepass);
@@ -2143,7 +2144,7 @@ int main()
                 singular_args.push_back(prepass_width);
                 singular_args.push_back(prepass_height);
 
-                clctx.cqueue.exec("calculate_singularities", singular_args, {prepass_width * prepass_height}, {256});
+                clctx.cqueue.exec("calculate_singularities", singular_args, {prepass_width*prepass_height}, {256});
 
                 finished_count_1.set_to_zero(clctx.cqueue);
             }
