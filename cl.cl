@@ -1837,6 +1837,36 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     int cx = id % width;
     int cy = id / width;
 
+    #define CHECKERBOARD
+    #ifdef CHECKERBOARD
+    if(id < (width/2) * height)
+    {
+        cx = id % (width/2);
+        cy = id / (width/2);
+
+        cx = cx * 2;
+
+        if((cy % 2) == 1)
+        {
+            cx++;
+        }
+    }
+    else
+    {
+        int lid = id - (width/2) * height;
+
+        cx = lid % (width/2);
+        cy = lid / (width/2);
+
+        cx = cx * 2 + 1;
+
+        if((cy % 2) == 1)
+        {
+            cx--;
+        }
+    }
+    #endif // CHECKERBOARD
+
     float3 pixel_direction = calculate_pixel_direction(cx, cy, width, height, polar_camera_in, camera_quat, base_angle);
 
     float4 polar_camera = polar_camera_in;
@@ -2052,7 +2082,7 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global stru
     if(id == 0)
         *metric_ray_count = (height - 1) * width + width - 1;
 
-    metric_rays[id] = ray;
+    metric_rays[cy * width + cx] = ray;
 }
 
 /*void rk4_evaluate_velocity_at(float4 position, float4 velocity, float4* out_k_velocity, float dt, float dt_factor, float4 k)
