@@ -2096,8 +2096,8 @@ int main()
                 }
             }
 
-            cl_int prepass_width = width/4;
-            cl_int prepass_height = height/4;
+            cl_int prepass_width = width/16;
+            cl_int prepass_height = height/16;
 
             if(current_metric.use_prepass)
             {

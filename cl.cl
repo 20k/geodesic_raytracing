@@ -1827,6 +1827,14 @@ float3 calculate_pixel_direction(int cx, int cy, float width, float height, floa
     return pixel_direction;
 }
 
+int should_early_terminate(int x, int y, int width, int height, __global int* termination_buffer)
+{
+    x = clamp(x, 0, width-1);
+    y = clamp(y, 0, height-1);
+
+    return termination_buffer[y * width + x] == 0;
+}
+
 __kernel
 void init_rays_generic(float4 polar_camera_in, float4 camera_quat,
                        __global struct lightray* metric_rays, __global int* metric_ray_count,
@@ -2063,10 +2071,19 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat,
         float fx = (float)cx / width;
         float fy = (float)cy / height;
 
-        int lx = fx * prepass_width;
-        int ly = fy * prepass_height;
+        int lx = round(fx * prepass_width);
+        int ly = round(fy * prepass_height);
 
-        if(termination_buffer[ly * prepass_width + lx] == 0)
+        /*if(termination_buffer[ly * prepass_width + lx] == 0)
+        {
+            ray.early_terminate = 1;
+        }*/
+
+        if(should_early_terminate(lx-1, ly, prepass_width, prepass_height, termination_buffer) &&
+           should_early_terminate(lx, ly, prepass_width, prepass_height, termination_buffer) &&
+           should_early_terminate(lx+1, ly, prepass_width, prepass_height, termination_buffer) &&
+           should_early_terminate(lx, ly-1, prepass_width, prepass_height, termination_buffer) &&
+           should_early_terminate(lx, ly+1, prepass_width, prepass_height, termination_buffer))
         {
             ray.early_terminate = 1;
         }
