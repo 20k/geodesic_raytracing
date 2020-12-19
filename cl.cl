@@ -1826,8 +1826,6 @@ float3 calculate_pixel_direction(int cx, int cy, float width, float height, floa
     return pixel_direction;
 }
 
-///so: the remaining issue is because the geodesic itself is tracing a constant theta path, which we follow
-///need to un-constant theta it?
 __kernel
 void init_rays_generic(float4 polar_camera_in, float4 camera_quat, __global struct lightray* metric_rays, __global int* metric_ray_count, int width, int height, int flip_geodesic_direction, float2 base_angle)
 {
