@@ -1521,6 +1521,7 @@ int main()
     kerr_obj.name = "kerr_boyer";
     kerr_obj.adaptive_precision = true;
     kerr_obj.detect_singularities = true;
+    kerr_obj.use_prepass = true;
 
     metric::metric<kerr_newman, polar_to_polar, polar_to_polar, at_origin> kerr_newman_obj;
     kerr_newman_obj.name = "kerrnewman_boyer";
@@ -1689,6 +1690,7 @@ int main()
 
     cl::buffer schwarzs_1(clctx.ctx);
     cl::buffer schwarzs_scratch(clctx.ctx);
+    cl::buffer schwarzs_prepass(clctx.ctx);
     #ifndef GENERIC_METRIC
     cl::buffer kruskal_1(clctx.ctx);
     cl::buffer kruskal_2(clctx.ctx);
@@ -1697,6 +1699,7 @@ int main()
 
     cl::buffer schwarzs_count_1(clctx.ctx);
     cl::buffer schwarzs_count_scratch(clctx.ctx);
+    cl::buffer schwarzs_count_prepass(clctx.ctx);
     cl::buffer kruskal_count_1(clctx.ctx);
     cl::buffer kruskal_count_2(clctx.ctx);
     cl::buffer finished_count_1(clctx.ctx);
@@ -1716,6 +1719,7 @@ int main()
 
     schwarzs_1.alloc(sizeof(lightray) * ray_count);
     schwarzs_scratch.alloc(sizeof(lightray) * ray_count);
+    schwarzs_prepass.alloc(sizeof(lightray) * ray_count);
     #ifndef GENERIC_METRIC
     kruskal_1.alloc(sizeof(lightray) * ray_count);
     kruskal_2.alloc(sizeof(lightray) * ray_count);
@@ -1724,6 +1728,7 @@ int main()
 
     schwarzs_count_1.alloc(sizeof(int));
     schwarzs_count_scratch.alloc(sizeof(int));
+    schwarzs_count_prepass.alloc(sizeof(int));
     kruskal_count_1.alloc(sizeof(int));
     kruskal_count_2.alloc(sizeof(int));
     finished_count_1.alloc(sizeof(int));
@@ -1804,6 +1809,7 @@ int main()
 
             schwarzs_1.alloc(sizeof(lightray) * ray_count);
             schwarzs_scratch.alloc(sizeof(lightray) * ray_count);
+            schwarzs_prepass.alloc(sizeof(lightray) * ray_count);
             #ifndef GENERIC_METRIC
             kruskal_1.alloc(sizeof(lightray) * ray_count);
             kruskal_2.alloc(sizeof(lightray) * ray_count);
@@ -2027,6 +2033,7 @@ int main()
         #if 1
         schwarzs_count_1.set_to_zero(clctx.cqueue);
         schwarzs_count_scratch.set_to_zero(clctx.cqueue);
+        schwarzs_count_prepass.set_to_zero(clctx.cqueue);
         kruskal_count_1.set_to_zero(clctx.cqueue);
         kruskal_count_2.set_to_zero(clctx.cqueue);
         finished_count_1.set_to_zero(clctx.cqueue);
@@ -2079,6 +2086,40 @@ int main()
                 {
                     isnap = 0;
                 }
+            }
+
+            int prepass_width = width/4;
+            int prepass_height = height/4;
+
+            if(current_metric.use_prepass)
+            {
+                cl::args init_args_prepass;
+
+                init_args_prepass.push_back(scamera);
+                init_args_prepass.push_back(camera_quat);
+                init_args_prepass.push_back(schwarzs_prepass);
+                init_args_prepass.push_back(schwarzs_count_prepass);
+                init_args_prepass.push_back(prepass_width);
+                init_args_prepass.push_back(prepass_height);
+                init_args_prepass.push_back(isnap);
+                init_args_prepass.push_back(base_angle);
+
+                clctx.cqueue.exec("init_rays_generic", init_args_prepass, {prepass_width*prepass_height}, {16*16});
+
+                cl::args run_args;
+                run_args.push_back(schwarzs_prepass);
+                run_args.push_back(schwarzs_scratch);
+                run_args.push_back(finished_1);
+                run_args.push_back(schwarzs_count_prepass);
+                run_args.push_back(schwarzs_count_scratch);
+                run_args.push_back(finished_count_1);
+                run_args.push_back(prepass_width);
+                run_args.push_back(prepass_height);
+                run_args.push_back(fallback);
+
+                clctx.cqueue.exec("relauncher_generic", run_args, {1}, {1});
+
+                finished_count_1.set_to_zero(clctx.cqueue);
             }
 
             cl::args init_args;
