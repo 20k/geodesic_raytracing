@@ -1689,6 +1689,7 @@ int main()
 
     cl::buffer schwarzs_1(clctx.ctx);
     cl::buffer schwarzs_2(clctx.ctx);
+    cl::buffer schwarzs_scratch(clctx.ctx);
     #ifndef GENERIC_METRIC
     cl::buffer kruskal_1(clctx.ctx);
     cl::buffer kruskal_2(clctx.ctx);
@@ -1697,6 +1698,7 @@ int main()
 
     cl::buffer schwarzs_count_1(clctx.ctx);
     cl::buffer schwarzs_count_2(clctx.ctx);
+    cl::buffer schwarzs_count_scratch(clctx.ctx);
     cl::buffer kruskal_count_1(clctx.ctx);
     cl::buffer kruskal_count_2(clctx.ctx);
     cl::buffer finished_count_1(clctx.ctx);
@@ -1716,6 +1718,7 @@ int main()
 
     schwarzs_1.alloc(sizeof(lightray) * ray_count);
     schwarzs_2.alloc(sizeof(lightray) * ray_count);
+    schwarzs_scratch.alloc(sizeof(lightray) * ray_count);
     #ifndef GENERIC_METRIC
     kruskal_1.alloc(sizeof(lightray) * ray_count);
     kruskal_2.alloc(sizeof(lightray) * ray_count);
@@ -1724,6 +1727,7 @@ int main()
 
     schwarzs_count_1.alloc(sizeof(int));
     schwarzs_count_2.alloc(sizeof(int));
+    schwarzs_count_scratch.alloc(sizeof(int));
     kruskal_count_1.alloc(sizeof(int));
     kruskal_count_2.alloc(sizeof(int));
     finished_count_1.alloc(sizeof(int));
@@ -1804,6 +1808,7 @@ int main()
 
             schwarzs_1.alloc(sizeof(lightray) * ray_count);
             schwarzs_2.alloc(sizeof(lightray) * ray_count);
+            schwarzs_scratch.alloc(sizeof(lightray) * ray_count);
             #ifndef GENERIC_METRIC
             kruskal_1.alloc(sizeof(lightray) * ray_count);
             kruskal_2.alloc(sizeof(lightray) * ray_count);
@@ -2086,6 +2091,8 @@ int main()
             init_args.push_back(camera_quat);
             init_args.push_back(schwarzs_1);
             init_args.push_back(schwarzs_count_1);
+            init_args.push_back(schwarzs_2);
+            init_args.push_back(schwarzs_count_2);
             init_args.push_back(width);
             init_args.push_back(height);
             init_args.push_back(isnap);
@@ -2117,16 +2124,29 @@ int main()
 
             cl::args run_args;
             run_args.push_back(schwarzs_1);
-            run_args.push_back(schwarzs_2);
+            run_args.push_back(schwarzs_scratch);
             run_args.push_back(finished_1);
             run_args.push_back(schwarzs_count_1);
-            run_args.push_back(schwarzs_count_2);
+            run_args.push_back(schwarzs_count_scratch);
             run_args.push_back(finished_count_1);
             run_args.push_back(width);
             run_args.push_back(height);
             run_args.push_back(fallback);
 
             clctx.cqueue.exec("relauncher_generic", run_args, {1}, {1});
+
+            cl::args run_args2;
+            run_args2.push_back(schwarzs_2);
+            run_args2.push_back(schwarzs_scratch);
+            run_args2.push_back(finished_1);
+            run_args2.push_back(schwarzs_count_2);
+            run_args2.push_back(schwarzs_count_scratch);
+            run_args2.push_back(finished_count_1);
+            run_args2.push_back(width);
+            run_args2.push_back(height);
+            run_args2.push_back(fallback);
+
+            clctx.cqueue.exec("relauncher_generic", run_args2, {1}, {1});
 
             #endif // GENERIC_METRIC
 

@@ -1828,7 +1828,8 @@ float3 calculate_pixel_direction(int cx, int cy, float width, float height, floa
 
 __kernel
 void init_rays_generic(float4 polar_camera_in, float4 camera_quat,
-                       __global struct lightray* metric_rays, __global int* metric_ray_count,
+                       __global struct lightray* metric_rays1, __global int* metric_ray_count1,
+                       __global struct lightray* metric_rays2, __global int* metric_ray_count2,
                        int width, int height, int flip_geodesic_direction, float2 base_angle)
 {
     int id = get_global_id(0);
@@ -1839,12 +1840,19 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat,
     int cx = id % width;
     int cy = id / width;
 
+    struct lightray* out_rays = metric_rays1;
+    int* out_count = metric_ray_count1;
+
+    int lcx = cx;
+
     #define CHECKERBOARD
     #ifdef CHECKERBOARD
     if(id < (width/2) * height)
     {
         cx = id % (width/2);
         cy = id / (width/2);
+
+        lcx = cx;
 
         cx = cx * 2;
 
@@ -1860,12 +1868,17 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat,
         cx = lid % (width/2);
         cy = lid / (width/2);
 
+        lcx = cx;
+
         cx = cx * 2 + 1;
 
         if((cy % 2) == 1)
         {
             cx--;
         }
+
+        out_rays = metric_rays2;
+        out_count = metric_ray_count2;
     }
     #endif // CHECKERBOARD
 
@@ -2081,10 +2094,22 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat,
         ray.ku_uobsu = final_val;
     }
 
+    #ifndef CHECKERBOARD
     if(id == 0)
-        *metric_ray_count = (height - 1) * width + width - 1;
+        *metric_ray_count1 = (height - 1) * width + width - 1;
 
-    metric_rays[cy * width + cx] = ray;
+    metric_rays1[cy * width + cx] = ray;
+    #else
+    if(id == 0)
+        *out_count = height * (width/2);
+    if(id == (width/2) * height)
+        *out_count = height * (width/2);
+
+    if(id < (width/2) * height)
+        out_rays[cy * (width/2) + lcx] = ray;
+    else
+        out_rays[cy * (width/2) + lcx] = ray;
+    #endif // CHECKERBOARD
 }
 
 /*void rk4_evaluate_velocity_at(float4 position, float4 velocity, float4* out_k_velocity, float dt, float dt_factor, float4 k)
@@ -2722,18 +2747,13 @@ void relauncher_generic(__global struct lightray* generic_rays_in, __global stru
 
     clk_event_t f1;
 
-    enqueue_kernel(get_default_queue(),CLK_ENQUEUE_FLAGS_NO_WAIT,
-                   ndrange_1D(offset, one, oneoffset),
-                   0, NULL, &f1,
-                   ^{
-                       *generic_count_out = 0;
-                   });
+    *generic_count_out = 0;
 
     clk_event_t f3;
 
     enqueue_kernel(get_default_queue(), CLK_ENQUEUE_FLAGS_NO_WAIT,
                    ndrange_1D(offset, generic_count, loffset),
-                   1, &f1, &f3,
+                   1, NULL, &f3,
                    ^{
                         do_generic_rays (generic_rays_in, generic_rays_out,
                                          finished_rays,
