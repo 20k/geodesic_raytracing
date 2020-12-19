@@ -2745,8 +2745,6 @@ void relauncher_generic(__global struct lightray* generic_rays_in, __global stru
     int one = 1;
     int oneoffset = 1;
 
-    clk_event_t f1;
-
     *generic_count_out = 0;
 
     clk_event_t f3;
@@ -2760,8 +2758,6 @@ void relauncher_generic(__global struct lightray* generic_rays_in, __global stru
                                          generic_count_in, generic_count_out,
                                          finished_count_out);
                    });
-
-    release_event(f1);
 
     enqueue_kernel(get_default_queue(), CLK_ENQUEUE_FLAGS_WAIT_KERNEL,
                    ndrange_1D(offset, one, oneoffset),
