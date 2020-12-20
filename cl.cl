@@ -2074,11 +2074,6 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat,
         int lx = round(fx * prepass_width);
         int ly = round(fy * prepass_height);
 
-        /*if(termination_buffer[ly * prepass_width + lx] == 0)
-        {
-            ray.early_terminate = 1;
-        }*/
-
         if(should_early_terminate(lx-1, ly, prepass_width, prepass_height, termination_buffer) &&
            should_early_terminate(lx, ly, prepass_width, prepass_height, termination_buffer) &&
            should_early_terminate(lx+1, ly, prepass_width, prepass_height, termination_buffer) &&
