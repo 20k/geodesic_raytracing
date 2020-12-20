@@ -1780,15 +1780,19 @@ float3 calculate_pixel_direction(int cx, int cy, float width, float height, floa
 
     float3 up = {0, 0, 1};
 
-    float4 goff2 = aa_to_quat(up, base_angle.y);
-
-    if(polar_camera.y < 0)
+    if(base_angle.y != 0)
     {
-        goff2 = aa_to_quat(up, -base_angle.y);
+        float4 goff2 = aa_to_quat(up, base_angle.y);
+
+        if(polar_camera.y < 0)
+        {
+            goff2 = aa_to_quat(up, -base_angle.y);
+        }
+
+        pixel_direction = rot_quat(pixel_direction, goff2);
     }
 
-    pixel_direction = rot_quat(pixel_direction, goff2);
-
+    if(base_angle.x != M_PI/2)
     {
         ///gets the rotation associated with the theta intersection of r=0
         float base_theta_angle = cos_mix(M_PI/2, base_angle.x, clamp(1 - fabs(polar_camera.y), 0.f, 1.f));
