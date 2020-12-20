@@ -1460,7 +1460,7 @@ int main()
 
     opencl_context& clctx = *win.clctx;
 
-    std::string argument_string = "-O5 -cl-std=CL2.2 ";
+    std::string argument_string = "-O3 -cl-std=CL2.2 ";
 
     #if 1
     #ifdef GENERIC_METRIC

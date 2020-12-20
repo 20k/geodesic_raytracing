@@ -3694,6 +3694,9 @@ float3 redshift(float3 v, float z)
     return result;
 }
 
+#define MIPMAP_CONDITIONAL_VA(x, ...) (position.y >= 0) ? x(mip_background, __VA_ARGS__) : x(mip_background2, __VA_ARGS__)
+#define MIPMAP_CONDITIONAL(x) (position.y >= 0) ? x(mip_background) : x(mip_background2)
+
 __kernel
 void render(__global struct lightray* finished_rays, __global int* finished_count_in, __write_only image2d_t out,
             __read_only image2d_t mip_background, __read_only image2d_t mip_background2,
@@ -3741,8 +3744,6 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
 
     float rs = 1;
     float r_value = position.y;
-
-    image2d_t* background = position.y >= 0 ? &mip_background : &mip_background2;
 
     #if !defined(TRAVERSABLE_EVENT_HORIZON) || (defined(NO_EVENT_HORIZON_CROSSING) && !defined(GENERIC_METRIC))
     if(fabs(r_value) <= rs * 2)
@@ -3814,11 +3815,11 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
 
     //#define TRILINEAR
     #ifdef TRILINEAR
-    dx_vtc.x *= get_image_width(*background);
-    dy_vtc.x *= get_image_width(*background);
+    dx_vtc.x *= MIPMAP_CONDITIONAL(get_image_width);
+    dy_vtc.x *= MIPMAP_CONDITIONAL(get_image_width);
 
-    dx_vtc.y *= get_image_height(*background);
-    dy_vtc.y *= get_image_height(*background);
+    dx_vtc.y *= MIPMAP_CONDITIONAL(get_image_height);
+    dy_vtc.y *= MIPMAP_CONDITIONAL(get_image_height);
 
     //dx_vtc.x /= 10.f;
     //dy_vtc.x /= 10.f;
@@ -3834,14 +3835,14 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
 
     float mip_clamped = clamp(mip_level, 0.f, 5.f);
 
-    float4 end_result = read_imagef(*background, sam, (float2){sxf, syf}, mip_clamped);
+    float4 end_result = MIPMAP_CONDITIONAL_VA(read_imagef, sam, (float2){sxf, syf}, mip_clamped);
     #else
 
-    dx_vtc.x *= get_image_width(*background);
-    dy_vtc.x *= get_image_width(*background);
+    dx_vtc.x *= MIPMAP_CONDITIONAL(get_image_width);
+    dy_vtc.x *= MIPMAP_CONDITIONAL(get_image_width);
 
-    dx_vtc.y *= get_image_height(*background);
-    dy_vtc.y *= get_image_height(*background);
+    dx_vtc.y *= MIPMAP_CONDITIONAL(get_image_height);
+    dy_vtc.y *= MIPMAP_CONDITIONAL(get_image_height);
 
     ///http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.1002.1336&rep=rep1&type=pdf
     float dv_dx = dx_vtc.y;
@@ -3892,7 +3893,7 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
 
     float levelofdetail = log2(minorRadius);
 
-    int maxLod = get_image_num_mip_levels(*background) - 1;
+    int maxLod = MIPMAP_CONDITIONAL(get_image_num_mip_levels) - 1;
 
     if(levelofdetail > maxLod)
     {
@@ -3907,7 +3908,7 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
         if(iProbes < 1)
             levelofdetail = maxLod;
 
-        end_result = read_imagef(*background, sam, (float2){sxf, syf}, levelofdetail);
+        end_result = MIPMAP_CONDITIONAL_VA(read_imagef, sam, (float2){sxf, syf}, levelofdetail);
     }
     else
     {
@@ -3937,8 +3938,8 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
         int currentN = startN;
         float alpha = 2;
 
-        float sU = du / get_image_width(*background);
-        float sV = dv / get_image_height(*background);
+        float sU = du / MIPMAP_CONDITIONAL(get_image_width);
+        float sV = dv / MIPMAP_CONDITIONAL(get_image_height);
 
         for(int cnt = 0; cnt < iProbes; cnt++)
         {
@@ -3953,7 +3954,7 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
             float cu = centreu + (currentN / 2.f) * sU;
             float cv = centrev + (currentN / 2.f) * sV;
 
-            float4 fval = read_imagef(*background, sam, (float2){cu, cv}, levelofdetail);
+            float4 fval = MIPMAP_CONDITIONAL_VA(read_imagef, sam, (float2){cu, cv}, levelofdetail);
 
             totalWeight += relativeWeight * fval;
             accumulatedProbes += relativeWeight;
@@ -3969,7 +3970,7 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
     //float4 end_result = read_imagef(*background, sam, (float2){sxf, syf}, dx_vtc, dy_vtc);
 
     #else
-    float4 end_result = read_imagef(*background, sam, (float2){sxf, syf}, 0);
+    float4 end_result = MIPMAP_CONDITIONAL_VA(read_imagef, sam, (float2){sxf, syf}, 0);
     #endif // MIPMAPPING
 
     #ifdef REDSHIFT
