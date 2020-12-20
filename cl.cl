@@ -190,7 +190,7 @@ float3 fix_ray_position(float3 polar_pos, float3 polar_velocity, float sphere_ra
     if(d2 > sphere_radius * sphere_radius)
         return polar_pos;
 
-    float thc = sqrt(sphere_radius * sphere_radius - d2);
+    float thc = native_sqrt(sphere_radius * sphere_radius - d2);
 
     float t0 = tca - thc;
     float t1 = tca + thc;
