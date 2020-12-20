@@ -241,6 +241,15 @@ namespace dual_types
             }
             #endif // RECIPROCAL_CONSTANTS
 
+            #define EMIT_NATIVE_RECIP
+            #ifdef EMIT_NATIVE_RECIP
+            if(c1.has_value() && c1.value() == 1 && !c2.has_value())
+                return unary(v2, "native_recip");
+
+            if(c1.has_value() && c1.value() == -1 && !c2.has_value())
+                return unary(unary(v2, "native_recip"), "-");
+            #endif // EMIT_NATIVE_RECIP
+
             if(v1 == v2)
                 return to_string_s(1);
         }
@@ -416,6 +425,12 @@ namespace dual_types
         {
             if(c1.has_value())
                 return to_string_s(fabs(c1.value()));
+        }
+
+        if(op == "native_recip")
+        {
+            if(c1.has_value())
+                return to_string_s(1/c1.value());
         }
 
         if(op == "-")

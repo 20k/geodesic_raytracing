@@ -119,8 +119,8 @@ struct lightray
 inline
 std::array<dual, 4> schwarzschild_blackhole(dual t, dual r, dual theta, dual phi)
 {
-    dual rs("rs");
-    dual c("c");
+    dual rs = 1;
+    dual c = 1;
 
     //theta = "M_PI/2";
 
