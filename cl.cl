@@ -1637,10 +1637,10 @@ float4 aa_to_quat(float3 axis, float angle)
 {
     float4 q;
 
-    q.xyz = axis.xyz * sin(angle/2);
-    q.w = cos(angle/2);
+    q.xyz = axis.xyz * native_sin(angle/2);
+    q.w = native_cos(angle/2);
 
-    return normalize(q);
+    return fast_normalize(q);
 }
 
 float4 quat_multiply(float4 q1, float4 q2)
@@ -1657,7 +1657,7 @@ float4 quat_multiply(float4 q1, float4 q2)
 
 float cos_mix(float x1, float x2, float f)
 {
-    float f2 = (1 - cos(f * M_PI))/2.f;
+    float f2 = (1 - native_cos(f * M_PI))/2.f;
 
     return mix(x1, x2, f2);
 }
@@ -1669,7 +1669,7 @@ float angle_to_plane(float3 vec, float3 plane_normal)
 
 float angle_between_vectors3(float3 v1, float3 v2)
 {
-    return acos(dot(normalize(v1), normalize(v2)));
+    return acos(dot(v1, v2));
 }
 
 float3 get_theta_axis(float3 pixel_direction, float4 polar_camera_in)
