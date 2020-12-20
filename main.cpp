@@ -2096,81 +2096,57 @@ int main()
                 }
             }
 
-            std::array<vec<2, cl_int>, 2> prepass_sizes =
-            {
-                vec<2, cl_int>{width/64, height/64},
-                vec<2, cl_int>{width/8, height/8},
-            };
-
-            cl_int prepass_width = width/8;
-            cl_int prepass_height = height/8;
+            cl_int prepass_width = width/16;
+            cl_int prepass_height = height/16;
 
             if(current_metric.use_prepass)
             {
-                /*cl::args clear_args;
+                cl::args clear_args;
                 clear_args.push_back(termination_buffer);
                 clear_args.push_back(prepass_width);
                 clear_args.push_back(prepass_height);
 
-                clctx.cqueue.exec("clear_termination_buffer", clear_args, {prepass_width*prepass_height}, {256});*/
+                clctx.cqueue.exec("clear_termination_buffer", clear_args, {prepass_width*prepass_height}, {256});
 
-                for(int i=0; i < (int)prepass_sizes.size(); i++)
-                {
-                    cl_int current_width = prepass_sizes[i].x();
-                    cl_int current_height = prepass_sizes[i].y();
+                cl::args init_args_prepass;
 
-                    cl_int last_width = i > 0 ? prepass_sizes[i - 1].x() : prepass_sizes[i].x();
-                    cl_int last_height = i > 0 ? prepass_sizes[i - 1].y() : prepass_sizes[i].y();
+                init_args_prepass.push_back(scamera);
+                init_args_prepass.push_back(camera_quat);
+                init_args_prepass.push_back(schwarzs_prepass);
+                init_args_prepass.push_back(schwarzs_count_prepass);
+                init_args_prepass.push_back(prepass_width);
+                init_args_prepass.push_back(prepass_height);
+                init_args_prepass.push_back(termination_buffer);
+                init_args_prepass.push_back(prepass_width);
+                init_args_prepass.push_back(prepass_height);
+                init_args_prepass.push_back(isnap);
+                init_args_prepass.push_back(base_angle);
 
-                    cl::args init_args_prepass;
+                clctx.cqueue.exec("init_rays_generic", init_args_prepass, {prepass_width*prepass_height}, {256});
 
-                    init_args_prepass.push_back(scamera);
-                    init_args_prepass.push_back(camera_quat);
-                    init_args_prepass.push_back(schwarzs_prepass);
-                    init_args_prepass.push_back(schwarzs_count_prepass);
-                    init_args_prepass.push_back(current_width);
-                    init_args_prepass.push_back(current_height);
-                    init_args_prepass.push_back(termination_buffer);
-                    init_args_prepass.push_back(last_width);
-                    init_args_prepass.push_back(last_height);
-                    init_args_prepass.push_back(isnap);
-                    init_args_prepass.push_back(base_angle);
+                cl::args run_args;
+                run_args.push_back(schwarzs_prepass);
+                run_args.push_back(schwarzs_scratch);
+                run_args.push_back(finished_1);
+                run_args.push_back(schwarzs_count_prepass);
+                run_args.push_back(schwarzs_count_scratch);
+                run_args.push_back(finished_count_1);
+                run_args.push_back(prepass_width);
+                run_args.push_back(prepass_height);
+                run_args.push_back(fallback);
 
-                    clctx.cqueue.exec("init_rays_generic", init_args_prepass, {prepass_width*prepass_height}, {256});
+                clctx.cqueue.exec("relauncher_generic", run_args, {1}, {1});
 
-                    {
-                        cl::args clear_args;
-                        clear_args.push_back(termination_buffer);
-                        clear_args.push_back(current_width);
-                        clear_args.push_back(current_height);
+                cl::args singular_args;
+                singular_args.push_back(finished_1);
+                singular_args.push_back(finished_count_1);
+                singular_args.push_back(termination_buffer);
+                singular_args.push_back(prepass_width);
+                singular_args.push_back(prepass_height);
 
-                        clctx.cqueue.exec("clear_termination_buffer", clear_args, {current_width*current_height}, {256});
-                    }
+                clctx.cqueue.exec("calculate_singularities", singular_args, {prepass_width*prepass_height}, {256});
 
-                    cl::args run_args;
-                    run_args.push_back(schwarzs_prepass);
-                    run_args.push_back(schwarzs_scratch);
-                    run_args.push_back(finished_1);
-                    run_args.push_back(schwarzs_count_prepass);
-                    run_args.push_back(schwarzs_count_scratch);
-                    run_args.push_back(finished_count_1);
-                    run_args.push_back(current_width);
-                    run_args.push_back(current_height);
-                    run_args.push_back(fallback);
-
-                    clctx.cqueue.exec("relauncher_generic", run_args, {1}, {1});
-
-                    cl::args singular_args;
-                    singular_args.push_back(finished_1);
-                    singular_args.push_back(finished_count_1);
-                    singular_args.push_back(termination_buffer);
-                    singular_args.push_back(current_width);
-                    singular_args.push_back(current_height);
-
-                    clctx.cqueue.exec("calculate_singularities", singular_args, {prepass_width*prepass_height}, {256});
-
-                    finished_count_1.set_to_zero(clctx.cqueue);
-                }
+                finished_count_1.set_to_zero(clctx.cqueue);
             }
 
             cl::args init_args;
