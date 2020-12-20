@@ -1468,7 +1468,7 @@ int main()
     metric::metric<schwarzschild_blackhole, polar_to_polar, polar_to_polar, at_origin> schwarzs_polar;
     schwarzs_polar.name = "schwarzschild";
     schwarzs_polar.singular = true;
-    //schwarzs_polar.adaptive_precision = false;
+    schwarzs_polar.adaptive_precision = false;
 
     metric::metric<schwarzschild_blackhole_lemaitre, lemaitre_to_polar, polar_to_lemaitre, at_origin> schwarzs_lemaitre;
     schwarzs_lemaitre.name = "schwarzs_lemaitre";
