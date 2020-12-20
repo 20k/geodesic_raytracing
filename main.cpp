@@ -1527,7 +1527,8 @@ int main()
     metric::metric<kerr_newman, polar_to_polar, polar_to_polar, at_origin> kerr_newman_obj;
     kerr_newman_obj.name = "kerrnewman_boyer";
     kerr_newman_obj.adaptive_precision = true;
-    //kerr_newman_obj.detect_singularities = true;
+    kerr_newman_obj.detect_singularities = true;
+    kerr_newman_obj.use_prepass = true;
 
     metric::metric<kerr_schild_metric, cartesian_to_polar_dual, polar_to_cartesian_dual, at_origin> kerr_schild_obj;
     kerr_schild_obj.name = "kerr_schild";
@@ -1596,6 +1597,7 @@ int main()
     unequal_double_kerr_obj.adaptive_precision = true;
     unequal_double_kerr_obj.detect_singularities = true;
     unequal_double_kerr_obj.system = metric::coordinate_system::CYLINDRICAL;
+    //unequal_double_kerr_obj.use_prepass = true;
 
     metric::metric<double_schwarzschild, cylindrical_to_polar, polar_to_cylindrical, at_origin> double_schwarzschild_obj;
     double_schwarzschild_obj.name = "double_schwarzschild";
@@ -1605,7 +1607,7 @@ int main()
 
     metric::config cfg;
     ///necessary for double schwarzs
-    cfg.universe_size = 20000;
+    cfg.universe_size = 200;
     //cfg.error_override = 100.f;
     //cfg.error_override = 0.000001f;
     //cfg.error_override = 0.000001f;
@@ -1613,9 +1615,9 @@ int main()
     //cfg.redshift = true;
 
     //auto current_metric = symmetric_warp_obj;
-    auto current_metric = kerr_obj;
+    //auto current_metric = kerr_obj;
     //auto current_metric = alcubierre_metric_obj;
-    //auto current_metric = kerr_newman_obj;
+    auto current_metric = kerr_newman_obj;
     //auto current_metric = kerr_schild_obj;
     //auto current_metric = simple_wormhole;
     //auto current_metric = schwarzs_polar;
