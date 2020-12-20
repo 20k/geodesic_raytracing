@@ -3694,8 +3694,12 @@ float3 redshift(float3 v, float z)
     return result;
 }
 
-#define MIPMAP_CONDITIONAL_VA(x, ...) (position.y >= 0) ? x(mip_background, __VA_ARGS__) : x(mip_background2, __VA_ARGS__)
-#define MIPMAP_CONDITIONAL(x) (position.y >= 0) ? x(mip_background) : x(mip_background2)
+float4 read_mipmap(image2d_t mipmap1, image2d_t mipmap2, float position_y, sampler_t sam, float2 pos, float lod)
+{
+    return position_y >= 0 ? read_imagef(mipmap1, sam, pos, lod) : read_imagef(mipmap2, sam, pos, lod);
+}
+
+#define MIPMAP_CONDITIONAL(x) ((position.y >= 0) ? x(mip_background) : x(mip_background2))
 
 __kernel
 void render(__global struct lightray* finished_rays, __global int* finished_count_in, __write_only image2d_t out,
@@ -3835,7 +3839,7 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
 
     float mip_clamped = clamp(mip_level, 0.f, 5.f);
 
-    float4 end_result = MIPMAP_CONDITIONAL_VA(read_imagef, sam, (float2){sxf, syf}, mip_clamped);
+    float4 end_result = MIPMAP_CONDITIONAL_READ(read_imagef, sam, ((float2){sxf, syf}), mip_clamped);
     #else
 
     dx_vtc.x *= MIPMAP_CONDITIONAL(get_image_width);
@@ -3908,7 +3912,7 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
         if(iProbes < 1)
             levelofdetail = maxLod;
 
-        end_result = MIPMAP_CONDITIONAL_VA(read_imagef, sam, (float2){sxf, syf}, levelofdetail);
+        end_result = read_mipmap(mip_background, mip_background2, position.y, sam, (float2){sxf, syf}, levelofdetail);
     }
     else
     {
@@ -3954,7 +3958,7 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
             float cu = centreu + (currentN / 2.f) * sU;
             float cv = centrev + (currentN / 2.f) * sV;
 
-            float4 fval = MIPMAP_CONDITIONAL_VA(read_imagef, sam, (float2){cu, cv}, levelofdetail);
+            float4 fval = read_mipmap(mip_background, mip_background2, position.y, sam, (float2){cu, cv}, levelofdetail);
 
             totalWeight += relativeWeight * fval;
             accumulatedProbes += relativeWeight;
@@ -3970,7 +3974,7 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
     //float4 end_result = read_imagef(*background, sam, (float2){sxf, syf}, dx_vtc, dy_vtc);
 
     #else
-    float4 end_result = MIPMAP_CONDITIONAL_VA(read_imagef, sam, (float2){sxf, syf}, 0);
+    float4 end_result = read_mipmap(mip_background, mip_background2, position.y, sam, (float2){sxf, syf}, 0);
     #endif // MIPMAPPING
 
     #ifdef REDSHIFT
