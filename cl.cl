@@ -142,7 +142,7 @@ void clear(__write_only image2d_t out)
 
 float3 rot_quat(const float3 point, float4 quat)
 {
-    quat = normalize(quat);
+    quat = fast_normalize(quat);
 
     float3 t = 2.f * cross(quat.xyz, point);
 
