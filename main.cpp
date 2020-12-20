@@ -1617,10 +1617,10 @@ int main()
     //auto current_metric = symmetric_warp_obj;
     //auto current_metric = kerr_obj;
     //auto current_metric = alcubierre_metric_obj;
-    auto current_metric = kerr_newman_obj;
+    //auto current_metric = kerr_newman_obj;
     //auto current_metric = kerr_schild_obj;
     //auto current_metric = simple_wormhole;
-    //auto current_metric = schwarzs_polar;
+    auto current_metric = schwarzs_polar;
     //auto current_metric = minkowski_polar_obj;
     //auto current_metric = krasnikov_tube_cart_obj;
     //auto current_metric = double_kerr_alt_obj;
@@ -2041,13 +2041,6 @@ int main()
         #endif // OLD_AND_GOOD
 
         #if 1
-        schwarzs_count_1.set_to_zero(clctx.cqueue);
-        schwarzs_count_scratch.set_to_zero(clctx.cqueue);
-        schwarzs_count_prepass.set_to_zero(clctx.cqueue);
-        kruskal_count_1.set_to_zero(clctx.cqueue);
-        kruskal_count_2.set_to_zero(clctx.cqueue);
-        finished_count_1.set_to_zero(clctx.cqueue);
-
         int fallback = 0;
 
         cl::event next;
@@ -2147,8 +2140,6 @@ int main()
                 singular_args.push_back(prepass_height);
 
                 clctx.cqueue.exec("calculate_singularities", singular_args, {prepass_width*prepass_height}, {256});
-
-                finished_count_1.set_to_zero(clctx.cqueue);
             }
 
             cl::args init_args;

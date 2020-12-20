@@ -2725,6 +2725,9 @@ void relauncher_generic(__global struct lightray* generic_rays_in, __global stru
     if((*generic_count_in) == 0)
         return;
 
+    if(fallback == 0)
+        *finished_count_out = 0;
+
     int generic_count = *generic_count_in;
 
     int offset = 0;
