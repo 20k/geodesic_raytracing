@@ -203,6 +203,29 @@ namespace dual_types
         return make_op(ops::DIVIDE, d1, d2);
     }
 
+    #define UNARY(x, y) inline operation x(const operation& d1){return make_op(ops::y, d1);}
+    #define BINARY(x, y) inline operation x(const operation& d1, const operation& d2){return make_op(ops::y, d1, d2);}
+    #define TRINARY(x, y) inline operation x(const operation& d1, const operation& d2, const operation& d3){return make_op(ops::y, d1, d2, d3);}
+
+    UNARY(sqrt, SQRT);
+    UNARY(psqrt, SQRT);
+    BINARY(pow, POW);
+    UNARY(log, LOG);
+    UNARY(fabs, FABS);
+    UNARY(exp, EXP);
+    UNARY(sin, SIN);
+    UNARY(cos, COS);
+    UNARY(tan, TAN);
+    UNARY(sinh, SINH);
+    UNARY(cosh, COSH);
+    UNARY(tanh, TANH);
+    UNARY(asin, ASIN);
+    UNARY(acos, ACOS);
+    UNARY(atan, ATAN);
+    BINARY(atan2, ATAN2);
+    UNARY(signbit, SIGNBIT);
+    TRINARY(select, SELECT);
+
     inline
     void test_operation()
     {
