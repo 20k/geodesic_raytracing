@@ -1286,6 +1286,20 @@ std::array<dual, 4> outgoing_eddington_finkelstein_to_polar(dual u, dual r, dual
 }
 
 inline
+std::array<dual, 4> book_metric(dual t, dual r, dual theta, dual phi)
+{
+    dual l = 1;
+
+    dual dt = exp(-2 * l / r);
+    dual dr = -exp(2 * l / r);
+
+    dual dtheta = -r * r;
+    dual dphi = -r * r * sin(theta) * sin(theta);
+
+    return {-dt, -dr, -dtheta, -dphi};
+}
+
+inline
 dual at_origin(dual t, dual r, dual theta, dual phi)
 {
     return r;
@@ -1470,6 +1484,11 @@ int main()
     schwarzs_polar.singular = true;
     schwarzs_polar.adaptive_precision = false;
 
+    metric::metric<schwarzschild_blackhole, polar_to_polar, polar_to_polar, at_origin> schwarzs_polar_accurate;
+    schwarzs_polar_accurate.name = "schwarzschild_accurate";
+    schwarzs_polar_accurate.adaptive_precision = true;
+    schwarzs_polar_accurate.detect_singularities = true;
+
     metric::metric<schwarzschild_blackhole_lemaitre, lemaitre_to_polar, polar_to_lemaitre, at_origin> schwarzs_lemaitre;
     schwarzs_lemaitre.name = "schwarzs_lemaitre";
     //schwarzs_lemaitre.singular = true;
@@ -1605,6 +1624,13 @@ int main()
     double_schwarzschild_obj.detect_singularities = true;
     double_schwarzschild_obj.system = metric::coordinate_system::CYLINDRICAL;
 
+    metric::metric<book_metric, polar_to_polar, polar_to_polar, at_origin> book_metric_obj;
+    book_metric_obj.name = "book_metric";
+    book_metric_obj.adaptive_precision = true;
+    book_metric_obj.detect_singularities = false;
+    book_metric_obj.use_prepass = true;
+    book_metric_obj.system = metric::coordinate_system::X_Y_THETA_PHI;
+
     metric::config cfg;
     ///necessary for double schwarzs
     cfg.universe_size = 200;
@@ -1620,7 +1646,8 @@ int main()
     //auto current_metric = kerr_newman_obj;
     //auto current_metric = kerr_schild_obj;
     //auto current_metric = simple_wormhole;
-    auto current_metric = schwarzs_polar;
+    //auto current_metric = schwarzs_polar;
+    //auto current_metric = schwarzs_polar_accurate;
     //auto current_metric = minkowski_polar_obj;
     //auto current_metric = krasnikov_tube_cart_obj;
     //auto current_metric = double_kerr_alt_obj;
@@ -1629,6 +1656,7 @@ int main()
     //auto current_metric = double_schwarzschild_obj;
     //auto current_metric = ellis_drainhole_obj;
     //auto current_metric = configurable_wormhole_obj;
+    auto current_metric = book_metric_obj;
 
     argument_string += build_argument_string(current_metric, cfg);
     #endif // GENERIC_METRIC
