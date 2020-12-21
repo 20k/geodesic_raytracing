@@ -159,6 +159,29 @@ namespace dual_types
     operation make_op_value(const std::string& str);
     template<Arithmetic T>
     operation make_op_value(const T& v);
+    template<typename... T>
+    operation make_op(ops::type_t type, T&&... args);
+
+    template<auto N>
+    inline
+    bool is_value_equal(double f)
+    {
+        return f == (double)N;
+    }
+
+    operation operator<(const operation& d1, const operation& d2);
+
+    operation operator<=(const operation& d1, const operation& d2);
+
+    operation operator+(const operation& d1, const operation& d2);
+
+    operation operator-(const operation& d1, const operation& d2);
+
+    operation operator-(const operation& d1);
+
+    operation operator*(const operation& d1, const operation& d2);
+
+    operation operator/(const operation& d1, const operation& d2);
 
     struct operation
     {
@@ -296,6 +319,39 @@ namespace dual_types
             {
                 if(args[0].is_constant_constraint(is_zero) || args[1].is_constant_constraint(is_zero))
                     return operation(0);
+
+                if(args[0].is_constant_constraint(is_value_equal<1>))
+                    return args[1];
+
+                if(args[1].is_constant_constraint(is_value_equal<1>))
+                    return args[0];
+            }
+
+            if(type == ops::PLUS)
+            {
+                if(args[0].is_constant_constraint(is_zero))
+                    return args[1];
+
+                if(args[1].is_constant_constraint(is_zero))
+                    return args[0];
+            }
+
+            if(type == ops::MINUS)
+            {
+                if(args[0].is_constant_constraint(is_zero))
+                    return -args[1];
+
+                if(args[1].is_constant_constraint(is_zero))
+                    return args[0];
+            }
+
+            if(type == ops::DIVIDE)
+            {
+                if(args[0].is_constant_constraint(is_zero))
+                    return operation(0);
+
+                if(args[1].is_constant_constraint(is_value_equal<1>))
+                    return args[0];
             }
 
             return *this;
