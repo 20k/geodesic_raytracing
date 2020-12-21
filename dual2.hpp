@@ -183,6 +183,8 @@ namespace dual_types
 
     operation operator/(const operation& d1, const operation& d2);
 
+    bool equivalent(const operation& d1, const operation& d2);
+
     struct operation
     {
         using is_complex = std::false_type;
@@ -493,6 +495,9 @@ namespace dual_types
 
                 if(args[1].is_constant_constraint(is_zero))
                     return args[0];
+
+                if(equivalent(args[0], args[1]))
+                    return 2 * args[0];
             }
 
             if(type == ops::MINUS)
@@ -502,6 +507,9 @@ namespace dual_types
 
                 if(args[1].is_constant_constraint(is_zero))
                     return args[0];
+
+                if(equivalent(args[0], args[1]))
+                    return operation(0);
             }
 
             if(type == ops::DIVIDE)
@@ -511,6 +519,9 @@ namespace dual_types
 
                 if(args[1].is_constant_constraint(is_value_equal<1>))
                     return args[0];
+
+                if(equivalent(args[0], args[1]))
+                    return operation(1);
             }
 
             if(type == ops::POW)
@@ -537,6 +548,43 @@ namespace dual_types
     };
 
     inline
+    bool equivalent(const operation& d1, const operation& d2)
+    {
+        if(d1.type != d2.type)
+            return false;
+
+        if(d1.type == ops::VALUE)
+        {
+            if(d1.is_constant() != d2.is_constant())
+                return false;
+
+            if(d1.is_constant())
+            {
+                return d1.get_constant() == d2.get_constant();
+            }
+
+            return d1.value_payload.value() == d2.value_payload.value();
+        }
+
+        if(d1.type == ops::VALUE && d1.get_constant() == d2.get_constant())
+            return true;
+
+        if(d1.args.size() == 2 && (d1.type == ops::MULTIPLY || d1.type == ops::PLUS))
+        {
+            return (equivalent(d1.args[0], d2.args[0]) && equivalent(d1.args[1], d2.args[1])) ||
+                   (equivalent(d1.args[1], d2.args[0]) && equivalent(d1.args[0], d2.args[1]));
+        }
+
+        for(int i=0; i < (int)d1.args.size(); i++)
+        {
+            if(!equivalent(d1.args[i], d2.args[i]))
+                return false;
+        }
+
+        return true;
+    }
+
+    inline
     std::string type_to_string(const operation& op)
     {
         if(op.type == ops::VALUE)
@@ -547,7 +595,8 @@ namespace dual_types
                     return "(" + op.value_payload.value() + ")";
             }
 
-            return "(" + op.value_payload.value() + ")";
+            return op.value_payload.value();
+
         }
 
         const operation_desc desc = get_description(op.type);
