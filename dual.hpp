@@ -49,17 +49,20 @@ namespace dual_types
         }
     };
 
-    struct symbol_complex
+    template<typename T>
+    struct complex
     {
-        symbol real;
-        symbol imaginary;
+        using underlying_type = T;
 
-        symbol_complex(){}
-        symbol_complex(const std::string& v1, const std::string& v2) : real(v1), imaginary(v2) {}
-        symbol_complex(float v1, float v2) : real(v1), imaginary(v2) {}
-        symbol_complex(float v1) : real(v1), imaginary(0) {}
-        symbol_complex(symbol v1, symbol v2) : real(v1), imaginary(v2) {}
-        symbol_complex(symbol v1) : real(v1) {}
+        T real;
+        T imaginary;
+
+        complex(){}
+        complex(const std::string& v1, const std::string& v2) : real(v1), imaginary(v2) {}
+        complex(float v1, float v2) : real(v1), imaginary(v2) {}
+        complex(float v1) : real(v1), imaginary(0) {}
+        complex(T v1, T v2) : real(v1), imaginary(v2) {}
+        complex(T v1) : real(v1) {}
 
         void set_dual_constant()
         {
@@ -639,14 +642,15 @@ namespace dual_types
         return threearg(d1.sym, d2.sym, d3.sym, "select");
     }
 
+    template<typename T>
     inline
-    dual_types::symbol_complex csqrt(const dual_types::symbol& d1)
+    dual_types::complex<T> csqrt(const T& d1)
     {
-        dual_types::symbol is_negative = signbit(d1);
+        T is_negative = signbit(d1);
 
-        dual_types::symbol positive_sqrt = sqrt(fabs(d1));
+        T positive_sqrt = sqrt(fabs(d1));
 
-        return dual_types::symbol_complex(select(positive_sqrt, 0, is_negative), select(0, positive_sqrt, is_negative));
+        return dual_types::complex<T>(select(positive_sqrt, 0, is_negative), select(0, positive_sqrt, is_negative));
     }
 
     inline
@@ -685,78 +689,90 @@ namespace dual_types
         return unary(d1.sym, "sign");
     }
 
-    using complex_v = dual_types::symbol_complex;
+    using complex_v = dual_types::complex<dual_types::symbol>;
 
+    template<typename T>
     inline
-    complex_v operator+(const complex_v& c1, const complex_v& c2)
+    complex<T> operator+(const complex<T>& c1, const complex<T>& c2)
     {
-        return complex_v(c1.real + c2.real, c1.imaginary + c2.imaginary);
+        return complex<T>(c1.real + c2.real, c1.imaginary + c2.imaginary);
     }
 
+    template<typename T>
     inline
-    complex_v operator-(const complex_v& c1, const complex_v& c2)
+    complex<T> operator-(const complex<T>& c1, const complex<T>& c2)
     {
-        return complex_v(c1.real - c2.real, c1.imaginary - c2.imaginary);
+        return complex<T>(c1.real - c2.real, c1.imaginary - c2.imaginary);
     }
 
+    template<typename T>
     inline
-    complex_v operator-(const complex_v& c1)
+    complex<T> operator-(const complex<T>& c1)
     {
-        return complex_v(-c1.real, -c1.imaginary);
+        return complex<T>(-c1.real, -c1.imaginary);
     }
 
+    template<typename T>
     inline
-    complex_v operator*(const complex_v& c1, const complex_v& c2)
+    complex<T> operator*(const complex<T>& c1, const complex<T>& c2)
     {
-        return complex_v(c1.real * c2.real - c1.imaginary * c2.imaginary, c1.imaginary * c2.real + c1.real * c2.imaginary);
+        return complex<T>(c1.real * c2.real - c1.imaginary * c2.imaginary, c1.imaginary * c2.real + c1.real * c2.imaginary);
     }
 
+    template<typename T>
     inline
-    complex_v operator/(const complex_v& c1, const complex_v& c2)
+    complex<T> operator/(const complex<T>& c1, const complex<T>& c2)
     {
-        dual_types::symbol divisor = c2.real * c2.real + c2.imaginary * c2.imaginary;
+        T divisor = c2.real * c2.real + c2.imaginary * c2.imaginary;
 
-        return complex_v((c1.real * c2.real + c1.imaginary * c2.imaginary) / divisor, (c1.imaginary * c2.real - c1.real * c2.imaginary) / divisor);
+        return complex<T>((c1.real * c2.real + c1.imaginary * c2.imaginary) / divisor, (c1.imaginary * c2.real - c1.real * c2.imaginary) / divisor);
     }
 
+    template<typename T>
     inline
-    complex_v sin(const complex_v& c1)
+    complex<T> sin(const complex<T>& c1)
     {
-        return complex_v(sin(c1.real) * cosh(c1.imaginary), cos(c1.real) * sinh(c1.imaginary));
+        return complex<T>(sin(c1.real) * cosh(c1.imaginary), cos(c1.real) * sinh(c1.imaginary));
     }
 
+    template<typename T>
     inline
-    complex_v cos(const complex_v& c1)
+    complex<T> cos(const complex<T>& c1)
     {
-        return complex_v(cos(c1.real) * cosh(c1.imaginary), -sin(c1.real) * sinh(c1.imaginary));
+        return complex<T>(cos(c1.real) * cosh(c1.imaginary), -sin(c1.real) * sinh(c1.imaginary));
     }
 
+    template<typename T>
     inline
-    complex_v conjugate(const complex_v& c1)
+    complex<T> conjugate(const complex<T>& c1)
     {
-        return complex_v(c1.real, -c1.imaginary);
+        return complex<T>(c1.real, -c1.imaginary);
     }
 
+    template<typename T>
     inline
-    complex_v makefinite(const complex_v& c1)
+    complex<T> makefinite(const complex<T>& c1)
     {
-        return complex_v(makefinite(c1.real), makefinite(c1.imaginary));
+        return complex<T>(makefinite(c1.real), makefinite(c1.imaginary));
     }
 
+    template<typename T>
     inline
-    dual_types::symbol fabs(const complex_v& c1)
+    T fabs(const complex<T>& c1)
     {
         return sqrt(c1.real * c1.real + c1.imaginary * c1.imaginary);
     }
 
+    template<typename T>
     inline
-    dual_types::symbol Imaginary(const complex_v& c1)
+    T Imaginary(const complex<T>& c1)
     {
         return c1.imaginary;
     }
 
+    template<typename T>
     inline
-    dual_types::symbol Real(const complex_v& c1)
+    T Real(const complex<T>& c1)
     {
         return c1.real;
     }
@@ -767,24 +783,25 @@ namespace dual_types
         return outer(d1.sym, d2.sym, "max");
     }
 
+    template<typename T>
     inline
-    dual_types::symbol_complex sqrt(const dual_types::symbol_complex& d1)
+    complex<T> sqrt(const complex<T>& d1)
     {
-        auto i_cst_opt = get_value(d1.imaginary.sym);
+        /*auto i_cst_opt = get_value(d1.imaginary.sym);
 
         if(i_cst_opt.has_value() && i_cst_opt.value() == 0)
-            return csqrt(d1.real);
+            return csqrt(d1.real);*/
 
         dual_types::symbol r_part = sqrt(max((d1.real + sqrt(d1.real * d1.real + d1.imaginary * d1.imaginary))/2, 0));
         dual_types::symbol i_part = sign(d1.imaginary) * sqrt(max((-d1.real + sqrt(d1.real * d1.real + d1.imaginary * d1.imaginary))/2, 0));
 
-        return dual_types::symbol_complex(r_part, i_part);
+        return complex<T>(r_part, i_part);
     }
 
     ///if this is known to have no imaginary components, the real component is guaranteed to be >= 0
     ///otherwise, it calls regular complex square root
     inline
-    dual_types::symbol_complex psqrt(const dual_types::symbol_complex& d1)
+    dual_types::complex<dual_types::symbol> psqrt(const dual_types::complex<dual_types::symbol>& d1)
     {
         auto v = get_value(d1.imaginary.sym);
 
@@ -794,10 +811,11 @@ namespace dual_types
         return sqrt(d1);
     }
 
+    template<typename T>
     inline
-    dual_types::symbol_complex pow(const dual_types::symbol_complex& d1, int exponent)
+    complex<T> pow(const complex<T>& d1, int exponent)
     {
-        dual_types::symbol_complex ret = d1;
+        complex<T> ret = d1;
 
         for(int i=0; i < exponent - 1; i++)
         {
@@ -819,9 +837,6 @@ namespace dual_types
     inline
     dual_types::dual_v<T> operator+(const dual_types::dual_v<T>& d1, const U& v)
     {
-        static_assert(!std::is_same_v<U, dual_types::dual_v<dual_types::symbol>>);
-        static_assert(!std::is_same_v<U, dual_types::dual_v<dual_types::symbol_complex>>);
-
         return dual_types::dual_v<T>(d1.real + T(v), d1.dual);
     }
 
@@ -830,9 +845,6 @@ namespace dual_types
     inline
     dual_types::dual_v<T> operator+(const U& v, const dual_types::dual_v<T>& d1)
     {
-        static_assert(!std::is_same_v<U, dual_types::dual_v<dual_types::symbol>>);
-        static_assert(!std::is_same_v<U, dual_types::dual_v<dual_types::symbol_complex>>);
-
         return dual_types::dual_v<T>(T(v) + d1.real, d1.dual);
     }
 
@@ -871,9 +883,6 @@ namespace dual_types
     inline
     dual_types::dual_v<T> operator-(const dual_types::dual_v<T>& d1, const U& v)
     {
-        static_assert(!std::is_same_v<U, dual_types::dual_v<dual_types::symbol>>);
-        static_assert(!std::is_same_v<U, dual_types::dual_v<dual_types::symbol_complex>>);
-
         return dual_types::dual_v<T>(d1.real - T(v), d1.dual);
     }
 
@@ -882,9 +891,6 @@ namespace dual_types
     inline
     dual_types::dual_v<T> operator-(const U& v, const dual_types::dual_v<T>& d1)
     {
-        static_assert(!std::is_same_v<U, dual_types::dual_v<dual_types::symbol>>);
-        static_assert(!std::is_same_v<U, dual_types::dual_v<dual_types::symbol_complex>>);
-
         return dual_types::dual_v<T>(T(v) - d1.real, -d1.dual);
     }
 
@@ -923,9 +929,6 @@ namespace dual_types
     inline
     dual_types::dual_v<T> operator*(const dual_types::dual_v<T>& d1, const U& v)
     {
-        static_assert(!std::is_same_v<U, dual_types::dual_v<dual_types::symbol>>);
-        static_assert(!std::is_same_v<U, dual_types::dual_v<dual_types::symbol_complex>>);
-
         return d1 * dual_types::dual_v<T>(T(v), T());
     }
 
@@ -934,9 +937,6 @@ namespace dual_types
     inline
     dual_types::dual_v<T> operator*(const U& v, const dual_types::dual_v<T>& d1)
     {
-        static_assert(!std::is_same_v<U, dual_types::dual_v<dual_types::symbol>>);
-        static_assert(!std::is_same_v<U, dual_types::dual_v<dual_types::symbol_complex>>);
-
         return dual_types::dual_v<T>(T(v), T()) * d1;
     }
 
@@ -968,9 +968,6 @@ namespace dual_types
     inline
     dual_types::dual_v<T> operator/(const dual_types::dual_v<T>& d1, const U& v)
     {
-        static_assert(!std::is_same_v<U, dual_types::dual_v<dual_types::symbol>>);
-        static_assert(!std::is_same_v<U, dual_types::dual_v<dual_types::symbol_complex>>);
-
         return d1 / dual_types::dual_v<T>(T(v), T());
     }
 
@@ -979,9 +976,6 @@ namespace dual_types
     inline
     dual_types::dual_v<T> operator/(const U& v, const dual_types::dual_v<T>& d1)
     {
-        static_assert(!std::is_same_v<U, dual_types::dual_v<dual_types::symbol>>);
-        static_assert(!std::is_same_v<U, dual_types::dual_v<dual_types::symbol_complex>>);
-
         return dual_types::dual_v<T>(T(v), T()) / d1;
     }
 
@@ -1005,7 +999,7 @@ namespace dual_types
     inline
     dual_types::dual_v<T> sqrt(const dual_types::dual_v<T>& d1)
     {
-        return dual_types::dual_v<T>(sqrt(d1.real), 0.5f * d1.dual / sqrt(d1.real));
+        return dual_types::dual_v<T>(sqrt(d1.real), T(0.5f) * d1.dual / sqrt(d1.real));
     }
 
     ///if this has no imaginary components, its guaranteed to be >= 0
@@ -1014,13 +1008,14 @@ namespace dual_types
     inline
     dual_types::dual_v<T> psqrt(const dual_types::dual_v<T>& d1)
     {
-        return dual_types::dual_v<T>(psqrt(d1.real), 0.5f * d1.dual / psqrt(d1.real));
+        return dual_types::dual_v<T>(psqrt(d1.real), T(0.5f) * d1.dual / psqrt(d1.real));
     }
 
+    template<typename T>
     inline
-    dual_types::dual_v<dual_types::symbol_complex> csqrt(const dual_types::dual_v<dual_types::symbol>& d1)
+    dual_types::dual_v<dual_types::complex<T>> csqrt(const dual_types::dual_v<T>& d1)
     {
-        return dual_types::dual_v<dual_types::symbol_complex>(csqrt(d1.real), 0.5f * d1.dual / csqrt(d1.real));
+        return dual_types::dual_v<dual_types::complex<T>>(csqrt(d1.real), complex<T>(0.5f * d1.dual, 0) / csqrt(d1.real));
     }
 
     template<typename T>
@@ -1060,16 +1055,15 @@ namespace dual_types
     inline
     dual_types::dual_v<T> fabs(const dual_types::dual_v<T>& d1)
     {
-        static_assert(!std::is_same_v<T, dual_types::symbol_complex>);
-
         return dual_types::dual_v<T>(fabs(d1.real), d1.real * d1.dual / fabs(d1.real));
     }
 
     ///https://math.stackexchange.com/questions/2352341/the-derivative-of-absolute-value-of-complex-function-fx-z-where-x-in-math
+    template<typename T>
     inline
-    dual_types::dual_v<dual_types::symbol> fabs(const dual_types::dual_v<dual_types::symbol_complex>& d1)
+    dual_types::dual_v<T> fabs(const dual_types::dual_v<dual_types::complex<T>>& d1)
     {
-        return dual_types::dual_v<dual_types::symbol>(fabs(d1.real), Real(d1.real * conjugate(d1.dual)) / fabs(d1.real));
+        return dual_types::dual_v<T>(fabs(d1.real), Real(d1.real * conjugate(d1.dual)) / fabs(d1.real));
     }
 
     template<typename T>
@@ -1189,21 +1183,24 @@ namespace dual_types
         return dual_types::dual_v<T>(fast_length(d1.real, d2.real, d3.real), (2 * d1.real * d1.dual + 2 * d2.real * d2.dual + 2 * d3.real * d3.dual) / bottom);
     }
 
+    template<typename T>
     inline
-    dual_types::dual_v<dual_types::symbol> Real(const dual_types::dual_v<dual_types::symbol_complex>& c1)
+    dual_types::dual_v<T> Real(const dual_types::dual_v<dual_types::complex<T>>& c1)
     {
         return dual_types::dual_v<dual_types::symbol>(Real(c1.real), Real(c1.dual));
     }
 
+    template<typename T>
     inline
-    dual_types::dual_v<dual_types::symbol> Imaginary(const dual_types::dual_v<dual_types::symbol_complex>& c1)
+    dual_types::dual_v<T> Imaginary(const dual_types::dual_v<dual_types::complex<T>>& c1)
     {
         return dual_types::dual_v<dual_types::symbol>(Imaginary(c1.real), Imaginary(c1.dual));
     }
 
     ///(a + bi) (a - bi) = a^2 + b^2
+    template<typename T>
     inline
-    dual_types::dual_v<dual_types::symbol> self_conjugate_multiply(const dual_types::dual_v<dual_types::symbol_complex>& c1)
+    dual_types::dual_v<T> self_conjugate_multiply(const dual_types::dual_v<dual_types::complex<T>>& c1)
     {
         return Real(c1 * conjugate(c1));
     }
@@ -1215,9 +1212,9 @@ namespace dual_types
     }
 
     inline
-    dual_types::dual_v<dual_types::symbol_complex> unit_i()
+    dual_types::dual_v<dual_types::complex<dual_types::symbol>> unit_i()
     {
-        return symbol_complex(0, 1);
+        return complex<dual_types::symbol>(0, 1);
     }
 
     template<typename T>
@@ -1258,7 +1255,7 @@ std::string pad(std::string in, int len)
 }
 
 using dual = dual_types::dual_v<dual_types::symbol>;
-using dual_complex = dual_types::dual_v<dual_types::symbol_complex>;
+using dual_complex = dual_types::dual_v<dual_types::complex<dual_types::symbol>>;
 
 inline
 std::array<dual, 4> schwarzschild_metric(dual t, dual r, dual theta, dual phi)
