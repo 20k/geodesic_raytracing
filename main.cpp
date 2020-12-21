@@ -654,10 +654,10 @@ std::array<dual, 16> double_kerr_alt(dual t, dual p, dual phi, dual z)
     return ret;
 }
 
-void debugp(dual_complex p)
+/*void debugp(dual_complex p)
 {
     std::cout << p.real.real.sym << std::endl;
-}
+}*/
 
 ///https://www.sciencedirect.com/science/article/pii/S0370269319303375
 inline

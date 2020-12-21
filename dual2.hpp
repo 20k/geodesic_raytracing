@@ -51,6 +51,9 @@ namespace dual_types
             SELECT,
             POW,
             MAX,
+
+            LAMBERT_W0,
+
             VALUE,
             NONE,
         };
@@ -104,6 +107,7 @@ namespace dual_types
         "select",
         "pow",
         "max",
+        "lambert_w0",
         "ERROR"
         );
 
@@ -158,12 +162,15 @@ namespace dual_types
 
     struct operation
     {
+        using is_complex = std::false_type;
+
         ops::type_t type = ops::NONE;
 
         std::optional<std::string> value_payload;
         std::vector<operation> args;
 
-        operation(){}
+        //operation(){value_payload = to_string_s(0); type = ops::VALUE;}
+        operation(){value_payload = to_string_s(0); type = ops::VALUE;}
         template<Arithmetic T>
         operation(T v){value_payload = to_string_s(v); type = ops::VALUE;}
         operation(const std::string& str){value_payload = str; type = ops::VALUE;}
@@ -265,6 +272,7 @@ namespace dual_types
                 PROPAGATE3(SELECT, select);
                 PROPAGATE2(POW, std::pow);
                 PROPAGATE2(MAX, std::max);
+                //PROPAGATE2(LAMBERT_W0, lambert_w0);
             }
 
             if(type == ops::SELECT)
@@ -281,7 +289,15 @@ namespace dual_types
     std::string type_to_string(const operation& op)
     {
         if(op.type == ops::VALUE)
-            return op.value_payload.value();
+        {
+            if(op.is_constant())
+            {
+                if(op.get_constant() < 0)
+                    return "(" + op.value_payload.value() + ")";
+            }
+
+            return "(" + op.value_payload.value() + ")";
+        }
 
         const operation_desc desc = get_description(op.type);
 
@@ -330,6 +346,7 @@ namespace dual_types
         operation ret;
         ret.type = type;
         ret.args = {args...};
+        ret.value_payload = std::nullopt;
 
         return ret.flatten();
     }
@@ -382,7 +399,6 @@ namespace dual_types
 
     UNARY(sqrt, SQRT);
     UNARY(psqrt, SQRT);
-    BINARY(pow, POW);
     UNARY(log, LOG);
     UNARY(fabs, FABS);
     UNARY(exp, EXP);
@@ -396,8 +412,24 @@ namespace dual_types
     UNARY(acos, ACOS);
     UNARY(atan, ATAN);
     BINARY(atan2, ATAN2);
+    UNARY(isfinite, ISFINITE);
     UNARY(signbit, SIGNBIT);
+    UNARY(sign, SIGN);
     TRINARY(select, SELECT);
+    BINARY(pow, POW);
+    BINARY(max, MAX);
+    UNARY(lambert_w0, LAMBERT_W0);
+
+    inline
+    complex<operation> psqrt(const complex<operation>& d1)
+    {
+        if(d1.imaginary.is_constant() && d1.imaginary.get_constant() == 0)
+        {
+            return sqrt(d1.real);
+        }
+
+        return sqrt(d1);
+    }
 
     inline
     void test_operation()
@@ -416,5 +448,8 @@ namespace dual_types
         std::cout << type_to_string(root_3) << std::endl;
     }
 }
+
+using dual = dual_types::dual_v<dual_types::operation>;
+using dual_complex = dual_types::dual_v<dual_types::complex<dual_types::operation>>;
 
 #endif // DUAL2_HPP_INCLUDED

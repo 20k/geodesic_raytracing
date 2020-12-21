@@ -30,6 +30,8 @@ namespace dual_types
 
     struct symbol
     {
+        using is_complex = std::false_type;
+
         std::string sym = "0.0";
 
         symbol(){}
@@ -55,9 +57,12 @@ namespace dual_types
         return sym.sym;
     }
 
+    struct unit_i_t{};
+
     template<typename T>
     struct complex
     {
+        using is_complex = std::true_type;
         using underlying_type = T;
 
         T real;
@@ -68,7 +73,8 @@ namespace dual_types
         complex(float v1, float v2) : real(v1), imaginary(v2) {}
         complex(float v1) : real(v1), imaginary(0) {}
         complex(T v1, T v2) : real(v1), imaginary(v2) {}
-        complex(T v1) : real(v1) {}
+        complex(T v1) : real(v1), imaginary(0) {}
+        complex(unit_i_t) : real(0), imaginary(1){}
 
         void set_dual_constant()
         {
@@ -798,8 +804,8 @@ namespace dual_types
         if(i_cst_opt.has_value() && i_cst_opt.value() == 0)
             return csqrt(d1.real);*/
 
-        dual_types::symbol r_part = sqrt(max((d1.real + sqrt(d1.real * d1.real + d1.imaginary * d1.imaginary))/2, 0));
-        dual_types::symbol i_part = sign(d1.imaginary) * sqrt(max((-d1.real + sqrt(d1.real * d1.real + d1.imaginary * d1.imaginary))/2, 0));
+        T r_part = sqrt(max((d1.real + sqrt(d1.real * d1.real + d1.imaginary * d1.imaginary))/2, 0));
+        T i_part = sign(d1.imaginary) * sqrt(max((-d1.real + sqrt(d1.real * d1.real + d1.imaginary * d1.imaginary))/2, 0));
 
         return complex<T>(r_part, i_part);
     }
@@ -1038,7 +1044,7 @@ namespace dual_types
     {
         static_assert(!std::is_same_v<U, complex_v> && !std::is_same_v<U, dual_types::dual_v<complex_v>>);
 
-        if constexpr(std::is_same_v<T, complex_v>)
+        if constexpr(std::is_same_v<std::true_type, typename T::is_complex>)
         {
             static_assert(std::is_same_v<U, int>);
 
@@ -1180,27 +1186,34 @@ namespace dual_types
         return dual_types::dual_v<T>(length(d1.real, d2.real, d3.real), (2 * d1.real * d1.dual + 2 * d2.real * d2.dual + 2 * d3.real * d3.dual) / bottom);
     }
 
-    template<typename T>
+    /*template<typename T>
     inline
     dual_types::dual_v<T> fast_length(const dual_types::dual_v<T>& d1, const dual_types::dual_v<T>& d2, const dual_types::dual_v<T>& d3)
     {
         T bottom = 2 * fast_length(d1.real, d2.real, d3.real);
 
         return dual_types::dual_v<T>(fast_length(d1.real, d2.real, d3.real), (2 * d1.real * d1.dual + 2 * d2.real * d2.dual + 2 * d3.real * d3.dual) / bottom);
+    }*/
+
+    template<typename T>
+    inline
+    dual_types::dual_v<T> fast_length(const dual_types::dual_v<T>& d1, const dual_types::dual_v<T>& d2, const dual_types::dual_v<T>& d3)
+    {
+        return sqrt(d1 * d1 + d2 * d2 + d3 * d3);
     }
 
     template<typename T>
     inline
     dual_types::dual_v<T> Real(const dual_types::dual_v<dual_types::complex<T>>& c1)
     {
-        return dual_types::dual_v<dual_types::symbol>(Real(c1.real), Real(c1.dual));
+        return dual_types::dual_v<T>(Real(c1.real), Real(c1.dual));
     }
 
     template<typename T>
     inline
     dual_types::dual_v<T> Imaginary(const dual_types::dual_v<dual_types::complex<T>>& c1)
     {
-        return dual_types::dual_v<dual_types::symbol>(Imaginary(c1.real), Imaginary(c1.dual));
+        return dual_types::dual_v<T>(Imaginary(c1.real), Imaginary(c1.dual));
     }
 
     ///(a + bi) (a - bi) = a^2 + b^2
@@ -1211,16 +1224,17 @@ namespace dual_types
         return Real(c1 * conjugate(c1));
     }
 
+    template<typename T>
     inline
-    dual_types::dual_v<dual_types::symbol> self_conjugate_multiply(const dual_types::dual_v<dual_types::symbol>& c1)
+    dual_types::dual_v<T> self_conjugate_multiply(const dual_types::dual_v<T>& c1)
     {
         return c1 * c1;
     }
 
     inline
-    dual_types::dual_v<dual_types::complex<dual_types::symbol>> unit_i()
+    unit_i_t unit_i()
     {
-        return complex<dual_types::symbol>(0, 1);
+        return unit_i_t();
     }
 
     template<typename T>
@@ -1260,35 +1274,8 @@ std::string pad(std::string in, int len)
     return in;
 }
 
-using dual = dual_types::dual_v<dual_types::symbol>;
-using dual_complex = dual_types::dual_v<dual_types::complex<dual_types::symbol>>;
-
-inline
-std::array<dual, 4> schwarzschild_metric(dual t, dual r, dual theta, dual phi)
-{
-    dual rs("rs");
-    dual c("c");
-
-    dual dt = -(1 - rs / r) * c * c;
-    dual dr = 1/(1 - rs / r);
-    dual dtheta = r * r;
-    dual dphi = r * r * sin(theta) * sin(theta);
-
-    return {dt, dr, dtheta, dphi};
-}
-
-inline
-std::array<dual, 3> schwarzschild_reduced(dual t, dual r, dual omega)
-{
-    dual rs("rs");
-    dual c("c");
-
-    dual dt = -(1 - rs / r) * c * c;
-    dual dr = 1/(1 - rs / r);
-    dual domega = r * r;
-
-    return {dt, dr, domega};
-}
+//using dual = dual_types::dual_v<dual_types::symbol>;
+//using dual_complex = dual_types::dual_v<dual_types::complex<dual_types::symbol>>;
 
 template<typename T, typename U, size_t N, size_t... Is>
 inline
@@ -1297,7 +1284,7 @@ auto array_apply(T&& func, const std::array<U, N>& arr, std::index_sequence<Is..
     return func(arr[Is]...);
 }
 
-template <typename T, typename U, size_t N>
+template<typename T, typename U, size_t N>
 inline
 auto array_apply(T&& func, const std::array<U, N>& arr)
 {
@@ -1407,20 +1394,6 @@ std::string get_function(Func&& f, T... raw_variables)
     auto result = array_apply(std::forward<Func>(f), variables);
 
     return type_to_string(result.real);
-}
-
-template<typename T, size_t N, size_t... Is>
-inline
-auto array_apply(T&& func, const std::array<dual_complex, N>& arr, std::index_sequence<Is...>)
-{
-    return func(arr[Is]...);
-}
-
-template <typename T, size_t N>
-inline
-auto array_apply(T&& func, const std::array<dual_complex, N>& arr)
-{
-    return array_apply(std::forward<T>(func), arr, std::make_index_sequence<N>{});
 }
 
 #endif // DUAL_HPP_INCLUDED
