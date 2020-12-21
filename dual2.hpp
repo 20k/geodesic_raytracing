@@ -245,7 +245,105 @@ namespace dual_types
         #define PROPAGATE2(x, y) if(type == ops::x){return make_op_value(y(get(0), get(1)));}
         #define PROPAGATE3(x, y) if(type == ops::x){return make_op_value(y(get(0), get(1), get(2)));}
 
-        operation flatten() const
+        template<typename T, typename U, typename V>
+        inline
+        void configurable_recurse_impl(operation& op, T&& is_valid_candidate, U&& should_terminate, V&& should_recurse, bool& terminated)
+        {
+            if(terminated)
+                return;
+
+            if(!is_valid_candidate(op))
+                return;
+
+            if(should_terminate(op))
+            {
+                terminated = true;
+                return;
+            }
+
+            for(int idx = 0; idx < (int)op.args.size(); idx++)
+            {
+                if(op.args[idx].type == ops::VALUE)
+                    continue;
+
+                if(!should_recurse(op, idx))
+                    continue;
+
+                configurable_recurse_impl(op.args[idx], std::forward<T>(is_valid_candidate), std::forward<U>(should_terminate), std::forward<V>(should_recurse), terminated);
+            }
+        }
+
+        template<typename T, typename U, typename V>
+        inline
+        void configurable_recurse(operation& op, T&& is_valid_candidate, U&& should_terminate, V&& should_recurse)
+        {
+            bool terminated = false;
+
+            return configurable_recurse_impl(op, std::forward<T>(is_valid_candidate), std::forward<U>(should_terminate), std::forward<V>(should_recurse), terminated);
+        }
+
+        void invasive_flatten()
+        {
+            bool any_change = false;
+
+            if(type == ops::MULTIPLY)
+            {
+                auto is_mult_node = [](const operation& op){return op.type == ops::MULTIPLY;};
+
+                std::vector<operation*> constants;
+
+                auto found_constant = [&](operation& op)
+                {
+                    if(op.args[0].is_constant())
+                        constants.push_back(&op.args[0]);
+
+                    if(op.args[1].is_constant())
+                        constants.push_back(&op.args[1]);
+
+                    return false;
+                };
+
+                auto should_recurse = [](operation& op, int idx)
+                {
+                    if(op.type == ops::MULTIPLY)
+                        return true;
+
+                    return false;
+                };
+
+                configurable_recurse(args[0], is_mult_node, found_constant, should_recurse);
+                configurable_recurse(args[1], is_mult_node, found_constant, should_recurse);
+
+                bool any_change = constants.size() > 0;
+
+                auto propagate_constants = [&](operation& base_op)
+                {
+                    if(base_op.is_constant())
+                    {
+                        double my_value = base_op.get_constant();
+
+                        for(operation* op : constants)
+                        {
+                            my_value *= op->get_constant();
+
+                            *op = operation(1);
+                        }
+
+                        base_op = my_value;
+
+                        constants.clear();
+                    }
+                };
+
+                propagate_constants(args[0]);
+                propagate_constants(args[1]);
+            }
+
+            if(any_change)
+                *this = flatten(true);
+        }
+
+        operation flatten(bool recurse = false) const
         {
             if(type == ops::VALUE)
                 return *this;
@@ -354,7 +452,17 @@ namespace dual_types
                     return args[0];
             }
 
-            return *this;
+            operation ret = *this;
+
+            if(recurse)
+            {
+                for(auto& i : ret.args)
+                    i = i.flatten();
+            }
+
+            ret.invasive_flatten();
+
+            return ret;
         }
     };
 
