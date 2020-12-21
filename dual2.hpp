@@ -114,6 +114,42 @@ namespace dual_types
         return ret;
     }
 
+    inline
+    double signbit(double in)
+    {
+        return in < 0;
+    }
+
+    inline
+    float sign(float in)
+    {
+        if(in == -0.0f)
+            return -0.0f;
+
+        if(in == 0.0f)
+            return 0.0f;
+
+        if(in > 0)
+            return 1;
+
+        if(in < 0)
+            return -1;
+
+        if(std::isnan(in))
+            return 0;
+
+        throw std::runtime_error("Bad sign function");
+    }
+
+    inline
+    double select(double v1, double v2, double v3)
+    {
+        if(v3 > 0)
+            return v2;
+
+        return v1;
+    }
+
     struct operation;
 
     operation make_op_value(const std::string& str);
@@ -154,6 +190,10 @@ namespace dual_types
             return get_value(args[idx].value_payload.value()).value();
         }
 
+        #define PROPAGATE1(x, y) if(type == ops::x){return make_op_value(y(get(0)));}
+        #define PROPAGATE2(x, y) if(type == ops::x){return make_op_value(y(get(0), get(1)));}
+        #define PROPAGATE3(x, y) if(type == ops::x){return make_op_value(y(get(0), get(1), get(2)));}
+
         operation flatten()
         {
             if(type == ops::VALUE)
@@ -174,7 +214,48 @@ namespace dual_types
             {
                 if(type == ops::PLUS)
                     return make_op_value(get(0) + get(1));
+
+                if(type == ops::UMINUS)
+                    return make_op_value(-get(0));
+
+                if(type == ops::MINUS)
+                    return make_op_value(get(0) - get(1));
+
+                if(type == ops::MULTIPLY)
+                    return make_op_value(get(0) * get(1));
+
+                if(type == ops::DIVIDE)
+                    return make_op_value(get(0) / get(1));
+
+                if(type == ops::LESS)
+                    return make_op_value(get(0) < get(1));
+
+                if(type == ops::LESS_EQUAL)
+                    return make_op_value(get(0) <= get(1));
+
+                PROPAGATE1(SIN, std::sin);
+                PROPAGATE1(COS, std::cos);
+                PROPAGATE1(TAN, std::tan);
+                PROPAGATE1(ASIN, std::asin);
+                PROPAGATE1(ACOS, std::acos);
+                PROPAGATE1(ATAN, std::atan);
+                PROPAGATE2(ATAN2, std::atan2);
+                PROPAGATE1(EXP, std::exp);
+                PROPAGATE1(SQRT, std::sqrt);
+                PROPAGATE1(SINH, std::sinh);
+                PROPAGATE1(COSH, std::cosh);
+                PROPAGATE1(TANH, std::tanh);
+                PROPAGATE1(LOG, std::log);
+                PROPAGATE1(ISFINITE, std::isfinite);
+                PROPAGATE1(SIGNBIT, signbit);
+                PROPAGATE1(SIGN, sign);
+                PROPAGATE1(FABS, std::fabs);
+                PROPAGATE3(SELECT, select);
+                PROPAGATE2(POW, std::pow);
+                PROPAGATE2(MAX, std::max);
             }
+
+            return *this;
         }
     };
 
