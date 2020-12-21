@@ -6,6 +6,7 @@
 #include <SFML/Graphics.hpp>
 #include <CL/cl_ext.h>
 #include "dual.hpp"
+#include "dual2.hpp"
 #include "metric.hpp"
 #include "chromaticity.hpp"
 //#include "dual_complex.hpp"
@@ -1651,12 +1652,12 @@ int main()
     //auto current_metric = minkowski_polar_obj;
     //auto current_metric = krasnikov_tube_cart_obj;
     //auto current_metric = double_kerr_alt_obj;
-    //auto current_metric = double_kerr_obj;
+    auto current_metric = double_kerr_obj;
     //auto current_metric = unequal_double_kerr_obj;
     //auto current_metric = double_schwarzschild_obj;
     //auto current_metric = ellis_drainhole_obj;
     //auto current_metric = configurable_wormhole_obj;
-    auto current_metric = book_metric_obj;
+    //auto current_metric = book_metric_obj;
 
     argument_string += build_argument_string(current_metric, cfg);
     #endif // GENERIC_METRIC
