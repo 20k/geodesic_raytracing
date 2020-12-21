@@ -412,6 +412,8 @@ namespace dual_types
         dual_v<operation> test_dual = 1234;
 
         dual_v<operation> test_operator = test_dual * 1111;
+
+        std::cout << type_to_string(root_3) << std::endl;
     }
 }
 

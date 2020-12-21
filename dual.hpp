@@ -49,6 +49,12 @@ namespace dual_types
         }
     };
 
+    inline
+    std::string type_to_string(const symbol& sym)
+    {
+        return sym.sym;
+    }
+
     template<typename T>
     struct complex
     {
@@ -1298,6 +1304,13 @@ auto array_apply(T&& func, const std::array<dual, N>& arr)
     return array_apply(std::forward<T>(func), arr, std::make_index_sequence<N>{});
 }
 
+template<typename R, typename... T>
+inline
+auto get_function_args_array(R(T...))
+{
+    return std::array{T()...};
+}
+
 template<typename Func, typename... T>
 inline
 std::pair<std::vector<std::string>, std::vector<std::string>> evaluate_metric(Func&& f, T... raw_variables)
@@ -1318,7 +1331,7 @@ std::pair<std::vector<std::string>, std::vector<std::string>> evaluate_metric(Fu
 
     for(int i=0; i < (int)variable_names.size(); i++)
     {
-        std::array<dual, variable_names.size()> variables;
+        auto variables = get_function_args_array(f);
 
         for(int j=0; j < (int)variable_names.size(); j++)
         {
@@ -1401,7 +1414,7 @@ std::pair<std::vector<std::string>, std::vector<std::string>> evaluate_metric2D(
 
     for(int i=0; i < (int)variable_names.size(); i++)
     {
-        std::array<dual, variable_names.size()> variables;
+        auto variables = get_function_args_array(f);
 
         for(int j=0; j < (int)variable_names.size(); j++)
         {
@@ -1425,13 +1438,13 @@ std::pair<std::vector<std::string>, std::vector<std::string>> evaluate_metric2D(
         {
             for(auto& kk : eqs)
             {
-                raw_eq.push_back(kk.real.sym);
+                raw_eq.push_back(type_to_string(kk.real));
             }
         }
 
         for(auto& kk : eqs)
         {
-            raw_derivatives.push_back(kk.dual.sym);
+            raw_derivatives.push_back(type_to_string(kk.dual));
         }
     }
 
@@ -1475,16 +1488,16 @@ std::string get_function(Func&& f, T... raw_variables)
     constexpr int N = sizeof...(T);
     std::array<std::string, N> variable_names{raw_variables...};
 
-    std::array<dual, N> variables;
+    auto variables = get_function_args_array(f);
 
     for(int i=0; i < N; i++)
     {
         variables[i].make_variable(variable_names[i]);
     }
 
-    dual result = array_apply(std::forward<Func>(f), variables);
+    auto result = array_apply(std::forward<Func>(f), variables);
 
-    return result.real.sym;
+    return type_to_string(result.real);
 }
 
 template<typename T, size_t N, size_t... Is>
@@ -1499,53 +1512,6 @@ inline
 auto array_apply(T&& func, const std::array<dual_complex, N>& arr)
 {
     return array_apply(std::forward<T>(func), arr, std::make_index_sequence<N>{});
-}
-
-template<typename Func, typename... T>
-inline
-std::pair<std::vector<std::string>, std::vector<std::string>> evaluate_metric2D_DC(Func&& f, T... raw_variables)
-{
-    std::array<std::string, sizeof...(T)> variable_names{raw_variables...};
-    constexpr int N = sizeof...(T);
-
-    std::vector<std::string> raw_eq;
-    std::vector<std::string> raw_derivatives;
-
-    for(int i=0; i < (int)variable_names.size(); i++)
-    {
-        std::array<dual_complex, variable_names.size()> variables;
-
-        for(int j=0; j < (int)variable_names.size(); j++)
-        {
-            if(i == j)
-            {
-                variables[j].make_variable(complex_v(variable_names[j], "0"));
-            }
-            else
-            {
-                variables[j].make_constant(complex_v(variable_names[j], "0"));
-            }
-        }
-
-        std::array eqs = array_apply(std::forward<Func>(f), variables);
-
-        static_assert(eqs.size() == N * N);
-
-        if(i == 0)
-        {
-            for(auto& kk : eqs)
-            {
-                raw_eq.push_back(kk.real.real.sym);
-            }
-        }
-
-        for(auto& kk : eqs)
-        {
-            raw_derivatives.push_back(kk.dual.real.sym);
-        }
-    }
-
-    return {raw_eq, raw_derivatives};
 }
 
 #endif // DUAL_HPP_INCLUDED
