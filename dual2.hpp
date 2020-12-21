@@ -348,6 +348,59 @@ namespace dual_types
                 propagate_constants(args[1]);
             }
 
+            if(type == ops::PLUS)
+            {
+                auto is_add_node = [](const operation& op)
+                {
+                    return op.type == ops::PLUS;
+                };
+
+                std::vector<operation*> constants;
+
+                auto found_constant = [&](operation& op)
+                {
+                    if(op.args[0].is_constant())
+                        constants.push_back(&op.args[0]);
+
+                    if(op.args[1].is_constant())
+                        constants.push_back(&op.args[1]);
+
+                    return false;
+                };
+
+                auto should_recurse = [](operation& op, int idx)
+                {
+                    return true;
+                };
+
+                configurable_recurse(args[0], is_add_node, found_constant, should_recurse);
+                configurable_recurse(args[1], is_add_node, found_constant, should_recurse);
+
+                any_change = constants.size() > 0;
+
+                auto propagate_constants = [&](operation& base_op)
+                {
+                    if(base_op.is_constant())
+                    {
+                        double my_value = base_op.get_constant();
+
+                        for(operation* op : constants)
+                        {
+                            my_value += op->get_constant();
+
+                            *op = operation(0);
+                        }
+
+                        base_op = my_value;
+
+                        constants.clear();
+                    }
+                };
+
+                propagate_constants(args[0]);
+                propagate_constants(args[1]);
+            }
+
             return any_change;
         }
 
@@ -460,6 +513,15 @@ namespace dual_types
                     return args[0];
             }
 
+            if(type == ops::POW)
+            {
+                if(args[1].is_constant_constraint(is_value_equal<1>))
+                    return args[0];
+
+                if(args[1].is_constant_constraint(is_zero))
+                    return operation(1);
+            }
+
             operation ret = *this;
 
             recurse = recurse || ret.invasive_flatten();
@@ -561,7 +623,7 @@ namespace dual_types
     inline
     operation operator-(const operation& d1, const operation& d2)
     {
-        return make_op(ops::MINUS, d1, d2);
+        return make_op(ops::PLUS, d1, make_op(ops::UMINUS, d2));
     }
 
     inline
