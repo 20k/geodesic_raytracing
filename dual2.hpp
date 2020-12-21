@@ -375,6 +375,10 @@ namespace dual_types
         operation sum = v1 + v2;
 
         operation root_3 = sqrt(sum);
+
+        dual_v<operation> test_dual = 1234;
+
+        dual_v<operation> test_operator = test_dual * 1111;
     }
 }
 
