@@ -190,6 +190,18 @@ namespace dual_types
             return get_value(args[idx].value_payload.value()).value();
         }
 
+        void set_dual_constant()
+        {
+            value_payload = to_string_s(0);
+            type = ops::VALUE;
+        }
+
+        void set_dual_variable()
+        {
+            value_payload = to_string_s(1);
+            type = ops::VALUE;
+        }
+
         #define PROPAGATE1(x, y) if(type == ops::x){return make_op_value(y(get(0)));}
         #define PROPAGATE2(x, y) if(type == ops::x){return make_op_value(y(get(0), get(1)));}
         #define PROPAGATE3(x, y) if(type == ops::x){return make_op_value(y(get(0), get(1), get(2)));}
@@ -253,6 +265,12 @@ namespace dual_types
                 PROPAGATE3(SELECT, select);
                 PROPAGATE2(POW, std::pow);
                 PROPAGATE2(MAX, std::max);
+            }
+
+            if(type == ops::SELECT)
+            {
+                if(args[2].is_constant())
+                    return args[2].get_constant() > 0 ? args[1] : args[0];
             }
 
             return *this;
