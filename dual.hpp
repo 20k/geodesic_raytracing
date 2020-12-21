@@ -1290,16 +1290,16 @@ std::array<dual, 3> schwarzschild_reduced(dual t, dual r, dual omega)
     return {dt, dr, domega};
 }
 
-template<typename T, size_t N, size_t... Is>
+template<typename T, typename U, size_t N, size_t... Is>
 inline
-auto array_apply(T&& func, const std::array<dual, N>& arr, std::index_sequence<Is...>)
+auto array_apply(T&& func, const std::array<U, N>& arr, std::index_sequence<Is...>)
 {
     return func(arr[Is]...);
 }
 
-template <typename T, size_t N>
+template <typename T, typename U, size_t N>
 inline
-auto array_apply(T&& func, const std::array<dual, N>& arr)
+auto array_apply(T&& func, const std::array<U, N>& arr)
 {
     return array_apply(std::forward<T>(func), arr, std::make_index_sequence<N>{});
 }
@@ -1309,97 +1309,6 @@ inline
 auto get_function_args_array(R(T...))
 {
     return std::array{T()...};
-}
-
-template<typename Func, typename... T>
-inline
-std::pair<std::vector<std::string>, std::vector<std::string>> evaluate_metric(Func&& f, T... raw_variables)
-{
-    std::array<std::string, sizeof...(T)> variable_names{raw_variables...};
-    constexpr int N = sizeof...(T);
-
-    std::vector<std::string> all_equations;
-    std::vector<std::string> all_derivatives = {" "};
-
-    for(auto& i : variable_names)
-    {
-        all_derivatives.push_back(i);
-    }
-
-    std::vector<std::string> raw_eq;
-    std::vector<std::string> raw_derivatives;
-
-    for(int i=0; i < (int)variable_names.size(); i++)
-    {
-        auto variables = get_function_args_array(f);
-
-        for(int j=0; j < (int)variable_names.size(); j++)
-        {
-            if(i == j)
-            {
-                variables[j].make_variable(variable_names[j]);
-            }
-            else
-            {
-                variables[j].make_constant(variable_names[j]);
-            }
-        }
-
-        std::array eqs = array_apply(std::forward<Func>(f), variables);
-
-        if(i == 0)
-        {
-            for(auto& kk : eqs)
-            {
-                raw_eq.push_back(kk.real.sym);
-            }
-        }
-
-        for(auto& kk : eqs)
-        {
-            raw_derivatives.push_back(kk.dual.sym);
-        }
-
-        for(auto& kk : eqs)
-        {
-            all_equations.push_back(kk.real.sym);
-        }
-
-        all_derivatives.push_back("d" + variable_names[i]);
-
-        for(auto& kk : eqs)
-        {
-            all_derivatives.push_back(kk.dual.sym);
-        }
-
-        //std::cout << "var " << dphi.real << std::endl;
-    }
-
-    std::array<int, N+1> column_width = {0};
-
-    for(int i=0; i < N+1; i++)
-    {
-        for(int j=0; j < N+1; j++)
-        {
-            column_width[i] = std::max((int)column_width[i], (int)all_derivatives[j * (N+1) + i].size());
-        }
-    }
-
-    for(int j=0; j < (N+1); j++)
-    {
-        for(int i=0; i < (N+1); i++)
-        {
-            std::string real = all_derivatives[j * (N+1) + i];
-
-            real = pad(real, column_width[i] + 1);
-
-            printf("%s | ", real.c_str());
-        }
-
-        printf("\n");
-    }
-
-    return {raw_eq, raw_derivatives};
 }
 
 template<typename Func, typename... T>
