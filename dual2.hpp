@@ -185,6 +185,15 @@ namespace dual_types
             return is_value() && value_payload.has_value() && get_value(value_payload.value()).has_value();
         }
 
+        template<typename T>
+        bool is_constant_constraint(T&& func) const
+        {
+            if(!is_constant())
+                return false;
+
+            return func(get_constant());
+        }
+
         double get_constant() const
         {
             assert(is_constant());
@@ -279,6 +288,14 @@ namespace dual_types
             {
                 if(args[2].is_constant())
                     return args[2].get_constant() > 0 ? args[1] : args[0];
+            }
+
+            auto is_zero = [](double f){return f == 0;};
+
+            if(type == ops::MULTIPLY)
+            {
+                if(args[0].is_constant_constraint(is_zero) || args[1].is_constant_constraint(is_zero))
+                    return operation(0);
             }
 
             return *this;
