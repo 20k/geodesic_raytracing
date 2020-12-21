@@ -282,13 +282,16 @@ namespace dual_types
             return configurable_recurse_impl(op, std::forward<T>(is_valid_candidate), std::forward<U>(should_terminate), std::forward<V>(should_recurse), terminated);
         }
 
-        void invasive_flatten()
+        bool invasive_flatten()
         {
             bool any_change = false;
 
             if(type == ops::MULTIPLY)
             {
-                auto is_mult_node = [](const operation& op){return op.type == ops::MULTIPLY;};
+                auto is_mult_node = [](const operation& op)
+                {
+                    return op.type == ops::MULTIPLY || op.type == ops::DIVIDE;
+                };
 
                 std::vector<operation*> constants;
 
@@ -297,8 +300,11 @@ namespace dual_types
                     if(op.args[0].is_constant())
                         constants.push_back(&op.args[0]);
 
-                    if(op.args[1].is_constant())
-                        constants.push_back(&op.args[1]);
+                    if(op.type != ops::DIVIDE)
+                    {
+                        if(op.args[1].is_constant())
+                            constants.push_back(&op.args[1]);
+                    }
 
                     return false;
                 };
@@ -308,13 +314,16 @@ namespace dual_types
                     if(op.type == ops::MULTIPLY)
                         return true;
 
+                    if(op.type == ops::DIVIDE && idx == 0)
+                        return true;
+
                     return false;
                 };
 
                 configurable_recurse(args[0], is_mult_node, found_constant, should_recurse);
                 configurable_recurse(args[1], is_mult_node, found_constant, should_recurse);
 
-                bool any_change = constants.size() > 0;
+                any_change = constants.size() > 0;
 
                 auto propagate_constants = [&](operation& base_op)
                 {
@@ -339,8 +348,7 @@ namespace dual_types
                 propagate_constants(args[1]);
             }
 
-            if(any_change)
-                *this = flatten(true);
+            return any_change;
         }
 
         operation flatten(bool recurse = false) const
@@ -454,13 +462,13 @@ namespace dual_types
 
             operation ret = *this;
 
+            recurse = recurse || ret.invasive_flatten();
+
             if(recurse)
             {
                 for(auto& i : ret.args)
-                    i = i.flatten();
+                    i = i.flatten(true);
             }
-
-            ret.invasive_flatten();
 
             return ret;
         }
