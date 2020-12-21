@@ -168,24 +168,24 @@ namespace dual_types
         operation(T v){value_payload = to_string_s(v); type = ops::VALUE;}
         operation(const std::string& str){value_payload = str; type = ops::VALUE;}
 
-        bool is_value()
+        bool is_value() const
         {
             return type == ops::VALUE;
         }
 
-        bool is_constant()
+        bool is_constant() const
         {
             return is_value() && value_payload.has_value() && get_value(value_payload.value()).has_value();
         }
 
-        double get_constant()
+        double get_constant() const
         {
             assert(is_constant());
 
             return get_value(value_payload.value()).value();
         }
 
-        double get(int idx)
+        double get(int idx) const
         {
             return get_value(args[idx].value_payload.value()).value();
         }
@@ -206,7 +206,7 @@ namespace dual_types
         #define PROPAGATE2(x, y) if(type == ops::x){return make_op_value(y(get(0), get(1)));}
         #define PROPAGATE3(x, y) if(type == ops::x){return make_op_value(y(get(0), get(1), get(2)));}
 
-        operation flatten()
+        operation flatten() const
         {
             if(type == ops::VALUE)
                 return *this;
@@ -276,6 +276,39 @@ namespace dual_types
             return *this;
         }
     };
+
+    inline
+    std::string type_to_string(const operation& op)
+    {
+        if(op.type == ops::VALUE)
+            return op.value_payload.value();
+
+        const operation_desc desc = get_description(op.type);
+
+        if(desc.is_infix)
+        {
+            return "(" + type_to_string(op.args[0]) + std::string(desc.sym) + type_to_string(op.args[1]) + ")";
+        }
+        else
+        {
+           if(op.type == ops::UMINUS)
+                return "(-(" + type_to_string(op.args[0]) + "))";
+
+            std::string build = std::string(desc.sym) + "(";
+
+            for(int i=0; i < (int)op.args.size() - 1; i++)
+            {
+                build += type_to_string(op.args[i]) + ",";
+            }
+
+            if(op.args.size() > 0)
+                build += type_to_string(op.args.back());
+
+            build += ")";
+
+            return build;
+        }
+    }
 
     inline
     operation make_op_value(const std::string& str)
