@@ -5,7 +5,13 @@
 
 namespace dual_types
 {
-    struct operation
+    struct operation_desc
+    {
+        bool is_infix = false;
+        std::string_view sym;
+    };
+
+    namespace ops
     {
         enum type_t
         {
@@ -48,20 +54,81 @@ namespace dual_types
             VALUE,
             NONE,
         };
+    }
 
-        type_t type = NONE;
+    template<typename... T>
+    inline
+    auto make_array(T&&... args)
+    {
+        return std::array{args...};
+    }
+
+    inline
+    operation_desc get_description(ops::type_t type)
+    {
+        using namespace ops;
+
+        operation_desc ret;
+
+        if(type == PLUS || type == MINUS || type == MULTIPLY || type == DIVIDE ||
+           type == LESS || type == LESS_EQUAL)
+        {
+            ret.is_infix = true;
+        }
+
+        std::array syms = make_array(
+        "+",
+        "-",
+        "-",
+        "*",
+        "/",
+        "<",
+        "<=",
+        "native_sin",
+        "native_cos",
+        "native_tan",
+        "asin",
+        "acos",
+        "atan",
+        "atan2",
+        "native_exp",
+        "native_sqrt",
+        "sinh",
+        "cosh",
+        "tanh",
+        "native_log",
+        "isfinite",
+        "signbit",
+        "sign",
+        "fabs",
+        "select",
+        "pow",
+        "max",
+        "ERROR"
+        );
+
+        static_assert(syms.size() == ops::type_t::NONE);
+
+        ret.sym = syms[(int)type];
+
+        return ret;
+    }
+
+    struct operation
+    {
+        ops::type_t type = ops::NONE;
 
         std::optional<std::string> value_payload;
         std::vector<operation> args;
 
         operation(){}
         template<Arithmetic T>
-        operation(T v){value_payload = to_string_s(v); type = VALUE;}
-        operation(const std::string& str){value_payload = str; type = VALUE;}
+        operation(T v){value_payload = to_string_s(v); type = ops::VALUE;}
+        operation(const std::string& str){value_payload = str; type = ops::VALUE;}
 
         bool is_value()
         {
-            return type == VALUE;
+            return type == ops::VALUE;
         }
 
         bool is_constant()
@@ -70,23 +137,79 @@ namespace dual_types
         }
     };
 
+    inline
+    operation make_op_value(const std::string& str)
+    {
+        return operation(str);
+    }
+
+    template<Arithmetic T>
+    inline
+    operation make_op_value(const T& v)
+    {
+        return operation(v);
+    }
+
     template<typename... T>
     inline
-    operation make_op(operation::type_t type, T&&... args)
+    operation make_op(ops::type_t type, T&&... args)
     {
         operation ret;
         ret.type = type;
-
-        if(type == operation::type_t::VALUE)
-        {
-            ret = operation{args...};
-        }
-        else
-        {
-            ret.args = {args...};
-        }
+        ret.args = {args...};
 
         return ret;
+    }
+
+    inline
+    operation operator<(const operation& d1, const operation& d2)
+    {
+        return make_op(ops::LESS, d1, d2);
+    }
+
+    inline
+    operation operator<=(const operation& d1, const operation& d2)
+    {
+        return make_op(ops::LESS_EQUAL, d1, d2);
+    }
+
+    inline
+    operation operator+(const operation& d1, const operation& d2)
+    {
+        return make_op(ops::PLUS, d1, d2);
+    }
+
+    inline
+    operation operator-(const operation& d1, const operation& d2)
+    {
+        return make_op(ops::MINUS, d1, d2);
+    }
+
+    inline
+    operation operator-(const operation& d1)
+    {
+        return make_op(ops::UMINUS, d1);
+    }
+
+    inline
+    operation operator*(const operation& d1, const operation& d2)
+    {
+        return make_op(ops::MULTIPLY, d1, d2);
+    }
+
+    inline
+    operation operator/(const operation& d1, const operation& d2)
+    {
+        return make_op(ops::DIVIDE, d1, d2);
+    }
+
+    inline
+    void test_operation()
+    {
+        operation v1 = 1;
+        operation v2 = 2;
+
+        operation sum = v1 + v2;
     }
 }
 
