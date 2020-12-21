@@ -114,6 +114,12 @@ namespace dual_types
         return ret;
     }
 
+    struct operation;
+
+    operation make_op_value(const std::string& str);
+    template<Arithmetic T>
+    operation make_op_value(const T& v);
+
     struct operation
     {
         ops::type_t type = ops::NONE;
@@ -134,6 +140,41 @@ namespace dual_types
         bool is_constant()
         {
             return is_value() && value_payload.has_value() && get_value(value_payload.value()).has_value();
+        }
+
+        double get_constant()
+        {
+            assert(is_constant());
+
+            return get_value(value_payload.value()).value();
+        }
+
+        double get(int idx)
+        {
+            return get_value(args[idx].value_payload.value()).value();
+        }
+
+        operation flatten()
+        {
+            if(type == ops::VALUE)
+                return *this;
+
+            bool all_constant = true;
+
+            for(auto& i : args)
+            {
+                if(!i.is_constant())
+                {
+                    all_constant = false;
+                    break;
+                }
+            }
+
+            if(all_constant)
+            {
+                if(type == ops::PLUS)
+                    return make_op_value(get(0) + get(1));
+            }
         }
     };
 
@@ -158,7 +199,7 @@ namespace dual_types
         ret.type = type;
         ret.args = {args...};
 
-        return ret;
+        return ret.flatten();
     }
 
     inline
@@ -233,6 +274,8 @@ namespace dual_types
         operation v2 = 2;
 
         operation sum = v1 + v2;
+
+        operation root_3 = sqrt(sum);
     }
 }
 
