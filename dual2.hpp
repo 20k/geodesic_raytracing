@@ -426,8 +426,6 @@ namespace dual_types
                     if(base_op.is_constant())
                         return;
 
-                    std::string value_str = base_op.value_payload.value();
-
                     for(int i=0; i < (int)variables.size(); i++)
                     {
                         if(&base_op == variables[i])
@@ -457,7 +455,7 @@ namespace dual_types
 
                         if(tip)
                         {
-                            if(op->value_payload.value() == value_str)
+                            if(equivalent(*op, base_op))
                             {
                                 any_change = true;
 
