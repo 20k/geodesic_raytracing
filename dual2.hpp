@@ -306,6 +306,9 @@ namespace dual_types
                 std::vector<std::vector<std::pair<operation*, int>>> op_chains;
                 //std::vector<int> op_idx;
 
+                std::vector<operation*> variables;
+                std::vector<std::vector<std::pair<operation*, int>>> vop_chains;
+
                 auto found_constant = [&](operation& op, const std::vector<std::pair<operation*, int>>& op_chain)
                 {
                     /*if(op.args[0].is_constant())
@@ -329,6 +332,12 @@ namespace dual_types
                     {
                         constants.push_back(&op);
                         op_chains.push_back(op_chain);
+                    }
+
+                    if(op.type == ops::VALUE && !op.is_constant())
+                    {
+                        variables.push_back(&op);
+                        vop_chains.push_back(op_chain);
                     }
 
                     return false;
@@ -374,7 +383,6 @@ namespace dual_types
                             for(int kk=1; kk < (int)op_chains[i].size(); kk++)
                             {
                                 operation* parent_op = op_chains[i][kk - 1].first;
-                                operation* op = op_chains[i][kk].first;
 
                                 if(parent_op->type == ops::DIVIDE)
                                 {
@@ -409,6 +417,64 @@ namespace dual_types
 
                 propagate_constants(args[0], 0);
                 propagate_constants(args[1], 1);
+
+                auto propagate_variables = [&](operation& base_op, int idx)
+                {
+                    if(base_op.type != ops::VALUE)
+                        return;
+
+                    if(base_op.is_constant())
+                        return;
+
+                    std::string value_str = base_op.value_payload.value();
+
+                    for(int i=0; i < (int)variables.size(); i++)
+                    {
+                        if(&base_op == variables[i])
+                            continue;
+
+                        bool tip = false;
+
+                        if(type == ops::DIVIDE && idx == 1)
+                        {
+                            tip = true;
+                        }
+
+                        for(int kk=1; kk < (int)vop_chains[i].size(); kk++)
+                        {
+                            operation* parent_op = vop_chains[i][kk - 1].first;
+
+                            if(parent_op->type == ops::DIVIDE)
+                            {
+                                if(vop_chains[i][kk].second == 1)
+                                {
+                                    tip = !tip;
+                                }
+                            }
+                        }
+
+                        operation* op = variables[i];
+
+                        if(tip)
+                        {
+                            if(op->value_payload.value() == value_str)
+                            {
+                                any_change = true;
+
+                                base_op = operation(1);
+                                *op = operation(1);
+
+                                variables.clear();
+                                vop_chains.clear();
+
+                                return;
+                            }
+                        }
+                    }
+                };
+
+                propagate_variables(args[0], 0);
+                propagate_variables(args[1], 1);
             }
 
             if(type == ops::PLUS)
@@ -863,6 +929,10 @@ namespace dual_types
         operation test_op3 = (2 * ((2 * v/2) / 2) * 2) / 2;
 
         assert(type_to_string(test_op3) == "v");
+
+        operation test_op4 = (2 * v) / v;
+
+        assert(type_to_string(test_op4) == "2.0");
 
         //std::cout << type_to_string(root_3) << std::endl;
     }
