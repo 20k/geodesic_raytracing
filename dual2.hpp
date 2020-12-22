@@ -297,47 +297,41 @@ namespace dual_types
 
             if(type == ops::MULTIPLY || type == ops::DIVIDE)
             {
-                auto is_mult_node = [](const operation& op)
+                auto is_mult_node_or_expr = [](const operation& op)
                 {
-                    return op.type == ops::MULTIPLY || op.type == ops::DIVIDE || op.type == ops::UMINUS || op.type == ops::VALUE;
+                    return op.type == ops::MULTIPLY || op.type == ops::DIVIDE || op.type == ops::UMINUS || op.type == ops::VALUE || !get_description(op.type).is_infix;
                 };
 
                 std::vector<operation*> constants;
                 std::vector<std::vector<std::pair<operation*, int>>> op_chains;
-                //std::vector<int> op_idx;
 
                 std::vector<operation*> variables;
                 std::vector<std::vector<std::pair<operation*, int>>> vop_chains;
 
                 auto found_constant = [&](operation& op, const std::vector<std::pair<operation*, int>>& op_chain)
                 {
-                    /*if(op.args[0].is_constant())
-                    {
-                        constants.push_back(&op.args[0]);
-                        op_chains.push_back(op_chain);
-                        op_idx.push_back(0);
-                    }
-
-                    if(op.type == ops::MULTIPLY || op.type == ops::DIVIDE)
-                    {
-                        if(op.args[1].is_constant())
-                        {
-                            constants.push_back(&op.args[1]);
-                            op_chains.push_back(op_chain);
-                            op_idx.push_back(1);
-                        }
-                    }*/
-
                     if(op.is_constant())
                     {
                         constants.push_back(&op);
                         op_chains.push_back(op_chain);
+
+                        return false;
                     }
 
                     if(op.type == ops::VALUE && !op.is_constant())
                     {
                         variables.push_back(&op);
                         vop_chains.push_back(op_chain);
+
+                        return false;
+                    }
+
+                    if(!get_description(op.type).is_infix && !op.is_constant())
+                    {
+                        variables.push_back(&op);
+                        vop_chains.push_back(op_chain);
+
+                        return false;
                     }
 
                     return false;
@@ -357,10 +351,8 @@ namespace dual_types
                     return false;
                 };
 
-                configurable_recurse(args[0], is_mult_node, found_constant, should_recurse);
-                configurable_recurse(args[1], is_mult_node, found_constant, should_recurse);
-
-                //any_change = constants.size() > 0;
+                configurable_recurse(args[0], is_mult_node_or_expr, found_constant, should_recurse);
+                configurable_recurse(args[1], is_mult_node_or_expr, found_constant, should_recurse);
 
                 auto propagate_constants = [&](operation& base_op, int idx)
                 {
@@ -395,8 +387,6 @@ namespace dual_types
 
                             operation* op = constants[i];
 
-                            //std::cout << "Tip? " << tip << " MY VAL " << my_value << " Theirs " << op->get_constant() << " Number of constants " << constants.size() << std::endl;
-
                             if(!tip)
                                 my_value *= op->get_constant();
                             else
@@ -411,7 +401,6 @@ namespace dual_types
 
                         constants.clear();
                         op_chains.clear();
-                        //op_idx.clear();
                     }
                 };
 
@@ -420,12 +409,6 @@ namespace dual_types
 
                 auto propagate_variables = [&](operation& base_op, int idx)
                 {
-                    if(base_op.type != ops::VALUE)
-                        return;
-
-                    if(base_op.is_constant())
-                        return;
-
                     for(int i=0; i < (int)variables.size(); i++)
                     {
                         if(&base_op == variables[i])
@@ -461,9 +444,6 @@ namespace dual_types
 
                                 base_op = operation(1);
                                 *op = operation(1);
-
-                                variables.clear();
-                                vop_chains.clear();
 
                                 return;
                             }
@@ -931,6 +911,12 @@ namespace dual_types
         operation test_op4 = (2 * v) / v;
 
         assert(type_to_string(test_op4) == "2.0");
+
+        operation test_op5 = (2 * sin(v)) / sin(v);
+
+        std::cout << "test op5 " << type_to_string(test_op5) << std::endl;
+
+        assert(type_to_string(test_op5) == "2.0");
 
         //std::cout << type_to_string(root_3) << std::endl;
     }
