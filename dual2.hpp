@@ -295,7 +295,7 @@ namespace dual_types
         {
             bool any_change = false;
 
-            if(type == ops::MULTIPLY)
+            if(type == ops::MULTIPLY || type == ops::DIVIDE)
             {
                 auto is_mult_node = [](const operation& op)
                 {
@@ -353,7 +353,7 @@ namespace dual_types
 
                 //any_change = constants.size() > 0;
 
-                auto propagate_constants = [&](operation& base_op)
+                auto propagate_constants = [&](operation& base_op, int idx)
                 {
                     if(base_op.is_constant())
                     {
@@ -365,6 +365,11 @@ namespace dual_types
                                 continue;
 
                             bool tip = false;
+
+                            if(type == ops::DIVIDE && idx == 1)
+                            {
+                                tip = true;
+                            }
 
                             for(int kk=1; kk < (int)op_chains[i].size(); kk++)
                             {
@@ -402,8 +407,8 @@ namespace dual_types
                     }
                 };
 
-                propagate_constants(args[0]);
-                propagate_constants(args[1]);
+                propagate_constants(args[0], 0);
+                propagate_constants(args[1], 1);
             }
 
             if(type == ops::PLUS)
@@ -850,6 +855,14 @@ namespace dual_types
         operation test_op = 2 * (v/2);
 
         assert(type_to_string(test_op) == "v");
+
+        operation test_op2 = (v * 2)/2;
+
+        assert(type_to_string(test_op2) == "v");
+
+        operation test_op3 = (2 * ((2 * v/2) / 2) * 2) / 2;
+
+        assert(type_to_string(test_op3) == "v");
 
         //std::cout << type_to_string(root_3) << std::endl;
     }
