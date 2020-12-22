@@ -1665,6 +1665,7 @@ int main()
     #endif // GENERIC_METRIC
 
     std::cout << "ASTRING " << argument_string << std::endl;
+    std::cout << "SIZE " << argument_string.size() << std::endl;
 
     #endif // GENERIC_METRIC
 
