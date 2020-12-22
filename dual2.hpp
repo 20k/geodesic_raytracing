@@ -296,20 +296,27 @@ namespace dual_types
             {
                 auto is_mult_node = [](const operation& op)
                 {
-                    return op.type == ops::MULTIPLY || op.type == ops::DIVIDE;
+                    return op.type == ops::MULTIPLY || op.type == ops::DIVIDE || op.type == ops::UMINUS;
                 };
 
                 std::vector<operation*> constants;
+                std::vector<std::vector<operation*>> op_chains;
 
                 auto found_constant = [&](operation& op, const std::vector<operation*>& op_chain)
                 {
                     if(op.args[0].is_constant())
+                    {
                         constants.push_back(&op.args[0]);
+                        op_chains.push_back(op_chain);
+                    }
 
-                    if(op.type != ops::DIVIDE)
+                    if(op.type == ops::MULTIPLY)
                     {
                         if(op.args[1].is_constant())
+                        {
                             constants.push_back(&op.args[1]);
+                            op_chains.push_back(op_chain);
+                        }
                     }
 
                     return false;
@@ -321,6 +328,9 @@ namespace dual_types
                         return true;
 
                     if(op.type == ops::DIVIDE && idx == 0)
+                        return true;
+
+                    if(op.type == ops::UMINUS)
                         return true;
 
                     return false;
@@ -337,8 +347,10 @@ namespace dual_types
                     {
                         double my_value = base_op.get_constant();
 
-                        for(operation* op : constants)
+                        for(int i=0; i < (int)constants.size(); i++)
                         {
+                            operation* op = constants[i];
+
                             my_value *= op->get_constant();
 
                             *op = operation(1);
@@ -347,6 +359,7 @@ namespace dual_types
                         base_op = my_value;
 
                         constants.clear();
+                        op_chains.clear();
                     }
                 };
 
@@ -400,11 +413,10 @@ namespace dual_types
                         for(int i=0; i < (int)constants.size(); i++)
                         {
                             operation* op = constants[i];
-                            const std::vector<operation*>& chain = op_chains[i];
 
                             double sign = 1;
 
-                            for(operation* kk : chain)
+                            for(operation* kk : op_chains[i])
                             {
                                 if(kk->type == ops::UMINUS)
                                     sign *= -1;
