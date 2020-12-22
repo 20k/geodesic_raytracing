@@ -914,8 +914,6 @@ namespace dual_types
 
         operation test_op5 = (2 * sin(v)) / sin(v);
 
-        std::cout << "test op5 " << type_to_string(test_op5) << std::endl;
-
         assert(type_to_string(test_op5) == "2.0");
 
         //std::cout << type_to_string(root_3) << std::endl;
