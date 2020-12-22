@@ -249,7 +249,7 @@ namespace dual_types
 
         template<typename T, typename U, typename V>
         inline
-        void configurable_recurse_impl(operation& op, T&& is_valid_candidate, U&& should_terminate, V&& should_recurse, bool& terminated)
+        void configurable_recurse_impl(operation& op, const std::vector<operation*>& op_chain, T&& is_valid_candidate, U&& should_terminate, V&& should_recurse, bool& terminated)
         {
             if(terminated)
                 return;
@@ -257,7 +257,7 @@ namespace dual_types
             if(!is_valid_candidate(op))
                 return;
 
-            if(should_terminate(op))
+            if(should_terminate(op, op_chain))
             {
                 terminated = true;
                 return;
@@ -271,7 +271,10 @@ namespace dual_types
                 if(!should_recurse(op, idx))
                     continue;
 
-                configurable_recurse_impl(op.args[idx], std::forward<T>(is_valid_candidate), std::forward<U>(should_terminate), std::forward<V>(should_recurse), terminated);
+                std::vector<operation*> next_chain = op_chain;
+                next_chain.push_back(&op.args[idx]);
+
+                configurable_recurse_impl(op.args[idx], next_chain, std::forward<T>(is_valid_candidate), std::forward<U>(should_terminate), std::forward<V>(should_recurse), terminated);
             }
         }
 
@@ -280,8 +283,9 @@ namespace dual_types
         void configurable_recurse(operation& op, T&& is_valid_candidate, U&& should_terminate, V&& should_recurse)
         {
             bool terminated = false;
+            std::vector<operation*> op_chain{&op};
 
-            return configurable_recurse_impl(op, std::forward<T>(is_valid_candidate), std::forward<U>(should_terminate), std::forward<V>(should_recurse), terminated);
+            return configurable_recurse_impl(op, op_chain, std::forward<T>(is_valid_candidate), std::forward<U>(should_terminate), std::forward<V>(should_recurse), terminated);
         }
 
         bool invasive_flatten()
@@ -297,7 +301,7 @@ namespace dual_types
 
                 std::vector<operation*> constants;
 
-                auto found_constant = [&](operation& op)
+                auto found_constant = [&](operation& op, const std::vector<operation*>& op_chain)
                 {
                     if(op.args[0].is_constant())
                         constants.push_back(&op.args[0]);
@@ -354,18 +358,25 @@ namespace dual_types
             {
                 auto is_add_node = [](const operation& op)
                 {
-                    return op.type == ops::PLUS;
+                    return op.type == ops::PLUS || op.type == ops::UMINUS;
                 };
 
                 std::vector<operation*> constants;
+                std::vector<std::vector<operation*>> op_chains;
 
-                auto found_constant = [&](operation& op)
+                auto found_constant = [&](operation& op, const std::vector<operation*>& op_chain)
                 {
                     if(op.args[0].is_constant())
+                    {
                         constants.push_back(&op.args[0]);
+                        op_chains.push_back(op_chain);
+                    }
 
                     if(op.args[1].is_constant())
+                    {
                         constants.push_back(&op.args[1]);
+                        op_chains.push_back(op_chain);
+                    }
 
                     return false;
                 };
@@ -386,9 +397,20 @@ namespace dual_types
                     {
                         double my_value = base_op.get_constant();
 
-                        for(operation* op : constants)
+                        for(int i=0; i < (int)constants.size(); i++)
                         {
-                            my_value += op->get_constant();
+                            operation* op = constants[i];
+                            const std::vector<operation*>& chain = op_chains[i];
+
+                            double sign = 1;
+
+                            for(operation* kk : chain)
+                            {
+                                if(kk->type == ops::UMINUS)
+                                    sign *= -1;
+                            }
+
+                            my_value += op->get_constant() * sign;
 
                             *op = operation(0);
                         }
@@ -396,6 +418,7 @@ namespace dual_types
                         base_op = my_value;
 
                         constants.clear();
+                        op_chains.clear();
                     }
                 };
 
