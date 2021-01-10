@@ -694,6 +694,93 @@ namespace dual_types
 
             return ret;
         }
+
+        dual_types::dual_v<operation> dual(const std::string& sym)
+        {
+            #define DUAL_CHECK1(x, y) if(type == x) { return y(args[0].dual(sym)); }
+            #define DUAL_CHECK2(x, y) if(type == x) { return y(args[0].dual(sym), args[1].dual(sym)); }
+            #define DUAL_CHECK3(x, y) if(type == x) { return y(args[0].dual(sym), args[1].dual(sym), args[2].dual(sym)); }
+
+            using namespace ops;
+
+            if(type == VALUE)
+            {
+                dual_types::dual_v<operation> ret;
+
+                if(value_payload.value() == sym)
+                {
+                    ret.make_variable(*this);
+                }
+                else
+                {
+                    ret.make_constant(*this);
+                }
+
+                return ret;
+            }
+            if(type == PLUS)
+            {
+                return args[0].dual(sym) + args[1].dual(sym);
+            }
+            if(type == UMINUS)
+            {
+                return -args[0].dual(sym);
+            }
+            if(type == MINUS)
+            {
+                return args[0].dual(sym) - args[1].dual(sym);
+            }
+            if(type == MULTIPLY)
+            {
+                return args[0].dual(sym) * args[1].dual(sym);
+            }
+            if(type == DIVIDE)
+            {
+                return args[0].dual(sym) / args[1].dual(sym);
+            }
+            if(type == LESS)
+            {
+                return args[0].dual(sym) < args[1].dual(sym);
+            }
+            if(type == LESS_EQUAL)
+            {
+                return args[0].dual(sym) <= args[1].dual(sym);
+            }
+
+            DUAL_CHECK1(SIN, sin);
+            DUAL_CHECK1(COS, cos);
+            DUAL_CHECK1(TAN, tan);
+            DUAL_CHECK1(ASIN, asin);
+            DUAL_CHECK1(ACOS, acos);
+            DUAL_CHECK1(ATAN, atan);
+            DUAL_CHECK2(ATAN2, atan2);
+            DUAL_CHECK1(EXP, exp);
+            DUAL_CHECK1(SQRT, sqrt);
+            DUAL_CHECK1(SINH, sinh);
+            DUAL_CHECK1(COSH, cosh);
+            DUAL_CHECK1(TANH, tanh);
+            DUAL_CHECK1(LOG, log);
+            //DUAL_CHECK1(ISFINITE, isfinite);
+            //DUAL_CHECK1(SIGNBIT, signbit);
+            //DUAL_CHECK1(SIGN, sign);
+            DUAL_CHECK1(FABS, fabs);
+
+            if(type == SELECT)
+            {
+                return select(args[0].dual(sym), args[1].dual(sym), args[2]);
+            }
+
+            DUAL_CHECK2(POW, pow);
+            //DUAL_CHECK2(MAX, max);
+            DUAL_CHECK1(LAMBERT_W0, lambert_w0);
+
+            assert(false);
+        }
+
+        operation differentiate(const std::string& sym)
+        {
+            return dual(sym).dual;
+        }
     };
 
     inline
