@@ -1017,4 +1017,35 @@ using dual = dual_types::dual_v<dual_types::value>;
 using dual_complex = dual_types::dual_v<dual_types::complex<dual_types::value>>;
 using value = dual_types::value;
 
+template<typename T, typename U, int N>
+inline
+tensor<T, N, N, N> calculate_christoffel_symbols_2(tensor<T, N, N>& metric, const std::array<U, N>& variables)
+{
+    tensor<T, N, N, N> christoff;
+    tensor<T, N, N> inverted = metric.invert();
+
+    for(int i=0; i < N; i++)
+    {
+        for(int k=0; k < N; k++)
+        {
+            for(int l=0; l < N; l++)
+            {
+                T sum = 0;
+
+                for(int m=0; m < N; m++)
+                {
+                    sum += inverted.idx(i, m) * metric.idx(m, k).differentiate(variables[l]);
+                    sum += inverted.idx(i, m) * metric.idx(m, l).differentiate(variables[k]);
+                    sum -= inverted.idx(i, m) * metric.idx(k, l).differentiate(variables[m]);
+                }
+
+                christoff.idx(i, k, l) = 0.5 * sum;
+            }
+        }
+    }
+
+    return christoff;
+}
+
+
 #endif // DUAL2_HPP_INCLUDED
