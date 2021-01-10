@@ -1076,6 +1076,11 @@ std::pair<std::vector<std::string>, std::vector<std::string>> evaluate_metric2D(
         }
         else
         {
+            for(int j=0; j < (int)variable_names.size(); j++)
+            {
+                variables[j].make_value(variable_names[j]);
+            }
+
             std::array eqs = array_apply(std::forward<Func>(f), variables);
 
             if(i == 0)

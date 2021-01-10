@@ -232,6 +232,12 @@ namespace dual_types
             return get_value(args[idx].value_payload.value()).value();
         }
 
+        void make_value(const std::string& str)
+        {
+            value_payload = str;
+            type = ops::VALUE;
+        }
+
         void set_dual_constant()
         {
             value_payload = to_string_s(0);
@@ -833,7 +839,6 @@ namespace dual_types
             }
 
             return op.value_payload.value();
-
         }
 
         const operation_desc desc = get_description(op.type);
