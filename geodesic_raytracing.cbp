@@ -126,7 +126,7 @@
 		<Unit filename="deps/toolkit/vertex.hpp" />
 		<Unit filename="deps/vec/vec.hpp" />
 		<Unit filename="dual.hpp" />
-		<Unit filename="dual2.hpp" />
+		<Unit filename="dual_value.hpp" />
 		<Unit filename="main.cpp" />
 		<Unit filename="metric.hpp" />
 		<Extensions>
