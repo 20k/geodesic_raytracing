@@ -154,13 +154,13 @@ namespace dual_types
         return v1;
     }
 
-    struct operation;
+    struct value;
 
-    operation make_op_value(const std::string& str);
+    value make_op_value(const std::string& str);
     template<Arithmetic T>
-    operation make_op_value(const T& v);
+    value make_op_value(const T& v);
     template<typename... T>
-    operation make_op(ops::type_t type, T&&... args);
+    value make_op(ops::type_t type, T&&... args);
 
     template<auto N>
     inline
@@ -169,36 +169,36 @@ namespace dual_types
         return f == (double)N;
     }
 
-    operation operator<(const operation& d1, const operation& d2);
+    value operator<(const value& d1, const value& d2);
 
-    operation operator<=(const operation& d1, const operation& d2);
+    value operator<=(const value& d1, const value& d2);
 
-    operation operator+(const operation& d1, const operation& d2);
+    value operator+(const value& d1, const value& d2);
 
-    operation operator-(const operation& d1, const operation& d2);
+    value operator-(const value& d1, const value& d2);
 
-    operation operator-(const operation& d1);
+    value operator-(const value& d1);
 
-    operation operator*(const operation& d1, const operation& d2);
+    value operator*(const value& d1, const value& d2);
 
-    operation operator/(const operation& d1, const operation& d2);
+    value operator/(const value& d1, const value& d2);
 
-    bool equivalent(const operation& d1, const operation& d2);
+    bool equivalent(const value& d1, const value& d2);
 
-    struct operation
+    struct value
     {
         using is_complex = std::false_type;
 
         ops::type_t type = ops::NONE;
 
         std::optional<std::string> value_payload;
-        std::vector<operation> args;
+        std::vector<value> args;
 
-        //operation(){value_payload = to_string_s(0); type = ops::VALUE;}
-        operation(){value_payload = to_string_s(0); type = ops::VALUE;}
+        //value(){value_payload = to_string_s(0); type = ops::VALUE;}
+        value(){value_payload = to_string_s(0); type = ops::VALUE;}
         template<Arithmetic T>
-        operation(T v){value_payload = to_string_s(v); type = ops::VALUE;}
-        operation(const std::string& str){value_payload = str; type = ops::VALUE;}
+        value(T v){value_payload = to_string_s(v); type = ops::VALUE;}
+        value(const std::string& str){value_payload = str; type = ops::VALUE;}
 
         bool is_value() const
         {
@@ -249,7 +249,7 @@ namespace dual_types
 
         template<typename T, typename U, typename V>
         inline
-        void configurable_recurse_impl(operation& op, const std::vector<std::pair<operation*, int>>& op_chain, T&& is_valid_candidate, U&& should_terminate, V&& should_recurse, bool& terminated)
+        void configurable_recurse_impl(value& op, const std::vector<std::pair<value*, int>>& op_chain, T&& is_valid_candidate, U&& should_terminate, V&& should_recurse, bool& terminated)
         {
             if(terminated)
                 return;
@@ -274,7 +274,7 @@ namespace dual_types
                 if(!should_recurse(op, idx))
                     continue;
 
-                std::vector<std::pair<operation*, int>> next_chain = op_chain;
+                std::vector<std::pair<value*, int>> next_chain = op_chain;
                 next_chain.push_back({&op.args[idx], idx});
 
                 configurable_recurse_impl(op.args[idx], next_chain, std::forward<T>(is_valid_candidate), std::forward<U>(should_terminate), std::forward<V>(should_recurse), terminated);
@@ -283,10 +283,10 @@ namespace dual_types
 
         template<typename T, typename U, typename V>
         inline
-        void configurable_recurse(operation& op, T&& is_valid_candidate, U&& should_terminate, V&& should_recurse)
+        void configurable_recurse(value& op, T&& is_valid_candidate, U&& should_terminate, V&& should_recurse)
         {
             bool terminated = false;
-            std::vector<std::pair<operation*, int>> op_chain{{&op, 0}};
+            std::vector<std::pair<value*, int>> op_chain{{&op, 0}};
 
             return configurable_recurse_impl(op, op_chain, std::forward<T>(is_valid_candidate), std::forward<U>(should_terminate), std::forward<V>(should_recurse), terminated);
         }
@@ -297,18 +297,18 @@ namespace dual_types
 
             if(type == ops::MULTIPLY || type == ops::DIVIDE)
             {
-                auto is_mult_node_or_expr = [](const operation& op)
+                auto is_mult_node_or_expr = [](const value& op)
                 {
                     return op.type == ops::MULTIPLY || op.type == ops::DIVIDE || op.type == ops::UMINUS || op.type == ops::VALUE || !get_description(op.type).is_infix;
                 };
 
-                std::vector<operation*> constants;
-                std::vector<std::vector<std::pair<operation*, int>>> op_chains;
+                std::vector<value*> constants;
+                std::vector<std::vector<std::pair<value*, int>>> op_chains;
 
-                std::vector<operation*> variables;
-                std::vector<std::vector<std::pair<operation*, int>>> vop_chains;
+                std::vector<value*> variables;
+                std::vector<std::vector<std::pair<value*, int>>> vop_chains;
 
-                auto found_constant = [&](operation& op, const std::vector<std::pair<operation*, int>>& op_chain)
+                auto found_constant = [&](value& op, const std::vector<std::pair<value*, int>>& op_chain)
                 {
                     if(op.is_constant())
                     {
@@ -337,7 +337,7 @@ namespace dual_types
                     return false;
                 };
 
-                auto should_recurse = [](operation& op, int idx)
+                auto should_recurse = [](value& op, int idx)
                 {
                     if(op.type == ops::MULTIPLY)
                         return true;
@@ -354,7 +354,7 @@ namespace dual_types
                 configurable_recurse(args[0], is_mult_node_or_expr, found_constant, should_recurse);
                 configurable_recurse(args[1], is_mult_node_or_expr, found_constant, should_recurse);
 
-                auto propagate_constants = [&](operation& base_op, int idx)
+                auto propagate_constants = [&](value& base_op, int idx)
                 {
                     if(base_op.is_constant())
                     {
@@ -374,7 +374,7 @@ namespace dual_types
 
                             for(int kk=1; kk < (int)op_chains[i].size(); kk++)
                             {
-                                operation* parent_op = op_chains[i][kk - 1].first;
+                                value* parent_op = op_chains[i][kk - 1].first;
 
                                 if(parent_op->type == ops::DIVIDE)
                                 {
@@ -385,14 +385,14 @@ namespace dual_types
                                 }
                             }
 
-                            operation* op = constants[i];
+                            value* op = constants[i];
 
                             if(!tip)
                                 my_value *= op->get_constant();
                             else
                                 my_value /= op->get_constant();
 
-                            *op = operation(1);
+                            *op = value(1);
 
                             any_change = true;
                         }
@@ -407,7 +407,7 @@ namespace dual_types
                 propagate_constants(args[0], 0);
                 propagate_constants(args[1], 1);
 
-                auto propagate_variables = [&](operation& base_op, int idx)
+                auto propagate_variables = [&](value& base_op, int idx)
                 {
                     for(int i=0; i < (int)variables.size(); i++)
                     {
@@ -423,7 +423,7 @@ namespace dual_types
 
                         for(int kk=1; kk < (int)vop_chains[i].size(); kk++)
                         {
-                            operation* parent_op = vop_chains[i][kk - 1].first;
+                            value* parent_op = vop_chains[i][kk - 1].first;
 
                             if(parent_op->type == ops::DIVIDE)
                             {
@@ -434,7 +434,7 @@ namespace dual_types
                             }
                         }
 
-                        operation* op = variables[i];
+                        value* op = variables[i];
 
                         if(tip)
                         {
@@ -442,8 +442,8 @@ namespace dual_types
                             {
                                 any_change = true;
 
-                                base_op = operation(1);
-                                *op = operation(1);
+                                base_op = value(1);
+                                *op = value(1);
 
                                 return;
                             }
@@ -457,15 +457,15 @@ namespace dual_types
 
             if(type == ops::PLUS)
             {
-                auto is_add_node = [](const operation& op)
+                auto is_add_node = [](const value& op)
                 {
                     return op.type == ops::PLUS || op.type == ops::UMINUS;
                 };
 
-                std::vector<operation*> constants;
-                std::vector<std::vector<std::pair<operation*, int>>> op_chains;
+                std::vector<value*> constants;
+                std::vector<std::vector<std::pair<value*, int>>> op_chains;
 
-                auto found_constant = [&](operation& op, const std::vector<std::pair<operation*, int>>& op_chain)
+                auto found_constant = [&](value& op, const std::vector<std::pair<value*, int>>& op_chain)
                 {
                     if(op.args[0].is_constant())
                     {
@@ -482,7 +482,7 @@ namespace dual_types
                     return false;
                 };
 
-                auto should_recurse = [](operation& op, int idx)
+                auto should_recurse = [](value& op, int idx)
                 {
                     if(op.type == ops::VALUE)
                         return false;
@@ -495,7 +495,7 @@ namespace dual_types
 
                 //any_change = constants.size() > 0;
 
-                auto propagate_constants = [&](operation& base_op)
+                auto propagate_constants = [&](value& base_op)
                 {
                     if(base_op.is_constant())
                     {
@@ -503,7 +503,7 @@ namespace dual_types
 
                         for(int i=0; i < (int)constants.size(); i++)
                         {
-                            operation* op = constants[i];
+                            value* op = constants[i];
 
                             double sign = 1;
 
@@ -515,7 +515,7 @@ namespace dual_types
 
                             my_value += op->get_constant() * sign;
 
-                            *op = operation(0);
+                            *op = value(0);
 
                             any_change = true;
                         }
@@ -534,7 +534,7 @@ namespace dual_types
             return any_change;
         }
 
-        operation flatten(bool recurse = false) const
+        value flatten(bool recurse = false) const
         {
             if(type == ops::VALUE)
                 return *this;
@@ -607,7 +607,7 @@ namespace dual_types
             if(type == ops::MULTIPLY)
             {
                 if(args[0].is_constant_constraint(is_zero) || args[1].is_constant_constraint(is_zero))
-                    return operation(0);
+                    return value(0);
 
                 if(args[0].is_constant_constraint(is_value_equal<1>))
                     return args[1];
@@ -637,19 +637,19 @@ namespace dual_types
                     return args[0];
 
                 if(equivalent(args[0], args[1]))
-                    return operation(0);
+                    return value(0);
             }
 
             if(type == ops::DIVIDE)
             {
                 if(args[0].is_constant_constraint(is_zero))
-                    return operation(0);
+                    return value(0);
 
                 if(args[1].is_constant_constraint(is_value_equal<1>))
                     return args[0];
 
                 if(equivalent(args[0], args[1]))
-                    return operation(1);
+                    return value(1);
             }
 
             if(type == ops::POW)
@@ -658,11 +658,11 @@ namespace dual_types
                     return args[0];
 
                 if(args[1].is_constant_constraint(is_zero))
-                    return operation(1);
+                    return value(1);
 
                 /*if(args[1].is_constant())
                 {
-                    operation ret = args[0];
+                    value ret = args[0];
 
                     for(int i=0; i < args[1].get_constant() - 1; i++)
                     {
@@ -673,7 +673,7 @@ namespace dual_types
                 }*/
             }
 
-            operation ret = *this;
+            value ret = *this;
 
             bool any_dirty = false;
 
@@ -695,7 +695,7 @@ namespace dual_types
             return ret;
         }
 
-        dual_types::dual_v<operation> dual(const std::string& sym)
+        dual_types::dual_v<value> dual(const std::string& sym)
         {
             #define DUAL_CHECK1(x, y) if(type == x) { return y(args[0].dual(sym)); }
             #define DUAL_CHECK2(x, y) if(type == x) { return y(args[0].dual(sym), args[1].dual(sym)); }
@@ -705,7 +705,7 @@ namespace dual_types
 
             if(type == VALUE)
             {
-                dual_types::dual_v<operation> ret;
+                dual_types::dual_v<value> ret;
 
                 if(value_payload.value() == sym)
                 {
@@ -777,14 +777,14 @@ namespace dual_types
             assert(false);
         }
 
-        operation differentiate(const std::string& sym)
+        value differentiate(const std::string& sym)
         {
             return dual(sym).dual;
         }
     };
 
     inline
-    bool equivalent(const operation& d1, const operation& d2)
+    bool equivalent(const value& d1, const value& d2)
     {
         if(d1.type != d2.type)
             return false;
@@ -821,7 +821,7 @@ namespace dual_types
     }
 
     inline
-    std::string type_to_string(const operation& op)
+    std::string type_to_string(const value& op)
     {
         if(op.type == ops::VALUE)
         {
@@ -863,23 +863,23 @@ namespace dual_types
     }
 
     inline
-    operation make_op_value(const std::string& str)
+    value make_op_value(const std::string& str)
     {
-        return operation(str);
+        return value(str);
     }
 
     template<Arithmetic T>
     inline
-    operation make_op_value(const T& v)
+    value make_op_value(const T& v)
     {
-        return operation(v);
+        return value(v);
     }
 
     template<typename... T>
     inline
-    operation make_op(ops::type_t type, T&&... args)
+    value make_op(ops::type_t type, T&&... args)
     {
-        operation ret;
+        value ret;
         ret.type = type;
         ret.args = {args...};
         ret.value_payload = std::nullopt;
@@ -888,50 +888,50 @@ namespace dual_types
     }
 
     inline
-    operation operator<(const operation& d1, const operation& d2)
+    value operator<(const value& d1, const value& d2)
     {
         return make_op(ops::LESS, d1, d2);
     }
 
     inline
-    operation operator<=(const operation& d1, const operation& d2)
+    value operator<=(const value& d1, const value& d2)
     {
         return make_op(ops::LESS_EQUAL, d1, d2);
     }
 
     inline
-    operation operator+(const operation& d1, const operation& d2)
+    value operator+(const value& d1, const value& d2)
     {
         return make_op(ops::PLUS, d1, d2);
     }
 
     inline
-    operation operator-(const operation& d1, const operation& d2)
+    value operator-(const value& d1, const value& d2)
     {
         return make_op(ops::PLUS, d1, make_op(ops::UMINUS, d2));
     }
 
     inline
-    operation operator-(const operation& d1)
+    value operator-(const value& d1)
     {
         return make_op(ops::UMINUS, d1);
     }
 
     inline
-    operation operator*(const operation& d1, const operation& d2)
+    value operator*(const value& d1, const value& d2)
     {
         return make_op(ops::MULTIPLY, d1, d2);
     }
 
     inline
-    operation operator/(const operation& d1, const operation& d2)
+    value operator/(const value& d1, const value& d2)
     {
         return make_op(ops::DIVIDE, d1, d2);
     }
 
-    #define UNARY(x, y) inline operation x(const operation& d1){return make_op(ops::y, d1);}
-    #define BINARY(x, y) inline operation x(const operation& d1, const operation& d2){return make_op(ops::y, d1, d2);}
-    #define TRINARY(x, y) inline operation x(const operation& d1, const operation& d2, const operation& d3){return make_op(ops::y, d1, d2, d3);}
+    #define UNARY(x, y) inline value x(const value& d1){return make_op(ops::y, d1);}
+    #define BINARY(x, y) inline value x(const value& d1, const value& d2){return make_op(ops::y, d1, d2);}
+    #define TRINARY(x, y) inline value x(const value& d1, const value& d2, const value& d3){return make_op(ops::y, d1, d2, d3);}
 
     UNARY(sqrt, SQRT);
     UNARY(psqrt, SQRT);
@@ -957,7 +957,7 @@ namespace dual_types
     UNARY(lambert_w0, LAMBERT_W0);
 
     inline
-    complex<operation> psqrt(const complex<operation>& d1)
+    complex<value> psqrt(const complex<value>& d1)
     {
         if(d1.imaginary.is_constant() && d1.imaginary.get_constant() == 0)
         {
@@ -970,36 +970,36 @@ namespace dual_types
     inline
     void test_operation()
     {
-        operation v1 = 1;
-        operation v2 = 2;
+        value v1 = 1;
+        value v2 = 2;
 
-        operation sum = v1 + v2;
+        value sum = v1 + v2;
 
-        operation root_3 = sqrt(sum);
+        value root_3 = sqrt(sum);
 
-        dual_v<operation> test_dual = 1234;
+        dual_v<value> test_dual = 1234;
 
-        dual_v<operation> test_operator = test_dual * 1111;
+        dual_v<value> test_operator = test_dual * 1111;
 
-        operation v = std::string("v");
+        value v = std::string("v");
 
-        operation test_op = 2 * (v/2);
+        value test_op = 2 * (v/2);
 
         assert(type_to_string(test_op) == "v");
 
-        operation test_op2 = (v * 2)/2;
+        value test_op2 = (v * 2)/2;
 
         assert(type_to_string(test_op2) == "v");
 
-        operation test_op3 = (2 * ((2 * v/2) / 2) * 2) / 2;
+        value test_op3 = (2 * ((2 * v/2) / 2) * 2) / 2;
 
         assert(type_to_string(test_op3) == "v");
 
-        operation test_op4 = (2 * v) / v;
+        value test_op4 = (2 * v) / v;
 
         assert(type_to_string(test_op4) == "2.0");
 
-        operation test_op5 = (2 * sin(v)) / sin(v);
+        value test_op5 = (2 * sin(v)) / sin(v);
 
         assert(type_to_string(test_op5) == "2.0");
 
@@ -1007,7 +1007,8 @@ namespace dual_types
     }
 }
 
-using dual = dual_types::dual_v<dual_types::operation>;
-using dual_complex = dual_types::dual_v<dual_types::complex<dual_types::operation>>;
+using dual = dual_types::dual_v<dual_types::value>;
+using dual_complex = dual_types::dual_v<dual_types::complex<dual_types::value>>;
+using value = dual_types::value;
 
 #endif // DUAL2_HPP_INCLUDED

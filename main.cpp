@@ -415,6 +415,29 @@ std::array<dual, 16> kerr_metric(dual t, dual r, dual theta, dual phi)
     return ret;
 }
 
+inline
+std::array<value, 16> kerr_operation(value t, value r, value theta, value phi)
+{
+    value rs = 1;
+
+    value a = -0.5;
+    value E = r * r + a * a * cos(theta) * cos(theta);
+    value D = r * r  - rs * r + a * a;
+
+    value c = 1;
+
+    std::array<value, 16> ret;
+
+    ret[0] = -(1 - rs * r / E) * c * c;
+    ret[1 * 4 + 1] = E / D;
+    ret[2 * 4 + 2] = E;
+    ret[3 * 4 + 3] = (r * r + a * a + (rs * r * a * a / E) * sin(theta) * sin(theta)) * sin(theta) * sin(theta);
+    ret[0 * 4 + 3] = 0.5 * -2 * rs * r * a * sin(theta) * sin(theta) * c / E;
+    ret[3 * 4 + 0] = ret[0 * 4 + 3];
+
+    return ret;
+}
+
 ///https://arxiv.org/pdf/0706.0622.pdf
 inline
 std::array<dual, 16> kerr_schild_metric(dual t, dual x, dual y, dual z)
