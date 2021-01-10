@@ -1019,7 +1019,7 @@ using value = dual_types::value;
 
 template<typename T, typename U, int N>
 inline
-tensor<T, N, N, N> calculate_christoffel_symbols_2(tensor<T, N, N>& metric, const std::array<U, N>& variables)
+tensor<T, N, N, N> christoffel_symbols_2(const tensor<T, N, N>& metric, const std::array<U, N>& variables)
 {
     tensor<T, N, N, N> christoff;
     tensor<T, N, N> inverted = metric.invert();
@@ -1045,6 +1045,53 @@ tensor<T, N, N, N> calculate_christoffel_symbols_2(tensor<T, N, N>& metric, cons
     }
 
     return christoff;
+}
+
+///https://scholarworks.rit.edu/cgi/viewcontent.cgi?article=11286&context=theses
+///Du v^v
+template<typename T, typename U, int N>
+inline
+tensor<T, N, N> covariant_derivative(const vec<N, T>& v_in, const tensor<T, N, N>& metric, const std::array<U, N>& variables)
+{
+    tensor<T, N, N, N> christoff = christoffel_symbols_2(metric, variables);
+    tensor<T, N, N> duvv;
+
+    for(int v=0; v < N; v++)
+    {
+        for(int mu=0; mu < N; mu++)
+        {
+            T sum = 0;
+
+            for(int p=0; p < N; p++)
+            {
+                sum += christoff.idx(v, p, mu) * v_in.v[p];
+            }
+
+            duvv.idx(mu, v) = v_in.v[v].differentiate(variables[mu]) + sum;
+        }
+    }
+
+    return duvv;
+}
+
+///https://scholarworks.rit.edu/cgi/viewcontent.cgi?article=11286&context=theses 2.24
+template<typename T, typename U, int N>
+inline
+tensor<T, N, N> metric_lie_derivative(const vec<N, T>& u, const tensor<T, N, N>& metric, const std::array<U, N>& variables)
+{
+    tensor<T, N, N> lie;
+
+    tensor<T, N, N> cov = covariant_derivative(u, metric, variables);
+
+    for(int a=0; a < N; a++)
+    {
+        for(int b=0; b < N; b++)
+        {
+            lie.idx(a, b) = cov.idx(a, b) + cov.idx(b, a);
+        }
+    }
+
+    return lie;
 }
 
 
