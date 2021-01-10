@@ -188,6 +188,7 @@ namespace dual_types
     struct value
     {
         using is_complex = std::false_type;
+        static constexpr bool is_dual = false;
 
         ops::type_t type = ops::NONE;
 

@@ -1570,6 +1570,12 @@ int main()
     kerr_obj.detect_singularities = true;
     kerr_obj.use_prepass = true;
 
+    metric::metric<kerr_operation, polar_to_polar, polar_to_polar, at_origin> kerr_value_obj;
+    kerr_value_obj.name = "kerr_value";
+    kerr_value_obj.adaptive_precision = true;
+    kerr_value_obj.detect_singularities = true;
+    kerr_value_obj.use_prepass = true;
+
     metric::metric<kerr_newman, polar_to_polar, polar_to_polar, at_origin> kerr_newman_obj;
     kerr_newman_obj.name = "kerrnewman_boyer";
     kerr_newman_obj.adaptive_precision = true;
@@ -1678,12 +1684,13 @@ int main()
     //auto current_metric = minkowski_polar_obj;
     //auto current_metric = krasnikov_tube_cart_obj;
     //auto current_metric = double_kerr_alt_obj;
-    auto current_metric = double_kerr_obj;
+    //auto current_metric = double_kerr_obj;
     //auto current_metric = unequal_double_kerr_obj;
     //auto current_metric = double_schwarzschild_obj;
     //auto current_metric = ellis_drainhole_obj;
     //auto current_metric = configurable_wormhole_obj;
     //auto current_metric = book_metric_obj;
+    auto current_metric = kerr_value_obj;
 
     argument_string += build_argument_string(current_metric, cfg);
     #endif // GENERIC_METRIC

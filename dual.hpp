@@ -63,6 +63,8 @@ namespace dual_types
     template<typename T>
     struct dual_v
     {
+        static constexpr bool is_dual = true;
+
         T real = T();
         T dual = T();
 
@@ -1012,6 +1014,23 @@ auto get_function_args_array(R(T...))
     return std::array{T()...};
 }
 
+
+template<typename R, typename... T>
+constexpr
+bool is_dual_impl(R(T...))
+{
+    return (T::is_dual && ...);
+}
+
+template<typename F>
+constexpr
+bool is_dual()
+{
+    constexpr std::decay_t<F> f = std::decay_t<F>();
+
+    return is_dual_impl(f);
+}
+
 template<typename Func, typename... T>
 inline
 std::pair<std::vector<std::string>, std::vector<std::string>> evaluate_metric2D(Func&& f, T... raw_variables)
@@ -1026,35 +1045,53 @@ std::pair<std::vector<std::string>, std::vector<std::string>> evaluate_metric2D(
     {
         auto variables = get_function_args_array(f);
 
-        for(int j=0; j < (int)variable_names.size(); j++)
+        if constexpr(is_dual<Func>())
         {
-            if(i == j)
+            for(int j=0; j < (int)variable_names.size(); j++)
             {
-                variables[j].make_variable(variable_names[j]);
+                if(i == j)
+                {
+                    variables[j].make_variable(variable_names[j]);
+                }
+                else
+                {
+                    variables[j].make_constant(variable_names[j]);
+                }
             }
-            else
+
+            std::array eqs = array_apply(std::forward<Func>(f), variables);
+
+            if(i == 0)
             {
-                variables[j].make_constant(variable_names[j]);
+                for(auto& kk : eqs)
+                {
+                    raw_eq.push_back(type_to_string(kk.real));
+                }
             }
 
-            //variables[j] = make_variable(variable_names[j], i == j);
-        }
-
-        std::array eqs = array_apply(std::forward<Func>(f), variables);
-
-        //static_assert(eqs.size() == N * N);
-
-        if(i == 0)
-        {
             for(auto& kk : eqs)
             {
-                raw_eq.push_back(type_to_string(kk.real));
+                raw_derivatives.push_back(type_to_string(kk.dual));
             }
         }
-
-        for(auto& kk : eqs)
+        else
         {
-            raw_derivatives.push_back(type_to_string(kk.dual));
+            std::array eqs = array_apply(std::forward<Func>(f), variables);
+
+            if(i == 0)
+            {
+                for(auto& kk : eqs)
+                {
+                    raw_eq.push_back(type_to_string(kk));
+                }
+            }
+
+            for(auto& kk : eqs)
+            {
+                auto differentiated = kk.differentiate(variable_names[i]);
+
+                raw_derivatives.push_back(type_to_string(differentiated));
+            }
         }
     }
 
