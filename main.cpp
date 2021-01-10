@@ -6,7 +6,7 @@
 #include <SFML/Graphics.hpp>
 #include <CL/cl_ext.h>
 #include "dual.hpp"
-#include "dual2.hpp"
+#include "dual_value.hpp"
 #include "metric.hpp"
 #include "chromaticity.hpp"
 //#include "dual_complex.hpp"
