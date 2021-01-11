@@ -1054,7 +1054,7 @@ tensor<T, N, N, N> christoffel_symbols_2(const tensor<T, N, N>& metric, const st
 ///Du v^v
 template<typename T, typename U, int N>
 inline
-tensor<T, N, N> covariant_derivative_raised(const vec<N, T>& v_in, const tensor<T, N, N>& metric, const std::array<U, N>& variables)
+tensor<T, N, N> covariant_derivative_high_vec(const vec<N, T>& v_in, const tensor<T, N, N>& metric, const std::array<U, N>& variables)
 {
     tensor<T, N, N, N> christoff = christoffel_symbols_2(metric, variables);
     tensor<T, N, N> duvv;
@@ -1080,7 +1080,7 @@ tensor<T, N, N> covariant_derivative_raised(const vec<N, T>& v_in, const tensor<
 ///https://en.wikipedia.org/wiki/Covariant_derivative#Covariant_derivative_by_field_type
 template<typename T, typename U, int N>
 inline
-tensor<T, N, N> covariant_derivative_lowered(const vec<N, T>& v_in, const tensor<T, N, N>& metric, const std::array<U, N>& variables)
+tensor<T, N, N> covariant_derivative_low_vec(const vec<N, T>& v_in, const tensor<T, N, N>& metric, const std::array<U, N>& variables)
 {
     tensor<T, N, N, N> christoff = christoffel_symbols_2(metric, variables);
     tensor<T, N, N> lac;
@@ -1105,7 +1105,46 @@ tensor<T, N, N> covariant_derivative_lowered(const vec<N, T>& v_in, const tensor
 
 template<typename T, typename U, int N>
 inline
-tensor<T, N, N, N> covariant_derivative_mixed(const tensor<T, N, N>& mT, const tensor<T, N, N>& metric, const std::array<U, N>& variables)
+tensor<T, N> covariant_derivative_scalar(const T& in, const tensor<T, N, N>& metric, const std::array<U, N>& variables)
+{
+    tensor<T, N> ret;
+
+    for(int i=0; i < N; i++)
+    {
+        ret.idx(i) = in.differentiate(variables[i]);
+    }
+
+    return ret;
+}
+
+template<typename T, typename U, int N>
+inline
+tensor<T, N, N> high_covariant_derivative_scalar(const T& in, const tensor<T, N, N>& metric, const std::array<U, N>& variables)
+{
+    tensor<T, N, N> iv_metric = metric.invert();
+
+    tensor<T, N> deriv_low = covariant_derivative_scalar(in, metric, variables);
+
+    tensor<T, N> ret;
+
+    for(int i=0; i < N; i++)
+    {
+        T sum = 0;
+
+        for(int p=0; p < N; p++)
+        {
+            sum += iv_metric.idx(i, p) * deriv_low.idx(p);
+        }
+
+        ret.idx(i) = sum;
+    }
+
+    return ret;
+}
+
+template<typename T, typename U, int N>
+inline
+tensor<T, N, N, N> covariant_derivative_mixed_tensor(const tensor<T, N, N>& mT, const tensor<T, N, N>& metric, const std::array<U, N>& variables)
 {
     tensor<T, N, N, N> christoff = christoffel_symbols_2(metric, variables);
     tensor<T, N, N, N> tabc;
