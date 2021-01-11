@@ -1191,6 +1191,7 @@ tensor<T, N, N> metric_lie_derivative(const vec<N, T>& u, const tensor<T, N, N>&
     return lie;
 }
 
+/*
 ///mixed indices for T
 template<typename T, typename U, int N>
 inline
@@ -1216,6 +1217,76 @@ tensor<T, N, N> lie_derivative_mixed(const vec<N, T>& u, const tensor<T, N, N>& 
     }
 
     return lie;
+}*/
+
+///https://arxiv.org/pdf/gr-qc/9810065.pdf
+///This paper claims that we can't use the regular lie derivative
+template<typename T, typename U, int N>
+inline
+tensor<T, N, N> lie_derivative_weight(const vec<N, T>& B, const tensor<T, N, N>& mT, const tensor<T, N, N>& metric, const std::array<U, N>& variables)
+{
+    tensor<T, N, N> lie;
+
+    for(int i=0; i < N; i++)
+    {
+        for(int j=0; j < N; j++)
+        {
+            T sum = 0;
+
+            for(int k=0; k < N; k++)
+            {
+                sum += B.v[k] * mT.idx(i, j).differentiate(variables[k]) +
+                       mT.idx(i, k) * B.v[k].differentiate(variables[j]) +
+                       mT.idx(k, j) * B.v[k].differentiate(variables[i]) -
+                       (2.f/3.f) * mT.idx(i, j) * B.v[k].differentiate(variables[k]);
+            }
+
+            lie.idx(i, j) = sum;
+        }
+    }
+
+    return lie;
+}
+
+
+///https://arxiv.org/pdf/gr-qc/9810065.pdf
+template<typename T, int N>
+inline
+T trace(const tensor<T, N, N>& mT, const tensor<T, N, N>& metric)
+{
+    tensor<T, N, N> inverse = metric.invert();
+
+    T ret = 0;
+
+    for(int i=0; i < N; i++)
+    {
+        for(int j=0; j < N; j++)
+        {
+            ret += inverse.idx(i, j) * mT.idx(i, j);
+        }
+    }
+
+    return ret;
+}
+
+template<typename T, int N>
+inline
+tensor<T, N, N> trace_free(const tensor<T, N, N>& mT, const tensor<T, N, N>& metric)
+{
+    tensor<T, N, N> inverse = metric.invert();
+
+    tensor<T, N, N> TF;
+    T t = trace(mT, metric);
+
+    for(int i=0; i < N; i++)
+    {
+        for(int j=0; j < N; j++)
+        {
+            TF.idx(i, j) = mT.idx(i, j) - (1/3.f) * metric.idx(i, j) * t;
+        }
+    }
+
+    return TF;
 }
 
 #endif // DUAL2_HPP_INCLUDED
