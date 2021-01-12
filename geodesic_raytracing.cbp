@@ -129,6 +129,7 @@
 		<Unit filename="dual_value.hpp" />
 		<Unit filename="main.cpp" />
 		<Unit filename="metric.hpp" />
+		<Unit filename="numerical.hpp" />
 		<Extensions>
 			<lib_finder disable_auto="1" />
 		</Extensions>
