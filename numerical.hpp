@@ -1,6 +1,7 @@
 #ifndef NUMERICAL_HPP_INCLUDED
 #define NUMERICAL_HPP_INCLUDED
 
+#include "dual_value.hpp"
 
 ///https://physics.stackexchange.com/questions/51915/can-one-raise-indices-on-covariant-derivative-and-products-thereof raising indices on covariant derivatives
 

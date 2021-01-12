@@ -2,6 +2,7 @@
 #define METRIC_HPP_INCLUDED
 
 #include "dual.hpp"
+#include "dual_value.hpp"
 
 namespace metric
 {
@@ -151,7 +152,7 @@ namespace metric
         if(in.singular)
         {
             argument_string += " -DSINGULAR";
-            argument_string += " -DSINGULAR_TERMINATOR=" + to_string_s(in.singular_terminator);
+            argument_string += " -DSINGULAR_TERMINATOR=" + dual_types::to_string_s(in.singular_terminator);
 
             if(in.traversable_event_horizon)
             {
@@ -164,9 +165,9 @@ namespace metric
             argument_string += " -DADAPTIVE_PRECISION";
 
             if(!cfg.error_override)
-                argument_string += " -DMAX_ACCELERATION_CHANGE=" + to_string_s(in.max_acceleration_change);
+                argument_string += " -DMAX_ACCELERATION_CHANGE=" + dual_types::to_string_s(in.max_acceleration_change);
             else
-                argument_string += " -DMAX_ACCELERATION_CHANGE=" + to_string_s(cfg.error_override.value());
+                argument_string += " -DMAX_ACCELERATION_CHANGE=" + dual_types::to_string_s(cfg.error_override.value());
 
             if(in.detect_singularities)
             {

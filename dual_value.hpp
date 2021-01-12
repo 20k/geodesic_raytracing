@@ -5,6 +5,48 @@
 
 namespace dual_types
 {
+    inline
+    std::string to_string_s(float v)
+    {
+        std::ostringstream oss;
+        oss << std::setprecision(16) << std::showpoint << v;
+        std::string str = oss.str();
+
+        while(str.size() > 0 && str.back() == '0')
+            str.pop_back();
+
+        if(str.size() > 0 && str.back() == '.')
+            str += "0";
+
+        return str;
+    }
+
+    inline
+    std::optional<double> get_value(std::string_view in)
+    {
+        if(in.size() == 0)
+            throw std::runtime_error("Bad in size, 0");
+
+        while(in.size() > 2 && in.front() == '(' && in.back() == ')')
+        {
+            in.remove_prefix(1);
+            in.remove_suffix(1);
+        }
+
+        if(in == "nan")
+            throw std::runtime_error("Nan");
+
+        std::string cstr(in);
+
+        char* ptr = nullptr;
+        double val = std::strtod(cstr.c_str(), &ptr);
+
+        if(ptr == cstr.c_str() + cstr.size())
+            return val;
+
+        return std::nullopt;
+    }
+
     struct operation_desc
     {
         bool is_infix = false;

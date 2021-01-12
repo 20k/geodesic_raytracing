@@ -9,6 +9,7 @@
 #include "dual_value.hpp"
 #include "metric.hpp"
 #include "chromaticity.hpp"
+#include "numerical.hpp"
 //#include "dual_complex.hpp"
 
 /**
