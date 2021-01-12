@@ -8,7 +8,7 @@
 ///http://web.mit.edu/edbert/GR/gr11.pdf ???
 template<typename T, typename U, int N>
 inline
-tensor<T, N, N, N> christoffel_symbols_2(const tensor<T, N, N>& metric, const std::array<U, N>& variables)
+tensor<T, N, N, N> christoffel_symbols_2(const tensor<T, N, N>& metric, const vec<N, U>& variables)
 {
     tensor<T, N, N, N> christoff;
     tensor<T, N, N> inverted = metric.invert();
@@ -23,9 +23,9 @@ tensor<T, N, N, N> christoffel_symbols_2(const tensor<T, N, N>& metric, const st
 
                 for(int m=0; m < N; m++)
                 {
-                    sum += inverted.idx(i, m) * metric.idx(m, k).differentiate(variables[l]);
-                    sum += inverted.idx(i, m) * metric.idx(m, l).differentiate(variables[k]);
-                    sum -= inverted.idx(i, m) * metric.idx(k, l).differentiate(variables[m]);
+                    sum = sum + inverted.idx(i, m) * metric.idx(m, k).differentiate(variables[l]);
+                    sum = sum + inverted.idx(i, m) * metric.idx(m, l).differentiate(variables[k]);
+                    sum = sum - inverted.idx(i, m) * metric.idx(k, l).differentiate(variables[m]);
                 }
 
                 christoff.idx(i, k, l) = 0.5 * sum;

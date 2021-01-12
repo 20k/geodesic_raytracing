@@ -744,7 +744,7 @@ namespace dual_types
             return ret;
         }
 
-        dual_types::dual_v<value> dual(const std::string& sym)
+        dual_types::dual_v<value> dual(const std::string& sym) const
         {
             #define DUAL_CHECK1(x, y) if(type == x) { return y(args[0].dual(sym)); }
             #define DUAL_CHECK2(x, y) if(type == x) { return y(args[0].dual(sym), args[1].dual(sym)); }
@@ -826,7 +826,7 @@ namespace dual_types
             assert(false);
         }
 
-        value differentiate(const std::string& sym)
+        value differentiate(const std::string& sym) const
         {
             return dual(sym).dual;
         }
