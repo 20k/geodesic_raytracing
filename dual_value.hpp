@@ -830,6 +830,32 @@ namespace dual_types
         {
             return dual(sym).dual;
         }
+
+        void substitute_impl(const std::string& sym, float value)
+        {
+            if(type == ops::VALUE && value_payload.value() == sym)
+            {
+                value_payload = to_string_s(value);
+                return;
+            }
+
+            for(auto& i : args)
+            {
+                i.substitute_impl(sym, value);
+                i = i.flatten();
+            }
+
+            *this = flatten();
+        }
+
+        value substitute(const std::string& sym, float value) const
+        {
+            auto cp = *this;
+
+            cp.substitute_impl(sym, value);
+
+            return cp;
+        }
     };
 
     inline
