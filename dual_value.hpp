@@ -93,6 +93,7 @@ namespace dual_types
             SELECT,
             POW,
             MAX,
+            MIN,
 
             LAMBERT_W0,
 
@@ -149,6 +150,7 @@ namespace dual_types
         "select",
         "pow",
         "max",
+        "min",
         "lambert_w0",
         "ERROR"
         );
@@ -642,6 +644,7 @@ namespace dual_types
                 PROPAGATE3(SELECT, select);
                 PROPAGATE2(POW, std::pow);
                 PROPAGATE2(MAX, std::max);
+                PROPAGATE2(MIN, std::min);
                 //PROPAGATE2(LAMBERT_W0, lambert_w0);
             }
 
@@ -820,7 +823,8 @@ namespace dual_types
             }
 
             DUAL_CHECK2(POW, pow);
-            //DUAL_CHECK2(MAX, max);
+            DUAL_CHECK2(MAX, max);
+            DUAL_CHECK2(MIN, min);
             DUAL_CHECK1(LAMBERT_W0, lambert_w0);
 
             assert(false);
@@ -1028,6 +1032,7 @@ namespace dual_types
     TRINARY(select, SELECT);
     BINARY(pow, POW);
     BINARY(max, MAX);
+    BINARY(min, MIN);
     UNARY(lambert_w0, LAMBERT_W0);
 
     inline

@@ -640,6 +640,20 @@ namespace dual_types
     {
         return d1.real <= d2.real;
     }
+
+    template<typename T>
+    inline
+    auto max(const dual_types::dual_v<T>& d1, const dual_types::dual_v<T>& d2)
+    {
+        return dual_if(d1 < d2, [&](){return d2;}, [&](){return d1;});
+    }
+
+    template<typename T>
+    inline
+    auto min(const dual_types::dual_v<T>& d1, const dual_types::dual_v<T>& d2)
+    {
+        return dual_if(d1 < d2, [&](){return d1;}, [&](){return d2;});
+    }
 };
 
 inline
