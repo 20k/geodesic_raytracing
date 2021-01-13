@@ -346,6 +346,7 @@ namespace dual_types
         {
             bool any_change = false;
 
+            #if 0
             if(type == ops::MULTIPLY || type == ops::DIVIDE)
             {
                 auto is_mult_node_or_expr = [](const value& op)
@@ -581,6 +582,7 @@ namespace dual_types
                 propagate_constants(args[0]);
                 propagate_constants(args[1]);
             }
+            #endif // 0
 
             return any_change;
         }
