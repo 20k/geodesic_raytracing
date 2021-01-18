@@ -244,6 +244,7 @@ namespace dual_types
         template<Arithmetic T>
         value(T v){value_payload = to_string_s(v); type = ops::VALUE;}
         value(const std::string& str){value_payload = str; type = ops::VALUE;}
+        value(const char* str){value_payload = std::string(str); type = ops::VALUE;}
 
         bool is_value() const
         {
