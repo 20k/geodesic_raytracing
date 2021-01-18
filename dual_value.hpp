@@ -62,6 +62,7 @@ namespace dual_types
             MINUS,
             MULTIPLY,
             DIVIDE,
+            MODULUS, ///c style %
 
             LESS,
             LESS_EQUAL,
@@ -89,6 +90,7 @@ namespace dual_types
             SIGNBIT,
             SIGN,
             FABS,
+            ABS,
 
             SELECT,
             POW,
@@ -116,7 +118,7 @@ namespace dual_types
 
         operation_desc ret;
 
-        if(type == PLUS || type == MINUS || type == MULTIPLY || type == DIVIDE ||
+        if(type == PLUS || type == MINUS || type == MULTIPLY || type == DIVIDE || type == MODULUS ||
            type == LESS || type == LESS_EQUAL)
         {
             ret.is_infix = true;
@@ -128,6 +130,7 @@ namespace dual_types
         "-",
         "*",
         "/",
+        "%",
         "<",
         "<=",
         "native_sin",
@@ -147,6 +150,7 @@ namespace dual_types
         "signbit",
         "sign",
         "fabs",
+        "abs",
         "select",
         "pow",
         "max",
@@ -226,6 +230,8 @@ namespace dual_types
     value operator*(const value& d1, const value& d2);
 
     value operator/(const value& d1, const value& d2);
+
+    value operator%(const value& d1, const value& d2);
 
     bool equivalent(const value& d1, const value& d2);
 
@@ -621,6 +627,9 @@ namespace dual_types
                 if(type == ops::DIVIDE)
                     return make_op_value(get(0) / get(1));
 
+                //if(type == ops::MODULUS)
+                //    return make_op_value(get(0) % get(1));
+
                 if(type == ops::LESS)
                     return make_op_value(get(0) < get(1));
 
@@ -644,6 +653,7 @@ namespace dual_types
                 PROPAGATE1(SIGNBIT, signbit);
                 PROPAGATE1(SIGN, sign);
                 PROPAGATE1(FABS, std::fabs);
+                PROPAGATE1(ABS, std::abs);
                 PROPAGATE3(SELECT, select);
                 PROPAGATE2(POW, std::pow);
                 PROPAGATE2(MAX, std::max);
@@ -706,6 +716,8 @@ namespace dual_types
                 if(equivalent(args[0], args[1]))
                     return value(1);
             }
+
+            ///ops::MODULUS
 
             if(type == ops::POW)
             {
@@ -793,6 +805,10 @@ namespace dual_types
             {
                 return args[0].dual(sym) / args[1].dual(sym);
             }
+            /*if(type == MODULUS)
+            {
+
+            }*/
             if(type == LESS)
             {
                 return args[0].dual(sym) < args[1].dual(sym);
@@ -819,6 +835,7 @@ namespace dual_types
             //DUAL_CHECK1(SIGNBIT, signbit);
             //DUAL_CHECK1(SIGN, sign);
             DUAL_CHECK1(FABS, fabs);
+            //DUAL_CHECK1(ABS, abs);
 
             if(type == SELECT)
             {
@@ -1010,6 +1027,12 @@ namespace dual_types
         return make_op(ops::DIVIDE, d1, d2);
     }
 
+    inline
+    value operator%(const value& d1, const value& d2)
+    {
+        return make_op(ops::MODULUS, d1, d2);
+    }
+
     #define UNARY(x, y) inline value x(const value& d1){return make_op(ops::y, d1);}
     #define BINARY(x, y) inline value x(const value& d1, const value& d2){return make_op(ops::y, d1, d2);}
     #define TRINARY(x, y) inline value x(const value& d1, const value& d2, const value& d3){return make_op(ops::y, d1, d2, d3);}
@@ -1018,6 +1041,7 @@ namespace dual_types
     UNARY(psqrt, SQRT);
     UNARY(log, LOG);
     UNARY(fabs, FABS);
+    UNARY(abs, ABS);
     UNARY(exp, EXP);
     UNARY(sin, SIN);
     UNARY(cos, COS);
