@@ -109,6 +109,20 @@ namespace dual_types
 
     template<typename T>
     inline
+    complex<T> operator+(const complex<T>& c1, const T& c2)
+    {
+        return c1 + complex<T>(c2, 0);
+    }
+
+    template<typename T>
+    inline
+    complex<T> operator+(const T& c1, const complex<T>& c2)
+    {
+        return complex<T>(c1, 0) + c2;
+    }
+
+    template<typename T>
+    inline
     complex<T> operator-(const complex<T>& c1, const complex<T>& c2)
     {
         return complex<T>(c1.real - c2.real, c1.imaginary - c2.imaginary);
@@ -126,6 +140,20 @@ namespace dual_types
     complex<T> operator*(const complex<T>& c1, const complex<T>& c2)
     {
         return complex<T>(c1.real * c2.real - c1.imaginary * c2.imaginary, c1.imaginary * c2.real + c1.real * c2.imaginary);
+    }
+
+    template<typename T>
+    inline
+    complex<T> operator*(const complex<T>& c1, const T& c2)
+    {
+        return c1 * complex<T>(c2, 0);
+    }
+
+    template<typename T>
+    inline
+    complex<T> operator*(const T& c1, const complex<T>& c2)
+    {
+        return complex<T>(c1, 0) * c2;
     }
 
     template<typename T>
