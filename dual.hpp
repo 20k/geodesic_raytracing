@@ -20,8 +20,8 @@ namespace dual_types
         using is_complex = std::true_type;
         using underlying_type = T;
 
-        T real;
-        T imaginary;
+        T real = T();
+        T imaginary = T();
 
         complex(){}
         complex(const std::string& v1, const std::string& v2) : real(v1), imaginary(v2) {}
