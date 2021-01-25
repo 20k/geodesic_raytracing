@@ -25,10 +25,10 @@ namespace dual_types
 
         complex(){}
         complex(const std::string& v1, const std::string& v2) : real(v1), imaginary(v2) {}
-        complex(float v1, float v2) : real(v1), imaginary(v2) {}
-        complex(float v1) : real(v1), imaginary(0) {}
-        complex(T v1, T v2) : real(v1), imaginary(v2) {}
-        complex(T v1) : real(v1), imaginary(0) {}
+        template<typename U, typename V>
+        complex(U v1, V v2) : real(v1), imaginary(v2) {}
+        template<typename U>
+        complex(U v1) : real(v1), imaginary(0) {}
         complex(unit_i_t) : real(0), imaginary(1){}
 
         void set_dual_constant()
@@ -107,18 +107,18 @@ namespace dual_types
         return complex<T>(c1.real + c2.real, c1.imaginary + c2.imaginary);
     }
 
-    template<typename T>
+    template<typename T, typename U>
     inline
-    complex<T> operator+(const complex<T>& c1, const T& c2)
+    complex<T> operator+(const complex<T>& c1, const U& c2)
     {
-        return c1 + complex<T>(c2, 0);
+        return c1 + complex<T>(c2, 0.f);
     }
 
-    template<typename T>
+    template<typename T, typename U>
     inline
-    complex<T> operator+(const T& c1, const complex<T>& c2)
+    complex<T> operator+(const U& c1, const complex<T>& c2)
     {
-        return complex<T>(c1, 0) + c2;
+        return complex<T>(c1, 0.f) + c2;
     }
 
     template<typename T>
@@ -142,18 +142,18 @@ namespace dual_types
         return complex<T>(c1.real * c2.real - c1.imaginary * c2.imaginary, c1.imaginary * c2.real + c1.real * c2.imaginary);
     }
 
-    template<typename T>
+    template<typename T, typename U>
     inline
-    complex<T> operator*(const complex<T>& c1, const T& c2)
+    complex<T> operator*(const complex<T>& c1, const U& c2)
     {
-        return c1 * complex<T>(c2, 0);
+        return c1 * complex<T>(c2, 0.f);
     }
 
-    template<typename T>
+    template<typename T, typename U>
     inline
-    complex<T> operator*(const T& c1, const complex<T>& c2)
+    complex<T> operator*(const U& c1, const complex<T>& c2)
     {
-        return complex<T>(c1, 0) * c2;
+        return complex<T>(c1, 0.f) * c2;
     }
 
     template<typename T>
