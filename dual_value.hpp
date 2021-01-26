@@ -908,6 +908,25 @@ namespace dual_types
 
             return ret;
         }
+
+        void substitute(const std::map<std::string, std::string>& variables)
+        {
+            if(type == ops::VALUE)
+            {
+                auto it = variables.find(value_payload.value());
+
+                if(it == variables.end())
+                    return;
+
+                value_payload = it->second;
+                return;
+            }
+
+            for(auto& val : args)
+            {
+                substitute(variables);
+            }
+        }
     };
 
     inline
