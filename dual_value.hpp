@@ -2,6 +2,7 @@
 #define DUAL2_HPP_INCLUDED
 
 #include "dual.hpp"
+#include <set>
 
 namespace dual_types
 {
@@ -879,6 +880,33 @@ namespace dual_types
             cp.substitute_impl(sym, value);
 
             return cp;
+        }
+
+        void get_all_variables_impl(std::set<std::string>& v) const
+        {
+            if(type == ops::VALUE)
+            {
+                if(is_constant())
+                    return;
+
+                v.insert(value_payload.value());
+                return;
+            }
+
+            for(const auto& val : args)
+            {
+                get_all_variables_impl(v);
+            }
+        }
+
+        std::vector<std::string> get_all_variables() const
+        {
+            std::set<std::string> v;
+            get_all_variables_impl(v);
+
+            std::vector<std::string> ret(v.begin(), v.end());
+
+            return ret;
         }
     };
 
