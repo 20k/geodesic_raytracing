@@ -245,6 +245,13 @@ namespace dual_types
 
     template<typename T>
     inline
+    complex<T> expi(const T& d1)
+    {
+        return complex<T>(cos(d1), sin(d1));
+    }
+
+    template<typename T>
+    inline
     dual_types::dual_v<T> operator+(const dual_types::dual_v<T>& d1, const dual_types::dual_v<T>& d2)
     {
         return dual_types::dual_v<T>(d1.real + d2.real, d1.dual + d2.dual);
