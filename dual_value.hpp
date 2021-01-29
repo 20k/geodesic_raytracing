@@ -895,7 +895,7 @@ namespace dual_types
 
             for(const auto& val : args)
             {
-                get_all_variables_impl(v);
+                val.get_all_variables_impl(v);
             }
         }
 
@@ -924,7 +924,7 @@ namespace dual_types
 
             for(auto& val : args)
             {
-                substitute(variables);
+                val.substitute(variables);
             }
         }
     };
