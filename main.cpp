@@ -1420,9 +1420,9 @@ cl::image_with_mipmaps load_mipped_image(const std::string& fname, opencl_contex
 
     std::vector<uint8_t> as_uint8;
 
-    for(int y=0; y < img.getSize().y; y++)
+    for(int y=0; y < (int)img.getSize().y; y++)
     {
-        for(int x=0; x < img.getSize().x; x++)
+        for(int x=0; x < (int)img.getSize().x; x++)
         {
             auto col = img.getPixel(x, y);
 
@@ -1502,9 +1502,6 @@ int main()
 
     opencl_context& clctx = *win.clctx;
 
-    //std::string argument_string = "-O3 -cl-std=CL2.2 ";
-
-    #if 1
     #ifdef GENERIC_METRIC
 
     auto schwarzs_polar = new metric::metric<schwarzschild_blackhole, polar_to_polar, polar_to_polar, at_origin>();
@@ -1702,42 +1699,9 @@ int main()
     //cfg.error_override = 0.000001f;
     cfg.error_override = 0.0001f;
     //cfg.redshift = true;
-
-    //auto current_metric = symmetric_warp_obj;
-    //auto current_metric = kerr_obj;
-    //auto current_metric = alcubierre_metric_obj;
-    //auto current_metric = kerr_newman_obj;
-    //auto current_metric = kerr_schild_obj;
-    //auto current_metric = simple_wormhole;
-    //auto current_metric = schwarzs_polar;
-    //auto current_metric = schwarzs_polar_accurate;
-    //auto current_metric = minkowski_polar_obj;
-    //auto current_metric = krasnikov_tube_cart_obj;
-    //auto current_metric = double_kerr_alt_obj;
-    //auto current_metric = double_kerr_obj;
-    //auto current_metric = unequal_double_kerr_obj;
-    //auto current_metric = double_schwarzschild_obj;
-    //auto current_metric = ellis_drainhole_obj;
-    //auto current_metric = configurable_wormhole_obj;
-    //auto current_metric = book_metric_obj;
-    //auto current_metric = kerr_value_obj;
-
-    //argument_string += build_argument_string(*current_metric, cfg);
     #endif // GENERIC_METRIC
 
-    //std::cout << "ASTRING " << argument_string << std::endl;
-    //std::cout << "SIZE " << argument_string.size() << std::endl;
-
-    #endif // GENERIC_METRIC
-
-    /*printf("WLs %f %f %f\n", chromaticity::srgb_to_wavelength({1, 0, 0}), chromaticity::srgb_to_wavelength({0, 1, 0}), chromaticity::srgb_to_wavelength({0, 0, 1}));
-
-    {
-        cl::program prog(clctx.ctx, "cl.cl");
-        prog.build(clctx.ctx, argument_string);
-
-        clctx.ctx.register_program(prog);
-    }*/
+    //printf("WLs %f %f %f\n", chromaticity::srgb_to_wavelength({1, 0, 0}), chromaticity::srgb_to_wavelength({0, 1, 0}), chromaticity::srgb_to_wavelength({0, 0, 1}));
 
     int supersample_mult = 2;
 
@@ -1778,9 +1742,6 @@ int main()
     camera_quat = q * camera_quat;
 
     //camera_quat.load_from_matrix(axis_angle_to_mat({0, 0, 0}, 0));
-
-    vec3f forward_axis = {0, 0, 1};
-    vec3f up_axis = {0, 1, 0};
 
     sf::Clock clk;
 
@@ -1862,7 +1823,6 @@ int main()
     bool camera_on_geodesic = false;
     bool camera_time_progresses = false;
     bool camera_geodesics_go_foward = true;
-    //vec2f base_angle = {M_PI/2, 0};
     vec2f base_angle = {M_PI/2, 0};
 
     int selected_idx = -1;
@@ -1931,8 +1891,6 @@ int main()
         }
 
         rtex[which_buffer].acquire(clctx.cqueue);
-
-        float ds = 0.01;
 
         float speed = 0.001;
 

@@ -499,7 +499,7 @@ namespace chromaticity
         float cx = 0.3333f;
         float cy = 0.3333f;
 
-        for(int i=0; i < raw_horseshoe.size(); i += 4)
+        for(int i=0; i < (int)raw_horseshoe.size(); i += 4)
         {
             float wavelength = raw_horseshoe[i * 4 + 0];
             float x = raw_horseshoe[i * 4 + 1];

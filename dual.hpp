@@ -744,7 +744,6 @@ inline
 std::pair<std::vector<std::string>, std::vector<std::string>> evaluate_metric2D(Func&& f, T... raw_variables)
 {
     std::array<std::string, sizeof...(T)> variable_names{raw_variables...};
-    constexpr int N = sizeof...(T);
 
     std::vector<std::string> raw_eq;
     std::vector<std::string> raw_derivatives;
