@@ -909,7 +909,7 @@ std::array<dual_complex, 16> big_imaginary_metric_test(dual_complex t, dual_comp
     return ret_fat;
 }
 
-inline
+/*inline
 std::array<dual_complex, 16> minkowski_space(dual_complex t, dual_complex x, dual_complex y, dual_complex z)
 {
     std::array<dual_complex, 16> ret_fat;
@@ -919,7 +919,7 @@ std::array<dual_complex, 16> minkowski_space(dual_complex t, dual_complex x, dua
     ret_fat[3 * 4 + 3] = 1;
 
     return ret_fat;
-}
+}*/
 
 inline
 std::array<dual, 16> minkowski_polar(dual t, dual r, dual theta, dual phi)
@@ -934,7 +934,7 @@ std::array<dual, 16> minkowski_polar(dual t, dual r, dual theta, dual phi)
 }
 
 ///we're in inclination
-inline
+/*inline
 std::array<dual_complex, 16> minkowski_cylindrical(dual_complex t, dual_complex r, dual_complex phi, dual_complex z)
 {
     std::array<dual_complex, 16> ret_fat;
@@ -944,7 +944,7 @@ std::array<dual_complex, 16> minkowski_cylindrical(dual_complex t, dual_complex 
     ret_fat[3 * 4 + 3] = 1;
 
     return ret_fat;
-}
+}*/
 
 ///krasnikov tubes: https://core.ac.uk/download/pdf/25208925.pdf
 dual krasnikov_thetae(dual v, dual e)
@@ -1485,6 +1485,42 @@ cl::image_with_mipmaps load_mipped_image(const std::string& fname, opencl_contex
     return image_mipped;
 }
 
+/*inline
+std::vector<std::string> get_metric_list()
+{
+    return
+    {
+        "schwarzschild",
+        "schwarzschild_accurate",
+        "schwarzs_lemaitre",
+        "schwarzs_ef_out",
+        "wormhole",
+        "configurable_wormhole",
+        "cosmic_string",
+        "ernst",
+        "janis_newman_winicour",
+        "ellis_drainhole",
+        "kerr_boyer",
+        "kerr_value",
+        "kerrnewman_boyer",
+        "kerr_schild",
+        "kerr_rational_poly",
+        "desitter",
+        "minkowski",
+        "minkowski_polar",
+        //"minkowski_cylindrical",
+        "alcubierre",
+        "symmetric_warp",
+        "krasnikov_tube",
+        "krasnikov_tube_cart",
+        "double_kerr_alt",
+        "double_kerr",
+        "unequal_double_kerr",
+        "double_schwarzschild",
+        "book_metric",
+    };
+}*/
+
 ///i need the ability to have dynamic parameters
 int main()
 {
@@ -1598,19 +1634,19 @@ int main()
     de_sitter_obj.name = "desitter";
     de_sitter_obj.adaptive_precision = false;
 
-    metric::metric<minkowski_space, cartesian_to_polar_dual, polar_to_cartesian_dual, at_origin> minkowski_space_obj;
+    /*metric::metric<minkowski_space, cartesian_to_polar_dual, polar_to_cartesian_dual, at_origin> minkowski_space_obj;
     minkowski_space_obj.name = "minkowski";
     minkowski_space_obj.adaptive_precision = false;
-    minkowski_space_obj.system = metric::coordinate_system::CARTESIAN;
+    minkowski_space_obj.system = metric::coordinate_system::CARTESIAN;*/
 
     metric::metric<minkowski_polar, polar_to_polar, polar_to_polar, at_origin> minkowski_polar_obj;
-    minkowski_space_obj.name = "minkowski_polar";
-    minkowski_space_obj.adaptive_precision = false;
+    minkowski_polar_obj.name = "minkowski_polar";
+    minkowski_polar_obj.adaptive_precision = false;
 
-    metric::metric<minkowski_cylindrical, cylindrical_to_polar, polar_to_cylindrical, at_origin> minkowski_cylindrical_obj;
+    /*metric::metric<minkowski_cylindrical, cylindrical_to_polar, polar_to_cylindrical, at_origin> minkowski_cylindrical_obj;
     minkowski_cylindrical_obj.name = "minkowski_cylindrical";
     minkowski_cylindrical_obj.adaptive_precision = false;
-    minkowski_cylindrical_obj.system = metric::coordinate_system::OTHER;
+    minkowski_cylindrical_obj.system = metric::coordinate_system::OTHER;*/
 
     metric::metric<alcubierre_metric, cartesian_to_polar_dual, polar_to_cartesian_dual, alcubierre_distance> alcubierre_metric_obj;
     alcubierre_metric_obj.name = "alcubierre";
