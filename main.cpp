@@ -1502,7 +1502,7 @@ int main()
 
     opencl_context& clctx = *win.clctx;
 
-    std::string argument_string = "-O3 -cl-std=CL2.2 ";
+    //std::string argument_string = "-O3 -cl-std=CL2.2 ";
 
     #if 1
     #ifdef GENERIC_METRIC
@@ -1700,7 +1700,7 @@ int main()
     //cfg.error_override = 100.f;
     //cfg.error_override = 0.000001f;
     //cfg.error_override = 0.000001f;
-    //cfg.error_override = 0.0001f;
+    cfg.error_override = 0.0001f;
     //cfg.redshift = true;
 
     //auto current_metric = symmetric_warp_obj;
@@ -1720,22 +1720,24 @@ int main()
     //auto current_metric = ellis_drainhole_obj;
     //auto current_metric = configurable_wormhole_obj;
     //auto current_metric = book_metric_obj;
-    auto current_metric = kerr_value_obj;
+    //auto current_metric = kerr_value_obj;
 
-    argument_string += build_argument_string(*current_metric, cfg);
+    //argument_string += build_argument_string(*current_metric, cfg);
     #endif // GENERIC_METRIC
 
-    std::cout << "ASTRING " << argument_string << std::endl;
-    std::cout << "SIZE " << argument_string.size() << std::endl;
+    //std::cout << "ASTRING " << argument_string << std::endl;
+    //std::cout << "SIZE " << argument_string.size() << std::endl;
 
     #endif // GENERIC_METRIC
 
-    printf("WLs %f %f %f\n", chromaticity::srgb_to_wavelength({1, 0, 0}), chromaticity::srgb_to_wavelength({0, 1, 0}), chromaticity::srgb_to_wavelength({0, 0, 1}));
+    /*printf("WLs %f %f %f\n", chromaticity::srgb_to_wavelength({1, 0, 0}), chromaticity::srgb_to_wavelength({0, 1, 0}), chromaticity::srgb_to_wavelength({0, 0, 1}));
 
-    cl::program prog(clctx.ctx, "cl.cl");
-    prog.build(clctx.ctx, argument_string);
+    {
+        cl::program prog(clctx.ctx, "cl.cl");
+        prog.build(clctx.ctx, argument_string);
 
-    clctx.ctx.register_program(prog);
+        clctx.ctx.register_program(prog);
+    }*/
 
     int supersample_mult = 2;
 
@@ -1862,6 +1864,8 @@ int main()
     bool camera_geodesics_go_foward = true;
     //vec2f base_angle = {M_PI/2, 0};
     vec2f base_angle = {M_PI/2, 0};
+
+    int selected_idx = -1;
 
     while(!win.should_close())
     {
@@ -2093,8 +2097,40 @@ int main()
 
             ImGui::Checkbox("Camera Snapshot Geodesic goes forward", &camera_geodesics_go_foward);
 
+            int last_selected = selected_idx;
+
+            std::vector<const char*> items;
+
+            for(auto& i : all_metrics)
+            {
+                items.push_back(i->name.c_str());
+            }
+
+            ImGui::ListBox("Metrics", &selected_idx, &items[0], items.size());
+
+            if(selected_idx == -1)
+                selected_idx = 0;
+
+            if(selected_idx != last_selected)
+            {
+                if(clctx.ctx.programs.size() > 0)
+                    clctx.ctx.deregister_program(0);
+
+                std::string argument_string = "-O3 -cl-std=CL2.2 " + all_metrics[selected_idx]->build(cfg);
+
+                cl::program prog(clctx.ctx, "cl.cl");
+
+                prog.build(clctx.ctx, argument_string);
+
+                clctx.ctx.register_program(prog);
+
+                termination_buffer.set_to_zero(clctx.cqueue);
+            }
+
             ImGui::End();
         }
+
+        auto& current_metric = all_metrics[selected_idx];
 
         int width = win.get_window_size().x();
         int height = win.get_window_size().y();
