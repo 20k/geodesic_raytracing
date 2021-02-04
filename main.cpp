@@ -1011,6 +1011,7 @@ std::array<dual, 16> krasnikov_tube_metric_cart(dual t, dual x, dual y, dual z)
     return ret;
 }
 
+///https://hal.archives-ouvertes.fr/hal-01862911/document
 inline
 std::array<dual, 16> natario_warp_drive_metric(dual t, dual rs_t, dual theta, dual phi)
 {
@@ -1020,6 +1021,7 @@ std::array<dual, 16> natario_warp_drive_metric(dual t, dual rs_t, dual theta, du
     std::array<dual, 16> ret;
 
     dual f_rs = (tanh(sigma * (rs_t + R)) - tanh(sigma * (rs_t - R))) / (2 * tanh(sigma * R));
+    dual n_rs = 0.5f * (1 - f_rs);
 }
 
 ///rendering alcubierre nicely is very hard: the shell is extremely thin, and flat on both sides
