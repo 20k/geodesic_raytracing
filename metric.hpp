@@ -20,6 +20,7 @@ namespace metric
     struct metric_base
     {
         std::string name;
+        bool use_prepass = false;
 
         virtual std::string build(const config& cfg);
     };
@@ -42,7 +43,6 @@ namespace metric
         bool detect_singularities = false;
         float max_acceleration_change = 0.0000001f;
         bool follow_geodesics_forward = false;
-        bool use_prepass = false;
 
         coordinate_system system = coordinate_system::X_Y_THETA_PHI;
 
