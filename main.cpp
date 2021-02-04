@@ -1327,6 +1327,36 @@ std::array<dual, 4> book_metric(dual t, dual r, dual theta, dual phi)
     return {-dt, -dr, -dtheta, -dphi};
 }
 
+///https://en.wikipedia.org/wiki/BKL_singularity#Kasner_solution
+///https://en.wikipedia.org/wiki/Kasner_metric
+inline
+std::array<dual, 4> kasner_metric(dual t, dual x, dual y, dual z)
+{
+    int u = 2;
+
+    auto p_1 = [](float u)
+    {
+        return -u / (1 + u + u * u);
+    };
+
+    auto p_2 = [](float u)
+    {
+        return (1 + u) / (1 + u + u*u);
+    };
+
+    auto p_3 = [](float u)
+    {
+        return (u * (1 + u)) / (1 + u + u*u);
+    };
+
+    dual dt = -1;
+    dual dx = pow(t, 2 * p_1(u));
+    dual dy = pow(t, 2 * p_2(u));
+    dual dz = pow(t, 2 * p_3(u));
+
+    return {dt, dx, dy, dz};
+}
+
 inline
 dual at_origin(dual t, dual r, dual theta, dual phi)
 {
@@ -1664,6 +1694,12 @@ int main()
     book_metric_obj->use_prepass = true;
     book_metric_obj->system = metric::coordinate_system::X_Y_THETA_PHI;
 
+    auto kasner_metric_obj = new metric::metric<kasner_metric, cartesian_to_polar_dual, polar_to_cartesian_dual, at_origin>;
+    kasner_metric_obj->name = "kasner";
+    kasner_metric_obj->adaptive_precision = true;
+    kasner_metric_obj->detect_singularities = true;
+    kasner_metric_obj->system = metric::coordinate_system::CARTESIAN;
+
     std::vector<metric::metric_base*> all_metrics;
 
     all_metrics.push_back(schwarzs_polar);
@@ -1692,14 +1728,15 @@ int main()
     all_metrics.push_back(unequal_double_kerr_obj);
     all_metrics.push_back(double_schwarzschild_obj);
     all_metrics.push_back(book_metric_obj);
+    all_metrics.push_back(kasner_metric_obj);
 
     metric::config cfg;
     ///necessary for double schwarzs
-    cfg.universe_size = 200;
+    cfg.universe_size = 20;
     //cfg.error_override = 100.f;
     //cfg.error_override = 0.000001f;
     //cfg.error_override = 0.000001f;
-    cfg.error_override = 0.0001f;
+    cfg.error_override = 0.00001f;
     //cfg.redshift = true;
     #endif // GENERIC_METRIC
 
