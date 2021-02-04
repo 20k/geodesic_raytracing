@@ -6,6 +6,9 @@
 
 namespace dual_types
 {
+    template<typename T>
+    concept Arithmetic = std::is_arithmetic_v<T>;
+
     inline
     std::string to_string_s(float v)
     {

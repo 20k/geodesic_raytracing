@@ -1488,7 +1488,7 @@ cl::image_with_mipmaps load_mipped_image(const std::string& fname, opencl_contex
 ///i need the ability to have dynamic parameters
 int main()
 {
-    dual_types::test_operation();
+    //dual_types::test_operation();
 
     render_settings sett;
     sett.width = 1422/1;
