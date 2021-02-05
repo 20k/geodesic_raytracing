@@ -1736,7 +1736,7 @@ int main()
     //cfg.error_override = 100.f;
     //cfg.error_override = 0.000001f;
     //cfg.error_override = 0.000001f;
-    cfg.error_override = 0.00001f;
+    //cfg.error_override = 0.00001f;
     //cfg.redshift = true;
     #endif // GENERIC_METRIC
 
@@ -1864,7 +1864,9 @@ int main()
     bool camera_geodesics_go_foward = true;
     vec2f base_angle = {M_PI/2, 0};
 
+    int current_idx = -1;
     int selected_idx = -1;
+    float selected_error = 0;
 
     while(!win.should_close())
     {
@@ -1933,115 +1935,118 @@ int main()
 
         float speed = 0.001;
 
-        if(ImGui::IsKeyDown(GLFW_KEY_LEFT_SHIFT))
-            speed = 0.1;
-
-        if(ImGui::IsKeyDown(GLFW_KEY_LEFT_CONTROL))
-            speed = 0.00001;
-
-        if(ImGui::IsKeyDown(GLFW_KEY_LEFT_ALT))
-            speed /= 1000;
-
-        if(ImGui::IsKeyDown(GLFW_KEY_Z))
-            speed *= 100;
-
-        if(ImGui::IsKeyDown(GLFW_KEY_X))
-            speed *= 100;
-
-        if(ImGui::IsKeyPressed(GLFW_KEY_B))
+        if(!ImGui::GetIO().WantCaptureKeyboard)
         {
-            camera = {0, 0, 0, -100};
+            if(ImGui::IsKeyDown(GLFW_KEY_LEFT_SHIFT))
+                speed = 0.1;
+
+            if(ImGui::IsKeyDown(GLFW_KEY_LEFT_CONTROL))
+                speed = 0.00001;
+
+            if(ImGui::IsKeyDown(GLFW_KEY_LEFT_ALT))
+                speed /= 1000;
+
+            if(ImGui::IsKeyDown(GLFW_KEY_Z))
+                speed *= 100;
+
+            if(ImGui::IsKeyDown(GLFW_KEY_X))
+                speed *= 100;
+
+            if(ImGui::IsKeyPressed(GLFW_KEY_B))
+            {
+                camera = {0, 0, 0, -100};
+            }
+
+            if(ImGui::IsKeyPressed(GLFW_KEY_N))
+            {
+                camera = {0, 0, 0, -1.16};
+            }
+
+            if(ImGui::IsKeyPressed(GLFW_KEY_M))
+            {
+                camera = {0, 0, 0, 1.16};
+            }
+
+            if(ImGui::IsKeyPressed(GLFW_KEY_J))
+            {
+                camera = {0, -1.16, 0, 0};
+            }
+
+            if(ImGui::IsKeyPressed(GLFW_KEY_K))
+            {
+                camera = {0, 1.16, 0, 0};
+            }
+
+            if(ImGui::IsKeyPressed(GLFW_KEY_V))
+            {
+                camera = {0, 0, 0, 1.03};
+            }
+
+            if(ImGui::IsKeyPressed(GLFW_KEY_C))
+            {
+                camera = {0, 0, 0, 0};
+            }
+
+            if(ImGui::IsKeyPressed(GLFW_KEY_R))
+            {
+                camera = {0, 0, 22, 0};
+            }
+
+            if(ImGui::IsKeyDown(GLFW_KEY_RIGHT))
+            {
+                mat3f m = mat3f().ZRot(M_PI/128);
+
+                quat q;
+                q.load_from_matrix(m);
+
+                camera_quat = q * camera_quat;
+            }
+
+            if(ImGui::IsKeyDown(GLFW_KEY_LEFT))
+            {
+                mat3f m = mat3f().ZRot(-M_PI/128);
+
+                quat q;
+                q.load_from_matrix(m);
+
+                camera_quat = q * camera_quat;
+            }
+
+            if(ImGui::IsKeyPressed(GLFW_KEY_1))
+            {
+                flip_sign = !flip_sign;
+            }
+
+            vec3f up = {0, 0, -1};
+            vec3f right = rot_quat({1, 0, 0}, camera_quat);
+            vec3f forward_axis = rot_quat({0, 0, 1}, camera_quat);
+
+            if(ImGui::IsKeyDown(GLFW_KEY_DOWN))
+            {
+                quat q;
+                q.load_from_axis_angle({right.x(), right.y(), right.z(), M_PI/128});
+
+                camera_quat = q * camera_quat;
+            }
+
+            if(ImGui::IsKeyDown(GLFW_KEY_UP))
+            {
+                quat q;
+                q.load_from_axis_angle({right.x(), right.y(), right.z(), -M_PI/128});
+
+                camera_quat = q * camera_quat;
+            }
+
+            vec3f offset = {0,0,0};
+
+            offset += forward_axis * ((ImGui::IsKeyDown(GLFW_KEY_W) - ImGui::IsKeyDown(GLFW_KEY_S)) * speed);
+            offset += right * (ImGui::IsKeyDown(GLFW_KEY_D) - ImGui::IsKeyDown(GLFW_KEY_A)) * speed;
+            offset += up * (ImGui::IsKeyDown(GLFW_KEY_E) - ImGui::IsKeyDown(GLFW_KEY_Q)) * speed;
+
+            camera.y() += offset.x();
+            camera.z() += offset.y();
+            camera.w() += offset.z();
         }
-
-        if(ImGui::IsKeyPressed(GLFW_KEY_N))
-        {
-            camera = {0, 0, 0, -1.16};
-        }
-
-        if(ImGui::IsKeyPressed(GLFW_KEY_M))
-        {
-            camera = {0, 0, 0, 1.16};
-        }
-
-        if(ImGui::IsKeyPressed(GLFW_KEY_J))
-        {
-            camera = {0, -1.16, 0, 0};
-        }
-
-        if(ImGui::IsKeyPressed(GLFW_KEY_K))
-        {
-            camera = {0, 1.16, 0, 0};
-        }
-
-        if(ImGui::IsKeyPressed(GLFW_KEY_V))
-        {
-            camera = {0, 0, 0, 1.03};
-        }
-
-        if(ImGui::IsKeyPressed(GLFW_KEY_C))
-        {
-            camera = {0, 0, 0, 0};
-        }
-
-        if(ImGui::IsKeyPressed(GLFW_KEY_R))
-        {
-            camera = {0, 0, 22, 0};
-        }
-
-        if(ImGui::IsKeyDown(GLFW_KEY_RIGHT))
-        {
-            mat3f m = mat3f().ZRot(M_PI/128);
-
-            quat q;
-            q.load_from_matrix(m);
-
-            camera_quat = q * camera_quat;
-        }
-
-        if(ImGui::IsKeyDown(GLFW_KEY_LEFT))
-        {
-            mat3f m = mat3f().ZRot(-M_PI/128);
-
-            quat q;
-            q.load_from_matrix(m);
-
-            camera_quat = q * camera_quat;
-        }
-
-        if(ImGui::IsKeyPressed(GLFW_KEY_1))
-        {
-            flip_sign = !flip_sign;
-        }
-
-        vec3f up = {0, 0, -1};
-        vec3f right = rot_quat({1, 0, 0}, camera_quat);
-        vec3f forward_axis = rot_quat({0, 0, 1}, camera_quat);
-
-        if(ImGui::IsKeyDown(GLFW_KEY_DOWN))
-        {
-            quat q;
-            q.load_from_axis_angle({right.x(), right.y(), right.z(), M_PI/128});
-
-            camera_quat = q * camera_quat;
-        }
-
-        if(ImGui::IsKeyDown(GLFW_KEY_UP))
-        {
-            quat q;
-            q.load_from_axis_angle({right.x(), right.y(), right.z(), -M_PI/128});
-
-            camera_quat = q * camera_quat;
-        }
-
-        vec3f offset = {0,0,0};
-
-        offset += forward_axis * ((ImGui::IsKeyDown(GLFW_KEY_W) - ImGui::IsKeyDown(GLFW_KEY_S)) * speed);
-        offset += right * (ImGui::IsKeyDown(GLFW_KEY_D) - ImGui::IsKeyDown(GLFW_KEY_A)) * speed;
-        offset += up * (ImGui::IsKeyDown(GLFW_KEY_E) - ImGui::IsKeyDown(GLFW_KEY_Q)) * speed;
-
-        camera.y() += offset.x();
-        camera.z() += offset.y();
-        camera.w() += offset.z();
 
         vec4f scamera = cartesian_to_schwarz(camera);
 
@@ -2094,7 +2099,7 @@ int main()
 
             ImGui::Checkbox("Camera Snapshot Geodesic goes forward", &camera_geodesics_go_foward);
 
-            int last_selected = selected_idx;
+            ImGui::InputFloat("Error Tolerance", &selected_error, 0.0000001f, 0.00001f, "%.8f");
 
             std::vector<const char*> items;
 
@@ -2105,11 +2110,18 @@ int main()
 
             ImGui::ListBox("Metrics", &selected_idx, &items[0], items.size());
 
-            if(selected_idx == -1)
-                selected_idx = 0;
-
-            if(selected_idx != last_selected)
+            if(ImGui::Button("Recompile") || current_idx == -1)
             {
+                if(selected_idx == -1)
+                    selected_idx = 0;
+
+                if(selected_idx != current_idx)
+                    selected_error = all_metrics[selected_idx]->max_acceleration_change;
+
+                cfg.error_override = selected_error;
+
+                current_idx = selected_idx;
+
                 if(clctx.ctx.programs.size() > 0)
                     clctx.ctx.deregister_program(0);
 

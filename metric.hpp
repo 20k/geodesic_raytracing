@@ -21,6 +21,7 @@ namespace metric
     {
         std::string name;
         bool use_prepass = false;
+        float max_acceleration_change = 0.0000001f;
 
         virtual std::string build(const config& cfg);
     };
@@ -41,7 +42,6 @@ namespace metric
 
         bool adaptive_precision = true;
         bool detect_singularities = false;
-        float max_acceleration_change = 0.0000001f;
         bool follow_geodesics_forward = false;
 
         coordinate_system system = coordinate_system::X_Y_THETA_PHI;
