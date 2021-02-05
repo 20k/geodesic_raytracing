@@ -2099,6 +2099,12 @@ int main()
 
             ImGui::Checkbox("Camera Snapshot Geodesic goes forward", &camera_geodesics_go_foward);
 
+            ImGui::Separator();
+
+            ImGui::Text("Compile Options");
+
+            ImGui::Checkbox("Redshift", &cfg.redshift);
+
             ImGui::InputFloat("Error Tolerance", &selected_error, 0.0000001f, 0.00001f, "%.8f");
 
             std::vector<const char*> items;
