@@ -1814,7 +1814,7 @@ int main()
 
     termination_buffer.alloc(supersample_width * supersample_height * sizeof(cl_int));
 
-    printf("Allocated termination buffer")
+    printf("Allocated termination buffer");
 
     termination_buffer.set_to_zero(clctx.cqueue);
 
