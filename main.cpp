@@ -1814,7 +1814,7 @@ int main()
 
     termination_buffer.alloc(supersample_width * supersample_height * sizeof(cl_int));
 
-    printf("Allocated termination buffer");
+    printf("Allocated termination buffer\n");
 
     termination_buffer.set_to_zero(clctx.cqueue);
 
@@ -1869,7 +1869,7 @@ int main()
 
     cl_sampler sam = clCreateSamplerWithProperties(clctx.ctx.native_context.data, sampler_props, nullptr);
 
-    printf("Created sampler");
+    printf("Created sampler\n");
 
     std::optional<cl::event> last_event;
 
