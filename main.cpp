@@ -1765,7 +1765,11 @@ int main()
     cl::image_with_mipmaps background_mipped = load_mipped_image("background.png", clctx);
     cl::image_with_mipmaps background_mipped2 = load_mipped_image("background2.png", clctx);
 
+    printf("Pre dqueue\n");
+
     cl::device_command_queue dqueue(clctx.ctx);
+
+    printf("Post dqueue\n");
 
     ///t, x, y, z
     //vec4f camera = {0, -2, -2, 0};
@@ -1786,6 +1790,8 @@ int main()
 
     int ray_count = supersample_width * supersample_height;
 
+    printf("Pre buffer declarations\n");
+
     cl::buffer schwarzs_1(clctx.ctx);
     cl::buffer schwarzs_scratch(clctx.ctx);
     cl::buffer schwarzs_prepass(clctx.ctx);
@@ -1803,13 +1809,25 @@ int main()
     cl::buffer finished_count_1(clctx.ctx);
 
     cl::buffer termination_buffer(clctx.ctx);
+
+    printf("Post buffer declarations\n");
+
     termination_buffer.alloc(supersample_width * supersample_height * sizeof(cl_int));
+
+    printf("Allocated termination buffer")
+
     termination_buffer.set_to_zero(clctx.cqueue);
+
+    printf("Zero termination buffer\n");
 
     cl::buffer geodesic_trace_buffer(clctx.ctx);
     geodesic_trace_buffer.alloc(64000 * sizeof(cl_float4));
 
+    printf("Alloc trace buffer\n");
+
     std::vector<cl_float4> current_geodesic_path;
+
+    printf("Pre texture coordinates\n");
 
     cl::buffer texture_coordinates[2] = {clctx.ctx, clctx.ctx};
 
@@ -1818,6 +1836,8 @@ int main()
         texture_coordinates[i].alloc(supersample_width * supersample_height * sizeof(float) * 2);
         texture_coordinates[i].set_to_zero(clctx.cqueue);
     }
+
+    printf("Post texture coordinates\n");
 
     schwarzs_1.alloc(sizeof(lightray) * ray_count);
     schwarzs_scratch.alloc(sizeof(lightray) * ray_count);
@@ -1835,6 +1855,8 @@ int main()
     kruskal_count_2.alloc(sizeof(int));
     finished_count_1.alloc(sizeof(int));
 
+    printf("Alloc rays and counts\n");
+
     cl_sampler_properties sampler_props[] = {
     CL_SAMPLER_NORMALIZED_COORDS, CL_TRUE,
     CL_SAMPLER_ADDRESSING_MODE, CL_ADDRESS_REPEAT,
@@ -1846,6 +1868,8 @@ int main()
     };
 
     cl_sampler sam = clCreateSamplerWithProperties(clctx.ctx.native_context.data, sampler_props, nullptr);
+
+    printf("Created sampler");
 
     std::optional<cl::event> last_event;
 
@@ -1867,6 +1891,8 @@ int main()
     int current_idx = -1;
     int selected_idx = -1;
     float selected_error = 0;
+
+    printf("Pre main\n");
 
     while(!win.should_close())
     {
