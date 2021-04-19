@@ -2157,7 +2157,7 @@ int main()
                 if(clctx.ctx.programs.size() > 0)
                     clctx.ctx.deregister_program(0);
 
-                std::string argument_string = "-O3 -cl-std=CL2.2 " + all_metrics[selected_idx]->build(cfg);
+                std::string argument_string = "-O3 -cl-std=CL2.0 " + all_metrics[selected_idx]->build(cfg);
 
                 cl::program prog(clctx.ctx, "cl.cl");
 
