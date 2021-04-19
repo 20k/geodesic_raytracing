@@ -2742,7 +2742,7 @@ void relauncher_generic(__global struct lightray* generic_rays_in, __global stru
 
     enqueue_kernel(get_default_queue(), CLK_ENQUEUE_FLAGS_NO_WAIT,
                    ndrange_1D(offset, generic_count, loffset),
-                   1, NULL, &f3,
+                   0, NULL, &f3,
                    ^{
                         do_generic_rays (generic_rays_in, generic_rays_out,
                                          finished_rays,

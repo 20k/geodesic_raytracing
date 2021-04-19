@@ -23,7 +23,7 @@ namespace metric
         bool use_prepass = false;
         float max_acceleration_change = 0.0000001f;
 
-        virtual std::string build(const config& cfg);
+        virtual std::string build(const config& cfg){return std::string();}
     };
 
     template<auto T, auto U, auto V, auto distance_function>
