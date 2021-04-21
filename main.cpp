@@ -1536,17 +1536,17 @@ int main()
 
     #ifdef GENERIC_METRIC
 
-    auto schwarzs_polar = new metric::metric<schwarzschild_blackhole, polar_to_polar, polar_to_polar, at_origin>();
+    auto schwarzs_polar = new metrics::metric<schwarzschild_blackhole, polar_to_polar, polar_to_polar, at_origin>();
     schwarzs_polar->name = "schwarzschild";
     schwarzs_polar->singular = true;
     schwarzs_polar->adaptive_precision = false;
 
-    auto schwarzs_polar_accurate = new metric::metric<schwarzschild_blackhole, polar_to_polar, polar_to_polar, at_origin>;
+    auto schwarzs_polar_accurate = new metrics::metric<schwarzschild_blackhole, polar_to_polar, polar_to_polar, at_origin>;
     schwarzs_polar_accurate->name = "schwarzschild_accurate";
     schwarzs_polar_accurate->adaptive_precision = true;
     schwarzs_polar_accurate->detect_singularities = true;
 
-    auto schwarzs_lemaitre = new metric::metric<schwarzschild_blackhole_lemaitre, lemaitre_to_polar, polar_to_lemaitre, at_origin>;
+    auto schwarzs_lemaitre = new metrics::metric<schwarzschild_blackhole_lemaitre, lemaitre_to_polar, polar_to_lemaitre, at_origin>;
     schwarzs_lemaitre->name = "schwarzs_lemaitre";
     //schwarzs_lemaitre->singular = true;
     //schwarzs_lemaitre->traversible_event_horizon = true;
@@ -1556,151 +1556,151 @@ int main()
     schwarzs_lemaitre->singular_terminator = 0.5;
     schwarzs_lemaitre->traversable_event_horizon = true;
     schwarzs_lemaitre->follow_geodesics_forward = true;
-    //schwarzs_lemaitre->system = metric::coordinate_system::OTHER;
+    //schwarzs_lemaitre->system = metrics::coordinate_system::OTHER;
     //schwarzs_lemaitre->detect_singularities = true;
 
-    auto schwarzschild_ef_outgoing = new metric::metric<schwarzschild_eddington_finkelstein_outgoing, outgoing_eddington_finkelstein_to_polar, polar_to_outgoing_eddington_finkelstein, at_origin>;
+    auto schwarzschild_ef_outgoing = new metrics::metric<schwarzschild_eddington_finkelstein_outgoing, outgoing_eddington_finkelstein_to_polar, polar_to_outgoing_eddington_finkelstein, at_origin>;
     schwarzschild_ef_outgoing->name = "schwarzs_ef_out";
     schwarzschild_ef_outgoing->adaptive_precision = true;
     schwarzschild_ef_outgoing->singular = true;
     schwarzschild_ef_outgoing->singular_terminator = 0.5;
     schwarzschild_ef_outgoing->traversable_event_horizon = true;
 
-    auto simple_wormhole = new metric::metric<traversible_wormhole, polar_to_polar, polar_to_polar, at_origin>;
+    auto simple_wormhole = new metrics::metric<traversible_wormhole, polar_to_polar, polar_to_polar, at_origin>;
     simple_wormhole->name = "wormhole";
     simple_wormhole->adaptive_precision = false;
 
-    auto configurable_wormhole_obj = new metric::metric<configurable_wormhole, polar_to_polar, polar_to_polar, at_origin>;
+    auto configurable_wormhole_obj = new metrics::metric<configurable_wormhole, polar_to_polar, polar_to_polar, at_origin>;
     configurable_wormhole_obj->name = "configurable_wormhole";
     configurable_wormhole_obj->adaptive_precision = true;
 
-    auto cosmic_string_obj = new metric::metric<cosmic_string, polar_to_polar, polar_to_polar, at_origin>;
+    auto cosmic_string_obj = new metrics::metric<cosmic_string, polar_to_polar, polar_to_polar, at_origin>;
     cosmic_string_obj->name = "cosmic_string";
     cosmic_string_obj->adaptive_precision = true;
     cosmic_string_obj->detect_singularities = true;
 
     ///todo: i forgot what this is and what parameters it might need
-    auto ernst_metric_obj = new metric::metric<ernst_metric, polar_to_polar, polar_to_polar, at_origin>;
+    auto ernst_metric_obj = new metrics::metric<ernst_metric, polar_to_polar, polar_to_polar, at_origin>;
     ernst_metric_obj->name = "ernst";
     ernst_metric_obj->adaptive_precision = true;
     ernst_metric_obj->detect_singularities = true;
 
-    auto janis_newman_winicour_obj = new metric::metric<janis_newman_winicour, polar_to_polar, polar_to_polar, at_origin>;
+    auto janis_newman_winicour_obj = new metrics::metric<janis_newman_winicour, polar_to_polar, polar_to_polar, at_origin>;
     janis_newman_winicour_obj->name = "janis_newman_winicour";
     janis_newman_winicour_obj->detect_singularities = false;
 
-    auto ellis_drainhole_obj = new metric::metric<ellis_drainhole, polar_to_polar, polar_to_polar, at_origin>;
+    auto ellis_drainhole_obj = new metrics::metric<ellis_drainhole, polar_to_polar, polar_to_polar, at_origin>;
     ellis_drainhole_obj->name = "ellis_drainhole";
     ellis_drainhole_obj->adaptive_precision = false;
 
     ///kerr family
-    auto kerr_obj = new metric::metric<kerr_metric, polar_to_polar, polar_to_polar, at_origin>;
+    auto kerr_obj = new metrics::metric<kerr_metric, polar_to_polar, polar_to_polar, at_origin>;
     kerr_obj->name = "kerr_boyer";
     kerr_obj->adaptive_precision = true;
     kerr_obj->detect_singularities = true;
     kerr_obj->use_prepass = true;
 
-    auto kerr_value_obj = new metric::metric<kerr_operation, polar_to_polar, polar_to_polar, at_origin>;
+    auto kerr_value_obj = new metrics::metric<kerr_operation, polar_to_polar, polar_to_polar, at_origin>;
     kerr_value_obj->name = "kerr_value";
     kerr_value_obj->adaptive_precision = true;
     kerr_value_obj->detect_singularities = true;
     kerr_value_obj->use_prepass = true;
 
-    auto kerr_newman_obj = new metric::metric<kerr_newman, polar_to_polar, polar_to_polar, at_origin>;
+    auto kerr_newman_obj = new metrics::metric<kerr_newman, polar_to_polar, polar_to_polar, at_origin>;
     kerr_newman_obj->name = "kerrnewman_boyer";
     kerr_newman_obj->adaptive_precision = true;
     kerr_newman_obj->detect_singularities = true;
     kerr_newman_obj->use_prepass = true;
 
-    auto kerr_schild_obj = new metric::metric<kerr_schild_metric, cartesian_to_polar_dual, polar_to_cartesian_dual, at_origin>;
+    auto kerr_schild_obj = new metrics::metric<kerr_schild_metric, cartesian_to_polar_dual, polar_to_cartesian_dual, at_origin>;
     kerr_schild_obj->name = "kerr_schild";
     kerr_schild_obj->adaptive_precision = true;
     kerr_schild_obj->detect_singularities = true;
-    kerr_schild_obj->system = metric::coordinate_system::CARTESIAN;
+    kerr_schild_obj->system = metrics::coordinate_system::CARTESIAN;
 
-    auto kerr_rational_polynomial_obj = new metric::metric<kerr_rational_polynomial, rational_to_polar, polar_to_rational, at_origin>;
+    auto kerr_rational_polynomial_obj = new metrics::metric<kerr_rational_polynomial, rational_to_polar, polar_to_rational, at_origin>;
     kerr_rational_polynomial_obj->name = "kerr_rational_poly";
     kerr_rational_polynomial_obj->adaptive_precision = true;
     kerr_rational_polynomial_obj->detect_singularities = true;
 
-    auto de_sitter_obj = new metric::metric<de_sitter, polar_to_polar, polar_to_polar, at_origin>;
+    auto de_sitter_obj = new metrics::metric<de_sitter, polar_to_polar, polar_to_polar, at_origin>;
     de_sitter_obj->name = "desitter";
     de_sitter_obj->adaptive_precision = false;
 
-    /*metric::metric<minkowski_space, cartesian_to_polar_dual, polar_to_cartesian_dual, at_origin> minkowski_space_obj;
+    /*metrics::metric<minkowski_space, cartesian_to_polar_dual, polar_to_cartesian_dual, at_origin> minkowski_space_obj;
     minkowski_space_obj->name = "minkowski";
     minkowski_space_obj->adaptive_precision = false;
-    minkowski_space_obj->system = metric::coordinate_system::CARTESIAN;*/
+    minkowski_space_obj->system = metrics::coordinate_system::CARTESIAN;*/
 
-    auto minkowski_polar_obj = new metric::metric<minkowski_polar, polar_to_polar, polar_to_polar, at_origin>;
+    auto minkowski_polar_obj = new metrics::metric<minkowski_polar, polar_to_polar, polar_to_polar, at_origin>;
     minkowski_polar_obj->name = "minkowski_polar";
     minkowski_polar_obj->adaptive_precision = false;
 
-    /*metric::metric<minkowski_cylindrical, cylindrical_to_polar, polar_to_cylindrical, at_origin> minkowski_cylindrical_obj;
+    /*metrics::metric<minkowski_cylindrical, cylindrical_to_polar, polar_to_cylindrical, at_origin> minkowski_cylindrical_obj;
     minkowski_cylindrical_obj->name = "minkowski_cylindrical";
     minkowski_cylindrical_obj->adaptive_precision = false;
-    minkowski_cylindrical_obj->system = metric::coordinate_system::OTHER;*/
+    minkowski_cylindrical_obj->system = metrics::coordinate_system::OTHER;*/
 
-    auto alcubierre_metric_obj = new metric::metric<alcubierre_metric, cartesian_to_polar_dual, polar_to_cartesian_dual, alcubierre_distance>;
+    auto alcubierre_metric_obj = new metrics::metric<alcubierre_metric, cartesian_to_polar_dual, polar_to_cartesian_dual, alcubierre_distance>;
     alcubierre_metric_obj->name = "alcubierre";
-    alcubierre_metric_obj->system = metric::coordinate_system::CARTESIAN;
+    alcubierre_metric_obj->system = metrics::coordinate_system::CARTESIAN;
 
-    auto symmetric_warp_obj = new metric::metric<symmetric_warp_drive, polar_to_polar, polar_to_polar, at_origin>;
+    auto symmetric_warp_obj = new metrics::metric<symmetric_warp_drive, polar_to_polar, polar_to_polar, at_origin>;
     symmetric_warp_obj->name = "symmetric_warp";
     symmetric_warp_obj->detect_singularities = true;
     symmetric_warp_obj->singular = true;
     symmetric_warp_obj->singular_terminator = 1.001f;
     //symmetric_warp_obj->adaptive_precision = false;
 
-    auto krasnikov_tube_obj = new metric::metric<krasnikov_tube_metric, cylindrical_to_polar, polar_to_cylindrical, at_origin>;
+    auto krasnikov_tube_obj = new metrics::metric<krasnikov_tube_metric, cylindrical_to_polar, polar_to_cylindrical, at_origin>;
     krasnikov_tube_obj->name = "krasnikov_tube";
     krasnikov_tube_obj->adaptive_precision = true;
-    krasnikov_tube_obj->system = metric::coordinate_system::OTHER;
+    krasnikov_tube_obj->system = metrics::coordinate_system::OTHER;
 
-    auto krasnikov_tube_cart_obj = new metric::metric<krasnikov_tube_metric_cart, cartesian_to_polar_dual, polar_to_cartesian_dual, at_origin>;
+    auto krasnikov_tube_cart_obj = new metrics::metric<krasnikov_tube_metric_cart, cartesian_to_polar_dual, polar_to_cartesian_dual, at_origin>;
     krasnikov_tube_cart_obj->name = "krasnikov_tube_cart";
     krasnikov_tube_cart_obj->adaptive_precision = true;
-    krasnikov_tube_cart_obj->system = metric::coordinate_system::CARTESIAN;
+    krasnikov_tube_cart_obj->system = metrics::coordinate_system::CARTESIAN;
 
-    auto double_kerr_alt_obj = new metric::metric<double_kerr_alt, cylindrical_to_polar, polar_to_cylindrical, at_origin>;
+    auto double_kerr_alt_obj = new metrics::metric<double_kerr_alt, cylindrical_to_polar, polar_to_cylindrical, at_origin>;
     double_kerr_alt_obj->name = "double_kerr_alt";
     double_kerr_alt_obj->adaptive_precision = true;
     double_kerr_alt_obj->detect_singularities = true;
-    double_kerr_alt_obj->system = metric::coordinate_system::CYLINDRICAL;
+    double_kerr_alt_obj->system = metrics::coordinate_system::CYLINDRICAL;
 
-    auto double_kerr_obj = new metric::metric<double_kerr, cylindrical_to_polar, polar_to_cylindrical, at_origin>;
+    auto double_kerr_obj = new metrics::metric<double_kerr, cylindrical_to_polar, polar_to_cylindrical, at_origin>;
     double_kerr_obj->name = "double_kerr";
     double_kerr_obj->adaptive_precision = true;
     double_kerr_obj->detect_singularities = true;
-    double_kerr_obj->system = metric::coordinate_system::CYLINDRICAL;
+    double_kerr_obj->system = metrics::coordinate_system::CYLINDRICAL;
 
-    auto unequal_double_kerr_obj = new metric::metric<unequal_double_kerr, cylindrical_to_polar, polar_to_cylindrical, at_origin>;
+    auto unequal_double_kerr_obj = new metrics::metric<unequal_double_kerr, cylindrical_to_polar, polar_to_cylindrical, at_origin>;
     unequal_double_kerr_obj->name = "unequal_double_kerr";
     unequal_double_kerr_obj->adaptive_precision = true;
     unequal_double_kerr_obj->detect_singularities = true;
-    unequal_double_kerr_obj->system = metric::coordinate_system::CYLINDRICAL;
+    unequal_double_kerr_obj->system = metrics::coordinate_system::CYLINDRICAL;
     //unequal_double_kerr_obj->use_prepass = true;
 
-    auto double_schwarzschild_obj = new metric::metric<double_schwarzschild, cylindrical_to_polar, polar_to_cylindrical, at_origin>;
+    auto double_schwarzschild_obj = new metrics::metric<double_schwarzschild, cylindrical_to_polar, polar_to_cylindrical, at_origin>;
     double_schwarzschild_obj->name = "double_schwarzschild";
     double_schwarzschild_obj->adaptive_precision = true;
     double_schwarzschild_obj->detect_singularities = true;
-    double_schwarzschild_obj->system = metric::coordinate_system::CYLINDRICAL;
+    double_schwarzschild_obj->system = metrics::coordinate_system::CYLINDRICAL;
 
-    auto book_metric_obj = new metric::metric<book_metric, polar_to_polar, polar_to_polar, at_origin>;
+    auto book_metric_obj = new metrics::metric<book_metric, polar_to_polar, polar_to_polar, at_origin>;
     book_metric_obj->name = "book_metric";
     book_metric_obj->adaptive_precision = true;
     book_metric_obj->detect_singularities = false;
     book_metric_obj->use_prepass = true;
-    book_metric_obj->system = metric::coordinate_system::X_Y_THETA_PHI;
+    book_metric_obj->system = metrics::coordinate_system::X_Y_THETA_PHI;
 
-    auto kasner_metric_obj = new metric::metric<kasner_metric, cartesian_to_polar_dual, polar_to_cartesian_dual, at_origin>;
+    auto kasner_metric_obj = new metrics::metric<kasner_metric, cartesian_to_polar_dual, polar_to_cartesian_dual, at_origin>;
     kasner_metric_obj->name = "kasner";
     kasner_metric_obj->adaptive_precision = true;
     kasner_metric_obj->detect_singularities = true;
-    kasner_metric_obj->system = metric::coordinate_system::CARTESIAN;
+    kasner_metric_obj->system = metrics::coordinate_system::CARTESIAN;
 
-    std::vector<metric::metric_base*> all_metrics;
+    std::vector<metrics::metric_base*> all_metrics;
 
     all_metrics.push_back(schwarzs_polar);
     all_metrics.push_back(schwarzs_polar_accurate);
@@ -1730,7 +1730,7 @@ int main()
     all_metrics.push_back(book_metric_obj);
     all_metrics.push_back(kasner_metric_obj);
 
-    metric::config cfg;
+    metrics::config cfg;
     ///necessary for double schwarzs
     cfg.universe_size = 20;
     //cfg.error_override = 100.f;

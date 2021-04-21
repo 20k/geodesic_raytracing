@@ -4,7 +4,7 @@
 #include "dual.hpp"
 #include "dual_value.hpp"
 
-namespace metric
+namespace metrics
 {
     enum coordinate_system
     {
