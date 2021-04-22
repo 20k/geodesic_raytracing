@@ -1788,6 +1788,7 @@ int main()
     tsett.width = supersample_width;
     tsett.height = supersample_height;
     tsett.is_srgb = false;
+    tsett.generate_mipmaps = false;
 
     std::array<texture, 2> tex;
     tex[0].load_from_memory(tsett, nullptr);
@@ -1968,6 +1969,7 @@ int main()
             new_sett.width = supersample_width;
             new_sett.height = supersample_height;
             new_sett.is_srgb = false;
+            new_sett.generate_mipmaps = false;
 
             tex[0].load_from_memory(new_sett, nullptr);
             tex[1].load_from_memory(new_sett, nullptr);
