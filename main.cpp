@@ -1517,6 +1517,54 @@ cl::image_with_mipmaps load_mipped_image(const std::string& fname, opencl_contex
     return image_mipped;
 }
 
+void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& rays_out,
+                                               cl::buffer& rays_finished,
+                                               cl::buffer& count_in, cl::buffer& count_out,
+                                               cl::buffer& count_finished,
+                                               int num_rays,
+                                               bool use_device_side_enqueue)
+{
+    if(use_device_side_enqueue)
+    {
+        int fallback = 0;
+
+        cl::args run_args;
+        run_args.push_back(rays_in);
+        run_args.push_back(rays_out);
+        run_args.push_back(rays_finished);
+        run_args.push_back(count_in);
+        run_args.push_back(count_out);
+        run_args.push_back(count_finished);
+        run_args.push_back(fallback);
+
+        cqueue.exec("relauncher_generic", run_args, {1}, {1});
+    }
+    else
+    {
+        count_in.write_async(cqueue, (const char*)&num_rays, sizeof(int));
+        count_out.set_to_zero(cqueue);
+        count_finished.set_to_zero(cqueue);
+
+        cl::args run_args;
+        run_args.push_back(rays_in);
+        run_args.push_back(rays_out);
+        run_args.push_back(rays_finished);
+        run_args.push_back(count_in);
+        run_args.push_back(count_out);
+        run_args.push_back(count_finished);
+
+        std::swap(rays_in, rays_out);
+        std::swap(count_in, count_out);
+
+        cqueue.exec("do_generic_rays", run_args, {num_rays}, {256});
+    }
+}
+
+int calculate_ray_count(int width, int height)
+{
+    return (height - 1) * width + width - 1;
+}
+
 ///i need the ability to have dynamic parameters
 int main()
 {
@@ -1733,6 +1781,7 @@ int main()
     metrics::config cfg;
     ///necessary for double schwarzs
     cfg.universe_size = 20;
+    cfg.use_device_side_enqueue = false;
     //cfg.error_override = 100.f;
     //cfg.error_override = 0.000001f;
     //cfg.error_override = 0.000001f;
@@ -2159,6 +2208,11 @@ int main()
 
                 std::string argument_string = "-O3 -cl-std=CL2.0 " + all_metrics[selected_idx]->build(cfg);
 
+                if(cfg.use_device_side_enqueue)
+                {
+                    argument_string += " -DDEVICE_SIDE_ENQUEUE";
+                }
+
                 cl::program prog(clctx.ctx, "cl.cl");
 
                 prog.build(clctx.ctx, argument_string);
@@ -2289,18 +2343,9 @@ int main()
 
                 clctx.cqueue.exec("init_rays_generic", init_args_prepass, {prepass_width*prepass_height}, {256});
 
-                cl::args run_args;
-                run_args.push_back(schwarzs_prepass);
-                run_args.push_back(schwarzs_scratch);
-                run_args.push_back(finished_1);
-                run_args.push_back(schwarzs_count_prepass);
-                run_args.push_back(schwarzs_count_scratch);
-                run_args.push_back(finished_count_1);
-                run_args.push_back(prepass_width);
-                run_args.push_back(prepass_height);
-                run_args.push_back(fallback);
+                int rays_num = calculate_ray_count(prepass_width, prepass_height);
 
-                clctx.cqueue.exec("relauncher_generic", run_args, {1}, {1});
+                execute_kernel(clctx.cqueue, schwarzs_prepass, schwarzs_scratch, finished_1, schwarzs_count_prepass, schwarzs_count_scratch, finished_count_1, rays_num, cfg.use_device_side_enqueue);
 
                 cl::args singular_args;
                 singular_args.push_back(finished_1);
@@ -2349,18 +2394,9 @@ int main()
                 current_geodesic_path = geodesic_trace_buffer.read<cl_float4>(clctx.cqueue);
             }
 
-            cl::args run_args;
-            run_args.push_back(schwarzs_1);
-            run_args.push_back(schwarzs_scratch);
-            run_args.push_back(finished_1);
-            run_args.push_back(schwarzs_count_1);
-            run_args.push_back(schwarzs_count_scratch);
-            run_args.push_back(finished_count_1);
-            run_args.push_back(width);
-            run_args.push_back(height);
-            run_args.push_back(fallback);
+            int rays_num = calculate_ray_count(width, height);
 
-            clctx.cqueue.exec("relauncher_generic", run_args, {1}, {1});
+            execute_kernel(clctx.cqueue, schwarzs_1, schwarzs_scratch, finished_1, schwarzs_count_1, schwarzs_count_scratch, finished_count_1, rays_num, cfg.use_device_side_enqueue);
 
             #endif // GENERIC_METRIC
 

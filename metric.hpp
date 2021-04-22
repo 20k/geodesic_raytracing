@@ -64,6 +64,7 @@ namespace metrics
         integration_type type = integration_type::VERLET;
         std::optional<float> error_override = std::nullopt;
         bool redshift = false;
+        bool use_device_side_enqueue = true;
     };
 
     template<auto T, auto U, auto V, auto distance_function>

@@ -2447,8 +2447,14 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
     float uniform_coordinate_precision_divisor = max(max(W_V1, W_V2), max(W_V3, W_V4));
 
+    int loop_limit = 64000;
+
+    #ifdef DEVICE_SIDE_ENQUEUE
+    loop_limit /= 125;
+    #endif // DEVICE_SIDE_ENQUEUE
+
     #pragma unroll
-    for(int i=0; i < 64000/125; i++)
+    for(int i=0; i < loop_limit; i++)
     {
         #ifdef IS_CONSTANT_THETA
         position.z = M_PIf/2;
@@ -2713,12 +2719,13 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
     }
 }
 
+#ifdef DEVICE_SIDE_ENQUEUE
 __kernel
 void relauncher_generic(__global struct lightray* generic_rays_in, __global struct lightray* generic_rays_out,
                         __global struct lightray* finished_rays,
                         __global int* restrict generic_count_in, __global int* restrict generic_count_out,
                         __global int* finished_count_out,
-                        int width, int height, int fallback)
+                        int fallback)
 {
     ///failed to converge
     if(fallback > 125)
@@ -2759,11 +2766,12 @@ void relauncher_generic(__global struct lightray* generic_rays_in, __global stru
                         relauncher_generic(generic_rays_out, generic_rays_in,
                                            finished_rays,
                                            generic_count_out, generic_count_in,
-                                           finished_count_out, width, height, fallback + 1);
+                                           finished_count_out, fallback + 1);
                    });
 
     release_event(f3);
 }
+#endif // DEVICE_SIDE_ENQUEUE
 
 __kernel
 void clear_termination_buffer(__global int* termination_buffer, int width, int height)
