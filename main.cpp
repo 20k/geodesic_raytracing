@@ -10,6 +10,8 @@
 #include "metric.hpp"
 #include "chromaticity.hpp"
 #include "numerical.hpp"
+#include <imgui/misc/freetype/imgui_freetype.h>
+#include <imgui/imgui_internal.h>
 //#include "dual_complex.hpp"
 
 /**
@@ -1560,10 +1562,23 @@ int main()
     sett.height = 800/1;
     sett.opencl = true;
     sett.no_double_buffer = true;
+    sett.is_srgb = true;
 
     render_window win(sett, "Geodesics");
 
     assert(win.clctx);
+
+    ImFontAtlas* atlas = ImGui::GetIO().Fonts;
+    atlas->FontBuilderFlags = ImGuiFreeTypeBuilderFlags_LCD | ImGuiFreeTypeBuilderFlags_FILTER_DEFAULT | ImGuiFreeTypeBuilderFlags_LoadColor;
+
+    ImFontConfig font_cfg;
+    font_cfg.GlyphExtraSpacing = ImVec2(0, 0);
+    font_cfg.FontBuilderFlags = ImGuiFreeTypeBuilderFlags_LCD | ImGuiFreeTypeBuilderFlags_FILTER_DEFAULT | ImGuiFreeTypeBuilderFlags_LoadColor;
+
+    ImGuiIO& io = ImGui::GetIO();
+
+    io.Fonts->Clear();
+    io.Fonts->AddFontFromFileTTF("VeraMono.ttf", 14, &font_cfg);
 
     opencl_context& clctx = *win.clctx;
 
@@ -2198,6 +2213,11 @@ int main()
                 if(cfg.use_device_side_enqueue)
                 {
                     argument_string += " -DDEVICE_SIDE_ENQUEUE";
+                }
+
+                if(sett.is_srgb)
+                {
+                    argument_string += " -DLINEAR_FRAMEBUFFER";
                 }
 
                 cl::program prog(clctx.ctx, "cl.cl");

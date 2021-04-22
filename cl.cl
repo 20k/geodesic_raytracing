@@ -4115,6 +4115,10 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
 
     #endif // REDSHIFT
 
+    #ifdef LINEAR_FRAMEBUFFER
+    end_result.xyz = srgb_to_lin(end_result.xyz);
+    #endif // LINEAR_FRAMEBUFFER
+
     write_imagef(out, (int2){sx, sy}, end_result);
 }
 #endif // 0
