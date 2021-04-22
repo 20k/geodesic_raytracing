@@ -1495,21 +1495,9 @@ cl::image_with_mipmaps load_mipped_image(const std::string& fname, opencl_contex
         swidth /= 2;
         sheight /= 2;
 
-        cl::gl_rendertexture temp(clctx.ctx);
-        temp.create_from_texture_with_mipmaps(opengl_tex.handle, i);
-        temp.acquire(clctx.cqueue);
+        std::vector<vec4f> converted = opengl_tex.read(i);
 
-        std::vector<cl_uchar4> res = temp.read<2, cl_uchar4>(clctx.cqueue, (vec<2, size_t>){0,0}, (vec<2, size_t>){cwidth, cheight});
-
-        temp.unacquire(clctx.cqueue);
-
-        std::vector<cl_float4> converted;
-        converted.reserve(res.size());
-
-        for(auto& i : res)
-        {
-            converted.push_back({i.s[0] / 255.f, i.s[1] / 255.f, i.s[2] / 255.f, i.s[3] / 255.f});
-        }
+        assert((int)converted.size() == (cwidth * cheight));
 
         image_mipped.write(clctx.cqueue, (char*)&converted[0], vec<2, size_t>{0, 0}, vec<2, size_t>{cwidth, cheight}, i);
     }
