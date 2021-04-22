@@ -1541,9 +1541,6 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
         run_args.push_back(count_out);
         run_args.push_back(count_finished);
 
-        std::swap(rays_in, rays_out);
-        std::swap(count_in, count_out);
-
         cqueue.exec("do_generic_rays", run_args, {num_rays}, {256});
     }
 }
