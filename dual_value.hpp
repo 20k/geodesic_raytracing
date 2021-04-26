@@ -927,6 +927,13 @@ namespace dual_types
                 val.substitute(variables);
             }
         }
+
+        value& operator+=(const value& d1)
+        {
+            *this = *this + d1;
+
+            return *this;
+        }
     };
 
     inline
