@@ -4,7 +4,7 @@
 #include "dual.hpp"
 #include "dual_value.hpp"
 
-namespace metric
+namespace metrics
 {
     enum coordinate_system
     {
@@ -15,22 +15,41 @@ namespace metric
         OTHER
     };
 
-    template<auto T, auto U, auto V, auto distance_function>
-    struct metric
+    struct config;
+
+    struct metric_base
     {
         std::string name;
+        bool use_prepass = false;
+        float max_acceleration_change = 0.0000001f;
 
+        virtual std::string build(const config& cfg){return std::string();}
+    };
+
+    template<auto T, auto U, auto V, auto distance_function>
+    struct metric;
+
+    template<auto T, auto U, auto V, auto distance_function>
+    inline
+    std::string build_argument_string(const metric<T, U, V, distance_function>& in, const config& cfg);
+
+    template<auto T, auto U, auto V, auto distance_function>
+    struct metric : metric_base
+    {
         bool singular = false;
         bool traversable_event_horizon = false;
         float singular_terminator = 1;
 
         bool adaptive_precision = true;
         bool detect_singularities = false;
-        float max_acceleration_change = 0.0000001f;
         bool follow_geodesics_forward = false;
-        bool use_prepass = false;
 
         coordinate_system system = coordinate_system::X_Y_THETA_PHI;
+
+        virtual std::string build(const config& cfg) override
+        {
+            return build_argument_string(*this, cfg);
+        }
     };
 
     enum integration_type
@@ -45,6 +64,7 @@ namespace metric
         integration_type type = integration_type::VERLET;
         std::optional<float> error_override = std::nullopt;
         bool redshift = false;
+        bool use_device_side_enqueue = true;
     };
 
     template<auto T, auto U, auto V, auto distance_function>
@@ -111,22 +131,22 @@ namespace metric
             auto [to_polar, dt_to_spherical] = total_diff(U, "v1", "v2", "v3", "v4");
             auto [from_polar, dt_from_spherical] = total_diff(V, "v1", "v2", "v3", "v4");
 
-            for(int i=0; i < to_polar.size(); i++)
+            for(int i=0; i < (int)to_polar.size(); i++)
             {
                 argument_string += "-DTO_COORD" + std::to_string(i + 1) + "=" + to_polar[i] + " ";
             }
 
-            for(int i=0; i < dt_to_spherical.size(); i++)
+            for(int i=0; i < (int)dt_to_spherical.size(); i++)
             {
                 argument_string += "-DTO_DCOORD" + std::to_string(i + 1) + "=" + dt_to_spherical[i] + " ";
             }
 
-            for(int i=0; i < from_polar.size(); i++)
+            for(int i=0; i < (int)from_polar.size(); i++)
             {
                 argument_string += "-DFROM_COORD" + std::to_string(i + 1) + "=" + from_polar[i] + " ";
             }
 
-            for(int i=0; i < dt_from_spherical.size(); i++)
+            for(int i=0; i < (int)dt_from_spherical.size(); i++)
             {
                 argument_string += "-DFROM_DCOORD" + std::to_string(i + 1) + "=" + dt_from_spherical[i] + " ";
             }

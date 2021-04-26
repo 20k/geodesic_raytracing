@@ -10,6 +10,8 @@
 #include "metric.hpp"
 #include "chromaticity.hpp"
 #include "numerical.hpp"
+#include <imgui/misc/freetype/imgui_freetype.h>
+#include <imgui/imgui_internal.h>
 //#include "dual_complex.hpp"
 
 /**
@@ -909,7 +911,7 @@ std::array<dual_complex, 16> big_imaginary_metric_test(dual_complex t, dual_comp
     return ret_fat;
 }
 
-inline
+/*inline
 std::array<dual_complex, 16> minkowski_space(dual_complex t, dual_complex x, dual_complex y, dual_complex z)
 {
     std::array<dual_complex, 16> ret_fat;
@@ -919,7 +921,7 @@ std::array<dual_complex, 16> minkowski_space(dual_complex t, dual_complex x, dua
     ret_fat[3 * 4 + 3] = 1;
 
     return ret_fat;
-}
+}*/
 
 inline
 std::array<dual, 16> minkowski_polar(dual t, dual r, dual theta, dual phi)
@@ -934,7 +936,7 @@ std::array<dual, 16> minkowski_polar(dual t, dual r, dual theta, dual phi)
 }
 
 ///we're in inclination
-inline
+/*inline
 std::array<dual_complex, 16> minkowski_cylindrical(dual_complex t, dual_complex r, dual_complex phi, dual_complex z)
 {
     std::array<dual_complex, 16> ret_fat;
@@ -944,7 +946,7 @@ std::array<dual_complex, 16> minkowski_cylindrical(dual_complex t, dual_complex 
     ret_fat[3 * 4 + 3] = 1;
 
     return ret_fat;
-}
+}*/
 
 ///krasnikov tubes: https://core.ac.uk/download/pdf/25208925.pdf
 dual krasnikov_thetae(dual v, dual e)
@@ -1011,6 +1013,7 @@ std::array<dual, 16> krasnikov_tube_metric_cart(dual t, dual x, dual y, dual z)
     return ret;
 }
 
+///https://hal.archives-ouvertes.fr/hal-01862911/document
 inline
 std::array<dual, 16> natario_warp_drive_metric(dual t, dual rs_t, dual theta, dual phi)
 {
@@ -1020,6 +1023,7 @@ std::array<dual, 16> natario_warp_drive_metric(dual t, dual rs_t, dual theta, du
     std::array<dual, 16> ret;
 
     dual f_rs = (tanh(sigma * (rs_t + R)) - tanh(sigma * (rs_t - R))) / (2 * tanh(sigma * R));
+    dual n_rs = 0.5f * (1 - f_rs);
 }
 
 ///rendering alcubierre nicely is very hard: the shell is extremely thin, and flat on both sides
@@ -1325,6 +1329,36 @@ std::array<dual, 4> book_metric(dual t, dual r, dual theta, dual phi)
     return {-dt, -dr, -dtheta, -dphi};
 }
 
+///https://en.wikipedia.org/wiki/BKL_singularity#Kasner_solution
+///https://en.wikipedia.org/wiki/Kasner_metric
+inline
+std::array<dual, 4> kasner_metric(dual t, dual x, dual y, dual z)
+{
+    int u = 2;
+
+    auto p_1 = [](float u)
+    {
+        return -u / (1 + u + u * u);
+    };
+
+    auto p_2 = [](float u)
+    {
+        return (1 + u) / (1 + u + u*u);
+    };
+
+    auto p_3 = [](float u)
+    {
+        return (u * (1 + u)) / (1 + u + u*u);
+    };
+
+    dual dt = -1;
+    dual dx = pow(t, 2 * p_1(u));
+    dual dy = pow(t, 2 * p_2(u));
+    dual dz = pow(t, 2 * p_3(u));
+
+    return {dt, dx, dy, dz};
+}
+
 inline
 dual at_origin(dual t, dual r, dual theta, dual phi)
 {
@@ -1420,9 +1454,9 @@ cl::image_with_mipmaps load_mipped_image(const std::string& fname, opencl_contex
 
     std::vector<uint8_t> as_uint8;
 
-    for(int y=0; y < img.getSize().y; y++)
+    for(int y=0; y < (int)img.getSize().y; y++)
     {
-        for(int x=0; x < img.getSize().x; x++)
+        for(int x=0; x < (int)img.getSize().x; x++)
         {
             auto col = img.getPixel(x, y);
 
@@ -1463,21 +1497,9 @@ cl::image_with_mipmaps load_mipped_image(const std::string& fname, opencl_contex
         swidth /= 2;
         sheight /= 2;
 
-        cl::gl_rendertexture temp(clctx.ctx);
-        temp.create_from_texture_with_mipmaps(opengl_tex.handle, i);
-        temp.acquire(clctx.cqueue);
+        std::vector<vec4f> converted = opengl_tex.read(i);
 
-        std::vector<cl_uchar4> res = temp.read<2, cl_uchar4>(clctx.cqueue, (vec<2, size_t>){0,0}, (vec<2, size_t>){cwidth, cheight});
-
-        temp.unacquire(clctx.cqueue);
-
-        std::vector<cl_float4> converted;
-        converted.reserve(res.size());
-
-        for(auto& i : res)
-        {
-            converted.push_back({i.s[0] / 255.f, i.s[1] / 255.f, i.s[2] / 255.f, i.s[3] / 255.f});
-        }
+        assert((int)converted.size() == (cwidth * cheight));
 
         image_mipped.write(clctx.cqueue, (char*)&converted[0], vec<2, size_t>{0, 0}, vec<2, size_t>{cwidth, cheight}, i);
     }
@@ -1485,228 +1507,289 @@ cl::image_with_mipmaps load_mipped_image(const std::string& fname, opencl_contex
     return image_mipped;
 }
 
+void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& rays_out,
+                                               cl::buffer& rays_finished,
+                                               cl::buffer& count_in, cl::buffer& count_out,
+                                               cl::buffer& count_finished,
+                                               int num_rays,
+                                               bool use_device_side_enqueue)
+{
+    if(use_device_side_enqueue)
+    {
+        int fallback = 0;
+
+        cl::args run_args;
+        run_args.push_back(rays_in);
+        run_args.push_back(rays_out);
+        run_args.push_back(rays_finished);
+        run_args.push_back(count_in);
+        run_args.push_back(count_out);
+        run_args.push_back(count_finished);
+        run_args.push_back(fallback);
+
+        cqueue.exec("relauncher_generic", run_args, {1}, {1});
+    }
+    else
+    {
+        count_in.write_async(cqueue, (const char*)&num_rays, sizeof(int));
+        count_out.set_to_zero(cqueue);
+        count_finished.set_to_zero(cqueue);
+
+        cl::args run_args;
+        run_args.push_back(rays_in);
+        run_args.push_back(rays_out);
+        run_args.push_back(rays_finished);
+        run_args.push_back(count_in);
+        run_args.push_back(count_out);
+        run_args.push_back(count_finished);
+
+        cqueue.exec("do_generic_rays", run_args, {num_rays}, {256});
+    }
+}
+
+int calculate_ray_count(int width, int height)
+{
+    return (height - 1) * width + width - 1;
+}
+
 ///i need the ability to have dynamic parameters
 int main()
 {
-    dual_types::test_operation();
+    //dual_types::test_operation();
 
     render_settings sett;
     sett.width = 1422/1;
     sett.height = 800/1;
     sett.opencl = true;
     sett.no_double_buffer = true;
+    sett.is_srgb = true;
 
     render_window win(sett, "Geodesics");
 
     assert(win.clctx);
 
+    ImFontAtlas* atlas = ImGui::GetIO().Fonts;
+    atlas->FontBuilderFlags = ImGuiFreeTypeBuilderFlags_LCD | ImGuiFreeTypeBuilderFlags_FILTER_DEFAULT | ImGuiFreeTypeBuilderFlags_LoadColor;
+
+    ImFontConfig font_cfg;
+    font_cfg.GlyphExtraSpacing = ImVec2(0, 0);
+    font_cfg.FontBuilderFlags = ImGuiFreeTypeBuilderFlags_LCD | ImGuiFreeTypeBuilderFlags_FILTER_DEFAULT | ImGuiFreeTypeBuilderFlags_LoadColor;
+
+    ImGuiIO& io = ImGui::GetIO();
+
+    io.Fonts->Clear();
+    io.Fonts->AddFontFromFileTTF("VeraMono.ttf", 14, &font_cfg);
+
     opencl_context& clctx = *win.clctx;
 
-    std::string argument_string = "-O3 -cl-std=CL2.2 ";
-
-    #if 1
     #ifdef GENERIC_METRIC
 
-    metric::metric<schwarzschild_blackhole, polar_to_polar, polar_to_polar, at_origin> schwarzs_polar;
-    schwarzs_polar.name = "schwarzschild";
-    schwarzs_polar.singular = true;
-    schwarzs_polar.adaptive_precision = false;
+    auto schwarzs_polar = new metrics::metric<schwarzschild_blackhole, polar_to_polar, polar_to_polar, at_origin>();
+    schwarzs_polar->name = "schwarzschild";
+    schwarzs_polar->singular = true;
+    schwarzs_polar->adaptive_precision = false;
 
-    metric::metric<schwarzschild_blackhole, polar_to_polar, polar_to_polar, at_origin> schwarzs_polar_accurate;
-    schwarzs_polar_accurate.name = "schwarzschild_accurate";
-    schwarzs_polar_accurate.adaptive_precision = true;
-    schwarzs_polar_accurate.detect_singularities = true;
+    auto schwarzs_polar_accurate = new metrics::metric<schwarzschild_blackhole, polar_to_polar, polar_to_polar, at_origin>;
+    schwarzs_polar_accurate->name = "schwarzschild_accurate";
+    schwarzs_polar_accurate->adaptive_precision = true;
+    schwarzs_polar_accurate->detect_singularities = true;
 
-    metric::metric<schwarzschild_blackhole_lemaitre, lemaitre_to_polar, polar_to_lemaitre, at_origin> schwarzs_lemaitre;
-    schwarzs_lemaitre.name = "schwarzs_lemaitre";
-    //schwarzs_lemaitre.singular = true;
-    //schwarzs_lemaitre.traversible_event_horizon = true;
-    //schwarzs_lemaitre.adaptive_precision = true;
-    schwarzs_lemaitre.adaptive_precision = true;
-    schwarzs_lemaitre.singular = true;
-    schwarzs_lemaitre.singular_terminator = 0.5;
-    schwarzs_lemaitre.traversable_event_horizon = true;
-    schwarzs_lemaitre.follow_geodesics_forward = true;
-    //schwarzs_lemaitre.system = metric::coordinate_system::OTHER;
-    //schwarzs_lemaitre.detect_singularities = true;
+    auto schwarzs_lemaitre = new metrics::metric<schwarzschild_blackhole_lemaitre, lemaitre_to_polar, polar_to_lemaitre, at_origin>;
+    schwarzs_lemaitre->name = "schwarzs_lemaitre";
+    //schwarzs_lemaitre->singular = true;
+    //schwarzs_lemaitre->traversible_event_horizon = true;
+    //schwarzs_lemaitre->adaptive_precision = true;
+    schwarzs_lemaitre->adaptive_precision = true;
+    schwarzs_lemaitre->singular = true;
+    schwarzs_lemaitre->singular_terminator = 0.5;
+    schwarzs_lemaitre->traversable_event_horizon = true;
+    schwarzs_lemaitre->follow_geodesics_forward = true;
+    //schwarzs_lemaitre->system = metrics::coordinate_system::OTHER;
+    //schwarzs_lemaitre->detect_singularities = true;
 
-    metric::metric<schwarzschild_eddington_finkelstein_outgoing, outgoing_eddington_finkelstein_to_polar, polar_to_outgoing_eddington_finkelstein, at_origin> schwarzschild_ef_outgoing;
-    schwarzschild_ef_outgoing.name = "schwarzs_ef_out";
-    schwarzschild_ef_outgoing.adaptive_precision = true;
-    schwarzschild_ef_outgoing.singular = true;
-    schwarzschild_ef_outgoing.singular_terminator = 0.5;
-    schwarzschild_ef_outgoing.traversable_event_horizon = true;
+    auto schwarzschild_ef_outgoing = new metrics::metric<schwarzschild_eddington_finkelstein_outgoing, outgoing_eddington_finkelstein_to_polar, polar_to_outgoing_eddington_finkelstein, at_origin>;
+    schwarzschild_ef_outgoing->name = "schwarzs_ef_out";
+    schwarzschild_ef_outgoing->adaptive_precision = true;
+    schwarzschild_ef_outgoing->singular = true;
+    schwarzschild_ef_outgoing->singular_terminator = 0.5;
+    schwarzschild_ef_outgoing->traversable_event_horizon = true;
 
-    metric::metric<traversible_wormhole, polar_to_polar, polar_to_polar, at_origin> simple_wormhole;
-    simple_wormhole.name = "wormhole";
-    simple_wormhole.adaptive_precision = false;
+    auto simple_wormhole = new metrics::metric<traversible_wormhole, polar_to_polar, polar_to_polar, at_origin>;
+    simple_wormhole->name = "wormhole";
+    simple_wormhole->adaptive_precision = false;
 
-    metric::metric<configurable_wormhole, polar_to_polar, polar_to_polar, at_origin> configurable_wormhole_obj;
-    configurable_wormhole_obj.name = "configurable_wormhole";
-    configurable_wormhole_obj.adaptive_precision = true;
+    auto configurable_wormhole_obj = new metrics::metric<configurable_wormhole, polar_to_polar, polar_to_polar, at_origin>;
+    configurable_wormhole_obj->name = "configurable_wormhole";
+    configurable_wormhole_obj->adaptive_precision = true;
 
-    metric::metric<cosmic_string, polar_to_polar, polar_to_polar, at_origin> cosmic_string_obj;
-    cosmic_string_obj.name = "cosmic_string";
-    cosmic_string_obj.adaptive_precision = true;
-    cosmic_string_obj.detect_singularities = true;
+    auto cosmic_string_obj = new metrics::metric<cosmic_string, polar_to_polar, polar_to_polar, at_origin>;
+    cosmic_string_obj->name = "cosmic_string";
+    cosmic_string_obj->adaptive_precision = true;
+    cosmic_string_obj->detect_singularities = true;
 
     ///todo: i forgot what this is and what parameters it might need
-    metric::metric<ernst_metric, polar_to_polar, polar_to_polar, at_origin> ernst_metric_obj;
-    ernst_metric_obj.name = "ernst";
-    ernst_metric_obj.adaptive_precision = true;
-    ernst_metric_obj.detect_singularities = true;
+    auto ernst_metric_obj = new metrics::metric<ernst_metric, polar_to_polar, polar_to_polar, at_origin>;
+    ernst_metric_obj->name = "ernst";
+    ernst_metric_obj->adaptive_precision = true;
+    ernst_metric_obj->detect_singularities = true;
 
-    metric::metric<janis_newman_winicour, polar_to_polar, polar_to_polar, at_origin> janis_newman_winicour_obj;
-    janis_newman_winicour_obj.name = "janis_newman_winicour";
-    janis_newman_winicour_obj.detect_singularities = false;
+    auto janis_newman_winicour_obj = new metrics::metric<janis_newman_winicour, polar_to_polar, polar_to_polar, at_origin>;
+    janis_newman_winicour_obj->name = "janis_newman_winicour";
+    janis_newman_winicour_obj->detect_singularities = false;
 
-    metric::metric<ellis_drainhole, polar_to_polar, polar_to_polar, at_origin> ellis_drainhole_obj;
-    ellis_drainhole_obj.name = "ellis_drainhole";
-    ellis_drainhole_obj.adaptive_precision = false;
+    auto ellis_drainhole_obj = new metrics::metric<ellis_drainhole, polar_to_polar, polar_to_polar, at_origin>;
+    ellis_drainhole_obj->name = "ellis_drainhole";
+    ellis_drainhole_obj->adaptive_precision = false;
 
     ///kerr family
-    metric::metric<kerr_metric, polar_to_polar, polar_to_polar, at_origin> kerr_obj;
-    kerr_obj.name = "kerr_boyer";
-    kerr_obj.adaptive_precision = true;
-    kerr_obj.detect_singularities = true;
-    kerr_obj.use_prepass = true;
+    auto kerr_obj = new metrics::metric<kerr_metric, polar_to_polar, polar_to_polar, at_origin>;
+    kerr_obj->name = "kerr_boyer";
+    kerr_obj->adaptive_precision = true;
+    kerr_obj->detect_singularities = true;
+    kerr_obj->use_prepass = true;
 
-    metric::metric<kerr_operation, polar_to_polar, polar_to_polar, at_origin> kerr_value_obj;
-    kerr_value_obj.name = "kerr_value";
-    kerr_value_obj.adaptive_precision = true;
-    kerr_value_obj.detect_singularities = true;
-    kerr_value_obj.use_prepass = true;
+    auto kerr_value_obj = new metrics::metric<kerr_operation, polar_to_polar, polar_to_polar, at_origin>;
+    kerr_value_obj->name = "kerr_value";
+    kerr_value_obj->adaptive_precision = true;
+    kerr_value_obj->detect_singularities = true;
+    kerr_value_obj->use_prepass = true;
 
-    metric::metric<kerr_newman, polar_to_polar, polar_to_polar, at_origin> kerr_newman_obj;
-    kerr_newman_obj.name = "kerrnewman_boyer";
-    kerr_newman_obj.adaptive_precision = true;
-    kerr_newman_obj.detect_singularities = true;
-    kerr_newman_obj.use_prepass = true;
+    auto kerr_newman_obj = new metrics::metric<kerr_newman, polar_to_polar, polar_to_polar, at_origin>;
+    kerr_newman_obj->name = "kerrnewman_boyer";
+    kerr_newman_obj->adaptive_precision = true;
+    kerr_newman_obj->detect_singularities = true;
+    kerr_newman_obj->use_prepass = true;
 
-    metric::metric<kerr_schild_metric, cartesian_to_polar_dual, polar_to_cartesian_dual, at_origin> kerr_schild_obj;
-    kerr_schild_obj.name = "kerr_schild";
-    kerr_schild_obj.adaptive_precision = true;
-    kerr_schild_obj.detect_singularities = true;
-    kerr_schild_obj.system = metric::coordinate_system::CARTESIAN;
+    auto kerr_schild_obj = new metrics::metric<kerr_schild_metric, cartesian_to_polar_dual, polar_to_cartesian_dual, at_origin>;
+    kerr_schild_obj->name = "kerr_schild";
+    kerr_schild_obj->adaptive_precision = true;
+    kerr_schild_obj->detect_singularities = true;
+    kerr_schild_obj->system = metrics::coordinate_system::CARTESIAN;
 
-    metric::metric<kerr_rational_polynomial, rational_to_polar, polar_to_rational, at_origin> kerr_rational_polynomial_obj;
-    kerr_rational_polynomial_obj.name = "kerr_rational_poly";
-    kerr_rational_polynomial_obj.adaptive_precision = true;
-    kerr_rational_polynomial_obj.detect_singularities = true;
+    auto kerr_rational_polynomial_obj = new metrics::metric<kerr_rational_polynomial, rational_to_polar, polar_to_rational, at_origin>;
+    kerr_rational_polynomial_obj->name = "kerr_rational_poly";
+    kerr_rational_polynomial_obj->adaptive_precision = true;
+    kerr_rational_polynomial_obj->detect_singularities = true;
 
-    metric::metric<de_sitter, polar_to_polar, polar_to_polar, at_origin> de_sitter_obj;
-    de_sitter_obj.name = "desitter";
-    de_sitter_obj.adaptive_precision = false;
+    auto de_sitter_obj = new metrics::metric<de_sitter, polar_to_polar, polar_to_polar, at_origin>;
+    de_sitter_obj->name = "desitter";
+    de_sitter_obj->adaptive_precision = false;
 
-    metric::metric<minkowski_space, cartesian_to_polar_dual, polar_to_cartesian_dual, at_origin> minkowski_space_obj;
-    minkowski_space_obj.name = "minkowski";
-    minkowski_space_obj.adaptive_precision = false;
-    minkowski_space_obj.system = metric::coordinate_system::CARTESIAN;
+    /*metrics::metric<minkowski_space, cartesian_to_polar_dual, polar_to_cartesian_dual, at_origin> minkowski_space_obj;
+    minkowski_space_obj->name = "minkowski";
+    minkowski_space_obj->adaptive_precision = false;
+    minkowski_space_obj->system = metrics::coordinate_system::CARTESIAN;*/
 
-    metric::metric<minkowski_polar, polar_to_polar, polar_to_polar, at_origin> minkowski_polar_obj;
-    minkowski_space_obj.name = "minkowski_polar";
-    minkowski_space_obj.adaptive_precision = false;
+    auto minkowski_polar_obj = new metrics::metric<minkowski_polar, polar_to_polar, polar_to_polar, at_origin>;
+    minkowski_polar_obj->name = "minkowski_polar";
+    minkowski_polar_obj->adaptive_precision = false;
 
-    metric::metric<minkowski_cylindrical, cylindrical_to_polar, polar_to_cylindrical, at_origin> minkowski_cylindrical_obj;
-    minkowski_cylindrical_obj.name = "minkowski_cylindrical";
-    minkowski_cylindrical_obj.adaptive_precision = false;
-    minkowski_cylindrical_obj.system = metric::coordinate_system::OTHER;
+    /*metrics::metric<minkowski_cylindrical, cylindrical_to_polar, polar_to_cylindrical, at_origin> minkowski_cylindrical_obj;
+    minkowski_cylindrical_obj->name = "minkowski_cylindrical";
+    minkowski_cylindrical_obj->adaptive_precision = false;
+    minkowski_cylindrical_obj->system = metrics::coordinate_system::OTHER;*/
 
-    metric::metric<alcubierre_metric, cartesian_to_polar_dual, polar_to_cartesian_dual, alcubierre_distance> alcubierre_metric_obj;
-    alcubierre_metric_obj.name = "alcubierre";
-    alcubierre_metric_obj.system = metric::coordinate_system::CARTESIAN;
+    auto alcubierre_metric_obj = new metrics::metric<alcubierre_metric, cartesian_to_polar_dual, polar_to_cartesian_dual, alcubierre_distance>;
+    alcubierre_metric_obj->name = "alcubierre";
+    alcubierre_metric_obj->system = metrics::coordinate_system::CARTESIAN;
 
-    metric::metric<symmetric_warp_drive, polar_to_polar, polar_to_polar, at_origin> symmetric_warp_obj;
-    symmetric_warp_obj.name = "symmetric_warp";
-    symmetric_warp_obj.detect_singularities = true;
-    symmetric_warp_obj.singular = true;
-    symmetric_warp_obj.singular_terminator = 1.001f;
-    //symmetric_warp_obj.adaptive_precision = false;
+    auto symmetric_warp_obj = new metrics::metric<symmetric_warp_drive, polar_to_polar, polar_to_polar, at_origin>;
+    symmetric_warp_obj->name = "symmetric_warp";
+    symmetric_warp_obj->detect_singularities = true;
+    symmetric_warp_obj->singular = true;
+    symmetric_warp_obj->singular_terminator = 1.001f;
+    //symmetric_warp_obj->adaptive_precision = false;
 
-    metric::metric<krasnikov_tube_metric, cylindrical_to_polar, polar_to_cylindrical, at_origin> krasnikov_tube_obj;
-    krasnikov_tube_obj.name = "krasnikov_tube";
-    krasnikov_tube_obj.adaptive_precision = true;
-    krasnikov_tube_obj.system = metric::coordinate_system::OTHER;
+    auto krasnikov_tube_obj = new metrics::metric<krasnikov_tube_metric, cylindrical_to_polar, polar_to_cylindrical, at_origin>;
+    krasnikov_tube_obj->name = "krasnikov_tube";
+    krasnikov_tube_obj->adaptive_precision = true;
+    krasnikov_tube_obj->system = metrics::coordinate_system::OTHER;
 
-    metric::metric<krasnikov_tube_metric_cart, cartesian_to_polar_dual, polar_to_cartesian_dual, at_origin> krasnikov_tube_cart_obj;
-    krasnikov_tube_cart_obj.name = "krasnikov_tube_cart";
-    krasnikov_tube_cart_obj.adaptive_precision = true;
-    krasnikov_tube_cart_obj.system = metric::coordinate_system::CARTESIAN;
+    auto krasnikov_tube_cart_obj = new metrics::metric<krasnikov_tube_metric_cart, cartesian_to_polar_dual, polar_to_cartesian_dual, at_origin>;
+    krasnikov_tube_cart_obj->name = "krasnikov_tube_cart";
+    krasnikov_tube_cart_obj->adaptive_precision = true;
+    krasnikov_tube_cart_obj->system = metrics::coordinate_system::CARTESIAN;
 
-    metric::metric<double_kerr_alt, cylindrical_to_polar, polar_to_cylindrical, at_origin> double_kerr_alt_obj;
-    double_kerr_alt_obj.name = "double_kerr_alt";
-    double_kerr_alt_obj.adaptive_precision = true;
-    double_kerr_alt_obj.detect_singularities = true;
-    double_kerr_alt_obj.system = metric::coordinate_system::CYLINDRICAL;
+    auto double_kerr_alt_obj = new metrics::metric<double_kerr_alt, cylindrical_to_polar, polar_to_cylindrical, at_origin>;
+    double_kerr_alt_obj->name = "double_kerr_alt";
+    double_kerr_alt_obj->adaptive_precision = true;
+    double_kerr_alt_obj->detect_singularities = true;
+    double_kerr_alt_obj->system = metrics::coordinate_system::CYLINDRICAL;
 
-    metric::metric<double_kerr, cylindrical_to_polar, polar_to_cylindrical, at_origin> double_kerr_obj;
-    double_kerr_obj.name = "double_kerr";
-    double_kerr_obj.adaptive_precision = true;
-    double_kerr_obj.detect_singularities = true;
-    double_kerr_obj.system = metric::coordinate_system::CYLINDRICAL;
+    auto double_kerr_obj = new metrics::metric<double_kerr, cylindrical_to_polar, polar_to_cylindrical, at_origin>;
+    double_kerr_obj->name = "double_kerr";
+    double_kerr_obj->adaptive_precision = true;
+    double_kerr_obj->detect_singularities = true;
+    double_kerr_obj->system = metrics::coordinate_system::CYLINDRICAL;
 
-    metric::metric<unequal_double_kerr, cylindrical_to_polar, polar_to_cylindrical, at_origin> unequal_double_kerr_obj;
-    unequal_double_kerr_obj.name = "unequal_double_kerr";
-    unequal_double_kerr_obj.adaptive_precision = true;
-    unequal_double_kerr_obj.detect_singularities = true;
-    unequal_double_kerr_obj.system = metric::coordinate_system::CYLINDRICAL;
-    //unequal_double_kerr_obj.use_prepass = true;
+    auto unequal_double_kerr_obj = new metrics::metric<unequal_double_kerr, cylindrical_to_polar, polar_to_cylindrical, at_origin>;
+    unequal_double_kerr_obj->name = "unequal_double_kerr";
+    unequal_double_kerr_obj->adaptive_precision = true;
+    unequal_double_kerr_obj->detect_singularities = true;
+    unequal_double_kerr_obj->system = metrics::coordinate_system::CYLINDRICAL;
+    //unequal_double_kerr_obj->use_prepass = true;
 
-    metric::metric<double_schwarzschild, cylindrical_to_polar, polar_to_cylindrical, at_origin> double_schwarzschild_obj;
-    double_schwarzschild_obj.name = "double_schwarzschild";
-    double_schwarzschild_obj.adaptive_precision = true;
-    double_schwarzschild_obj.detect_singularities = true;
-    double_schwarzschild_obj.system = metric::coordinate_system::CYLINDRICAL;
+    auto double_schwarzschild_obj = new metrics::metric<double_schwarzschild, cylindrical_to_polar, polar_to_cylindrical, at_origin>;
+    double_schwarzschild_obj->name = "double_schwarzschild";
+    double_schwarzschild_obj->adaptive_precision = true;
+    double_schwarzschild_obj->detect_singularities = true;
+    double_schwarzschild_obj->system = metrics::coordinate_system::CYLINDRICAL;
 
-    metric::metric<book_metric, polar_to_polar, polar_to_polar, at_origin> book_metric_obj;
-    book_metric_obj.name = "book_metric";
-    book_metric_obj.adaptive_precision = true;
-    book_metric_obj.detect_singularities = false;
-    book_metric_obj.use_prepass = true;
-    book_metric_obj.system = metric::coordinate_system::X_Y_THETA_PHI;
+    auto book_metric_obj = new metrics::metric<book_metric, polar_to_polar, polar_to_polar, at_origin>;
+    book_metric_obj->name = "book_metric";
+    book_metric_obj->adaptive_precision = true;
+    book_metric_obj->detect_singularities = false;
+    book_metric_obj->use_prepass = true;
+    book_metric_obj->system = metrics::coordinate_system::X_Y_THETA_PHI;
 
-    metric::config cfg;
+    auto kasner_metric_obj = new metrics::metric<kasner_metric, cartesian_to_polar_dual, polar_to_cartesian_dual, at_origin>;
+    kasner_metric_obj->name = "kasner";
+    kasner_metric_obj->adaptive_precision = true;
+    kasner_metric_obj->detect_singularities = true;
+    kasner_metric_obj->system = metrics::coordinate_system::CARTESIAN;
+
+    std::vector<metrics::metric_base*> all_metrics;
+
+    all_metrics.push_back(schwarzs_polar);
+    all_metrics.push_back(schwarzs_polar_accurate);
+    all_metrics.push_back(schwarzs_lemaitre);
+    all_metrics.push_back(schwarzschild_ef_outgoing);
+    all_metrics.push_back(simple_wormhole);
+    all_metrics.push_back(configurable_wormhole_obj);
+    all_metrics.push_back(cosmic_string_obj);
+    all_metrics.push_back(ernst_metric_obj);
+    all_metrics.push_back(janis_newman_winicour_obj);
+    all_metrics.push_back(ellis_drainhole_obj);
+    all_metrics.push_back(kerr_obj);
+    all_metrics.push_back(kerr_value_obj);
+    all_metrics.push_back(kerr_newman_obj);
+    all_metrics.push_back(kerr_schild_obj);
+    all_metrics.push_back(kerr_rational_polynomial_obj);
+    all_metrics.push_back(de_sitter_obj);
+    all_metrics.push_back(minkowski_polar_obj);
+    all_metrics.push_back(alcubierre_metric_obj);
+    all_metrics.push_back(symmetric_warp_obj);
+    all_metrics.push_back(krasnikov_tube_obj);
+    all_metrics.push_back(krasnikov_tube_cart_obj);
+    all_metrics.push_back(double_kerr_alt_obj);
+    all_metrics.push_back(double_kerr_obj);
+    all_metrics.push_back(unequal_double_kerr_obj);
+    all_metrics.push_back(double_schwarzschild_obj);
+    all_metrics.push_back(book_metric_obj);
+    all_metrics.push_back(kasner_metric_obj);
+
+    metrics::config cfg;
     ///necessary for double schwarzs
-    cfg.universe_size = 200;
+    cfg.universe_size = 20;
+    cfg.use_device_side_enqueue = false;
     //cfg.error_override = 100.f;
     //cfg.error_override = 0.000001f;
     //cfg.error_override = 0.000001f;
-    //cfg.error_override = 0.0001f;
+    //cfg.error_override = 0.00001f;
     //cfg.redshift = true;
-
-    //auto current_metric = symmetric_warp_obj;
-    //auto current_metric = kerr_obj;
-    //auto current_metric = alcubierre_metric_obj;
-    //auto current_metric = kerr_newman_obj;
-    //auto current_metric = kerr_schild_obj;
-    //auto current_metric = simple_wormhole;
-    //auto current_metric = schwarzs_polar;
-    //auto current_metric = schwarzs_polar_accurate;
-    //auto current_metric = minkowski_polar_obj;
-    //auto current_metric = krasnikov_tube_cart_obj;
-    //auto current_metric = double_kerr_alt_obj;
-    //auto current_metric = double_kerr_obj;
-    //auto current_metric = unequal_double_kerr_obj;
-    //auto current_metric = double_schwarzschild_obj;
-    //auto current_metric = ellis_drainhole_obj;
-    //auto current_metric = configurable_wormhole_obj;
-    //auto current_metric = book_metric_obj;
-    auto current_metric = kerr_value_obj;
-
-    argument_string += build_argument_string(current_metric, cfg);
     #endif // GENERIC_METRIC
 
-    std::cout << "ASTRING " << argument_string << std::endl;
-    std::cout << "SIZE " << argument_string.size() << std::endl;
-
-    #endif // GENERIC_METRIC
-
-    printf("WLs %f %f %f\n", chromaticity::srgb_to_wavelength({1, 0, 0}), chromaticity::srgb_to_wavelength({0, 1, 0}), chromaticity::srgb_to_wavelength({0, 0, 1}));
-
-    cl::program prog(clctx.ctx, "cl.cl");
-    prog.build(clctx.ctx, argument_string);
-
-    clctx.ctx.register_program(prog);
+    //printf("WLs %f %f %f\n", chromaticity::srgb_to_wavelength({1, 0, 0}), chromaticity::srgb_to_wavelength({0, 1, 0}), chromaticity::srgb_to_wavelength({0, 0, 1}));
 
     int supersample_mult = 2;
 
@@ -1717,6 +1800,7 @@ int main()
     tsett.width = supersample_width;
     tsett.height = supersample_height;
     tsett.is_srgb = false;
+    tsett.generate_mipmaps = false;
 
     std::array<texture, 2> tex;
     tex[0].load_from_memory(tsett, nullptr);
@@ -1731,7 +1815,11 @@ int main()
     cl::image_with_mipmaps background_mipped = load_mipped_image("background.png", clctx);
     cl::image_with_mipmaps background_mipped2 = load_mipped_image("background2.png", clctx);
 
+    printf("Pre dqueue\n");
+
     cl::device_command_queue dqueue(clctx.ctx);
+
+    printf("Post dqueue\n");
 
     ///t, x, y, z
     //vec4f camera = {0, -2, -2, 0};
@@ -1748,12 +1836,11 @@ int main()
 
     //camera_quat.load_from_matrix(axis_angle_to_mat({0, 0, 0}, 0));
 
-    vec3f forward_axis = {0, 0, 1};
-    vec3f up_axis = {0, 1, 0};
-
     sf::Clock clk;
 
     int ray_count = supersample_width * supersample_height;
+
+    printf("Pre buffer declarations\n");
 
     cl::buffer schwarzs_1(clctx.ctx);
     cl::buffer schwarzs_scratch(clctx.ctx);
@@ -1772,13 +1859,25 @@ int main()
     cl::buffer finished_count_1(clctx.ctx);
 
     cl::buffer termination_buffer(clctx.ctx);
+
+    printf("Post buffer declarations\n");
+
     termination_buffer.alloc(supersample_width * supersample_height * sizeof(cl_int));
+
+    printf("Allocated termination buffer\n");
+
     termination_buffer.set_to_zero(clctx.cqueue);
+
+    printf("Zero termination buffer\n");
 
     cl::buffer geodesic_trace_buffer(clctx.ctx);
     geodesic_trace_buffer.alloc(64000 * sizeof(cl_float4));
 
+    printf("Alloc trace buffer\n");
+
     std::vector<cl_float4> current_geodesic_path;
+
+    printf("Pre texture coordinates\n");
 
     cl::buffer texture_coordinates[2] = {clctx.ctx, clctx.ctx};
 
@@ -1787,6 +1886,8 @@ int main()
         texture_coordinates[i].alloc(supersample_width * supersample_height * sizeof(float) * 2);
         texture_coordinates[i].set_to_zero(clctx.cqueue);
     }
+
+    printf("Post texture coordinates\n");
 
     schwarzs_1.alloc(sizeof(lightray) * ray_count);
     schwarzs_scratch.alloc(sizeof(lightray) * ray_count);
@@ -1804,6 +1905,8 @@ int main()
     kruskal_count_2.alloc(sizeof(int));
     finished_count_1.alloc(sizeof(int));
 
+    printf("Alloc rays and counts\n");
+
     cl_sampler_properties sampler_props[] = {
     CL_SAMPLER_NORMALIZED_COORDS, CL_TRUE,
     CL_SAMPLER_ADDRESSING_MODE, CL_ADDRESS_REPEAT,
@@ -1815,6 +1918,8 @@ int main()
     };
 
     cl_sampler sam = clCreateSamplerWithProperties(clctx.ctx.native_context.data, sampler_props, nullptr);
+
+    printf("Created sampler\n");
 
     std::optional<cl::event> last_event;
 
@@ -1831,8 +1936,13 @@ int main()
     bool camera_on_geodesic = false;
     bool camera_time_progresses = false;
     bool camera_geodesics_go_foward = true;
-    //vec2f base_angle = {M_PI/2, 0};
     vec2f base_angle = {M_PI/2, 0};
+
+    int current_idx = -1;
+    int selected_idx = -1;
+    float selected_error = 0;
+
+    printf("Pre main\n");
 
     while(!win.should_close())
     {
@@ -1871,6 +1981,7 @@ int main()
             new_sett.width = supersample_width;
             new_sett.height = supersample_height;
             new_sett.is_srgb = false;
+            new_sett.generate_mipmaps = false;
 
             tex[0].load_from_memory(new_sett, nullptr);
             tex[1].load_from_memory(new_sett, nullptr);
@@ -1899,119 +2010,120 @@ int main()
 
         rtex[which_buffer].acquire(clctx.cqueue);
 
-        float ds = 0.01;
-
         float speed = 0.001;
 
-        if(ImGui::IsKeyDown(GLFW_KEY_LEFT_SHIFT))
-            speed = 0.1;
-
-        if(ImGui::IsKeyDown(GLFW_KEY_LEFT_CONTROL))
-            speed = 0.00001;
-
-        if(ImGui::IsKeyDown(GLFW_KEY_LEFT_ALT))
-            speed /= 1000;
-
-        if(ImGui::IsKeyDown(GLFW_KEY_Z))
-            speed *= 100;
-
-        if(ImGui::IsKeyDown(GLFW_KEY_X))
-            speed *= 100;
-
-        if(ImGui::IsKeyPressed(GLFW_KEY_B))
+        if(!ImGui::GetIO().WantCaptureKeyboard)
         {
-            camera = {0, 0, 0, -100};
+            if(ImGui::IsKeyDown(GLFW_KEY_LEFT_SHIFT))
+                speed = 0.1;
+
+            if(ImGui::IsKeyDown(GLFW_KEY_LEFT_CONTROL))
+                speed = 0.00001;
+
+            if(ImGui::IsKeyDown(GLFW_KEY_LEFT_ALT))
+                speed /= 1000;
+
+            if(ImGui::IsKeyDown(GLFW_KEY_Z))
+                speed *= 100;
+
+            if(ImGui::IsKeyDown(GLFW_KEY_X))
+                speed *= 100;
+
+            if(ImGui::IsKeyPressed(GLFW_KEY_B))
+            {
+                camera = {0, 0, 0, -100};
+            }
+
+            if(ImGui::IsKeyPressed(GLFW_KEY_N))
+            {
+                camera = {0, 0, 0, -1.16};
+            }
+
+            if(ImGui::IsKeyPressed(GLFW_KEY_M))
+            {
+                camera = {0, 0, 0, 1.16};
+            }
+
+            if(ImGui::IsKeyPressed(GLFW_KEY_J))
+            {
+                camera = {0, -1.16, 0, 0};
+            }
+
+            if(ImGui::IsKeyPressed(GLFW_KEY_K))
+            {
+                camera = {0, 1.16, 0, 0};
+            }
+
+            if(ImGui::IsKeyPressed(GLFW_KEY_V))
+            {
+                camera = {0, 0, 0, 1.03};
+            }
+
+            if(ImGui::IsKeyPressed(GLFW_KEY_C))
+            {
+                camera = {0, 0, 0, 0};
+            }
+
+            if(ImGui::IsKeyPressed(GLFW_KEY_R))
+            {
+                camera = {0, 0, 22, 0};
+            }
+
+            if(ImGui::IsKeyDown(GLFW_KEY_RIGHT))
+            {
+                mat3f m = mat3f().ZRot(M_PI/128);
+
+                quat q;
+                q.load_from_matrix(m);
+
+                camera_quat = q * camera_quat;
+            }
+
+            if(ImGui::IsKeyDown(GLFW_KEY_LEFT))
+            {
+                mat3f m = mat3f().ZRot(-M_PI/128);
+
+                quat q;
+                q.load_from_matrix(m);
+
+                camera_quat = q * camera_quat;
+            }
+
+            if(ImGui::IsKeyPressed(GLFW_KEY_1))
+            {
+                flip_sign = !flip_sign;
+            }
+
+            vec3f up = {0, 0, -1};
+            vec3f right = rot_quat({1, 0, 0}, camera_quat);
+            vec3f forward_axis = rot_quat({0, 0, 1}, camera_quat);
+
+            if(ImGui::IsKeyDown(GLFW_KEY_DOWN))
+            {
+                quat q;
+                q.load_from_axis_angle({right.x(), right.y(), right.z(), M_PI/128});
+
+                camera_quat = q * camera_quat;
+            }
+
+            if(ImGui::IsKeyDown(GLFW_KEY_UP))
+            {
+                quat q;
+                q.load_from_axis_angle({right.x(), right.y(), right.z(), -M_PI/128});
+
+                camera_quat = q * camera_quat;
+            }
+
+            vec3f offset = {0,0,0};
+
+            offset += forward_axis * ((ImGui::IsKeyDown(GLFW_KEY_W) - ImGui::IsKeyDown(GLFW_KEY_S)) * speed);
+            offset += right * (ImGui::IsKeyDown(GLFW_KEY_D) - ImGui::IsKeyDown(GLFW_KEY_A)) * speed;
+            offset += up * (ImGui::IsKeyDown(GLFW_KEY_E) - ImGui::IsKeyDown(GLFW_KEY_Q)) * speed;
+
+            camera.y() += offset.x();
+            camera.z() += offset.y();
+            camera.w() += offset.z();
         }
-
-        if(ImGui::IsKeyPressed(GLFW_KEY_N))
-        {
-            camera = {0, 0, 0, -1.16};
-        }
-
-        if(ImGui::IsKeyPressed(GLFW_KEY_M))
-        {
-            camera = {0, 0, 0, 1.16};
-        }
-
-        if(ImGui::IsKeyPressed(GLFW_KEY_J))
-        {
-            camera = {0, -1.16, 0, 0};
-        }
-
-        if(ImGui::IsKeyPressed(GLFW_KEY_K))
-        {
-            camera = {0, 1.16, 0, 0};
-        }
-
-        if(ImGui::IsKeyPressed(GLFW_KEY_V))
-        {
-            camera = {0, 0, 0, 1.03};
-        }
-
-        if(ImGui::IsKeyPressed(GLFW_KEY_C))
-        {
-            camera = {0, 0, 0, 0};
-        }
-
-        if(ImGui::IsKeyPressed(GLFW_KEY_R))
-        {
-            camera = {0, 0, 22, 0};
-        }
-
-        if(ImGui::IsKeyDown(GLFW_KEY_RIGHT))
-        {
-            mat3f m = mat3f().ZRot(M_PI/128);
-
-            quat q;
-            q.load_from_matrix(m);
-
-            camera_quat = q * camera_quat;
-        }
-
-        if(ImGui::IsKeyDown(GLFW_KEY_LEFT))
-        {
-            mat3f m = mat3f().ZRot(-M_PI/128);
-
-            quat q;
-            q.load_from_matrix(m);
-
-            camera_quat = q * camera_quat;
-        }
-
-        if(ImGui::IsKeyPressed(GLFW_KEY_1))
-        {
-            flip_sign = !flip_sign;
-        }
-
-        vec3f up = {0, 0, -1};
-        vec3f right = rot_quat({1, 0, 0}, camera_quat);
-        vec3f forward_axis = rot_quat({0, 0, 1}, camera_quat);
-
-        if(ImGui::IsKeyDown(GLFW_KEY_DOWN))
-        {
-            quat q;
-            q.load_from_axis_angle({right.x(), right.y(), right.z(), M_PI/128});
-
-            camera_quat = q * camera_quat;
-        }
-
-        if(ImGui::IsKeyDown(GLFW_KEY_UP))
-        {
-            quat q;
-            q.load_from_axis_angle({right.x(), right.y(), right.z(), -M_PI/128});
-
-            camera_quat = q * camera_quat;
-        }
-
-        vec3f offset = {0,0,0};
-
-        offset += forward_axis * ((ImGui::IsKeyDown(GLFW_KEY_W) - ImGui::IsKeyDown(GLFW_KEY_S)) * speed);
-        offset += right * (ImGui::IsKeyDown(GLFW_KEY_D) - ImGui::IsKeyDown(GLFW_KEY_A)) * speed;
-        offset += up * (ImGui::IsKeyDown(GLFW_KEY_E) - ImGui::IsKeyDown(GLFW_KEY_Q)) * speed;
-
-        camera.y() += offset.x();
-        camera.z() += offset.y();
-        camera.w() += offset.z();
 
         vec4f scamera = cartesian_to_schwarz(camera);
 
@@ -2064,8 +2176,63 @@ int main()
 
             ImGui::Checkbox("Camera Snapshot Geodesic goes forward", &camera_geodesics_go_foward);
 
+            ImGui::Separator();
+
+            ImGui::Text("Compile Options");
+
+            ImGui::Checkbox("Redshift", &cfg.redshift);
+
+            ImGui::InputFloat("Error Tolerance", &selected_error, 0.0000001f, 0.00001f, "%.8f");
+
+            std::vector<const char*> items;
+
+            for(auto& i : all_metrics)
+            {
+                items.push_back(i->name.c_str());
+            }
+
+            ImGui::ListBox("Metrics", &selected_idx, &items[0], items.size());
+
+            if(ImGui::Button("Recompile") || current_idx == -1)
+            {
+                if(selected_idx == -1)
+                    selected_idx = 0;
+
+                if(selected_idx != current_idx)
+                    selected_error = all_metrics[selected_idx]->max_acceleration_change;
+
+                cfg.error_override = selected_error;
+
+                current_idx = selected_idx;
+
+                if(clctx.ctx.programs.size() > 0)
+                    clctx.ctx.deregister_program(0);
+
+                std::string argument_string = "-O3 -cl-std=CL2.0 " + all_metrics[selected_idx]->build(cfg);
+
+                if(cfg.use_device_side_enqueue)
+                {
+                    argument_string += " -DDEVICE_SIDE_ENQUEUE";
+                }
+
+                if(sett.is_srgb)
+                {
+                    argument_string += " -DLINEAR_FRAMEBUFFER";
+                }
+
+                cl::program prog(clctx.ctx, "cl.cl");
+
+                prog.build(clctx.ctx, argument_string);
+
+                clctx.ctx.register_program(prog);
+
+                termination_buffer.set_to_zero(clctx.cqueue);
+            }
+
             ImGui::End();
         }
+
+        auto& current_metric = all_metrics[selected_idx];
 
         int width = win.get_window_size().x();
         int height = win.get_window_size().y();
@@ -2158,7 +2325,7 @@ int main()
             cl_int prepass_width = width/16;
             cl_int prepass_height = height/16;
 
-            if(current_metric.use_prepass)
+            if(current_metric->use_prepass)
             {
                 cl::args clear_args;
                 clear_args.push_back(termination_buffer);
@@ -2183,18 +2350,9 @@ int main()
 
                 clctx.cqueue.exec("init_rays_generic", init_args_prepass, {prepass_width*prepass_height}, {256});
 
-                cl::args run_args;
-                run_args.push_back(schwarzs_prepass);
-                run_args.push_back(schwarzs_scratch);
-                run_args.push_back(finished_1);
-                run_args.push_back(schwarzs_count_prepass);
-                run_args.push_back(schwarzs_count_scratch);
-                run_args.push_back(finished_count_1);
-                run_args.push_back(prepass_width);
-                run_args.push_back(prepass_height);
-                run_args.push_back(fallback);
+                int rays_num = calculate_ray_count(prepass_width, prepass_height);
 
-                clctx.cqueue.exec("relauncher_generic", run_args, {1}, {1});
+                execute_kernel(clctx.cqueue, schwarzs_prepass, schwarzs_scratch, finished_1, schwarzs_count_prepass, schwarzs_count_scratch, finished_count_1, rays_num, cfg.use_device_side_enqueue);
 
                 cl::args singular_args;
                 singular_args.push_back(finished_1);
@@ -2243,18 +2401,9 @@ int main()
                 current_geodesic_path = geodesic_trace_buffer.read<cl_float4>(clctx.cqueue);
             }
 
-            cl::args run_args;
-            run_args.push_back(schwarzs_1);
-            run_args.push_back(schwarzs_scratch);
-            run_args.push_back(finished_1);
-            run_args.push_back(schwarzs_count_1);
-            run_args.push_back(schwarzs_count_scratch);
-            run_args.push_back(finished_count_1);
-            run_args.push_back(width);
-            run_args.push_back(height);
-            run_args.push_back(fallback);
+            int rays_num = calculate_ray_count(width, height);
 
-            clctx.cqueue.exec("relauncher_generic", run_args, {1}, {1});
+            execute_kernel(clctx.cqueue, schwarzs_1, schwarzs_scratch, finished_1, schwarzs_count_1, schwarzs_count_scratch, finished_count_1, rays_num, cfg.use_device_side_enqueue);
 
             #endif // GENERIC_METRIC
 
@@ -2309,7 +2458,7 @@ int main()
             auto duration = now.time_since_epoch();
             auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
 
-            std::string fname = "./screenshots/" + current_metric.name + "_" + std::to_string(millis) + ".png";
+            std::string fname = "./screenshots/" + current_metric->name + "_" + std::to_string(millis) + ".png";
 
             img.saveToFile(fname);
         }

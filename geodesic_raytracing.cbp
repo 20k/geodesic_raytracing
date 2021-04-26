@@ -4,13 +4,13 @@
 	<Project>
 		<Option title="geodesic_raytracing" />
 		<Option pch_mode="2" />
-		<Option compiler="gcc" />
+		<Option compiler="gcc-mingw64" />
 		<Build>
 			<Target title="Debug">
 				<Option output="bin/Debug/geodesic_raytracing" prefix_auto="1" extension_auto="1" />
 				<Option object_output="obj/Debug/" />
 				<Option type="1" />
-				<Option compiler="gcc" />
+				<Option compiler="gcc-mingw64" />
 				<Compiler>
 					<Add option="-g" />
 				</Compiler>
@@ -19,7 +19,7 @@
 				<Option output="bin/Release/geodesic_raytracing" prefix_auto="1" extension_auto="1" />
 				<Option object_output="obj/Release/" />
 				<Option type="1" />
-				<Option compiler="gcc" />
+				<Option compiler="gcc-mingw64" />
 				<Compiler>
 					<Add option="-O2" />
 				</Compiler>
@@ -31,7 +31,7 @@
 				<Option output="bin/GPUProfile/geodesic_raytracing" prefix_auto="1" extension_auto="1" />
 				<Option object_output="obj/GPUProfile/" />
 				<Option type="1" />
-				<Option compiler="gcc" />
+				<Option compiler="gcc-mingw64" />
 				<Compiler>
 					<Add option="-O2" />
 					<Add option="-DGPU_PROFILE" />
@@ -45,19 +45,18 @@
 			<Add option="-Wall" />
 			<Add option="-std=c++20" />
 			<Add option="-fexceptions" />
+			<Add option="`pkg-config --cflags freetype2`" />
 			<Add option="-DIMGUI_IMPL_OPENGL_LOADER_GLEW" />
 			<Add option="-DSUBPIXEL_FONT_RENDERING" />
 			<Add option="-DSFML_STATIC" />
 			<Add option="-DGLEW_STATIC" />
 			<Add option="-DGRAPHITE2_STATIC" />
 			<Add option="-DCL_TARGET_OPENCL_VERSION=220" />
+			<Add option="-DIMGUI_ENABLE_FREETYPE" />
 			<Add directory="deps" />
 			<Add directory="deps/imgui" />
 		</Compiler>
 		<Linker>
-			<Add option="-static-libstdc++" />
-			<Add option="-static-libgcc" />
-			<Add option="-static" />
 			<Add option="-lmingw32" />
 			<Add option="-l:libssl.a" />
 			<Add option="-l:libglfw3.a" />
@@ -96,15 +95,17 @@
 			<Add option="-l:libboost_context-mt.a" />
 			<Add option="-lbacktrace" />
 			<Add option="-lopencl" />
+			<Add option="-limm32" />
 		</Linker>
 		<Unit filename="chromaticity.hpp" />
 		<Unit filename="cl.cl">
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>
-		<Unit filename="deps/imgui/examples/imgui_impl_glfw.cpp" />
-		<Unit filename="deps/imgui/examples/imgui_impl_opengl3.cpp" />
+		<Unit filename="deps/imgui/backends/imgui_impl_glfw.cpp" />
+		<Unit filename="deps/imgui/backends/imgui_impl_opengl3.cpp" />
 		<Unit filename="deps/imgui/imgui.cpp" />
 		<Unit filename="deps/imgui/imgui_draw.cpp" />
+		<Unit filename="deps/imgui/imgui_tables.cpp" />
 		<Unit filename="deps/imgui/imgui_widgets.cpp" />
 		<Unit filename="deps/imgui/misc/freetype/imgui_freetype.cpp" />
 		<Unit filename="deps/toolkit/base_serialisables.cpp" />

@@ -12,6 +12,8 @@ void generate_mips(__global uchar4* in, int page_width, int page_height, int wid
     avg += in[lower_level * ]
 }*/
 
+#define M_PIf ((float)M_PI)
+
 float3 cartesian_to_polar(float3 in)
 {
     float r = length(in);
@@ -34,10 +36,10 @@ float3 cartesian_to_polar_signed(float3 in, bool positive)
     float phi = atan2(in.y, in.x);
 
     if(!positive)
-        phi += M_PI;
+        phi += M_PIf;
 
-    if(phi >= M_PI)
-        phi -= 2 * M_PI;
+    if(phi >= M_PIf)
+        phi -= 2 * M_PIf;
 
     return (float3){r, theta, phi};
 }
@@ -119,7 +121,7 @@ void calculate_metric(float4 spacetime_position, float g_metric_out[])
     #ifndef IS_CONSTANT_THETA
     float theta = spacetime_position.z;
     #else
-    float theta = M_PI/2;
+    float theta = M_PIf/2;
     #endif // IS_CONSTANT_THETA
 
     g_metric_out[0] = -c * c * (1 - rs / r);
@@ -214,7 +216,7 @@ float3 fix_ray_position(float3 polar_pos, float3 polar_velocity, float sphere_ra
     float3 new_polar = cartesian_to_polar(new_cart);
 
     #ifdef IS_CONSTANT_THETA
-    new_polar.y = M_PI/2;
+    new_polar.y = M_PIf/2;
     #endif // IS_CONSTANT_THETA
 
     new_polar.x *= position_sign;
@@ -284,7 +286,7 @@ float3 lin_to_srgb(float3 val)
     float3 S1 = native_sqrt(val);
     float3 S2 = native_sqrt(S1);
     float3 S3 = native_sqrt(S2);
-    float3 sRGB = 0.585122381 * S1 + 0.783140355 * S2 - 0.368262736 * S3;
+    float3 sRGB = 0.585122381f * S1 + 0.783140355f * S2 - 0.368262736f * S3;
 
     return sRGB;
 }
@@ -361,7 +363,7 @@ void calculate_metric_krus(float4 spacetime_position, float g_metric_out[])
     #ifndef IS_CONSTANT_THETA
     float theta = spacetime_position.z;
     #else
-    float theta = M_PI/2;
+    float theta = M_PIf/2;
     #endif // IS_CONSTANT_THETA
 
     float T = spacetime_position.x;
@@ -385,7 +387,7 @@ void calculate_metric_krus_with_r(float4 spacetime_position, float r, float g_me
     #ifndef IS_CONSTANT_THETA
     float theta = spacetime_position.z;
     #else
-    float theta = M_PI/2;
+    float theta = M_PIf/2;
     #endif // IS_CONSTANT_THETA
 
     float T = spacetime_position.x;
@@ -412,7 +414,7 @@ void calculate_partial_derivatives_krus(float4 spacetime_position, float g_metri
     #ifndef IS_CONSTANT_THETA
     float theta = spacetime_position.z;
     #else
-    float theta = M_PI/2;
+    float theta = M_PIf/2;
     #endif // IS_CONSTANT_THETA
 
     float T = spacetime_position.x;
@@ -472,7 +474,7 @@ void calculate_partial_derivatives(float4 spacetime_position, float g_metric_par
     #ifndef IS_CONSTANT_THETA
     float theta = spacetime_position.z;
     #else
-    float theta = M_PI/2;
+    float theta = M_PIf/2;
     #endif // IS_CONSTANT_THETA
 
     //dt dr
@@ -1657,14 +1659,14 @@ float4 quat_multiply(float4 q1, float4 q2)
 
 float cos_mix(float x1, float x2, float f)
 {
-    float f2 = (1 - native_cos(f * M_PI))/2.f;
+    float f2 = (1 - native_cos(f * M_PIf))/2.f;
 
     return mix(x1, x2, f2);
 }
 
 float angle_to_plane(float3 vec, float3 plane_normal)
 {
-    return M_PI/2 - acos(dot(normalize(vec), normalize(plane_normal)));
+    return M_PIf/2 - acos(dot(normalize(vec), normalize(plane_normal)));
 }
 
 float angle_between_vectors3(float3 v1, float3 v2)
@@ -1768,7 +1770,7 @@ float3 calculate_pixel_direction(int cx, int cy, float width, float height, floa
 {
     #define FOV 90
 
-    float fov_rad = (FOV / 360.f) * 2 * M_PI;
+    float fov_rad = (FOV / 360.f) * 2 * M_PIf;
 
     float nonphysical_plane_half_width = width/2;
     float nonphysical_f_stop = nonphysical_plane_half_width / tan(fov_rad/2);
@@ -1792,37 +1794,37 @@ float3 calculate_pixel_direction(int cx, int cy, float width, float height, floa
         pixel_direction = rot_quat(pixel_direction, goff2);
     }
 
-    if(base_angle.x != M_PI/2)
+    if(base_angle.x != M_PIf/2)
     {
         ///gets the rotation associated with the theta intersection of r=0
-        float base_theta_angle = cos_mix(M_PI/2, base_angle.x, clamp(1 - fabs(polar_camera.y), 0.f, 1.f));
+        float base_theta_angle = cos_mix(M_PIf/2, base_angle.x, clamp(1 - fabs(polar_camera.y), 0.f, 1.f));
 
-        float4 theta_goff = aa_to_quat(get_theta_axis(pixel_direction, polar_camera), -(-base_theta_angle + M_PI/2));
+        float4 theta_goff = aa_to_quat(get_theta_axis(pixel_direction, polar_camera), -(-base_theta_angle + M_PIf/2));
 
         if(polar_camera.y < 0)
         {
             float3 theta_axis = get_theta_axis(pixel_direction, polar_camera);
 
-            float4 new_thetaquat = aa_to_quat(theta_axis, -(-polar_camera.z + M_PI/2));
+            float4 new_thetaquat = aa_to_quat(theta_axis, -(-polar_camera.z + M_PIf/2));
 
             pixel_direction = rot_quat(pixel_direction, new_thetaquat);
 
             float3 phi_axis = get_phi_axis(pixel_direction, polar_camera);
 
             ///the phi axis... is a basis up axis?
-            float4 new_quat = aa_to_quat(phi_axis, -(polar_camera.w + M_PI/2));
+            float4 new_quat = aa_to_quat(phi_axis, -(polar_camera.w + M_PIf/2));
 
             pixel_direction = rot_quat(pixel_direction, new_quat);
 
-            float4 new_quat2 = aa_to_quat(phi_axis, -(polar_camera.w - M_PI/2));
+            float4 new_quat2 = aa_to_quat(phi_axis, -(polar_camera.w - M_PIf/2));
 
             pixel_direction = rot_quat(pixel_direction, new_quat2);
 
-            float4 new_thetaquat2 = aa_to_quat(theta_axis, -(-polar_camera.z + M_PI/2));
+            float4 new_thetaquat2 = aa_to_quat(theta_axis, -(-polar_camera.z + M_PIf/2));
 
             pixel_direction = rot_quat(pixel_direction, new_thetaquat2);
 
-            theta_goff = aa_to_quat(get_theta_axis(pixel_direction, polar_camera), (-base_theta_angle + M_PI/2));
+            theta_goff = aa_to_quat(get_theta_axis(pixel_direction, polar_camera), (-base_theta_angle + M_PIf/2));
         }
 
         pixel_direction = rot_quat(pixel_direction, theta_goff);
@@ -2002,7 +2004,7 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat,
     float4 lightray_acceleration = (float4)(0,0,0,0);
 
     #ifdef IS_CONSTANT_THETA
-    lightray_spacetime_position.z = M_PI/2;
+    lightray_spacetime_position.z = M_PIf/2;
     lightray_velocity.z = 0;
     lightray_acceleration.z = 0;
     #endif // IS_CONSTANT_THETA
@@ -2042,7 +2044,7 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat,
     //    printf("Posr %f %f %f\n", polar_camera.y, polar_camera.z, polar_camera.w);
     //    printf("DS %f\n", dot_product_big(lightray_velocity, lightray_velocity, g_metric_big));
 
-    /*lightray_spacetime_position.z = M_PI/2;
+    /*lightray_spacetime_position.z = M_PIf/2;
     lightray_velocity.z = 0;
     lightray_acceleration.z = 0;*/
 
@@ -2425,7 +2427,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
     #endif // GENERIC_BIG_METRIC
 
     #ifdef IS_CONSTANT_THETA
-    position.z = M_PI/2;
+    position.z = M_PIf/2;
     velocity.z = 0;
     acceleration.z = 0;
     #endif // IS_CONSTANT_THETA
@@ -2445,11 +2447,17 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
     float uniform_coordinate_precision_divisor = max(max(W_V1, W_V2), max(W_V3, W_V4));
 
+    int loop_limit = 64000;
+
+    #ifdef DEVICE_SIDE_ENQUEUE
+    loop_limit /= 125;
+    #endif // DEVICE_SIDE_ENQUEUE
+
     #pragma unroll
-    for(int i=0; i < 64000/125; i++)
+    for(int i=0; i < loop_limit; i++)
     {
         #ifdef IS_CONSTANT_THETA
-        position.z = M_PI/2;
+        position.z = M_PIf/2;
         velocity.z = 0;
         acceleration.z = 0;
         #endif // IS_CONSTANT_THETA
@@ -2460,7 +2468,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
         float4 polar_position = generic_to_spherical(position);
 
         #ifdef IS_CONSTANT_THETA
-        polar_position.z = M_PI/2;
+        polar_position.z = M_PIf/2;
         #endif // IS_CONSTANT_THETA
 
         //float r_value = polar_position.y;
@@ -2613,7 +2621,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
     #endif // GENERIC_BIG_METRIC
 
     #ifdef IS_CONSTANT_THETA
-    position.z = M_PI/2;
+    position.z = M_PIf/2;
     velocity.z = 0;
     acceleration.z = 0;
     #endif // IS_CONSTANT_THETA
@@ -2633,7 +2641,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
     for(int i=0; i < 64000; i++)
     {
         #ifdef IS_CONSTANT_THETA
-        position.z = M_PI/2;
+        position.z = M_PIf/2;
         velocity.z = 0;
         acceleration.z = 0;
         #endif // IS_CONSTANT_THETA
@@ -2644,7 +2652,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         float4 polar_position = generic_to_spherical(position);
 
         #ifdef IS_CONSTANT_THETA
-        polar_position.z = M_PI/2;
+        polar_position.z = M_PIf/2;
         #endif // IS_CONSTANT_THETA
 
         //float r_value = polar_position.y;
@@ -2711,12 +2719,13 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
     }
 }
 
+#ifdef DEVICE_SIDE_ENQUEUE
 __kernel
 void relauncher_generic(__global struct lightray* generic_rays_in, __global struct lightray* generic_rays_out,
                         __global struct lightray* finished_rays,
                         __global int* restrict generic_count_in, __global int* restrict generic_count_out,
                         __global int* finished_count_out,
-                        int width, int height, int fallback)
+                        int fallback)
 {
     ///failed to converge
     if(fallback > 125)
@@ -2742,7 +2751,7 @@ void relauncher_generic(__global struct lightray* generic_rays_in, __global stru
 
     enqueue_kernel(get_default_queue(), CLK_ENQUEUE_FLAGS_NO_WAIT,
                    ndrange_1D(offset, generic_count, loffset),
-                   1, NULL, &f3,
+                   0, NULL, &f3,
                    ^{
                         do_generic_rays (generic_rays_in, generic_rays_out,
                                          finished_rays,
@@ -2757,11 +2766,12 @@ void relauncher_generic(__global struct lightray* generic_rays_in, __global stru
                         relauncher_generic(generic_rays_out, generic_rays_in,
                                            finished_rays,
                                            generic_count_out, generic_count_in,
-                                           finished_count_out, width, height, fallback + 1);
+                                           finished_count_out, fallback + 1);
                    });
 
     release_event(f3);
 }
+#endif // DEVICE_SIDE_ENQUEUE
 
 __kernel
 void clear_termination_buffer(__global int* termination_buffer, int width, int height)
@@ -2803,7 +2813,7 @@ void init_rays(float4 cartesian_camera_pos, float4 camera_quat, __global struct 
 {
     #define FOV 90
 
-    float fov_rad = (FOV / 360.f) * 2 * M_PI;
+    float fov_rad = (FOV / 360.f) * 2 * M_PIf;
 
     int cx = get_global_id(0);
     int cy = get_global_id(1);
@@ -3011,7 +3021,7 @@ void do_kruskal_rays(__global struct lightray* schwarzs_rays_in, __global struct
     int sy = ray->sy;
 
     #ifdef IS_CONSTANT_THETA
-    position.z = M_PI/2;
+    position.z = M_PIf/2;
     velocity.z = 0;
     acceleration.z = 0;
     #endif // IS_CONSTANT_THETA
@@ -3041,7 +3051,7 @@ void do_kruskal_rays(__global struct lightray* schwarzs_rays_in, __global struct
     for(int i=0; i < 64000/125; i++)
     {
         #ifdef IS_CONSTANT_THETA
-        position.z = M_PI/2;
+        position.z = M_PIf/2;
         velocity.z = 0;
         intermediate_velocity.z = 0;
         acceleration.z = 0;
@@ -3104,10 +3114,10 @@ void do_kruskal_rays(__global struct lightray* schwarzs_rays_in, __global struct
                 float4 last_new_pos = kruskal_position_to_schwarzs_position_with_r(last_position, last_high_r);
                 float4 last_new_vel = kruskal_velocity_to_schwarzs_velocity_with_r(last_position, last_velocity, last_high_r);
 
-                //float4 old_lightray_acceleration = ((position - last_new_pos) - (last_velocity * last_ds)) / (0.5 * last_ds * last_ds);
+                //float4 old_lightray_acceleration = ((position - last_new_pos) - (last_velocity * last_ds)) / (0.5f * last_ds * last_ds);
                 //float4 old_lightray_acceleration = ((velocity - last_new_vel) / last_ds);
                 float4 old_lightray_acceleration = ((ivel - last_new_vel) / last_ds);
-                new_acceleration = ((new_vel - last_new_vel) / (0.5 * last_ds)) - old_lightray_acceleration;
+                new_acceleration = ((new_vel - last_new_vel) / (0.5f * last_ds)) - old_lightray_acceleration;
                 #endif // VERLET_INTEGRATION
 
                 struct lightray out_ray;
@@ -3144,7 +3154,7 @@ void do_kruskal_rays(__global struct lightray* schwarzs_rays_in, __global struct
         #endif // EULER_INTEGRATION
 
         #ifdef VERLET_INTEGRATION
-        float4 next_position = position + velocity * ds + 0.5 * acceleration * ds * ds;
+        float4 next_position = position + velocity * ds + 0.5f * acceleration * ds * ds;
         float4 intermediate_next_velocity = velocity + acceleration * ds;
 
         calculate_metric_krus(next_position, g_metric);
@@ -3153,7 +3163,7 @@ void do_kruskal_rays(__global struct lightray* schwarzs_rays_in, __global struct
         intermediate_next_velocity = fix_light_velocity2(intermediate_next_velocity, g_metric);
 
         float4 next_acceleration = calculate_acceleration(intermediate_next_velocity, g_metric, g_partials);
-        float4 next_velocity = velocity + 0.5 * (acceleration + next_acceleration) * ds;
+        float4 next_velocity = velocity + 0.5f * (acceleration + next_acceleration) * ds;
 
         #ifdef IS_CONSTANT_THETA
         next_position.z = 0;
@@ -3228,7 +3238,7 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
     float4 acceleration = ray->acceleration;
 
     #ifdef IS_CONSTANT_THETA
-    position.z = M_PI/2;
+    position.z = M_PIf/2;
     velocity.z = 0;
     acceleration.z = 0;
     #endif // IS_CONSTANT_THETA
@@ -3269,7 +3279,7 @@ void do_schwarzs_rays(__global struct lightray* schwarzs_rays_in, __global struc
     for(int i=0; i < 64000/125; i++)
     {
         #ifdef IS_CONSTANT_THETA
-        position.z = M_PI/2;
+        position.z = M_PIf/2;
         velocity.z = 0;
         intermediate_velocity.z = 0;
         acceleration.z = 0;
@@ -3557,7 +3567,7 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
     float4 velocity = ray->velocity;
 
     #ifdef IS_CONSTANT_THETA
-    position.z = M_PI/2;
+    position.z = M_PIf/2;
     velocity.z = 0;
     #endif // IS_CONSTANT_THETA
 
@@ -3596,19 +3606,19 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
 	npolar = get_texture_constant_theta_rotation(pixel_direction, polar_camera_pos, position);
     #endif // GENERIC_CONSTANT_THETA
 
-    float thetaf = fmod(npolar.y, 2 * M_PI);
+    float thetaf = fmod(npolar.y, 2 * M_PIf);
     float phif = npolar.z;
 
-    if(thetaf >= M_PI)
+    if(thetaf >= M_PIf)
     {
-        phif += M_PI;
-        thetaf -= M_PI;
+        phif += M_PIf;
+        thetaf -= M_PIf;
     }
 
-    phif = fmod(phif, 2 * M_PI);
+    phif = fmod(phif, 2 * M_PIf);
 
-    float sxf = (phif) / (2 * M_PI);
-    float syf = thetaf / M_PI;
+    float sxf = (phif) / (2 * M_PIf);
+    float syf = thetaf / M_PIf;
 
     sxf += 0.5f;
 
@@ -3630,13 +3640,13 @@ float smallest(float f1, float f2)
 
 float circular_diff(float f1, float f2)
 {
-    float a1 = f1 * M_PI * 2;
-    float a2 = f2 * M_PI * 2;
+    float a1 = f1 * M_PIf * 2;
+    float a2 = f2 * M_PIf * 2;
 
     float2 v1 = {cos(a1), sin(a1)};
     float2 v2 = {cos(a2), sin(a2)};
 
-    return atan2(v1.x * v2.y - v1.y * v2.x, v1.x * v2.x + v1.y * v2.y) / (2 * M_PI);
+    return atan2(v1.x * v2.y - v1.y * v2.x, v1.x * v2.x + v1.y * v2.y) / (2 * M_PIf);
 }
 
 float2 circular_diff2(float2 f1, float2 f2)
@@ -3726,7 +3736,7 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
     float4 velocity = ray->velocity;
 
     #ifdef IS_CONSTANT_THETA
-    position.z = M_PI/2;
+    position.z = M_PIf/2;
     velocity.z = 0;
     #endif // IS_CONSTANT_THETA
 
@@ -4105,6 +4115,10 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
 
     #endif // REDSHIFT
 
+    #ifdef LINEAR_FRAMEBUFFER
+    end_result.xyz = srgb_to_lin(end_result.xyz);
+    #endif // LINEAR_FRAMEBUFFER
+
     write_imagef(out, (int2){sx, sy}, end_result);
 }
 #endif // 0
@@ -4114,7 +4128,7 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
 {
     #define FOV 90
 
-    float fov_rad = (FOV / 360.f) * 2 * M_PI;
+    float fov_rad = (FOV / 360.f) * 2 * M_PIf;
 
     int cx = get_global_id(0);
     int cy = get_global_id(1);
@@ -4516,19 +4530,19 @@ void do_raytracing_multicoordinate(__write_only image2d_t out, float ds_, float4
 
             float3 npolar = cartesian_to_polar(cart_here);
 
-            float thetaf = fmod(npolar.y, 2 * M_PI);
+            float thetaf = fmod(npolar.y, 2 * M_PIf);
             float phif = npolar.z;
 
-            if(thetaf >= M_PI)
+            if(thetaf >= M_PIf)
             {
-                phif += M_PI;
-                thetaf -= M_PI;
+                phif += M_PIf;
+                thetaf -= M_PIf;
             }
 
-            phif = fmod(phif, 2 * M_PI);
+            phif = fmod(phif, 2 * M_PIf);
 
-            float sx = (phif) / (2 * M_PI);
-            float sy = thetaf / M_PI;
+            float sx = (phif) / (2 * M_PIf);
+            float sy = thetaf / M_PIf;
 
             sampler_t sam = CLK_NORMALIZED_COORDS_TRUE |
                             CLK_ADDRESS_REPEAT |

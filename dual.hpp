@@ -9,9 +9,6 @@
 
 namespace dual_types
 {
-    template<typename T>
-    concept Arithmetic = std::is_arithmetic_v<T>;
-
     struct unit_i_t{};
 
     template<typename T>
@@ -26,8 +23,10 @@ namespace dual_types
         complex(){}
         complex(const std::string& v1, const std::string& v2) : real(v1), imaginary(v2) {}
         template<typename U, typename V>
+        requires std::is_constructible_v<T, U> && std::is_constructible_v<T, V>
         complex(U v1, V v2) : real(v1), imaginary(v2) {}
         template<typename U>
+        requires std::is_constructible_v<T, U>
         complex(U v1) : real(v1), imaginary(0) {}
         complex(unit_i_t) : real(0), imaginary(1){}
 
@@ -745,7 +744,6 @@ inline
 std::pair<std::vector<std::string>, std::vector<std::string>> evaluate_metric2D(Func&& f, T... raw_variables)
 {
     std::array<std::string, sizeof...(T)> variable_names{raw_variables...};
-    constexpr int N = sizeof...(T);
 
     std::vector<std::string> raw_eq;
     std::vector<std::string> raw_derivatives;
