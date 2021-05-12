@@ -71,6 +71,9 @@ namespace dual_types
             LESS,
             LESS_EQUAL,
 
+            GREATER,
+            GREATER_EQUAL,
+
             SIN,
             COS,
             TAN,
@@ -123,7 +126,7 @@ namespace dual_types
         operation_desc ret;
 
         if(type == PLUS || type == MINUS || type == MULTIPLY || type == DIVIDE || type == MODULUS ||
-           type == LESS || type == LESS_EQUAL)
+           type == LESS || type == LESS_EQUAL || type == GREATER || type == GREATER_EQUAL)
         {
             ret.is_infix = true;
         }
@@ -137,6 +140,8 @@ namespace dual_types
         "%",
         "<",
         "<=",
+        ">",
+        ">=",
         "native_sin",
         "native_cos",
         "native_tan",
@@ -224,6 +229,10 @@ namespace dual_types
     value operator<(const value& d1, const value& d2);
 
     value operator<=(const value& d1, const value& d2);
+
+    value operator>(const value& d1, const value& d2);
+
+    value operator>=(const value& d1, const value& d2);
 
     value operator+(const value& d1, const value& d2);
 
@@ -640,6 +649,12 @@ namespace dual_types
                 if(type == ops::LESS_EQUAL)
                     return make_op_value(get(0) <= get(1));
 
+                if(type == ops::GREATER)
+                    return make_op_value(get(0) > get(1));
+
+                if(type == ops::GREATER_EQUAL)
+                    return make_op_value(get(0) >= get(1));
+
                 PROPAGATE1(SIN, std::sin);
                 PROPAGATE1(COS, std::cos);
                 PROPAGATE1(TAN, std::tan);
@@ -821,6 +836,14 @@ namespace dual_types
             {
                 return args[0].dual(sym) <= args[1].dual(sym);
             }
+            /*if(type == GREATER)
+            {
+                return args[0].dual(sym) > args[1].dual(sym);
+            }
+            if(type == GREATER_EQUAL)
+            {
+                return args[0].dual(sym) >= args[1].dual(sym);
+            }*/
 
             DUAL_CHECK1(SIN, sin);
             DUAL_CHECK1(COS, cos);
@@ -1052,6 +1075,18 @@ namespace dual_types
     value operator<=(const value& d1, const value& d2)
     {
         return make_op(ops::LESS_EQUAL, d1, d2);
+    }
+
+    inline
+    value operator>(const value& d1, const value& d2)
+    {
+        return make_op(ops::GREATER, d1, d2);
+    }
+
+    inline
+    value operator>=(const value& d1, const value& d2)
+    {
+        return make_op(ops::GREATER_EQUAL, d1, d2);
     }
 
     inline
