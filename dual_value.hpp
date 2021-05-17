@@ -125,7 +125,7 @@ namespace dual_types
 
         operation_desc ret;
 
-        if(type == PLUS || type == MINUS || type == MULTIPLY || type == DIVIDE || type == MODULUS ||
+        if(type == PLUS || type == MINUS || type == MULTIPLY || type == MODULUS ||
            type == LESS || type == LESS_EQUAL || type == GREATER || type == GREATER_EQUAL)
         {
             ret.is_infix = true;
@@ -136,7 +136,7 @@ namespace dual_types
         "-",
         "-",
         "*",
-        "/",
+        "native_divide",
         "%",
         "<",
         "<=",
