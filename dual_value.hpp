@@ -131,12 +131,24 @@ namespace dual_types
             ret.is_infix = true;
         }
 
+        #define NATIVE_DIVIDE
+        #ifndef NATIVE_DIVIDE
+        if(type == DIVIDE)
+        {
+            ret.is_infix = true;
+        }
+        #endif // NATIVE_DIVIDE
+
         std::array syms = make_array(
         "+",
         "-",
         "-",
         "*",
+        #ifdef NATIVE_DIVIDE
         "native_divide",
+        #else
+        "/",
+        #endif // NATIVE_DIVIDE
         "%",
         "<",
         "<=",
