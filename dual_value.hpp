@@ -1000,39 +1000,46 @@ namespace dual_types
     }
 
     inline
-    std::string type_to_string(const value& op)
+    std::string type_to_string(const value& op, bool is_int = false)
     {
         if(op.type == ops::VALUE)
         {
+            std::string prefix = "";
+
+            if(is_int)
+            {
+                prefix = "(int)";
+            }
+
             if(op.is_constant())
             {
                 if(op.get_constant() < 0)
-                    return "(" + op.value_payload.value() + ")";
+                    return "(" + prefix + op.value_payload.value() + ")";
             }
 
-            return op.value_payload.value();
+            return prefix + op.value_payload.value();
         }
 
         const operation_desc desc = get_description(op.type);
 
         if(desc.is_infix)
         {
-            return "(" + type_to_string(op.args[0]) + std::string(desc.sym) + type_to_string(op.args[1]) + ")";
+            return "(" + type_to_string(op.args[0], is_int) + std::string(desc.sym) + type_to_string(op.args[1], is_int) + ")";
         }
         else
         {
            if(op.type == ops::UMINUS)
-                return "(-(" + type_to_string(op.args[0]) + "))";
+                return "(-(" + type_to_string(op.args[0], is_int) + "))";
 
             std::string build = std::string(desc.sym) + "(";
 
             for(int i=0; i < (int)op.args.size() - 1; i++)
             {
-                build += type_to_string(op.args[i]) + ",";
+                build += type_to_string(op.args[i], is_int) + ",";
             }
 
             if(op.args.size() > 0)
-                build += type_to_string(op.args.back());
+                build += type_to_string(op.args.back(), is_int);
 
             build += ")";
 
