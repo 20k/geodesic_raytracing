@@ -74,6 +74,8 @@ namespace dual_types
             GREATER,
             GREATER_EQUAL,
 
+            EQUAL,
+
             SIN,
             COS,
             TAN,
@@ -126,7 +128,8 @@ namespace dual_types
         operation_desc ret;
 
         if(type == PLUS || type == MINUS || type == MULTIPLY || type == MODULUS ||
-           type == LESS || type == LESS_EQUAL || type == GREATER || type == GREATER_EQUAL)
+           type == LESS || type == LESS_EQUAL || type == GREATER || type == GREATER_EQUAL ||
+           type == EQUAL)
         {
             ret.is_infix = true;
         }
@@ -154,6 +157,7 @@ namespace dual_types
         "<=",
         ">",
         ">=",
+        "==",
         "native_sin",
         "native_cos",
         "native_tan",
@@ -667,6 +671,9 @@ namespace dual_types
                 if(type == ops::GREATER_EQUAL)
                     return make_op_value(get(0) >= get(1));
 
+                if(type == ops::EQUAL)
+                    return make_op_value(get(0) == get(1));
+
                 PROPAGATE1(SIN, std::sin);
                 PROPAGATE1(COS, std::cos);
                 PROPAGATE1(TAN, std::tan);
@@ -848,6 +855,12 @@ namespace dual_types
             {
                 return args[0].dual(sym) <= args[1].dual(sym);
             }
+
+            /*if(type == EQUAL)
+            {
+                return args[0].dual(sym) == args[1].dual(sym);
+            }*/
+
             /*if(type == GREATER)
             {
                 return args[0].dual(sym) > args[1].dual(sym);
@@ -1106,6 +1119,12 @@ namespace dual_types
     value operator>=(const value& d1, const value& d2)
     {
         return make_op(ops::GREATER_EQUAL, d1, d2);
+    }
+
+    inline
+    value operator==(const value& d1, const value& d2)
+    {
+        return make_op(ops::EQUAL, d1, d2);
     }
 
     inline
