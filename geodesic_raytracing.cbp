@@ -96,6 +96,7 @@
 			<Add option="-lbacktrace" />
 			<Add option="-lopencl" />
 			<Add option="-limm32" />
+			<Add option="-ldwrite" />
 		</Linker>
 		<Unit filename="chromaticity.hpp" />
 		<Unit filename="cl.cl">
