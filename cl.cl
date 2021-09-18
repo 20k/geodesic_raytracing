@@ -2453,7 +2453,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
     loop_limit /= 125;
     #endif // DEVICE_SIDE_ENQUEUE
 
-    #pragma unroll
+    //#pragma unroll
     for(int i=0; i < loop_limit; i++)
     {
         #ifdef IS_CONSTANT_THETA
@@ -2637,7 +2637,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
 
     float3 pixel_direction = calculate_pixel_direction(sx, sy, width, height, polar_camera_pos, camera_quat, base_angle);
 
-    #pragma unroll
+    //#pragma unroll
     for(int i=0; i < 64000; i++)
     {
         #ifdef IS_CONSTANT_THETA
