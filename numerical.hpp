@@ -2,6 +2,7 @@
 #define NUMERICAL_HPP_INCLUDED
 
 #include "dual_value.hpp"
+#include <vec/tensor.hpp>
 
 ///https://physics.stackexchange.com/questions/51915/can-one-raise-indices-on-covariant-derivative-and-products-thereof raising indices on covariant derivatives
 
