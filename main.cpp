@@ -2435,6 +2435,8 @@ int main()
 
         clctx.cqueue.flush();
 
+        rtex[which_buffer].unacquire(clctx.cqueue);
+
         if(taking_screenshot)
         {
             printf("Taking screenie\n");
@@ -2445,14 +2447,27 @@ int main()
 
             std::cout << "WIDTH " << (screenshot_w * supersample_mult) << " HEIGHT "<< (screenshot_h * supersample_mult) << std::endl;
 
-            std::vector<cl_uchar4> pixels = rtex[which_buffer].read<2, cl_uchar4>(clctx.cqueue, {0,0}, {screenshot_w * supersample_mult, screenshot_h * supersample_mult});
-
-            printf("Readback\n");
+            std::vector<vec4f> pixels = tex[which_buffer].read(0);
 
             std::cout << "pixels size " << pixels.size() << std::endl;
 
+            assert(pixels.size() == (screenshot_w * supersample_mult * screenshot_h * supersample_mult));
+
             sf::Image img;
-            img.create(screenshot_w * supersample_mult, screenshot_h * supersample_mult, (const sf::Uint8*)&pixels[0]);
+            img.create(screenshot_w * supersample_mult, screenshot_h * supersample_mult);
+
+            for(int y=0; y < screenshot_h * supersample_mult; y++)
+            {
+                for(int x=0; x < screenshot_w * supersample_mult; x++)
+                {
+                    vec4f current_pixel = pixels[y * (screenshot_w * supersample_mult) + x];
+
+                    current_pixel = clamp(current_pixel, 0.f, 1.f);
+                    current_pixel = lin_to_srgb_approx(current_pixel);
+
+                    img.setPixel(x, y, sf::Color(current_pixel.x() * 255.f, current_pixel.y() * 255.f, current_pixel.z() * 255.f, current_pixel.w() * 255.f));
+                }
+            }
 
             std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
             auto duration = now.time_since_epoch();
@@ -2462,8 +2477,6 @@ int main()
 
             img.saveToFile(fname);
         }
-
-        rtex[which_buffer].unacquire(clctx.cqueue);
 
         which_buffer = (which_buffer + 1) % 2;
 
