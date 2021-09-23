@@ -2463,7 +2463,8 @@ int main()
                     vec4f current_pixel = pixels[y * (screenshot_w * supersample_mult) + x];
 
                     current_pixel = clamp(current_pixel, 0.f, 1.f);
-                    current_pixel = lin_to_srgb_approx(current_pixel);
+                    current_pixel = lin_to_srgb(current_pixel);
+                    current_pixel = clamp(current_pixel, 0.f, 1.f);
 
                     img.setPixel(x, y, sf::Color(current_pixel.x() * 255.f, current_pixel.y() * 255.f, current_pixel.z() * 255.f, current_pixel.w() * 255.f));
                 }
