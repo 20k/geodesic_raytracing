@@ -2723,39 +2723,52 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
 __kernel
 void relauncher_generic(__global struct lightray* generic_rays_in, __global struct lightray* generic_rays_out,
                         __global struct lightray* finished_rays,
-                        __global int* restrict generic_count_in, __global int* restrict generic_count_out,
                         __global int* finished_count_out,
-                        int fallback)
+                        int fallback, __global int* counts)
 {
     ///failed to converge
-    if(fallback > 125)
+    if(fallback > 123)
         return;
 
-    if((*generic_count_in) == 0)
+    //if((*generic_count_in) == 0)
+    //    return;
+
+    //if(fallback == 0)
+    //    *finished_count_out = 0;
+
+    if(counts[fallback] == 0)
         return;
 
-    if(fallback == 0)
-        *finished_count_out = 0;
-
-    int generic_count = *generic_count_in;
+    int generic_count = counts[fallback];
 
     int offset = 0;
     int loffset = 256;
 
+    if((generic_count % loffset) != 0)
+    {
+        int remainder = generic_count % loffset;
+
+        generic_count -= remainder;
+        generic_count += loffset;
+
+        if(generic_count == 0)
+            generic_count = loffset;
+    }
+
     int one = 1;
     int oneoffset = 1;
 
-    *generic_count_out = 0;
+    //*generic_count_out = 0;
 
     clk_event_t f3;
 
-    enqueue_kernel(get_default_queue(), CLK_ENQUEUE_FLAGS_NO_WAIT,
+    enqueue_kernel(get_default_queue(), CLK_ENQUEUE_FLAGS_WAIT_KERNEL,
                    ndrange_1D(offset, generic_count, loffset),
                    0, NULL, &f3,
                    ^{
                         do_generic_rays (generic_rays_in, generic_rays_out,
                                          finished_rays,
-                                         generic_count_in, generic_count_out,
+                                         &counts[fallback], &counts[fallback + 1],
                                          finished_count_out);
                    });
 
@@ -2765,8 +2778,7 @@ void relauncher_generic(__global struct lightray* generic_rays_in, __global stru
                    ^{
                         relauncher_generic(generic_rays_out, generic_rays_in,
                                            finished_rays,
-                                           generic_count_out, generic_count_in,
-                                           finished_count_out, fallback + 1);
+                                           finished_count_out, fallback + 1, counts);
                    });
 
     release_event(f3);

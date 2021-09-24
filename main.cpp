@@ -1512,22 +1512,33 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
                                                cl::buffer& count_in, cl::buffer& count_out,
                                                cl::buffer& count_finished,
                                                int num_rays,
-                                               bool use_device_side_enqueue)
+                                               bool use_device_side_enqueue, cl::buffer& ray_counts)
 {
     if(use_device_side_enqueue)
     {
         int fallback = 0;
 
+        //cl_int to_write = num_rays;
+
+        //ray_counts.set_to_zero(cqueue);
+        //ray_counts.write(cqueue, std::vector<cl_int>{to_write});
+
+        std::vector<cl_int> to_write;
+        to_write.resize(126);
+
+        to_write[0] = num_rays;
+
+        cl::event evt = ray_counts.write_async(cqueue, (const char*)&to_write[0], to_write.size() * sizeof(cl_int));
+
         cl::args run_args;
         run_args.push_back(rays_in);
         run_args.push_back(rays_out);
         run_args.push_back(rays_finished);
-        run_args.push_back(count_in);
-        run_args.push_back(count_out);
         run_args.push_back(count_finished);
         run_args.push_back(fallback);
+        run_args.push_back(ray_counts);
 
-        cqueue.exec("relauncher_generic", run_args, {1}, {1});
+        cqueue.exec("relauncher_generic", run_args, {1}, {1}, {evt});
     }
     else
     {
@@ -1781,7 +1792,7 @@ int main()
     metrics::config cfg;
     ///necessary for double schwarzs
     cfg.universe_size = 20;
-    cfg.use_device_side_enqueue = false;
+    //cfg.use_device_side_enqueue = false;
     //cfg.error_override = 100.f;
     //cfg.error_override = 0.000001f;
     //cfg.error_override = 0.000001f;
@@ -1904,6 +1915,10 @@ int main()
     kruskal_count_1.alloc(sizeof(int));
     kruskal_count_2.alloc(sizeof(int));
     finished_count_1.alloc(sizeof(int));
+
+    cl::buffer ray_counts(clctx.ctx);
+    ray_counts.alloc(sizeof(cl_int) * 126);
+    ray_counts.set_to_zero(clctx.cqueue);
 
     printf("Alloc rays and counts\n");
 
@@ -2352,7 +2367,7 @@ int main()
 
                 int rays_num = calculate_ray_count(prepass_width, prepass_height);
 
-                execute_kernel(clctx.cqueue, schwarzs_prepass, schwarzs_scratch, finished_1, schwarzs_count_prepass, schwarzs_count_scratch, finished_count_1, rays_num, cfg.use_device_side_enqueue);
+                execute_kernel(clctx.cqueue, schwarzs_prepass, schwarzs_scratch, finished_1, schwarzs_count_prepass, schwarzs_count_scratch, finished_count_1, rays_num, cfg.use_device_side_enqueue, ray_counts);
 
                 cl::args singular_args;
                 singular_args.push_back(finished_1);
@@ -2403,7 +2418,7 @@ int main()
 
             int rays_num = calculate_ray_count(width, height);
 
-            execute_kernel(clctx.cqueue, schwarzs_1, schwarzs_scratch, finished_1, schwarzs_count_1, schwarzs_count_scratch, finished_count_1, rays_num, cfg.use_device_side_enqueue);
+            execute_kernel(clctx.cqueue, schwarzs_1, schwarzs_scratch, finished_1, schwarzs_count_1, schwarzs_count_scratch, finished_count_1, rays_num, cfg.use_device_side_enqueue, ray_counts);
 
             #endif // GENERIC_METRIC
 
