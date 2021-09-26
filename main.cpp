@@ -273,6 +273,38 @@ std::array<dual, 4> cosmic_string(dual t, dual r, dual theta, dual phi)
 }
 
 inline
+std::array<dual, 16> spinning_cosmic_string(dual t, dual p, dual phi, dual z)
+{
+    dual c = 1;
+
+    ///spin
+    dual a = 0.01f;
+    ///deficit angle is (1 - k) * 2pi, aka the segment cut out of a circle
+    dual k = 0.98f;
+    ///a = 0, k = 1 = minkowski
+
+    dual dt = -1;
+    dual dtdphi = 2 * a;
+    dual dphi1 = a * a;
+
+    dual dz = 1;
+    dual dp = 1;
+
+    dual dphi2 = k*k * p*p;
+
+    std::array<dual, 16> ret;
+    ret[0] = dt;
+    ret[1 * 4 + 1] = dp;
+    ret[2 * 4 + 2] = dphi1 + dphi2;
+    ret[3 * 4 + 3] = dz;
+
+    ret[0 * 4 + 1] = 0.5f * dtdphi;
+    ret[1 * 4 + 0] = 0.5f * dtdphi;
+
+    return ret;
+}
+
+inline
 std::array<dual, 4> ernst_metric(dual t, dual r, dual theta, dual phi)
 {
     dual B = 0.05;
@@ -1748,6 +1780,12 @@ int main()
     kasner_metric_obj->detect_singularities = true;
     kasner_metric_obj->system = metrics::coordinate_system::CARTESIAN;
 
+    auto spinning_cosmic_string_obj = new metrics::metric<spinning_cosmic_string, cylindrical_to_polar, polar_to_cylindrical, at_origin>;
+    spinning_cosmic_string_obj->name = "spinning_string";
+    spinning_cosmic_string_obj->adaptive_precision = true;
+    spinning_cosmic_string_obj->detect_singularities = false;
+    spinning_cosmic_string_obj->system = metrics::coordinate_system::CYLINDRICAL;
+
     std::vector<metrics::metric_base*> all_metrics;
 
     all_metrics.push_back(schwarzs_polar);
@@ -1777,10 +1815,11 @@ int main()
     all_metrics.push_back(double_schwarzschild_obj);
     all_metrics.push_back(book_metric_obj);
     all_metrics.push_back(kasner_metric_obj);
+    all_metrics.push_back(spinning_cosmic_string_obj);
 
     metrics::config cfg;
     ///necessary for double schwarzs
-    cfg.universe_size = 20;
+    cfg.universe_size = 2000000;
     cfg.use_device_side_enqueue = false;
     //cfg.error_override = 100.f;
     //cfg.error_override = 0.000001f;
