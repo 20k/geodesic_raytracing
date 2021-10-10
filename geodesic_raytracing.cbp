@@ -85,9 +85,9 @@
 			<Add option="-lUsp10" />
 			<Add option="-lws2_32" />
 			<Add option="-lmswsock" />
-			<Add option="-l:libbrotlidec-static.a" />
-			<Add option="-l:libbrotlienc-static.a" />
-			<Add option="-l:libbrotlicommon-static.a" />
+			<Add option="-l:libbrotlidec.a" />
+			<Add option="-l:libbrotlienc.a" />
+			<Add option="-l:libbrotlicommon.a" />
 			<Add option="-l:libboost_system-mt.a" />
 			<Add option="-lcrypto" />
 			<Add option="-lssl" />
