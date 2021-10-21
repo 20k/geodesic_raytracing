@@ -273,6 +273,38 @@ std::array<dual, 4> cosmic_string(dual t, dual r, dual theta, dual phi)
 }
 
 inline
+std::array<dual, 16> spinning_cosmic_string(dual t, dual p, dual phi, dual z)
+{
+    dual c = 1;
+
+    ///spin
+    dual a = 0.01f;
+    ///deficit angle is (1 - k) * 2pi, aka the segment cut out of a circle
+    dual k = 0.98f;
+    ///a = 0, k = 1 = minkowski
+
+    dual dt = -1;
+    dual dtdphi = 2 * a;
+    dual dphi1 = a * a;
+
+    dual dz = 1;
+    dual dp = 1;
+
+    dual dphi2 = k*k * p*p;
+
+    std::array<dual, 16> ret;
+    ret[0] = dt;
+    ret[1 * 4 + 1] = dp;
+    ret[2 * 4 + 2] = dphi1 + dphi2;
+    ret[3 * 4 + 3] = dz;
+
+    ret[0 * 4 + 1] = 0.5f * dtdphi;
+    ret[1 * 4 + 0] = 0.5f * dtdphi;
+
+    return ret;
+}
+
+inline
 std::array<dual, 4> ernst_metric(dual t, dual r, dual theta, dual phi)
 {
     dual B = 0.05;
@@ -695,11 +727,11 @@ std::array<dual, 16> unequal_double_kerr(dual t, dual p, dual phi, dual z)
     /*dual a1 = -0.09;
     dual a2 = 0.091;*/
 
-    dual m1 = 0.5;
-    dual m2 = 0.5;
+    dual m1 = 0.15;
+    dual m2 = 0.3;
 
-    dual fa1 = 0.1;
-    dual fa2 = -0.1;
+    dual fa1 = 1.f;
+    dual fa2 = -0.3;
 
     dual a1 = fa1 * m1;
     dual a2 = fa2 * m2;
@@ -710,7 +742,7 @@ std::array<dual, 16> unequal_double_kerr(dual t, dual p, dual phi, dual z)
     dual m1 = 0.4;
     dual m2 = 0.4;*/
 
-    dual R = 8;
+    dual R = 4;
 
     dual J = m1 * a1 + m2 * a2;
     dual M = m1 + m2;
@@ -1748,6 +1780,12 @@ int main()
     kasner_metric_obj->detect_singularities = true;
     kasner_metric_obj->system = metrics::coordinate_system::CARTESIAN;
 
+    auto spinning_cosmic_string_obj = new metrics::metric<spinning_cosmic_string, cylindrical_to_polar, polar_to_cylindrical, at_origin>;
+    spinning_cosmic_string_obj->name = "spinning_string";
+    spinning_cosmic_string_obj->adaptive_precision = true;
+    spinning_cosmic_string_obj->detect_singularities = false;
+    spinning_cosmic_string_obj->system = metrics::coordinate_system::CYLINDRICAL;
+
     std::vector<metrics::metric_base*> all_metrics;
 
     all_metrics.push_back(schwarzs_polar);
@@ -1777,10 +1815,11 @@ int main()
     all_metrics.push_back(double_schwarzschild_obj);
     all_metrics.push_back(book_metric_obj);
     all_metrics.push_back(kasner_metric_obj);
+    all_metrics.push_back(spinning_cosmic_string_obj);
 
     metrics::config cfg;
     ///necessary for double schwarzs
-    cfg.universe_size = 20;
+    cfg.universe_size = 2000000;
     cfg.use_device_side_enqueue = false;
     //cfg.error_override = 100.f;
     //cfg.error_override = 0.000001f;
@@ -2435,6 +2474,8 @@ int main()
 
         clctx.cqueue.flush();
 
+        rtex[which_buffer].unacquire(clctx.cqueue);
+
         if(taking_screenshot)
         {
             printf("Taking screenie\n");
@@ -2445,14 +2486,28 @@ int main()
 
             std::cout << "WIDTH " << (screenshot_w * supersample_mult) << " HEIGHT "<< (screenshot_h * supersample_mult) << std::endl;
 
-            std::vector<cl_uchar4> pixels = rtex[which_buffer].read<2, cl_uchar4>(clctx.cqueue, {0,0}, {screenshot_w * supersample_mult, screenshot_h * supersample_mult});
-
-            printf("Readback\n");
+            std::vector<vec4f> pixels = tex[which_buffer].read(0);
 
             std::cout << "pixels size " << pixels.size() << std::endl;
 
+            assert(pixels.size() == (screenshot_w * supersample_mult * screenshot_h * supersample_mult));
+
             sf::Image img;
-            img.create(screenshot_w * supersample_mult, screenshot_h * supersample_mult, (const sf::Uint8*)&pixels[0]);
+            img.create(screenshot_w * supersample_mult, screenshot_h * supersample_mult);
+
+            for(int y=0; y < screenshot_h * supersample_mult; y++)
+            {
+                for(int x=0; x < screenshot_w * supersample_mult; x++)
+                {
+                    vec4f current_pixel = pixels[y * (screenshot_w * supersample_mult) + x];
+
+                    current_pixel = clamp(current_pixel, 0.f, 1.f);
+                    current_pixel = lin_to_srgb(current_pixel);
+                    current_pixel = clamp(current_pixel, 0.f, 1.f);
+
+                    img.setPixel(x, y, sf::Color(current_pixel.x() * 255.f, current_pixel.y() * 255.f, current_pixel.z() * 255.f, current_pixel.w() * 255.f));
+                }
+            }
 
             std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
             auto duration = now.time_since_epoch();
@@ -2462,8 +2517,6 @@ int main()
 
             img.saveToFile(fname);
         }
-
-        rtex[which_buffer].unacquire(clctx.cqueue);
 
         which_buffer = (which_buffer + 1) % 2;
 
