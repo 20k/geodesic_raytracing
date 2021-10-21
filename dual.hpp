@@ -122,6 +122,13 @@ namespace dual_types
 
     template<typename T>
     inline
+    void operator+=(complex<T>& d1, const complex<T>& d2)
+    {
+        d1 = d1 + d2;
+    }
+
+    template<typename T>
+    inline
     complex<T> operator-(const complex<T>& c1, const complex<T>& c2)
     {
         return complex<T>(c1.real - c2.real, c1.imaginary - c2.imaginary);
