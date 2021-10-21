@@ -3,6 +3,7 @@
 
 #include "dual.hpp"
 #include <set>
+#include <optional>
 
 namespace dual_types
 {
