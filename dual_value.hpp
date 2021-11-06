@@ -980,6 +980,23 @@ namespace dual_types
             }
         }
 
+        void substitute(const std::vector<std::pair<value, value>>& variables)
+        {
+            for(auto& [conc, rep] : variables)
+            {
+                if(equivalent(*this, conc))
+                {
+                    *this = rep;
+                    return;
+                }
+            }
+
+            for(auto& val : args)
+            {
+                val.substitute(variables);
+            }
+        }
+
         value& operator+=(const value& d1)
         {
             *this = *this + d1;
