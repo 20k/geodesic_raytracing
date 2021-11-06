@@ -987,7 +987,7 @@ namespace dual_types
                 if(equivalent(*this, conc))
                 {
                     *this = rep;
-                    return;
+                    break;
                 }
             }
 
