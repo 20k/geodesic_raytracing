@@ -1849,13 +1849,22 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat,
                        int prepass_width, int prepass_height,
                        int flip_geodesic_direction, float2 base_angle)
 {
-    int id = get_global_id(0);
+    /*int id = get_global_id(0);
 
     if(id >= width * height)
         return;
 
     const int cx = id % width;
-    const int cy = id / width;
+    const int cy = id / width;*/
+
+    int cx = get_global_id(0);
+    int cy = get_global_id(1);
+
+    if(cx >= width)
+        return;
+
+    if(cy >= height)
+        return;
 
     float3 pixel_direction = calculate_pixel_direction(cx, cy, width, height, polar_camera_in, camera_quat, base_angle);
 
@@ -2091,10 +2100,25 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat,
     }
     #endif // USE_PREPASS
 
-    if(id == 0)
+    int linear_local_idx = get_local_linear_id();
+
+    int block_size = get_local_size(0) * get_local_size(1);
+
+    int group_idx = get_group_id(0);
+    int group_idy = get_group_id(1);
+
+    int group_width = get_num_groups(0);
+
+    int group_linear = group_idy * group_width + group_idx;
+
+    //rays[group_linear * block_size + linear_local_idx] = out;
+
+    if(cx == 0 && cy == 0)
+        //*metric_ray_count = width * height;
+
         *metric_ray_count = (height - 1) * width + width - 1;
 
-    metric_rays[id] = ray;
+    metric_rays[group_linear * block_size + linear_local_idx] = ray;
 }
 
 /*void rk4_evaluate_velocity_at(float4 position, float4 velocity, float4* out_k_velocity, float dt, float dt_factor, float4 k)

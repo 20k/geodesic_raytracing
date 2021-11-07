@@ -2387,7 +2387,7 @@ int main()
                 init_args_prepass.push_back(isnap);
                 init_args_prepass.push_back(base_angle);
 
-                clctx.cqueue.exec("init_rays_generic", init_args_prepass, {prepass_width*prepass_height}, {256});
+                clctx.cqueue.exec("init_rays_generic", init_args_prepass, {prepass_width, prepass_height}, {16, 16});
 
                 int rays_num = calculate_ray_count(prepass_width, prepass_height);
 
@@ -2416,7 +2416,7 @@ int main()
             init_args.push_back(isnap);
             init_args.push_back(base_angle);
 
-            clctx.cqueue.exec("init_rays_generic", init_args, {width*height}, {16*16});
+            clctx.cqueue.exec("init_rays_generic", init_args, {width, height}, {8, 8});
 
             if(should_snapshot_geodesic)
             {
