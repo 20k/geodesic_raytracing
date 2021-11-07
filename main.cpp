@@ -1819,7 +1819,7 @@ int main()
 
     metrics::config cfg;
     ///necessary for double schwarzs
-    cfg.universe_size = 2000000;
+    cfg.universe_size = 20;
     cfg.use_device_side_enqueue = false;
     //cfg.error_override = 100.f;
     //cfg.error_override = 0.000001f;
@@ -2387,7 +2387,7 @@ int main()
                 init_args_prepass.push_back(isnap);
                 init_args_prepass.push_back(base_angle);
 
-                clctx.cqueue.exec("init_rays_generic", init_args_prepass, {prepass_width, prepass_height}, {16, 16});
+                clctx.cqueue.exec("init_rays_generic", init_args_prepass, {prepass_width, prepass_height}, {8, 8});
 
                 int rays_num = calculate_ray_count(prepass_width, prepass_height);
 

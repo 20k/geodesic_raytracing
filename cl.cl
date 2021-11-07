@@ -2111,12 +2111,8 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat,
 
     int group_linear = group_idy * group_width + group_idx;
 
-    //rays[group_linear * block_size + linear_local_idx] = out;
-
     if(cx == 0 && cy == 0)
-        //*metric_ray_count = width * height;
-
-        *metric_ray_count = (height - 1) * width + width - 1;
+        *metric_ray_count = width * height;
 
     metric_rays[group_linear * block_size + linear_local_idx] = ray;
 }
