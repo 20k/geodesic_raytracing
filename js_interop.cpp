@@ -144,7 +144,7 @@ js_function::js_function(const std::string& script_data) : vctx(nullptr, nullptr
 
     std::cout << (std::string)result << std::endl;
 
-    func = js::eval(vctx, file::read("./schwarzschild.js", file::mode::TEXT));
+    func = js::eval(vctx, file::read("./scripts/schwarzschild.js", file::mode::TEXT));
 }
 
 js_function::js_function() : js_function("")
