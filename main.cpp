@@ -451,7 +451,7 @@ std::array<dual, 16> kerr_metric(dual t, dual r, dual theta, dual phi)
     return ret;
 }
 
-inline
+/*inline
 std::array<value, 16> kerr_operation(value t, value r, value theta, value phi)
 {
     value rs = 1;
@@ -472,7 +472,7 @@ std::array<value, 16> kerr_operation(value t, value r, value theta, value phi)
     ret[3 * 4 + 0] = ret[0 * 4 + 3];
 
     return ret;
-}
+}*/
 
 ///https://arxiv.org/pdf/0706.0622.pdf
 inline
@@ -1681,11 +1681,11 @@ int main()
     kerr_obj->detect_singularities = true;
     kerr_obj->use_prepass = true;
 
-    auto kerr_value_obj = new metrics::metric<kerr_operation, polar_to_polar, polar_to_polar, at_origin>;
+    /*auto kerr_value_obj = new metrics::metric<kerr_operation, polar_to_polar, polar_to_polar, at_origin>;
     kerr_value_obj->name = "kerr_value";
     kerr_value_obj->adaptive_precision = true;
     kerr_value_obj->detect_singularities = true;
-    kerr_value_obj->use_prepass = true;
+    kerr_value_obj->use_prepass = true;*/
 
     auto kerr_newman_obj = new metrics::metric<kerr_newman, polar_to_polar, polar_to_polar, at_origin>;
     kerr_newman_obj->name = "kerrnewman_boyer";
@@ -1787,6 +1787,13 @@ int main()
     spinning_cosmic_string_obj->detect_singularities = false;
     spinning_cosmic_string_obj->system = metrics::coordinate_system::CYLINDRICAL;
 
+    static js_function jfunc("");
+
+    auto javascript_schwarzs = new metrics::metric<jfunc, polar_to_polar, polar_to_polar, at_origin>;
+    javascript_schwarzs->name = "js_schwarzs";
+    javascript_schwarzs->adaptive_precision = true;
+    javascript_schwarzs->detect_singularities = true;
+
     std::vector<metrics::metric_base*> all_metrics;
 
     all_metrics.push_back(schwarzs_polar);
@@ -1800,7 +1807,7 @@ int main()
     all_metrics.push_back(janis_newman_winicour_obj);
     all_metrics.push_back(ellis_drainhole_obj);
     all_metrics.push_back(kerr_obj);
-    all_metrics.push_back(kerr_value_obj);
+    //all_metrics.push_back(kerr_value_obj);
     all_metrics.push_back(kerr_newman_obj);
     all_metrics.push_back(kerr_schild_obj);
     all_metrics.push_back(kerr_rational_polynomial_obj);
@@ -1817,6 +1824,7 @@ int main()
     all_metrics.push_back(book_metric_obj);
     all_metrics.push_back(kasner_metric_obj);
     all_metrics.push_back(spinning_cosmic_string_obj);
+    all_metrics.push_back(javascript_schwarzs);
 
     metrics::config cfg;
     ///necessary for double schwarzs
@@ -1964,8 +1972,6 @@ int main()
     std::optional<cl::event> last_event;
 
     std::cout << "Supports shared events? " << cl::supports_extension(clctx.ctx, "cl_khr_gl_event") << std::endl;
-
-    js_argument_string("");
 
     bool supersample = false;
     bool should_take_screenshot = false;

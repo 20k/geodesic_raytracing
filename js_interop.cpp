@@ -3,8 +3,6 @@
 #include <iostream>
 #include "dual_value.hpp"
 
-namespace js = js_quickjs;
-
 void san(js::value& v)
 {
     if(!v.has("v"))
@@ -64,11 +62,9 @@ namespace CMath
     }
 }
 
-std::string js_argument_string(const std::string& script_data)
+js_function::js_function(const std::string& script_data) : vctx(nullptr, nullptr), func(vctx)
 {
     std::string wrapper = file::read("./number.js",file::mode::TEXT);
-
-    js::value_context vctx(nullptr, nullptr);
 
     JS_AddIntrinsicBigFloat(vctx.ctx);
     JS_AddIntrinsicBigDecimal(vctx.ctx);
@@ -94,9 +90,10 @@ std::string js_argument_string(const std::string& script_data)
 
     std::cout << (std::string)result << std::endl;
 
-    js::value schwarz_result = js::eval(vctx, file::read("./schwarzschild.js", file::mode::TEXT));
+    func = js::eval(vctx, file::read("./schwarzschild.js", file::mode::TEXT));
+}
 
-    std::cout << (std::string)schwarz_result << std::endl;
-
-    return "";
+std::array<dual, 16> js_function::operator()(dual t, dual r, dual theta, dual phi)
+{
+    return std::array<dual, 16>{};
 }

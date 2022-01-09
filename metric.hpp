@@ -6,6 +6,99 @@
 
 namespace metrics
 {
+    template<typename Func, typename... T>
+    inline
+    std::pair<std::vector<std::string>, std::vector<std::string>> evaluate_metric2D(Func&& f, T... raw_variables)
+    {
+        std::array<std::string, sizeof...(T)> variable_names{raw_variables...};
+
+        std::vector<std::string> raw_eq;
+        std::vector<std::string> raw_derivatives;
+
+        for(int i=0; i < (int)variable_names.size(); i++)
+        {
+            std::array<dual, sizeof...(T)> variables;
+
+            for(int j=0; j < (int)variable_names.size(); j++)
+            {
+                if(i == j)
+                {
+                    variables[j].make_variable(variable_names[j]);
+                }
+                else
+                {
+                    variables[j].make_constant(variable_names[j]);
+                }
+            }
+
+            std::array eqs = array_apply(std::forward<Func>(f), variables);
+
+            if(i == 0)
+            {
+                for(auto& kk : eqs)
+                {
+                    raw_eq.push_back(type_to_string(kk.real));
+                }
+            }
+
+            for(auto& kk : eqs)
+            {
+                raw_derivatives.push_back(type_to_string(kk.dual));
+            }
+        }
+
+        return {raw_eq, raw_derivatives};
+    }
+
+    template<typename Func, typename... T>
+    inline
+    std::pair<std::vector<std::string>, std::vector<std::string>> total_diff(Func&& f, T... raw_variables)
+    {
+        std::array<std::string, sizeof...(T)> variable_names{raw_variables...};
+
+        auto [full_eqs, partial_differentials] = evaluate_metric2D(f, raw_variables...);
+
+        constexpr int N = sizeof...(T);
+
+        std::vector<std::string> total_differentials;
+
+        for(int i=0; i < N; i++)
+        {
+            std::string accum;
+
+            for(int j=0; j < N; j++)
+            {
+                accum += "(" + partial_differentials[j * N + i] + ")*d" + variable_names[j];
+
+                if(j != N-1)
+                    accum += "+";
+            }
+
+            total_differentials.push_back(accum);
+        }
+
+        return {full_eqs, total_differentials};
+    }
+
+    template<typename Func, typename... T>
+    inline
+    std::string get_function(Func&& f, T... raw_variables)
+    {
+        constexpr int N = sizeof...(T);
+        std::array<std::string, N> variable_names{raw_variables...};
+
+        auto variables = get_function_args_array(f);
+
+        for(int i=0; i < N; i++)
+        {
+            variables[i].make_variable(variable_names[i]);
+        }
+
+        auto result = array_apply(std::forward<Func>(f), variables);
+
+        return type_to_string(result.real);
+    }
+
     enum coordinate_system
     {
         //ANGULAR,
@@ -26,14 +119,14 @@ namespace metrics
         virtual std::string build(const config& cfg){return std::string();}
     };
 
-    template<auto T, auto U, auto V, auto distance_function>
+    template<auto& T, auto U, auto V, auto distance_function>
     struct metric;
 
-    template<auto T, auto U, auto V, auto distance_function>
+    template<auto& T, auto U, auto V, auto distance_function>
     inline
     std::string build_argument_string(const metric<T, U, V, distance_function>& in, const config& cfg);
 
-    template<auto T, auto U, auto V, auto distance_function>
+    template<auto& T, auto U, auto V, auto distance_function>
     struct metric : metric_base
     {
         bool singular = false;
@@ -67,7 +160,7 @@ namespace metrics
         bool use_device_side_enqueue = true;
     };
 
-    template<auto T, auto U, auto V, auto distance_function>
+    template<auto& T, auto U, auto V, auto distance_function>
     inline
     std::string build_argument_string(const metric<T, U, V, distance_function>& in, const config& cfg)
     {

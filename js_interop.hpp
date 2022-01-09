@@ -3,7 +3,18 @@
 
 #include <quickjs_cpp/quickjs_cpp.hpp>
 #include <string>
+#include "dual_value.hpp"
 
-std::string js_argument_string(const std::string& script_data);
+namespace js = js_quickjs;
+
+struct js_function
+{
+    js::value_context vctx;
+    js::value func;
+
+    js_function(const std::string& script);
+
+    std::array<dual, 16> operator()(dual t, dual r, dual theta, dual phi);
+};
 
 #endif // JS_INTEROP_HPP_INCLUDED
