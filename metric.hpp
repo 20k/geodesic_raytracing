@@ -287,7 +287,9 @@ namespace metrics
                 if(j == i)
                     continue;
 
-                if(real_eq[j * 4 + i] != "0")
+                bool is_zero = real_eq[j * 4 + i] == "0" || real_eq[j * 4 + i] == "0.0";
+
+                if(!is_zero)
                     no_offdiagonal_phi_components = false;
             }
 
