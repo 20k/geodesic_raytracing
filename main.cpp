@@ -13,6 +13,7 @@
 #include <imgui/misc/freetype/imgui_freetype.h>
 #include <imgui/imgui_internal.h>
 #include "js_interop.hpp"
+#include <toolkit/fs_helpers.hpp>
 //#include "dual_complex.hpp"
 
 /**
@@ -1828,7 +1829,7 @@ int main()
     all_metrics.push_back(javascript_schwarzs);
     #endif // 0
 
-    js_metric jfunc("");
+    js_metric jfunc(file::read("./scripts/schwarzschild.js", file::mode::TEXT));
 
     auto javascript_schwarzs = new metrics::metric;
     javascript_schwarzs->desc.load<js_metric, polar_to_polar, polar_to_polar, at_origin>(jfunc);

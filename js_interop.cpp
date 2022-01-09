@@ -149,14 +149,7 @@ js::value extract_function(js::value_context& vctx, const std::string& script_da
 
 js_metric::js_metric(const std::string& script_data) : vctx(nullptr, nullptr), func(vctx)
 {
-    std::string data = file::read("./scripts/schwarzschild.js", file::mode::TEXT);
-
-    func = extract_function(vctx, data);
-}
-
-js_metric::js_metric() : js_metric("")
-{
-
+    func = extract_function(vctx, script_data);
 }
 
 std::array<dual, 16> js_metric::operator()(dual t, dual r, dual theta, dual phi)
