@@ -103,6 +103,13 @@ js::value jdiv(js::value_context* vctx, js::value v1, js::value v2)
     return to_value(*vctx, pv1 / pv2);
 }
 
+js::value neg(js::value_context* vctx, js::value v1)
+{
+    dual pv1 = get(v1);
+
+    return to_value(*vctx, -pv1);
+}
+
 namespace CMath
 {
     js::value sin(js::value_context* vctx, js::value in)
@@ -128,6 +135,7 @@ js::value extract_function(js::value_context& vctx, const std::string& script_da
     js::add_key_value(cshim, "mul", js::function<mul>);
     js::add_key_value(cshim, "sub", js::function<sub>);
     js::add_key_value(cshim, "div", js::function<jdiv>);
+    js::add_key_value(cshim, "neg", js::function<neg>);
     js::add_key_value(cshim, "construct", js::function<construct>);
 
     js::value global = js::get_global(vctx);
