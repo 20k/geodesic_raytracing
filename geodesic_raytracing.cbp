@@ -53,6 +53,8 @@
 			<Add option="-DGRAPHITE2_STATIC" />
 			<Add option="-DCL_TARGET_OPENCL_VERSION=220" />
 			<Add option="-DIMGUI_ENABLE_FREETYPE" />
+			<Add option='-DCONFIG_VERSION=&quot;&quot;' />
+			<Add option="-DCONFIG_BIGNUM" />
 			<Add directory="deps" />
 			<Add directory="deps/imgui" />
 		</Compiler>
@@ -109,6 +111,23 @@
 		<Unit filename="deps/imgui/imgui_tables.cpp" />
 		<Unit filename="deps/imgui/imgui_widgets.cpp" />
 		<Unit filename="deps/imgui/misc/freetype/imgui_freetype.cpp" />
+		<Unit filename="deps/quickjs/cutils.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="deps/quickjs/libbf.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="deps/quickjs/libregexp.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="deps/quickjs/libunicode.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="deps/quickjs/quickjs.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="deps/quickjs_cpp/quickjs_cpp.cpp" />
+		<Unit filename="deps/quickjs_cpp/quickjs_cpp.hpp" />
 		<Unit filename="deps/toolkit/base_serialisables.cpp" />
 		<Unit filename="deps/toolkit/base_serialisables.hpp" />
 		<Unit filename="deps/toolkit/clipboard.cpp" />
