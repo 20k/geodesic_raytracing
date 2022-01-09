@@ -191,3 +191,31 @@ std::array<dual, 16> js_metric::operator()(dual t, dual r, dual theta, dual phi)
                 get(values[12]),get(values[13]),get(values[14]),get(values[15])};
     }
 }
+
+js_function::js_function(const std::string& script_data) : vctx(nullptr, nullptr), func(vctx)
+{
+    func = extract_function(vctx, script_data);
+}
+
+std::array<dual, 4> js_function::operator()(dual iv1, dual iv2, dual iv3, dual iv4)
+{
+    js::value v1 = to_value(vctx, iv1);
+    js::value v2 = to_value(vctx, iv2);
+    js::value v3 = to_value(vctx, iv3);
+    js::value v4 = to_value(vctx, iv4);
+
+    auto [success, result] = js::call(func, v1, v2, v3, v4);
+
+    if(!success)
+        throw std::runtime_error("Error in script exec " + (std::string)result);
+
+    if(!result.is_array())
+        throw std::runtime_error("Must return array");
+
+    std::vector<js::value> values = result;
+
+    if(values.size() != 4)
+        throw std::runtime_error("Must return array size of 4");
+
+    return {get(values[0]), get(values[1]), get(values[2]), get(values[3])};
+}

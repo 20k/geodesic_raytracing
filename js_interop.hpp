@@ -24,7 +24,7 @@ struct js_function
 
     js_function(const std::string& script);
 
-    dual operator()(dual t, dual r, dual theta, dual phi);
+    std::array<dual, 4> operator()(dual v1, dual v2, dual v3, dual v4);
 };
 
 #endif // JS_INTEROP_HPP_INCLUDED
