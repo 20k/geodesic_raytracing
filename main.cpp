@@ -14,6 +14,7 @@
 #include <imgui/imgui_internal.h>
 #include "js_interop.hpp"
 #include <toolkit/fs_helpers.hpp>
+#include <filesystem>
 //#include "dual_complex.hpp"
 
 /**
@@ -1828,6 +1829,20 @@ int main()
     all_metrics.push_back(spinning_cosmic_string_obj);
     all_metrics.push_back(javascript_schwarzs);
     #endif // 0
+
+    std::filesystem::path scripts_dir{"./scripts"};
+
+    std::vector<std::string> scripts;
+
+    for(const auto& entry : std::filesystem::directory_iterator{scripts_dir})
+    {
+        std::string name = entry.path().string();
+
+        if(name.ends_with(".js"))
+        {
+            scripts.push_back(name);
+        }
+    }
 
     js_metric jfunc(file::read("./scripts/schwarzschild.js", file::mode::TEXT));
 
