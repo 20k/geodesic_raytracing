@@ -8,7 +8,7 @@
 	"follow_geodesics_forward": false,
 	"coordinate_system": "X_Y_THETA_PHI",
 	"use_prepass": false,
-	"max_acceleration_change": 0.0000001,
+	"max_acceleration_change": 0.0001,
 	"to_polar": "polar_to_polar",
 	"from_polar": "polar_to_polar",
 	"origin_distance": "at_origin"
