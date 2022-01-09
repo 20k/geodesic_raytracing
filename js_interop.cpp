@@ -147,6 +147,11 @@ js_function::js_function(const std::string& script_data) : vctx(nullptr, nullptr
     func = js::eval(vctx, file::read("./schwarzschild.js", file::mode::TEXT));
 }
 
+js_function::js_function() : js_function("")
+{
+
+}
+
 std::array<dual, 16> js_function::operator()(dual t, dual r, dual theta, dual phi)
 {
     js::value v1 = to_value(vctx, t);

@@ -119,16 +119,51 @@ namespace metrics
         virtual std::string build(const config& cfg){return std::string();}
     };
 
-    template<auto& T, auto U, auto V, auto distance_function>
     struct metric;
 
-    template<auto& T, auto U, auto V, auto distance_function>
     inline
-    std::string build_argument_string(const metric<T, U, V, distance_function>& in, const config& cfg);
+    std::string build_argument_string(const metric& in, const config& cfg);
 
-    template<auto& T, auto U, auto V, auto distance_function>
+    struct metric_descriptor
+    {
+        std::vector<std::string> real_eq;
+        std::vector<std::string> derivatives;
+
+        std::vector<std::string> to_polar;
+        std::vector<std::string> dt_to_spherical;
+
+        std::vector<std::string> from_polar;
+        std::vector<std::string> dt_from_spherical;
+
+        std::string distance_function;
+
+        template<auto T, auto U, auto V, auto distance_func>
+        void load()
+        {
+            std::tie(real_eq, derivatives) = evaluate_metric2D(T, "v1", "v2", "v3", "v4");
+
+            std::tie(to_polar, dt_to_spherical) = total_diff(U, "v1", "v2", "v3", "v4");
+            std::tie(from_polar, dt_from_spherical) = total_diff(V, "v1", "v2", "v3", "v4");
+
+            distance_function = get_function(distance_func, "v1", "v2", "v3", "v4");
+        }
+
+        template<typename T, auto U, auto V, auto distance_func>
+        void load(T& func)
+        {
+            std::tie(real_eq, derivatives) = evaluate_metric2D(func, "v1", "v2", "v3", "v4");
+
+            std::tie(to_polar, dt_to_spherical) = total_diff(U, "v1", "v2", "v3", "v4");
+            std::tie(from_polar, dt_from_spherical) = total_diff(V, "v1", "v2", "v3", "v4");
+
+            distance_function = get_function(distance_func, "v1", "v2", "v3", "v4");
+        }
+    };
+
     struct metric : metric_base
     {
+        metric_descriptor desc;
+
         bool singular = false;
         bool traversable_event_horizon = false;
         float singular_terminator = 1;
@@ -160,13 +195,13 @@ namespace metrics
         bool use_device_side_enqueue = true;
     };
 
-    template<auto& T, auto U, auto V, auto distance_function>
     inline
-    std::string build_argument_string(const metric<T, U, V, distance_function>& in, const config& cfg)
+    std::string build_argument_string(const metric& in, const config& cfg)
     {
         std::string argument_string = " -DRS_IMPL=1 -DC_IMPL=1 ";
 
-        auto [real_eq, derivatives] = evaluate_metric2D(T, "v1", "v2", "v3", "v4");
+        auto real_eq = in.desc.real_eq;
+        auto derivatives = in.desc.derivatives;
 
         for(int i=0; i < (int)real_eq.size(); i++)
         {
@@ -221,8 +256,11 @@ namespace metrics
         }
 
         {
-            auto [to_polar, dt_to_spherical] = total_diff(U, "v1", "v2", "v3", "v4");
-            auto [from_polar, dt_from_spherical] = total_diff(V, "v1", "v2", "v3", "v4");
+            auto to_polar = in.desc.to_polar;
+            auto dt_to_spherical = in.desc.dt_to_spherical;
+
+            auto from_polar = in.desc.from_polar;
+            auto dt_from_spherical = in.desc.dt_from_spherical;
 
             for(int i=0; i < (int)to_polar.size(); i++)
             {
@@ -320,7 +358,7 @@ namespace metrics
             argument_string += " -DREDSHIFT";
         }
 
-        argument_string += " -DDISTANCE_FUNC=" + get_function(distance_function, "v1", "v2", "v3", "v4");
+        argument_string += " -DDISTANCE_FUNC=" + in.desc.distance_function;
 
         argument_string += " -DUNIVERSE_SIZE=" + std::to_string(cfg.universe_size);
 

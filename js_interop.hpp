@@ -12,6 +12,7 @@ struct js_function
     js::value_context vctx;
     js::value func;
 
+    js_function();
     js_function(const std::string& script);
 
     std::array<dual, 16> operator()(dual t, dual r, dual theta, dual phi);

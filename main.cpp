@@ -1617,6 +1617,7 @@ int main()
 
     #ifdef GENERIC_METRIC
 
+    #if 0
     auto schwarzs_polar = new metrics::metric<schwarzschild_blackhole, polar_to_polar, polar_to_polar, at_origin>();
     schwarzs_polar->name = "schwarzschild";
     schwarzs_polar->singular = true;
@@ -1824,6 +1825,19 @@ int main()
     all_metrics.push_back(book_metric_obj);
     all_metrics.push_back(kasner_metric_obj);
     all_metrics.push_back(spinning_cosmic_string_obj);
+    all_metrics.push_back(javascript_schwarzs);
+    #endif // 0
+
+    js_function jfunc("");
+
+    auto javascript_schwarzs = new metrics::metric;
+    javascript_schwarzs->desc.load<js_function, polar_to_polar, polar_to_polar, at_origin>(jfunc);
+    javascript_schwarzs->name = "js_schwarzs";
+    javascript_schwarzs->adaptive_precision = true;
+    javascript_schwarzs->detect_singularities = true;
+
+    std::vector<metrics::metric_base*> all_metrics;
+
     all_metrics.push_back(javascript_schwarzs);
 
     metrics::config cfg;
