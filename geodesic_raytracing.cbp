@@ -156,6 +156,7 @@
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>
 		<Unit filename="numerical.hpp" />
+		<Unit filename="scripts/coordinates/polar_to_polar.js" />
 		<Unit filename="scripts/schwarzschild.js" />
 		<Extensions>
 			<lib_finder disable_auto="1" />

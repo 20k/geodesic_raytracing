@@ -1848,11 +1848,14 @@ int main()
 
     js_function js_polar_to_polar(file::read("./scripts/coordinates/polar_to_polar.js", file::mode::TEXT));
 
+    nlohmann::json js = nlohmann::json::parse(file::read("./scripts/schwarzschild.json", file::mode::TEXT));
+
     auto javascript_schwarzs = new metrics::metric;
     javascript_schwarzs->desc.load<js_metric, js_function, js_function, at_origin>(jfunc, js_polar_to_polar, js_polar_to_polar);
-    javascript_schwarzs->name = "js_schwarzs";
+    javascript_schwarzs->metric_cfg.load(js);
+    /*javascript_schwarzs->name = "js_schwarzs";
     javascript_schwarzs->adaptive_precision = true;
-    javascript_schwarzs->detect_singularities = true;
+    javascript_schwarzs->detect_singularities = true;*/
 
     std::vector<metrics::metric_base*> all_metrics;
 
@@ -2268,7 +2271,7 @@ int main()
 
             for(auto& i : all_metrics)
             {
-                items.push_back(i->name.c_str());
+                items.push_back(i->metric_cfg.name.c_str());
             }
 
             ImGui::ListBox("Metrics", &selected_idx, &items[0], items.size());
@@ -2279,7 +2282,7 @@ int main()
                     selected_idx = 0;
 
                 if(selected_idx != current_idx)
-                    selected_error = all_metrics[selected_idx]->max_acceleration_change;
+                    selected_error = all_metrics[selected_idx]->metric_cfg.max_acceleration_change;
 
                 cfg.error_override = selected_error;
 
@@ -2405,7 +2408,7 @@ int main()
             cl_int prepass_width = width/16;
             cl_int prepass_height = height/16;
 
-            if(current_metric->use_prepass)
+            if(current_metric->metric_cfg.use_prepass)
             {
                 cl::args clear_args;
                 clear_args.push_back(termination_buffer);
@@ -2554,7 +2557,7 @@ int main()
             auto duration = now.time_since_epoch();
             auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
 
-            std::string fname = "./screenshots/" + current_metric->name + "_" + std::to_string(millis) + ".png";
+            std::string fname = "./screenshots/" + current_metric->metric_cfg.name + "_" + std::to_string(millis) + ".png";
 
             img.saveToFile(fname);
         }

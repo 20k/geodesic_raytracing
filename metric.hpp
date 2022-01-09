@@ -110,20 +110,6 @@ namespace metrics
 
     struct config;
 
-    struct metric_base
-    {
-        std::string name;
-        bool use_prepass = false;
-        float max_acceleration_change = 0.0000001f;
-
-        virtual std::string build(const config& cfg){return std::string();}
-    };
-
-    struct metric;
-
-    inline
-    std::string build_argument_string(const metric& in, const config& cfg);
-
     struct metric_descriptor
     {
         std::vector<std::string> real_eq;
@@ -160,9 +146,11 @@ namespace metrics
         }
     };
 
-    struct metric : metric_base
+    struct metric_config
     {
-        metric_descriptor desc;
+        std::string name;
+        bool use_prepass = false;
+        float max_acceleration_change = 0.0000001f;
 
         bool singular = false;
         bool traversable_event_horizon = false;
@@ -174,6 +162,66 @@ namespace metrics
 
         coordinate_system system = coordinate_system::X_Y_THETA_PHI;
 
+        void load(nlohmann::json& js)
+        {
+            if(js.count("name"))
+                name = js["name"];
+
+            if(js.count("use_prepass"))
+                use_prepass = js["use_prepass"];
+
+            if(js.count("max_acceleration_change"))
+                max_acceleration_change = js["max_acceleration_change"];
+
+            if(js.count("singular"))
+                singular = js["singular"];
+
+            if(js.count("traversable_event_horizon"))
+                traversable_event_horizon = js["traversable_event_horizon"];
+
+            if(js.count("singular_terminator"))
+                singular_terminator = js["singular_terminator"];
+
+            if(js.count("adaptive_precision"))
+                adaptive_precision = js["adaptive_precision"];
+
+            if(js.count("detect_singularities"))
+                detect_singularities = js["detect_singularities"];
+
+            if(js.count("follow_geodesics_forward"))
+                follow_geodesics_forward = js["follow_geodesics_forward"];
+
+            if(js.count("coordinate_system"))
+            {
+                std::string ssystem = js["coordinate_system"];
+
+                if(ssystem == "X_Y_THETA_PHI")
+                    system = coordinate_system::X_Y_THETA_PHI;
+                else if(ssystem == "CARTESIAN")
+                    system = coordinate_system::CARTESIAN;
+                else if(ssystem == "CYLINDRICAL")
+                    system = coordinate_system::CYLINDRICAL;
+                else
+                    system = coordinate_system::OTHER;
+            }
+        }
+    };
+
+    struct metric_base
+    {
+        metric_descriptor desc;
+        metric_config metric_cfg;
+
+        virtual std::string build(const config& cfg){return std::string();}
+    };
+
+    struct metric;
+
+    inline
+    std::string build_argument_string(const metric& in, const config& cfg);
+
+    struct metric : metric_base
+    {
         virtual std::string build(const config& cfg) override
         {
             return build_argument_string(*this, cfg);
@@ -212,7 +260,7 @@ namespace metrics
         bool is_polar_spherically_symmetric = false;
 
         if(real_eq.size() == 4)
-            is_polar_spherically_symmetric = in.system == X_Y_THETA_PHI;
+            is_polar_spherically_symmetric = in.metric_cfg.system == X_Y_THETA_PHI;
 
         if(real_eq.size() == 16)
         {
@@ -230,7 +278,7 @@ namespace metrics
                     no_offdiagonal_phi_components = false;
             }
 
-            is_polar_spherically_symmetric = no_offdiagonal_phi_components && in.system == X_Y_THETA_PHI;
+            is_polar_spherically_symmetric = no_offdiagonal_phi_components && in.metric_cfg.system == X_Y_THETA_PHI;
         }
 
         if(derivatives.size() == 16)
@@ -300,33 +348,33 @@ namespace metrics
             argument_string += " -DGENERIC_CONSTANT_THETA";
         }
 
-        if(in.singular)
+        if(in.metric_cfg.singular)
         {
             argument_string += " -DSINGULAR";
-            argument_string += " -DSINGULAR_TERMINATOR=" + dual_types::to_string_s(in.singular_terminator);
+            argument_string += " -DSINGULAR_TERMINATOR=" + dual_types::to_string_s(in.metric_cfg.singular_terminator);
 
-            if(in.traversable_event_horizon)
+            if(in.metric_cfg.traversable_event_horizon)
             {
                 argument_string += " -DTRAVERSABLE_EVENT_HORIZON";
             }
         }
 
-        if(in.adaptive_precision)
+        if(in.metric_cfg.adaptive_precision)
         {
             argument_string += " -DADAPTIVE_PRECISION";
 
             if(!cfg.error_override)
-                argument_string += " -DMAX_ACCELERATION_CHANGE=" + dual_types::to_string_s(in.max_acceleration_change);
+                argument_string += " -DMAX_ACCELERATION_CHANGE=" + dual_types::to_string_s(in.metric_cfg.max_acceleration_change);
             else
                 argument_string += " -DMAX_ACCELERATION_CHANGE=" + dual_types::to_string_s(cfg.error_override.value());
 
-            if(in.detect_singularities)
+            if(in.metric_cfg.detect_singularities)
             {
                 argument_string += " -DSINGULARITY_DETECTION";
             }
         }
 
-        if(in.system == X_Y_THETA_PHI)
+        if(in.metric_cfg.system == X_Y_THETA_PHI)
         {
             if(is_polar_spherically_symmetric)
             {
@@ -337,7 +385,7 @@ namespace metrics
                 argument_string += " -DW_V1=1 -DW_V2=1 -DW_V3=8 -DW_V4=32";
             }
         }
-        else if(in.system == CYLINDRICAL)
+        else if(in.metric_cfg.system == CYLINDRICAL)
         {
             ///t, p, phi, z
             argument_string += " -DW_V1=1 -DW_V2=1 -DW_V3=8 -DW_V4=1";
@@ -348,7 +396,7 @@ namespace metrics
             argument_string += " -DW_V1=1 -DW_V2=1 -DW_V3=1 -DW_V4=1";
         }
 
-        if(in.follow_geodesics_forward)
+        if(in.metric_cfg.follow_geodesics_forward)
         {
             argument_string += " -DFORWARD_GEODESIC_PATH";
         }
