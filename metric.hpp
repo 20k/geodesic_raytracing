@@ -130,6 +130,8 @@ namespace metrics
         std::string from_polar;
         std::string origin_distance;
 
+        std::string inherit_settings;
+
         void load(nlohmann::json& js)
         {
             if(js.count("name"))
@@ -181,6 +183,9 @@ namespace metrics
 
             if(js.count("origin_distance"))
                 origin_distance = js["origin_distance"];
+
+            if(js.count("inherit_settings"))
+                inherit_settings = js["inherit_settings"];
         }
     };
 

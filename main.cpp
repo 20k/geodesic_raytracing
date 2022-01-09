@@ -1858,11 +1858,33 @@ int main()
         cfg.pop_back();
         cfg.pop_back();
 
+        std::string base_name = cfg;
+
         cfg += ".json";
 
         nlohmann::json js = nlohmann::json::parse(file::read(cfg, file::mode::TEXT));
 
         auto met = new metrics::metric;
+
+        if(js.count("inherit_settings"))
+        {
+            std::filesystem::path p(sname);
+            p.remove_filename();
+
+            std::string new_filename = js["inherit_settings"];
+
+            new_filename += ".json";
+
+            p = p / new_filename;
+
+            nlohmann::json parent_json = nlohmann::json::parse(file::read(p.string(), file::mode::TEXT));
+
+            metrics::metric_config parent;
+            parent.load(parent_json);
+
+            met->metric_cfg = parent;
+        }
+
         met->metric_cfg.load(js);
 
         js_function func_to_polar(file::read("./scripts/coordinates/" + met->metric_cfg.to_polar + ".js", file::mode::TEXT));
