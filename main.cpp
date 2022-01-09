@@ -1831,8 +1831,10 @@ int main()
 
     js_metric jfunc(file::read("./scripts/schwarzschild.js", file::mode::TEXT));
 
+    js_function js_polar_to_polar(file::read("./scripts/coordinates/polar_to_polar.js", file::mode::TEXT));
+
     auto javascript_schwarzs = new metrics::metric;
-    javascript_schwarzs->desc.load<js_metric, polar_to_polar, polar_to_polar, at_origin>(jfunc);
+    javascript_schwarzs->desc.load<js_metric, js_function, js_function, at_origin>(jfunc, js_polar_to_polar, js_polar_to_polar);
     javascript_schwarzs->name = "js_schwarzs";
     javascript_schwarzs->adaptive_precision = true;
     javascript_schwarzs->detect_singularities = true;
