@@ -87,7 +87,7 @@ namespace metrics
         constexpr int N = sizeof...(T);
         std::array<std::string, N> variable_names{raw_variables...};
 
-        auto variables = get_function_args_array(f);
+        std::array<dual, sizeof...(raw_variables)> variables;
 
         for(int i=0; i < N; i++)
         {
@@ -128,6 +128,7 @@ namespace metrics
 
         std::string to_polar;
         std::string from_polar;
+        std::string origin_distance;
 
         void load(nlohmann::json& js)
         {
@@ -177,6 +178,9 @@ namespace metrics
 
             if(js.count("from_polar"))
                 from_polar = js["from_polar"];
+
+            if(js.count("origin_distance"))
+                origin_distance = js["origin_distance"];
         }
     };
 
@@ -204,15 +208,15 @@ namespace metrics
             distance_function = get_function(distance_func, "v1", "v2", "v3", "v4");
         }
 
-        template<typename T, typename U, typename V, auto distance_func>
-        void load(T& func, U& func1, V& func2)
+        template<typename T, typename U, typename V, typename W>
+        void load(T& func, U& func1, V& func2, W& func3)
         {
             std::tie(real_eq, derivatives) = evaluate_metric2D(func, "v1", "v2", "v3", "v4");
 
             std::tie(to_polar, dt_to_spherical) = total_diff(func1, "v1", "v2", "v3", "v4");
             std::tie(from_polar, dt_from_spherical) = total_diff(func2, "v1", "v2", "v3", "v4");
 
-            distance_function = get_function(distance_func, "v1", "v2", "v3", "v4");
+            distance_function = get_function(func3, "v1", "v2", "v3", "v4");
         }
     };
 

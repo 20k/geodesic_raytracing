@@ -1867,8 +1867,9 @@ int main()
 
         js_function func_to_polar(file::read("./scripts/coordinates/" + met->metric_cfg.to_polar + ".js", file::mode::TEXT));
         js_function func_from_polar(file::read("./scripts/coordinates/" + met->metric_cfg.from_polar + ".js", file::mode::TEXT));
+        js_single_function fun_origin_distance(file::read("./scripts/origins/" + met->metric_cfg.origin_distance + ".js", file::mode::TEXT));
 
-        met->desc.load<js_metric, js_function, js_function, at_origin>(jfunc, func_to_polar, func_from_polar);
+        met->desc.load(jfunc, func_to_polar, func_from_polar, fun_origin_distance);
 
         all_metrics.push_back(met);
     }

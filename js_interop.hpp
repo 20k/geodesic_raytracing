@@ -27,4 +27,14 @@ struct js_function
     std::array<dual, 4> operator()(dual v1, dual v2, dual v3, dual v4);
 };
 
+struct js_single_function
+{
+    js::value_context vctx;
+    js::value func;
+
+    js_single_function(const std::string& script);
+
+    dual operator()(dual v1, dual v2, dual v3, dual v4);
+};
+
 #endif // JS_INTEROP_HPP_INCLUDED
