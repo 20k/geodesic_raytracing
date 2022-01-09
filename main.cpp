@@ -1828,10 +1828,10 @@ int main()
     all_metrics.push_back(javascript_schwarzs);
     #endif // 0
 
-    js_function jfunc("");
+    js_metric jfunc("");
 
     auto javascript_schwarzs = new metrics::metric;
-    javascript_schwarzs->desc.load<js_function, polar_to_polar, polar_to_polar, at_origin>(jfunc);
+    javascript_schwarzs->desc.load<js_metric, polar_to_polar, polar_to_polar, at_origin>(jfunc);
     javascript_schwarzs->name = "js_schwarzs";
     javascript_schwarzs->adaptive_precision = true;
     javascript_schwarzs->detect_singularities = true;

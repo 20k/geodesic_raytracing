@@ -7,6 +7,17 @@
 
 namespace js = js_quickjs;
 
+struct js_metric
+{
+    js::value_context vctx;
+    js::value func;
+
+    js_metric();
+    js_metric(const std::string& script);
+
+    std::array<dual, 16> operator()(dual t, dual r, dual theta, dual phi);
+};
+
 struct js_function
 {
     js::value_context vctx;
@@ -15,7 +26,7 @@ struct js_function
     js_function();
     js_function(const std::string& script);
 
-    std::array<dual, 16> operator()(dual t, dual r, dual theta, dual phi);
+    dual operator()(dual t, dual r, dual theta, dual phi);
 };
 
 #endif // JS_INTEROP_HPP_INCLUDED

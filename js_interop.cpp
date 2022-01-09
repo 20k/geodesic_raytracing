@@ -113,9 +113,9 @@ namespace CMath
     }
 }
 
-js_function::js_function(const std::string& script_data) : vctx(nullptr, nullptr), func(vctx)
+js::value extract_function(js::value_context& vctx, const std::string& script_data)
 {
-    std::string wrapper = file::read("./number.js",file::mode::TEXT);
+    std::string wrapper = file::read("./number.js", file::mode::TEXT);
 
     JS_AddIntrinsicBigFloat(vctx.ctx);
     JS_AddIntrinsicBigDecimal(vctx.ctx);
@@ -144,15 +144,22 @@ js_function::js_function(const std::string& script_data) : vctx(nullptr, nullptr
 
     std::cout << (std::string)result << std::endl;
 
-    func = js::eval(vctx, file::read("./scripts/schwarzschild.js", file::mode::TEXT));
+    return js::eval(vctx, script_data);
 }
 
-js_function::js_function() : js_function("")
+js_metric::js_metric(const std::string& script_data) : vctx(nullptr, nullptr), func(vctx)
+{
+    std::string data = file::read("./scripts/schwarzschild.js", file::mode::TEXT);
+
+    func = extract_function(vctx, data);
+}
+
+js_metric::js_metric() : js_metric("")
 {
 
 }
 
-std::array<dual, 16> js_function::operator()(dual t, dual r, dual theta, dual phi)
+std::array<dual, 16> js_metric::operator()(dual t, dual r, dual theta, dual phi)
 {
     js::value v1 = to_value(vctx, t);
     js::value v2 = to_value(vctx, r);
