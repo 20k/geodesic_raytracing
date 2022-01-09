@@ -211,6 +211,8 @@ namespace metrics
             std::tie(from_polar, dt_from_spherical) = total_diff(V, "v1", "v2", "v3", "v4");
 
             distance_function = get_function(distance_func, "v1", "v2", "v3", "v4");
+
+            debiggen();
         }
 
         template<typename T, typename U, typename V, typename W>
@@ -222,6 +224,53 @@ namespace metrics
             std::tie(from_polar, dt_from_spherical) = total_diff(func2, "v1", "v2", "v3", "v4");
 
             distance_function = get_function(func3, "v1", "v2", "v3", "v4");
+
+            debiggen();
+        }
+
+        void debiggen()
+        {
+            if(real_eq.size() == 4)
+                return;
+
+            if(real_eq.size() != 16)
+                throw std::runtime_error("Something terrible has happened in the metric");
+
+            ///check for offdiagonal components
+            for(int i=0; i < 4; i++)
+            {
+                for(int j=0; j < 4; j++)
+                {
+                    bool is_zero = real_eq[j * 4 + i] == "0" || real_eq[j * 4 + i] == "0.0";
+
+                    if(!is_zero && abs(i) != abs(j))
+                        return;
+                }
+            }
+
+            std::cout << "Offdiagonal reduction" << std::endl;
+
+            std::vector<std::string> diagonal_equations;
+            std::vector<std::string> diagonal_derivatives;
+
+            for(int i=0; i < 4; i++)
+            {
+                diagonal_equations.push_back(real_eq[i * 4 + i]);
+            }
+
+            for(int k=0; k < 4; k++)
+            {
+                for(int i=0; i < 4; i++)
+                {
+                    ///so the structure of the derivatives is that we rows are the derivating variable
+                    ///so like [dtdt by dt, dtdr by dt, dtdtheta by dt, dtdphi by dt,
+                    ///         dtdt by dr, etc]
+                    diagonal_derivatives.push_back(derivatives[k * 16 + i * 4 + i]);
+                }
+            }
+
+            real_eq = diagonal_equations;
+            derivatives = diagonal_derivatives;
         }
     };
 
