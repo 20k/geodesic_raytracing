@@ -1844,21 +1844,34 @@ int main()
         }
     }
 
-    js_metric jfunc(file::read("./scripts/schwarzschild.js", file::mode::TEXT));
-
-    nlohmann::json js = nlohmann::json::parse(file::read("./scripts/schwarzschild.json", file::mode::TEXT));
-
-    auto javascript_schwarzs = new metrics::metric;
-    javascript_schwarzs->metric_cfg.load(js);
-
-    javascript_schwarzs->desc.load<js_metric, js_function, at_origin>(jfunc, javascript_schwarzs->metric_cfg);
-    /*javascript_schwarzs->name = "js_schwarzs";
-    javascript_schwarzs->adaptive_precision = true;
-    javascript_schwarzs->detect_singularities = true;*/
-
     std::vector<metrics::metric_base*> all_metrics;
 
-    all_metrics.push_back(javascript_schwarzs);
+    for(const std::string& sname : scripts)
+    {
+        js_metric jfunc(file::read(sname, file::mode::TEXT));
+
+        std::string cfg = sname;
+
+        assert(cfg.ends_with(".js"));
+
+        cfg.pop_back();
+        cfg.pop_back();
+        cfg.pop_back();
+
+        cfg += ".json";
+
+        nlohmann::json js = nlohmann::json::parse(file::read(cfg, file::mode::TEXT));
+
+        auto met = new metrics::metric;
+        met->metric_cfg.load(js);
+
+        js_function func_to_polar(file::read("./scripts/coordinates/" + met->metric_cfg.to_polar + ".js", file::mode::TEXT));
+        js_function func_from_polar(file::read("./scripts/coordinates/" + met->metric_cfg.from_polar + ".js", file::mode::TEXT));
+
+        met->desc.load<js_metric, js_function, js_function, at_origin>(jfunc, func_to_polar, func_from_polar);
+
+        all_metrics.push_back(met);
+    }
 
     metrics::config cfg;
     ///necessary for double schwarzs

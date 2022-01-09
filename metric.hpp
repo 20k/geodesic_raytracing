@@ -3,7 +3,6 @@
 
 #include "dual.hpp"
 #include "dual_value.hpp"
-#include <toolkit/fs_helpers.hpp>
 
 namespace metrics
 {
@@ -205,16 +204,13 @@ namespace metrics
             distance_function = get_function(distance_func, "v1", "v2", "v3", "v4");
         }
 
-        template<typename T, typename U, auto distance_func>
-        void load(T& func, metric_config& cfg)
+        template<typename T, typename U, typename V, auto distance_func>
+        void load(T& func, U& func1, V& func2)
         {
-            U func_to_polar(file::read("./scripts/coordinates/" + cfg.to_polar + ".js", file::mode::TEXT));
-            U func_from_polar(file::read("./scripts/coordinates/" + cfg.from_polar + ".js", file::mode::TEXT));
-
             std::tie(real_eq, derivatives) = evaluate_metric2D(func, "v1", "v2", "v3", "v4");
 
-            std::tie(to_polar, dt_to_spherical) = total_diff(func_to_polar, "v1", "v2", "v3", "v4");
-            std::tie(from_polar, dt_from_spherical) = total_diff(func_from_polar, "v1", "v2", "v3", "v4");
+            std::tie(to_polar, dt_to_spherical) = total_diff(func1, "v1", "v2", "v3", "v4");
+            std::tie(from_polar, dt_from_spherical) = total_diff(func2, "v1", "v2", "v3", "v4");
 
             distance_function = get_function(distance_func, "v1", "v2", "v3", "v4");
         }
