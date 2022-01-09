@@ -46,6 +46,24 @@ js::value add(js::value_context* vctx, js::value v1, js::value v2)
     return to_value(*vctx, pv1 + pv2);
 }
 
+js::value mul(js::value_context* vctx, js::value v1, js::value v2)
+{
+    dual pv1 = get(v1);
+    dual pv2 = get(v2);
+
+    return to_value(*vctx, pv1 * pv2);
+}
+
+namespace CMath
+{
+    js::value sin(js::value_context* vctx, js::value in)
+    {
+        dual v = get(in);
+
+        return to_value(*vctx, sin(v));
+    }
+}
+
 std::string js_argument_string(const std::string& script_data)
 {
     std::string wrapper = file::read("./number.js",file::mode::TEXT);
@@ -60,10 +78,17 @@ std::string js_argument_string(const std::string& script_data)
     js::value cshim(vctx);
 
     js::add_key_value(cshim, "add", js::function<add>);
+    js::add_key_value(cshim, "mul", js::function<mul>);
 
     js::value global = js::get_global(vctx);
 
     js::add_key_value(global, "CShim", cshim);
+
+    js::value cmath(vctx);
+
+    js::add_key_value(cmath, "sin", js::function<CMath::sin>);
+
+    js::add_key_value(global, "CMath", cmath);
 
     js::value result = js::eval(vctx, wrapper);
 
