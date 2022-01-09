@@ -3,6 +3,7 @@
 
 #include "dual.hpp"
 #include "dual_value.hpp"
+#include <toolkit/fs_helpers.hpp>
 
 namespace metrics
 {
@@ -110,42 +111,6 @@ namespace metrics
 
     struct config;
 
-    struct metric_descriptor
-    {
-        std::vector<std::string> real_eq;
-        std::vector<std::string> derivatives;
-
-        std::vector<std::string> to_polar;
-        std::vector<std::string> dt_to_spherical;
-
-        std::vector<std::string> from_polar;
-        std::vector<std::string> dt_from_spherical;
-
-        std::string distance_function;
-
-        template<auto T, auto U, auto V, auto distance_func>
-        void load()
-        {
-            std::tie(real_eq, derivatives) = evaluate_metric2D(T, "v1", "v2", "v3", "v4");
-
-            std::tie(to_polar, dt_to_spherical) = total_diff(U, "v1", "v2", "v3", "v4");
-            std::tie(from_polar, dt_from_spherical) = total_diff(V, "v1", "v2", "v3", "v4");
-
-            distance_function = get_function(distance_func, "v1", "v2", "v3", "v4");
-        }
-
-        template<typename T, typename U, typename V, auto distance_func>
-        void load(T& func, U& func1, V& func2)
-        {
-            std::tie(real_eq, derivatives) = evaluate_metric2D(func, "v1", "v2", "v3", "v4");
-
-            std::tie(to_polar, dt_to_spherical) = total_diff(func1, "v1", "v2", "v3", "v4");
-            std::tie(from_polar, dt_from_spherical) = total_diff(func2, "v1", "v2", "v3", "v4");
-
-            distance_function = get_function(distance_func, "v1", "v2", "v3", "v4");
-        }
-    };
-
     struct metric_config
     {
         std::string name;
@@ -161,6 +126,9 @@ namespace metrics
         bool follow_geodesics_forward = false;
 
         coordinate_system system = coordinate_system::X_Y_THETA_PHI;
+
+        std::string to_polar;
+        std::string from_polar;
 
         void load(nlohmann::json& js)
         {
@@ -204,6 +172,51 @@ namespace metrics
                 else
                     system = coordinate_system::OTHER;
             }
+
+            if(js.count("to_polar"))
+                to_polar = js["to_polar"];
+
+            if(js.count("from_polar"))
+                from_polar = js["from_polar"];
+        }
+    };
+
+    struct metric_descriptor
+    {
+        std::vector<std::string> real_eq;
+        std::vector<std::string> derivatives;
+
+        std::vector<std::string> to_polar;
+        std::vector<std::string> dt_to_spherical;
+
+        std::vector<std::string> from_polar;
+        std::vector<std::string> dt_from_spherical;
+
+        std::string distance_function;
+
+        template<auto T, auto U, auto V, auto distance_func>
+        void load()
+        {
+            std::tie(real_eq, derivatives) = evaluate_metric2D(T, "v1", "v2", "v3", "v4");
+
+            std::tie(to_polar, dt_to_spherical) = total_diff(U, "v1", "v2", "v3", "v4");
+            std::tie(from_polar, dt_from_spherical) = total_diff(V, "v1", "v2", "v3", "v4");
+
+            distance_function = get_function(distance_func, "v1", "v2", "v3", "v4");
+        }
+
+        template<typename T, typename U, auto distance_func>
+        void load(T& func, metric_config& cfg)
+        {
+            U func_to_polar(file::read("./scripts/coordinates/" + cfg.to_polar + ".js", file::mode::TEXT));
+            U func_from_polar(file::read("./scripts/coordinates/" + cfg.from_polar + ".js", file::mode::TEXT));
+
+            std::tie(real_eq, derivatives) = evaluate_metric2D(func, "v1", "v2", "v3", "v4");
+
+            std::tie(to_polar, dt_to_spherical) = total_diff(func_to_polar, "v1", "v2", "v3", "v4");
+            std::tie(from_polar, dt_from_spherical) = total_diff(func_from_polar, "v1", "v2", "v3", "v4");
+
+            distance_function = get_function(distance_func, "v1", "v2", "v3", "v4");
         }
     };
 
