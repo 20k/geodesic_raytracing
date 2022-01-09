@@ -12,6 +12,7 @@
 #include "numerical.hpp"
 #include <imgui/misc/freetype/imgui_freetype.h>
 #include <imgui/imgui_internal.h>
+#include "js_interop.hpp"
 //#include "dual_complex.hpp"
 
 /**
@@ -1963,6 +1964,8 @@ int main()
     std::optional<cl::event> last_event;
 
     std::cout << "Supports shared events? " << cl::supports_extension(clctx.ctx, "cl_khr_gl_event") << std::endl;
+
+    js_argument_string("");
 
     bool supersample = false;
     bool should_take_screenshot = false;
