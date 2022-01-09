@@ -84,11 +84,23 @@ js::value mul(js::value_context* vctx, js::value v1, js::value v2)
     dual pv1 = get(v1);
     dual pv2 = get(v2);
 
-    js::value result = to_value(*vctx, pv1 * pv2);
+    return to_value(*vctx, pv1 * pv2);
+}
 
-    std::cout << (std::string)result << std::endl;
+js::value sub(js::value_context* vctx, js::value v1, js::value v2)
+{
+    dual pv1 = get(v1);
+    dual pv2 = get(v2);
 
-    return result;
+    return to_value(*vctx, pv1 - pv2);
+}
+
+js::value jdiv(js::value_context* vctx, js::value v1, js::value v2)
+{
+    dual pv1 = get(v1);
+    dual pv2 = get(v2);
+
+    return to_value(*vctx, pv1 / pv2);
 }
 
 namespace CMath
@@ -114,6 +126,8 @@ js_function::js_function(const std::string& script_data) : vctx(nullptr, nullptr
 
     js::add_key_value(cshim, "add", js::function<add>);
     js::add_key_value(cshim, "mul", js::function<mul>);
+    js::add_key_value(cshim, "sub", js::function<sub>);
+    js::add_key_value(cshim, "div", js::function<jdiv>);
     js::add_key_value(cshim, "construct", js::function<construct>);
 
     js::value global = js::get_global(vctx);
