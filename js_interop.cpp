@@ -385,6 +385,37 @@ namespace CMath
 
         return to_value(*vctx, selected);
     }
+
+    js::value Real(js::value_context* vctx, js::value v)
+    {
+        storage s = get(v);
+
+        if(s.which == 0)
+            return to_value(*vctx, s.d);
+        else if(s.which == 1)
+            return to_value(*vctx, Real(s.c));
+        else
+            throw std::runtime_error("Some kind of weird error in Real");
+    }
+
+    js::value Imaginary(js::value_context* vctx, js::value v)
+    {
+        storage s = get(v);
+
+        if(s.which == 0)
+            return to_value(*vctx, (dual)(0.f));
+        else if(s.which == 1)
+            return to_value(*vctx, Imaginary(s.c));
+        else
+            throw std::runtime_error("Some kind of weird error in Imaginary");
+    }
+}
+
+js::value get_unit_i(js::value_context& vctx)
+{
+    dual_complex i = dual_types::unit_i();
+
+    return to_value(vctx, i);
 }
 
 js::value extract_function(js::value_context& vctx, const std::string& script_data)
@@ -436,6 +467,14 @@ js::value extract_function(js::value_context& vctx, const std::string& script_da
 
     js::add_key_value(cmath, "M_PI", js::make_value(vctx, M_PI));
     js::add_key_value(cmath, "PI", js::make_value(vctx, M_PI));
+
+    js::add_key_value(cmath, "conjugate", js::function<CMath::conjugate>);
+    js::add_key_value(cmath, "self_conjugate_multiply", js::function<CMath::self_conjugate_multiply>);
+
+    js::add_key_value(cmath, "Real", js::function<CMath::Real>);
+    js::add_key_value(cmath, "Imaginary", js::function<CMath::Imaginary>);
+
+    js::add_key_value(cmath, "i", get_unit_i(vctx));
 
     js::add_key_value(global, "CMath", cmath);
 
