@@ -59,6 +59,20 @@ storage func(const storage& s1, T&& functor)
         throw std::runtime_error("Invalid type in dual/complex internals");
     }
 }
+template<typename T>
+storage func_real(const storage& s1, T&& functor)
+{
+    if(s1.which == 0)
+    {
+        storage s(functor(s1.d));
+
+        return s;
+    }
+    else
+    {
+        throw std::runtime_error("Invalid type in dual/complex internals, this is a real-only function");
+    }
+}
 
 template<typename T>
 storage func(const storage& s1, const storage& s2, T&& functor)
@@ -312,41 +326,49 @@ js::value eq(js::value_context* vctx, js::value v1, js::value v2)
 
 namespace CMath
 {
-    #define UNARY_JS(func) js::value func(js::value_context* vctx, js::value in) { \
-                            dual v = get(in).d; \
-                            return to_value(*vctx, dual_types::func(v)); \
+    #define UNARY_JS(name) js::value name(js::value_context* vctx, js::value in) { \
+                            storage v = get(in); \
+                            auto result = func(v, [](auto in){return name(in);}); \
+                            return to_value(*vctx, result); \
                            }
 
-    #define BINARY_JS(func) js::value func(js::value_context* vctx, js::value in, js::value in2) { \
+    #define UNARY_JS_REAL(name) js::value name(js::value_context* vctx, js::value in) { \
+                            storage v = get(in); \
+                            auto result = func_real(v, [](auto in){return name(in);}); \
+                            return to_value(*vctx, result); \
+                           }
+
+    #define BINARY_JS(name) js::value name(js::value_context* vctx, js::value in, js::value in2) { \
                             dual v = get(in).d; \
                             dual v2 = get(in2).d; \
-                            return to_value(*vctx, dual_types::func(v, v2)); \
+                            return to_value(*vctx, dual_types::name(v, v2)); \
                            }
 
-    #define TERNARY_JS(func) js::value func(js::value_context* vctx, js::value in, js::value in2, js::value in3) { \
+    #define TERNARY_JS(name) js::value name(js::value_context* vctx, js::value in, js::value in2, js::value in3) { \
                              dual v = get(in).d; \
                              dual v2 = get(in2).d; \
                              dual v3 = get(in3).d; \
-                             return to_value(*vctx, dual_types::func(v, v2, v3)); \
+                             return to_value(*vctx, dual_types::name(v, v2, v3)); \
                             }
 
     UNARY_JS(sin);
     UNARY_JS(cos);
-    UNARY_JS(tan);
-    UNARY_JS(asin);
-    UNARY_JS(acos);
-    UNARY_JS(atan);
+    UNARY_JS_REAL(tan);
+    UNARY_JS_REAL(asin);
+    UNARY_JS_REAL(acos);
+    UNARY_JS_REAL(atan);
     BINARY_JS(atan2);
     BINARY_JS(pow);
 
     UNARY_JS(fabs);
-    UNARY_JS(log);
+    UNARY_JS_REAL(log);
     UNARY_JS(sqrt);
-    UNARY_JS(exp);
+    UNARY_JS(psqrt);
+    UNARY_JS_REAL(exp);
 
-    UNARY_JS(sinh);
-    UNARY_JS(cosh);
-    UNARY_JS(tanh);
+    UNARY_JS_REAL(sinh);
+    UNARY_JS_REAL(cosh);
+    UNARY_JS_REAL(tanh);
 
     TERNARY_JS(fast_length);
 
