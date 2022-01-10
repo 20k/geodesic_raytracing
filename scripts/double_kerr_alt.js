@@ -3,8 +3,6 @@ function double_kerr_alt(t, p, phi, z)
 {
     var i = CMath.i;
 
-    CMath.debug(i);
-
     var R = 4;
     var M = 0.3;
     var q = 0.2;
