@@ -1,0 +1,7 @@
+{
+	"name": "double_schwarzschild",
+	"adaptive_precision": true,
+	"detect_singularities": true,
+	"max_acceleration_change": 0.00001,
+	"inherit_settings": "cylindrical_base"
+}
