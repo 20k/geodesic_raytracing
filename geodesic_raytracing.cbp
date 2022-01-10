@@ -156,8 +156,34 @@
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>
 		<Unit filename="numerical.hpp" />
+		<Unit filename="scripts/configurable_wormhole.js" />
+		<Unit filename="scripts/configurable_wormhole.json" />
 		<Unit filename="scripts/coordinates/polar_to_polar.js" />
+		<Unit filename="scripts/cosmic_string.js" />
+		<Unit filename="scripts/cosmic_string.json" />
+		<Unit filename="scripts/ellis_drainhole.js">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="scripts/ellis_drainhole.json">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="scripts/ernst.js" />
+		<Unit filename="scripts/ernst.json" />
+		<Unit filename="scripts/janis_newman_winicour.js" />
+		<Unit filename="scripts/janis_newman_winicour.json" />
+		<Unit filename="scripts/kerr_boyer.js">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="scripts/kerr_boyer.json">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="scripts/polar_base.json" />
 		<Unit filename="scripts/schwarzschild.js" />
+		<Unit filename="scripts/schwarzschild.json" />
+		<Unit filename="scripts/schwarzschild_accurate.js" />
+		<Unit filename="scripts/schwarzschild_accurate.json" />
+		<Unit filename="scripts/wormhole.js" />
+		<Unit filename="scripts/wormhole.json" />
 		<Extensions>
 			<lib_finder disable_auto="1" />
 		</Extensions>

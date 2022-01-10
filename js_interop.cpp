@@ -220,6 +220,9 @@ js::value extract_function(js::value_context& vctx, const std::string& script_da
     js::add_key_value(cmath, "sqrt", js::function<CMath::sqrt>);
     js::add_key_value(cmath, "exp", js::function<CMath::exp>);
 
+    js::add_key_value(cmath, "M_PI", js::make_value(vctx, M_PI));
+    js::add_key_value(cmath, "PI", js::make_value(vctx, M_PI));
+
     js::add_key_value(global, "CMath", cmath);
 
     js::add_key_value(global, "M_PI", js::make_value(vctx, M_PI));
