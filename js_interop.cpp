@@ -23,7 +23,131 @@ struct storage
 
     dual d;
     dual_complex c;
+
+    storage(){}
+
+    storage(const dual& d_in)
+    {
+        d = d_in;
+        which =  0;
+    }
+
+    storage(const dual_complex& c_in)
+    {
+        c = c_in;
+        which = 1;
+    }
 };
+
+template<typename T>
+storage func(const storage& s1, T&& functor)
+{
+    if(s1.which == 0)
+    {
+        storage s(functor(s1.d));
+
+        return s;
+    }
+    else if(s1.which == 1)
+    {
+        storage s(functor(s1.c));
+
+        return s;
+    }
+    else
+    {
+        throw std::runtime_error("Invalid type in dual/complex internals");
+    }
+}
+
+template<typename T>
+storage func(const storage& s1, const storage& s2, T&& functor)
+{
+    if(s1.which == 0 && s2.which == 0)
+    {
+        storage s(functor(s1.d, s2.d));
+
+        return s;
+    }
+    else if(s1.which == 0 && s2.which == 1)
+    {
+        storage s(functor(s1.d, s2.c));
+
+        return s;
+    }
+    else if(s1.which == 1 && s2.which == 0)
+    {
+        storage s(functor(s1.c, s2.d));
+
+        return s;
+    }
+    else if(s1.which == 1 && s2.which == 1)
+    {
+        storage s(functor(s1.c, s2.c));
+
+        return s;
+    }
+    else
+    {
+        throw std::runtime_error("Invalid types in dual/complex internals");
+    }
+}
+
+storage s_add(const storage& s1, const storage& s2)
+{
+    return func(s1, s2, [](auto v1, auto v2)
+    {
+        return v1 + v2;
+    });
+}
+
+storage s_sub(const storage& s1, const storage& s2)
+{
+    return func(s1, s2, [](auto v1, auto v2)
+    {
+        return v1 - v2;
+    });
+}
+
+storage s_mul(const storage& s1, const storage& s2)
+{
+    return func(s1, s2, [](auto v1, auto v2)
+    {
+        return v1 * v2;
+    });
+}
+
+storage s_div(const storage& s1, const storage& s2)
+{
+    return func(s1, s2, [](auto v1, auto v2)
+    {
+        return v1 / v2;
+    });
+}
+
+storage s_neg(const storage& s1)
+{
+    return func(s1, [](auto v1)
+    {
+        return -v1;
+    });
+}
+
+storage s_lt(const storage& s1, const storage& s2)
+{
+    if(s1.which == 0 && s2.which == 0)
+        return (dual)(s1.d < s2.d);
+    else
+        throw std::runtime_error("Can only use < on complex values");
+}
+
+storage s_eq(const storage& s1, const storage& s2)
+{
+    if(s1.which == 0 && s2.which == 0)
+        return (dual)(s1.d == s2.d);
+    else
+        throw std::runtime_error("Can only use < on complex values");
+}
 
 js::value to_class(js::value_context& vctx, js::value in)
 {
@@ -93,6 +217,34 @@ js::value to_value(js::value_context& vctx, dual in)
     return to_class(vctx, v);
 }
 
+js::value to_value(js::value_context& vctx, dual_complex in)
+{
+    storage s;
+    s.which = 1;
+    s.c = in;
+
+    js::value v(vctx);
+
+    js::value as_object(vctx);
+    as_object.allocate_in_heap(s);
+
+    v.add("v", as_object);
+
+    return to_class(vctx, v);
+}
+
+js::value to_value(js::value_context& vctx, storage in)
+{
+    js::value v(vctx);
+
+    js::value as_object(vctx);
+    as_object.allocate_in_heap(in);
+
+    v.add("v", as_object);
+
+    return to_class(vctx, v);
+}
+
 void construct(js::value_context* vctx, js::value js_this, js::value v2)
 {
     storage v = get(v2);
@@ -105,57 +257,57 @@ void construct(js::value_context* vctx, js::value js_this, js::value v2)
 
 js::value add(js::value_context* vctx, js::value v1, js::value v2)
 {
-    dual pv1 = get(v1).d;
-    dual pv2 = get(v2).d;
+    storage pv1 = get(v1);
+    storage pv2 = get(v2);
 
-    return to_value(*vctx, pv1 + pv2);
+    return to_value(*vctx, s_add(pv1, pv2));
 }
 
 js::value mul(js::value_context* vctx, js::value v1, js::value v2)
 {
-    dual pv1 = get(v1).d;
-    dual pv2 = get(v2).d;
+    storage pv1 = get(v1);
+    storage pv2 = get(v2);
 
-    return to_value(*vctx, pv1 * pv2);
+    return to_value(*vctx, s_mul(pv1, pv2));
 }
 
 js::value sub(js::value_context* vctx, js::value v1, js::value v2)
 {
-    dual pv1 = get(v1).d;
-    dual pv2 = get(v2).d;
+    storage pv1 = get(v1);
+    storage pv2 = get(v2);
 
-    return to_value(*vctx, pv1 - pv2);
+    return to_value(*vctx, s_sub(pv1, pv2));
 }
 
 js::value jdiv(js::value_context* vctx, js::value v1, js::value v2)
 {
-    dual pv1 = get(v1).d;
-    dual pv2 = get(v2).d;
+    storage pv1 = get(v1);
+    storage pv2 = get(v2);
 
-    return to_value(*vctx, pv1 / pv2);
+    return to_value(*vctx, s_div(pv1, pv2));
 }
 
 js::value neg(js::value_context* vctx, js::value v1)
 {
-    dual pv1 = get(v1).d;
+    storage pv1 = get(v1);
 
-    return to_value(*vctx, -pv1);
+    return to_value(*vctx, s_neg(pv1));
 }
 
 js::value lt(js::value_context* vctx, js::value v1, js::value v2)
 {
-    dual pv1 = get(v1).d;
-    dual pv2 = get(v2).d;
+    storage pv1 = get(v1);
+    storage pv2 = get(v2);
 
-    return to_value(*vctx, pv1 < pv2);
+    return to_value(*vctx, s_lt(pv1, pv2));
 }
 
 js::value eq(js::value_context* vctx, js::value v1, js::value v2)
 {
-    dual pv1 = get(v1).d;
-    dual pv2 = get(v2).d;
+    storage pv1 = get(v1);
+    storage pv2 = get(v2);
 
-    return to_value(*vctx, pv1 == pv2);
+    return to_value(*vctx, s_eq(pv1, pv2));
 }
 
 namespace CMath
