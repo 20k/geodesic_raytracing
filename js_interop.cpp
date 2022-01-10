@@ -265,8 +265,6 @@ std::array<dual, 16> js_metric::operator()(dual t, dual r, dual theta, dual phi)
     js::value v3 = to_value(vctx, theta);
     js::value v4 = to_value(vctx, phi);
 
-    std::cout << (std::string)type_to_string(v2.get("v").get_ptr<dual>()->real) << std::endl;
-
     if(func.is_error() || func.is_exception())
     {
         std::cout << "Function object error " << func.to_error_message() << std::endl;
@@ -274,8 +272,6 @@ std::array<dual, 16> js_metric::operator()(dual t, dual r, dual theta, dual phi)
     }
 
     auto [success, result] = js::call(func, v1, v2, v3, v4);
-
-    std::cout << "Res " << (std::string)result << std::endl;
 
     if(!success)
         throw std::runtime_error("Error in script exec " + (std::string)result.to_error_message());
