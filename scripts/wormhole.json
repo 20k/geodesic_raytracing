@@ -1,0 +1,6 @@
+{
+	"name":"wormhole",
+	"adaptive_precision": false,
+	"detect_singularities": true,
+	"inherit_settings": "polar_base"
+}
