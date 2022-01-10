@@ -156,9 +156,16 @@
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>
 		<Unit filename="numerical.hpp" />
+		<Unit filename="scripts/cartesian_base.json" />
 		<Unit filename="scripts/configurable_wormhole.js" />
 		<Unit filename="scripts/configurable_wormhole.json" />
+		<Unit filename="scripts/coordinates/cartesian_to_polar.js" />
+		<Unit filename="scripts/coordinates/polar_to_cartesian.js">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
 		<Unit filename="scripts/coordinates/polar_to_polar.js" />
+		<Unit filename="scripts/coordinates/polar_to_rational.js" />
+		<Unit filename="scripts/coordinates/rational_to_polar.js" />
 		<Unit filename="scripts/cosmic_string.js" />
 		<Unit filename="scripts/cosmic_string.json" />
 		<Unit filename="scripts/ellis_drainhole.js">
@@ -181,6 +188,18 @@
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>
 		<Unit filename="scripts/kerr_newman_boyer.json">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="scripts/kerr_rational_polynomial.js">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="scripts/kerr_rational_polynomial.json">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="scripts/kerr_schild.js">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="scripts/kerr_schild.json">
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>
 		<Unit filename="scripts/polar_base.json" />
