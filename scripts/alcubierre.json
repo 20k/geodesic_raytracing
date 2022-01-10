@@ -1,0 +1,8 @@
+{
+	"name": "alcubierre",
+	"adaptive_precision": true,
+	"detect_singularities": false,
+	"max_acceleration_change": 0.00001,
+	"inherit_settings": "cartesian_base",
+	"origin_distance": "alcubierre_origin"
+}

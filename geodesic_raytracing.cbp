@@ -156,6 +156,12 @@
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>
 		<Unit filename="numerical.hpp" />
+		<Unit filename="scripts/alcubierre.js">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="scripts/alcubierre.json">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
 		<Unit filename="scripts/cartesian_base.json" />
 		<Unit filename="scripts/configurable_wormhole.js" />
 		<Unit filename="scripts/configurable_wormhole.json" />
@@ -168,6 +174,10 @@
 		<Unit filename="scripts/coordinates/rational_to_polar.js" />
 		<Unit filename="scripts/cosmic_string.js" />
 		<Unit filename="scripts/cosmic_string.json" />
+		<Unit filename="scripts/de_sitter.js">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="scripts/de_sitter.json" />
 		<Unit filename="scripts/ellis_drainhole.js">
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>
@@ -200,6 +210,15 @@
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>
 		<Unit filename="scripts/kerr_schild.json">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="scripts/minkowski.js">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="scripts/minkowski.json">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="scripts/origins/alcubierre_origin.js">
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>
 		<Unit filename="scripts/polar_base.json" />

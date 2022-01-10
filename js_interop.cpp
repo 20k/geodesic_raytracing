@@ -154,6 +154,13 @@ namespace CMath
                             return to_value(*vctx, dual_types::func(v, v2)); \
                            }
 
+    #define TERNARY_JS(func) js::value func(js::value_context* vctx, js::value in, js::value in2, js::value in3) { \
+                             dual v = get(in); \
+                             dual v2 = get(in2); \
+                             dual v3 = get(in3); \
+                             return to_value(*vctx, dual_types::func(v, v2, v3)); \
+                            }
+
     UNARY_JS(sin);
     UNARY_JS(cos);
     UNARY_JS(tan);
@@ -167,6 +174,12 @@ namespace CMath
     UNARY_JS(log);
     UNARY_JS(sqrt);
     UNARY_JS(exp);
+
+    UNARY_JS(sinh);
+    UNARY_JS(cosh);
+    UNARY_JS(tanh);
+
+    TERNARY_JS(fast_length);
 
     js::value select(js::value_context* vctx, js::value condition, js::value if_true, js::value if_false)
     {
@@ -219,6 +232,12 @@ js::value extract_function(js::value_context& vctx, const std::string& script_da
     js::add_key_value(cmath, "pow", js::function<CMath::pow>);
     js::add_key_value(cmath, "sqrt", js::function<CMath::sqrt>);
     js::add_key_value(cmath, "exp", js::function<CMath::exp>);
+    js::add_key_value(cmath, "fast_length", js::function<CMath::fast_length>);
+    js::add_key_value(cmath, "length", js::function<CMath::fast_length>);
+
+    js::add_key_value(cmath, "sinh", js::function<CMath::sinh>);
+    js::add_key_value(cmath, "cosh", js::function<CMath::cosh>);
+    js::add_key_value(cmath, "tanh", js::function<CMath::tanh>);
 
     js::add_key_value(cmath, "M_PI", js::make_value(vctx, M_PI));
     js::add_key_value(cmath, "PI", js::make_value(vctx, M_PI));
