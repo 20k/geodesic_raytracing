@@ -1,0 +1,15 @@
+{
+	"name": "kerr_rational_polynomial",
+	"singular": false,
+	"traversable_event_horizon": false,
+	"singular_terminator": 1.0,
+	"adaptive_precision": true,
+	"detect_singularities": true,
+	"follow_geodesics_forward": false,
+	"coordinate_system": "X_Y_THETA_PHI",
+	"use_prepass": false,
+	"max_acceleration_change": 0.000001,
+	"to_polar": "rational_to_polar",
+	"from_polar": "polar_to_rational",
+	"origin_distance": "at_origin"
+}
