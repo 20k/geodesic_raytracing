@@ -422,6 +422,7 @@ js::value extract_function(js::value_context& vctx, const std::string& script_da
     js::add_key_value(cmath, "select", js::function<CMath::select>);
     js::add_key_value(cmath, "pow", js::function<CMath::pow>);
     js::add_key_value(cmath, "sqrt", js::function<CMath::sqrt>);
+    js::add_key_value(cmath, "psqrt", js::function<CMath::psqrt>);
     js::add_key_value(cmath, "exp", js::function<CMath::exp>);
     js::add_key_value(cmath, "fast_length", js::function<CMath::fast_length>);
     js::add_key_value(cmath, "length", js::function<CMath::fast_length>);
