@@ -61,21 +61,12 @@ js::value to_value(js::value_context& vctx, dual in)
 
 void construct(js::value_context* vctx, js::value js_this, js::value v2)
 {
-    if(v2.has("v"))
-    {
-        js_this.add("v", v2.get("v"));
-    }
-    else
-    {
-        double value = v2;
+    dual v = get(v2);
 
-        dual as_dual = value;
+    js::value as_object(*vctx);
+    as_object.allocate_in_heap(v);
 
-        js::value val(*vctx);
-        val.allocate_in_heap(as_dual);
-
-        js_this.add("v", val);
-    }
+    js_this.add("v", as_object);
 }
 
 js::value add(js::value_context* vctx, js::value v1, js::value v2)
@@ -137,13 +128,13 @@ namespace CMath
 {
     #define UNARY_JS(func) js::value func(js::value_context* vctx, js::value in) { \
                             dual v = get(in); \
-                            return to_value(*vctx, func(v)); \
+                            return to_value(*vctx, dual_types::func(v)); \
                            }
 
     #define BINARY_JS(func) js::value func(js::value_context* vctx, js::value in, js::value in2) { \
                             dual v = get(in); \
-                            dual v2 = get(in); \
-                            return to_value(*vctx, func(v, v2)); \
+                            dual v2 = get(in2); \
+                            return to_value(*vctx, dual_types::func(v, v2)); \
                            }
 
     UNARY_JS(sin);
