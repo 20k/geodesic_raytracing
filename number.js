@@ -97,6 +97,7 @@ number.prototype[Symbol.operatorSet] = Operators.create(
 );
 
 CMath.number = number;
+CMath.i = CMath.get_i();
 
 function make_class(v)
 {

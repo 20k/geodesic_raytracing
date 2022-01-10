@@ -39,7 +39,7 @@ namespace dual_types
         }
 
         if(in == "nan")
-            throw std::runtime_error("Nan");
+            throw std::runtime_error("Nan in get_value");
 
         std::string cstr(in);
 

@@ -160,7 +160,7 @@ storage s_eq(const storage& s1, const storage& s2)
     if(s1.which == 0 && s2.which == 0)
         return (dual)(s1.d == s2.d);
     else
-        throw std::runtime_error("Can only use < on complex values");
+        throw std::runtime_error("Can only use == on complex values");
 }
 
 js::value to_class(js::value_context& vctx, js::value in)
@@ -255,6 +255,8 @@ js::value to_value(js::value_context& vctx, dual_complex in)
     as_object.allocate_in_heap(s);
 
     v.add("v", as_object);
+
+    assert(v.has("v"));
 
     return to_class(vctx, v);
 }
@@ -421,13 +423,46 @@ namespace CMath
         else
             throw std::runtime_error("Some kind of weird error in Imaginary");
     }
+
+    void debug(js::value_context* vctx, js::value v)
+    {
+        storage base = get(v);
+
+        if(base.which == 0)
+        {
+            std::cout << "base " << type_to_string(base.d.real) << std::endl;
+        }
+        else
+        {
+            std::cout << "Basi " << type_to_string(base.c.real.real) << " I " << type_to_string(base.c.real.imaginary) << std::endl;
+        }
+
+        std::cout << "well hello there " << std::endl;
+
+        js::value real_part = Real(vctx, v);
+
+        std::cout << "Hello1\n";
+
+        storage s2 = get(real_part);
+
+        std::cout << "Hello2\n";
+
+        js::value imaginary = Imaginary(vctx, v);
+
+        std::cout << "Hello3\n";
+
+        storage s3 = get(imaginary);
+
+        std::cout << "Val " << type_to_string(s2.d.real) << std::endl;
+        std::cout << "Vali " << type_to_string(s3.c.real.imaginary) << std::endl;
+    }
 }
 
-js::value get_unit_i(js::value_context& vctx)
+js::value get_unit_i(js::value_context* vctx)
 {
     dual_complex i = dual_types::unit_i();
 
-    return to_value(vctx, i);
+    return to_value(*vctx, i);
 }
 
 js::value extract_function(js::value_context& vctx, const std::string& script_data)
@@ -486,7 +521,9 @@ js::value extract_function(js::value_context& vctx, const std::string& script_da
     js::add_key_value(cmath, "Real", js::function<CMath::Real>);
     js::add_key_value(cmath, "Imaginary", js::function<CMath::Imaginary>);
 
-    js::add_key_value(cmath, "i", get_unit_i(vctx));
+    js::add_key_value(cmath, "debug", js::function<CMath::debug>);
+
+    js::add_key_value(cmath, "get_i", js::function<get_unit_i>);
 
     js::add_key_value(global, "CMath", cmath);
 
