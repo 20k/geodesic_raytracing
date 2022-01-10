@@ -370,6 +370,9 @@ namespace CMath
     UNARY_JS_REAL(cosh);
     UNARY_JS_REAL(tanh);
 
+    UNARY_JS(conjugate);
+    UNARY_JS(self_conjugate_multiply);;
+
     TERNARY_JS(fast_length);
 
     js::value select(js::value_context* vctx, js::value condition, js::value if_true, js::value if_false)

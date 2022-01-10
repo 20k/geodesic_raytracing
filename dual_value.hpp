@@ -1211,6 +1211,12 @@ namespace dual_types
     UNARY(lambert_w0, LAMBERT_W0);
 
     inline
+    value conjugate(const value& d1)
+    {
+        return d1;
+    }
+
+    inline
     complex<value> psqrt(const complex<value>& d1)
     {
         if(d1.imaginary.is_constant() && d1.imaginary.get_constant() == 0)
