@@ -1,0 +1,7 @@
+{
+	"name":"janis_newman_winicour",
+	"adaptive_precision": true,
+	"detect_singularities": false,
+	"max_acceleration_change": 0.000001,
+	"inherit_settings": "polar_base"
+}
