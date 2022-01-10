@@ -35,6 +35,13 @@ dual get(js::value& v)
         return val;
     }
 
+    if(v.is_boolean())
+    {
+        double val = (bool)v;
+
+        return val;
+    }
+
     san(v);
 
     return *v.get("v").get_ptr<dual>();
