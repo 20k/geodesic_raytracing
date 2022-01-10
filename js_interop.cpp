@@ -17,6 +17,14 @@
 #define M_SQRT2		1.41421356237309504880
 #define M_SQRT1_2	0.70710678118654752440
 
+struct storage
+{
+    int which = 0;
+
+    dual d;
+    dual_complex c;
+};
+
 js::value to_class(js::value_context& vctx, js::value in)
 {
     js::value global = js::get_global(vctx);
@@ -30,46 +38,55 @@ void san(js::value& v)
 {
     if(!v.has("v"))
     {
-        dual d;
+        storage s;
 
         js::value next(*v.vctx);
 
-        next.allocate_in_heap(d);
+        next.allocate_in_heap(s);
 
         v.add("v", next);
     }
 }
 
-dual get(js::value& v)
+storage get(js::value& v)
 {
     if(v.is_undefined())
-        return dual();
+        return storage();
 
     if(v.is_number())
     {
         double val = v;
 
-        return val;
+        storage s;
+        s.d = val;
+
+        return s;
     }
 
     if(v.is_boolean())
     {
         double val = (bool)v;
 
-        return val;
+        storage s;
+        s.d = val;
+
+        return s;
     }
 
     san(v);
 
-    return *v.get("v").get_ptr<dual>();
+    return *v.get("v").get_ptr<storage>();
 }
 
 js::value to_value(js::value_context& vctx, dual in)
 {
+    storage s;
+    s.d = in;
+
     js::value v(vctx);
 
     js::value as_object(vctx);
-    as_object.allocate_in_heap(in);
+    as_object.allocate_in_heap(s);
 
     v.add("v", as_object);
 
@@ -78,7 +95,7 @@ js::value to_value(js::value_context& vctx, dual in)
 
 void construct(js::value_context* vctx, js::value js_this, js::value v2)
 {
-    dual v = get(v2);
+    storage v = get(v2);
 
     js::value as_object(*vctx);
     as_object.allocate_in_heap(v);
@@ -88,55 +105,55 @@ void construct(js::value_context* vctx, js::value js_this, js::value v2)
 
 js::value add(js::value_context* vctx, js::value v1, js::value v2)
 {
-    dual pv1 = get(v1);
-    dual pv2 = get(v2);
+    dual pv1 = get(v1).d;
+    dual pv2 = get(v2).d;
 
     return to_value(*vctx, pv1 + pv2);
 }
 
 js::value mul(js::value_context* vctx, js::value v1, js::value v2)
 {
-    dual pv1 = get(v1);
-    dual pv2 = get(v2);
+    dual pv1 = get(v1).d;
+    dual pv2 = get(v2).d;
 
     return to_value(*vctx, pv1 * pv2);
 }
 
 js::value sub(js::value_context* vctx, js::value v1, js::value v2)
 {
-    dual pv1 = get(v1);
-    dual pv2 = get(v2);
+    dual pv1 = get(v1).d;
+    dual pv2 = get(v2).d;
 
     return to_value(*vctx, pv1 - pv2);
 }
 
 js::value jdiv(js::value_context* vctx, js::value v1, js::value v2)
 {
-    dual pv1 = get(v1);
-    dual pv2 = get(v2);
+    dual pv1 = get(v1).d;
+    dual pv2 = get(v2).d;
 
     return to_value(*vctx, pv1 / pv2);
 }
 
 js::value neg(js::value_context* vctx, js::value v1)
 {
-    dual pv1 = get(v1);
+    dual pv1 = get(v1).d;
 
     return to_value(*vctx, -pv1);
 }
 
 js::value lt(js::value_context* vctx, js::value v1, js::value v2)
 {
-    dual pv1 = get(v1);
-    dual pv2 = get(v2);
+    dual pv1 = get(v1).d;
+    dual pv2 = get(v2).d;
 
     return to_value(*vctx, pv1 < pv2);
 }
 
 js::value eq(js::value_context* vctx, js::value v1, js::value v2)
 {
-    dual pv1 = get(v1);
-    dual pv2 = get(v2);
+    dual pv1 = get(v1).d;
+    dual pv2 = get(v2).d;
 
     return to_value(*vctx, pv1 == pv2);
 }
@@ -144,20 +161,20 @@ js::value eq(js::value_context* vctx, js::value v1, js::value v2)
 namespace CMath
 {
     #define UNARY_JS(func) js::value func(js::value_context* vctx, js::value in) { \
-                            dual v = get(in); \
+                            dual v = get(in).d; \
                             return to_value(*vctx, dual_types::func(v)); \
                            }
 
     #define BINARY_JS(func) js::value func(js::value_context* vctx, js::value in, js::value in2) { \
-                            dual v = get(in); \
-                            dual v2 = get(in2); \
+                            dual v = get(in).d; \
+                            dual v2 = get(in2).d; \
                             return to_value(*vctx, dual_types::func(v, v2)); \
                            }
 
     #define TERNARY_JS(func) js::value func(js::value_context* vctx, js::value in, js::value in2, js::value in3) { \
-                             dual v = get(in); \
-                             dual v2 = get(in2); \
-                             dual v3 = get(in3); \
+                             dual v = get(in).d; \
+                             dual v2 = get(in2).d; \
+                             dual v3 = get(in3).d; \
                              return to_value(*vctx, dual_types::func(v, v2, v3)); \
                             }
 
@@ -183,9 +200,9 @@ namespace CMath
 
     js::value select(js::value_context* vctx, js::value condition, js::value if_true, js::value if_false)
     {
-        dual dcondition = get(condition);
-        dual dif_true = get(if_true);
-        dual dif_false = get(if_false);
+        dual dcondition = get(condition).d;
+        dual dif_true = get(if_true).d;
+        dual dif_false = get(if_false).d;
 
         dual selected = dual_if(dcondition.real, [&](){return dif_true;}, [&](){return dif_false;});
 
@@ -283,20 +300,20 @@ std::array<dual, 16> js_metric::operator()(dual t, dual r, dual theta, dual phi)
 
     if(values.size() == 4)
     {
-        return {get(values[0]), 0, 0, 0,
-                0, get(values[1]), 0, 0,
-                0, 0, get(values[2]), 0,
-                0, 0, 0, get(values[3])};
+        return {get(values[0]).d, 0, 0, 0,
+                0, get(values[1]).d, 0, 0,
+                0, 0, get(values[2]).d, 0,
+                0, 0, 0, get(values[3]).d};
     }
     else
     {
         if(values.size() != 16)
             throw std::runtime_error("Must return array length of 4 or 16");
 
-        return {get(values[0]), get(values[1]), get(values[2]), get(values[3]),
-                get(values[4]), get(values[5]), get(values[6]), get(values[7]),
-                get(values[8]), get(values[9]), get(values[10]),get(values[11]),
-                get(values[12]),get(values[13]),get(values[14]),get(values[15])};
+        return {get(values[0]).d, get(values[1]).d, get(values[2]).d, get(values[3]).d,
+                get(values[4]).d, get(values[5]).d, get(values[6]).d, get(values[7]).d,
+                get(values[8]).d, get(values[9]).d, get(values[10]).d,get(values[11]).d,
+                get(values[12]).d,get(values[13]).d,get(values[14]).d,get(values[15]).d};
     }
 }
 
@@ -325,7 +342,7 @@ std::array<dual, 4> js_function::operator()(dual iv1, dual iv2, dual iv3, dual i
     if(values.size() != 4)
         throw std::runtime_error("Must return array size of 4");
 
-    return {get(values[0]), get(values[1]), get(values[2]), get(values[3])};
+    return {get(values[0]).d, get(values[1]).d, get(values[2]).d, get(values[3]).d};
 }
 
 js_single_function::js_single_function(const std::string& script_data) : vctx(nullptr, nullptr), func(vctx)
@@ -345,5 +362,5 @@ dual js_single_function::operator()(dual iv1, dual iv2, dual iv3, dual iv4)
     if(!success)
         throw std::runtime_error("Error in script exec " + (std::string)result);
 
-    return {get(result)};
+    return {get(result).d};
 }
