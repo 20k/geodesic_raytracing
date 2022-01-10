@@ -216,6 +216,18 @@ storage get(js::value& v)
     return *v.get("v").get_ptr<storage>();
 }
 
+dual getr(js::value& v)
+{
+    storage s = get(v);
+
+    if(s.which == 0)
+        return s.d;
+    else if(s.which == 1)
+        return Real(s.c);
+    else
+        throw std::runtime_error("getr which");
+}
+
 js::value to_value(js::value_context& vctx, dual in)
 {
     storage s;
@@ -517,20 +529,20 @@ std::array<dual, 16> js_metric::operator()(dual t, dual r, dual theta, dual phi)
 
     if(values.size() == 4)
     {
-        return {get(values[0]).d, 0, 0, 0,
-                0, get(values[1]).d, 0, 0,
-                0, 0, get(values[2]).d, 0,
-                0, 0, 0, get(values[3]).d};
+        return {getr(values[0]), 0, 0, 0,
+                0, getr(values[1]), 0, 0,
+                0, 0, getr(values[2]), 0,
+                0, 0, 0, getr(values[3])};
     }
     else
     {
         if(values.size() != 16)
             throw std::runtime_error("Must return array length of 4 or 16");
 
-        return {get(values[0]).d, get(values[1]).d, get(values[2]).d, get(values[3]).d,
-                get(values[4]).d, get(values[5]).d, get(values[6]).d, get(values[7]).d,
-                get(values[8]).d, get(values[9]).d, get(values[10]).d,get(values[11]).d,
-                get(values[12]).d,get(values[13]).d,get(values[14]).d,get(values[15]).d};
+        return {getr(values[0]), getr(values[1]), getr(values[2]), getr(values[3]),
+                getr(values[4]), getr(values[5]), getr(values[6]), getr(values[7]),
+                getr(values[8]), getr(values[9]), getr(values[10]),getr(values[11]),
+                getr(values[12]),getr(values[13]),getr(values[14]),getr(values[15])};
     }
 }
 
@@ -559,7 +571,7 @@ std::array<dual, 4> js_function::operator()(dual iv1, dual iv2, dual iv3, dual i
     if(values.size() != 4)
         throw std::runtime_error("Must return array size of 4");
 
-    return {get(values[0]).d, get(values[1]).d, get(values[2]).d, get(values[3]).d};
+    return {getr(values[0]), getr(values[1]), getr(values[2]), getr(values[3])};
 }
 
 js_single_function::js_single_function(const std::string& script_data) : vctx(nullptr, nullptr), func(vctx)
@@ -579,5 +591,5 @@ dual js_single_function::operator()(dual iv1, dual iv2, dual iv3, dual iv4)
     if(!success)
         throw std::runtime_error("Error in script exec " + (std::string)result);
 
-    return {get(result).d};
+    return {getr(result)};
 }
