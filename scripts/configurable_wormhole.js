@@ -1,3 +1,4 @@
+///https://arxiv.org/pdf/1502.03809.pdf
 function wormhole(t, l, theta, phi)
 {
     var M = 0.01;
@@ -10,7 +11,7 @@ function wormhole(t, l, theta, phi)
     p,
     p + M * (x * CMath.atan(x) - 0.5 * CMath.log(1 + x * x))
     );
-	
+
     var dt = -1;
     var dl = 1;
     var dtheta = r * r;
