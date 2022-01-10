@@ -1,0 +1,7 @@
+{
+	"name": "cosmic_string_spinning",
+	"adaptive_precision": true,
+	"detect_singularities": false,
+	"max_acceleration_change": 0.000001,
+	"inherit_settings": "cylindrical_base"
+}
