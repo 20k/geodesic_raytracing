@@ -267,6 +267,12 @@ std::array<dual, 16> js_metric::operator()(dual t, dual r, dual theta, dual phi)
 
     std::cout << (std::string)type_to_string(v2.get("v").get_ptr<dual>()->real) << std::endl;
 
+    if(func.is_error() || func.is_exception())
+    {
+        std::cout << "Function object error " << func.to_error_message() << std::endl;
+        throw std::runtime_error("Err");
+    }
+
     auto [success, result] = js::call(func, v1, v2, v3, v4);
 
     std::cout << "Res " << (std::string)result << std::endl;
