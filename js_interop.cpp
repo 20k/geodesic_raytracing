@@ -112,11 +112,37 @@ js::value neg(js::value_context* vctx, js::value v1)
 
 namespace CMath
 {
-    js::value sin(js::value_context* vctx, js::value in)
-    {
-        dual v = get(in);
+    #define UNARY_JS(func) js::value func(js::value_context* vctx, js::value in) { \
+                            dual v = get(in); \
+                            return to_value(*vctx, func(v)); \
+                           }
 
-        return to_value(*vctx, sin(v));
+    #define BINARY_JS(func) js::value func(js::value_context* vctx, js::value in, js::value in2) { \
+                            dual v = get(in); \
+                            dual v2 = get(in); \
+                            return to_value(*vctx, func(v, v2)); \
+                           }
+
+    UNARY_JS(sin);
+    UNARY_JS(cos);
+    UNARY_JS(tan);
+    UNARY_JS(asin);
+    UNARY_JS(acos);
+    UNARY_JS(atan);
+    BINARY_JS(atan2);
+
+    UNARY_JS(fabs);
+    UNARY_JS(log);
+
+    js::value select(js::value_context* vctx, js::value condition, js::value if_true, js::value if_false)
+    {
+        dual dcondition = get(condition);
+        dual dif_true = get(if_true);
+        dual dif_false = get(if_false);
+
+        dual selected = dual_if(dcondition.real, [&](){return dif_true;}, [&](){return dif_false;});
+
+        return to_value(*vctx, selected);
     }
 }
 
@@ -145,6 +171,15 @@ js::value extract_function(js::value_context& vctx, const std::string& script_da
     js::value cmath(vctx);
 
     js::add_key_value(cmath, "sin", js::function<CMath::sin>);
+    js::add_key_value(cmath, "cos", js::function<CMath::cos>);
+    js::add_key_value(cmath, "tan", js::function<CMath::tan>);
+    js::add_key_value(cmath, "asin", js::function<CMath::asin>);
+    js::add_key_value(cmath, "acos", js::function<CMath::acos>);
+    js::add_key_value(cmath, "atan", js::function<CMath::atan>);
+    js::add_key_value(cmath, "atan2", js::function<CMath::atan2>);
+    js::add_key_value(cmath, "fabs", js::function<CMath::fabs>);
+    js::add_key_value(cmath, "log", js::function<CMath::log>);
+    js::add_key_value(cmath, "select", js::function<CMath::select>);
 
     js::add_key_value(global, "CMath", cmath);
 
