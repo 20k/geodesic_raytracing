@@ -117,6 +117,22 @@ js::value neg(js::value_context* vctx, js::value v1)
     return to_value(*vctx, -pv1);
 }
 
+js::value lt(js::value_context* vctx, js::value v1, js::value v2)
+{
+    dual pv1 = get(v1);
+    dual pv2 = get(v2);
+
+    return to_value(*vctx, pv1 < pv2);
+}
+
+js::value eq(js::value_context* vctx, js::value v1, js::value v2)
+{
+    dual pv1 = get(v1);
+    dual pv2 = get(v2);
+
+    return to_value(*vctx, pv1 == pv2);
+}
+
 namespace CMath
 {
     #define UNARY_JS(func) js::value func(js::value_context* vctx, js::value in) { \
@@ -169,6 +185,8 @@ js::value extract_function(js::value_context& vctx, const std::string& script_da
     js::add_key_value(cshim, "sub", js::function<sub>);
     js::add_key_value(cshim, "div", js::function<jdiv>);
     js::add_key_value(cshim, "neg", js::function<neg>);
+    js::add_key_value(cshim, "lt", js::function<lt>);
+    js::add_key_value(cshim, "eq", js::function<eq>);
     js::add_key_value(cshim, "construct", js::function<construct>);
 
     js::value global = js::get_global(vctx);
@@ -216,7 +234,7 @@ std::array<dual, 16> js_metric::operator()(dual t, dual r, dual theta, dual phi)
     std::cout << "Res " << (std::string)result << std::endl;
 
     if(!success)
-        throw std::runtime_error("Error in script exec " + (std::string)result);
+        throw std::runtime_error("Error in script exec " + (std::string)result.to_error_message());
 
     if(!result.is_array())
         throw std::runtime_error("Must return array");

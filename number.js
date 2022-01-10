@@ -30,6 +30,14 @@ number.prototype[Symbol.operatorSet] = Operators.create(
     "neg"(p1)
     {
         return CShim.neg(p1);
+    },
+    "<"(p1, p2)
+    {
+        return CShim.lt(p1, p2);
+    },
+    "=="(p1, p2)
+    {
+        return CShim.eq(p1, p2);
     }
 },
 {
@@ -49,6 +57,14 @@ number.prototype[Symbol.operatorSet] = Operators.create(
     "/"(p1, p2)
     {
         return CShim.div(p1, p2);
+    },
+    "<"(p1, p2)
+    {
+        return CShim.lt(p1, p2);
+    },
+    "=="(p1, p2)
+    {
+        return CShim.eq(p1, p2);
     }
 },
 {
@@ -68,6 +84,14 @@ number.prototype[Symbol.operatorSet] = Operators.create(
     "/"(p1, p2)
     {
         return CShim.div(p1, p2);
+    },
+    "<"(p1, p2)
+    {
+        return CShim.lt(p1, p2);
+    },
+    "=="(p1, p2)
+    {
+        return CShim.eq(p1, p2);
     }
 },
 );

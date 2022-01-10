@@ -1891,7 +1891,11 @@ int main()
         js_function func_from_polar(file::read("./scripts/coordinates/" + met->metric_cfg.from_polar + ".js", file::mode::TEXT));
         js_single_function fun_origin_distance(file::read("./scripts/origins/" + met->metric_cfg.origin_distance + ".js", file::mode::TEXT));
 
+        std::cout << "loading " << sname << std::endl;
+
         met->desc.load(jfunc, func_to_polar, func_from_polar, fun_origin_distance);
+
+        printf("Doneload\n");
 
         all_metrics.push_back(met);
     }
