@@ -554,10 +554,16 @@ std::array<dual, 16> js_metric::operator()(dual t, dual r, dual theta, dual phi)
         throw std::runtime_error("Err");
     }
 
+    if(!func.is_function())
+    {
+        std::cout << "Expected function in eval of script" << std::endl;
+        throw std::runtime_error("Func eval fail");
+    }
+
     auto [success, result] = js::call(func, v1, v2, v3, v4);
 
     if(!success)
-        throw std::runtime_error("Error in script exec " + (std::string)result.to_error_message());
+        throw std::runtime_error("Error in script exec (16x4) " + (std::string)result.to_error_message());
 
     if(!result.is_array())
         throw std::runtime_error("Must return array");
@@ -598,7 +604,7 @@ std::array<dual, 4> js_function::operator()(dual iv1, dual iv2, dual iv3, dual i
     auto [success, result] = js::call(func, v1, v2, v3, v4);
 
     if(!success)
-        throw std::runtime_error("Error in script exec " + (std::string)result);
+        throw std::runtime_error("Error in 4x4 execution " + (std::string)result.to_error_message());
 
     if(!result.is_array())
         throw std::runtime_error("Must return array");
@@ -626,7 +632,7 @@ dual js_single_function::operator()(dual iv1, dual iv2, dual iv3, dual iv4)
     auto [success, result] = js::call(func, v1, v2, v3, v4);
 
     if(!success)
-        throw std::runtime_error("Error in script exec " + (std::string)result);
+        throw std::runtime_error("Error in 1x4 exec " + (std::string)result.to_error_message());
 
     return {getr(result)};
 }
