@@ -153,6 +153,7 @@ namespace CMath
     UNARY_JS(acos);
     UNARY_JS(atan);
     BINARY_JS(atan2);
+    BINARY_JS(pow);
 
     UNARY_JS(fabs);
     UNARY_JS(log);
@@ -205,6 +206,7 @@ js::value extract_function(js::value_context& vctx, const std::string& script_da
     js::add_key_value(cmath, "fabs", js::function<CMath::fabs>);
     js::add_key_value(cmath, "log", js::function<CMath::log>);
     js::add_key_value(cmath, "select", js::function<CMath::select>);
+    js::add_key_value(cmath, "pow", js::function<CMath::pow>);
 
     js::add_key_value(global, "CMath", cmath);
 
