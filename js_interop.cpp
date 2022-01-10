@@ -340,6 +340,8 @@ js::value eq(js::value_context* vctx, js::value v1, js::value v2)
 
 namespace CMath
 {
+    void debug(js::value_context* vctx, js::value v);
+
     #define UNARY_JS(name) js::value name(js::value_context* vctx, js::value in) { \
                             storage v = get(in); \
                             auto result = func(v, [](auto in){return name(in);}); \
@@ -372,7 +374,7 @@ namespace CMath
     UNARY_JS_REAL(acos);
     UNARY_JS_REAL(atan);
     BINARY_JS(atan2);
-    BINARY_JS(pow);
+    //BINARY_JS(pow);
 
     UNARY_JS(fabs);
     UNARY_JS_REAL(log);
@@ -436,8 +438,43 @@ namespace CMath
             throw std::runtime_error("Some kind of weird error in Imaginary");
     }
 
+    js::value pow(js::value_context* vctx, js::value in1, js::value in2)
+    {
+        storage s1 = get(in1);
+        storage s2 = get(in2);
+
+        if(s2.which != 0)
+            throw std::runtime_error("Pow cannot be used with a complex second argument");
+
+        if(!s2.d.real.is_constant())
+            throw std::runtime_error("Pow's second argument must be constant");
+
+        double exponent = s2.d.real.get_constant();
+
+        if(s1.which == 0)
+        {
+            return to_value(*vctx, pow(s1.d, exponent));
+        }
+
+        if(s1.which == 1)
+        {
+            if(exponent != (int)exponent)
+                throw std::runtime_error("With a complex first argument, the exponent must be integral");
+
+            return to_value(*vctx, pow(s1.c, (int)exponent));
+        }
+
+        throw std::runtime_error("Cannot call pow with two complex arguments");
+    }
+
     void debug(js::value_context* vctx, js::value v)
     {
+        if(v.is_string())
+        {
+            std::cout << (std::string)v << std::endl;
+            return;
+        }
+
         storage base = get(v);
 
         if(base.which == 0)
@@ -563,7 +600,7 @@ std::array<dual, 16> js_metric::operator()(dual t, dual r, dual theta, dual phi)
 
     if(func.is_error() || func.is_exception())
     {
-        std::cout << "Function object error " << func.to_error_message() << std::endl;
+        std::cout << "Function object error (16x4) " << func.to_error_message() << std::endl;
         throw std::runtime_error("Err");
     }
 
