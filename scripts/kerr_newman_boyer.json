@@ -1,0 +1,8 @@
+{
+	"name": "kerr_newman_boyer",
+	"adaptive_precision": true,
+	"detect_singularities": true,
+	"use_prepass": false,
+	"max_acceleration_change": 0.000001,
+	"inherit_settings": "polar_base"
+}

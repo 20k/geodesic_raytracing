@@ -177,6 +177,12 @@
 		<Unit filename="scripts/kerr_boyer.json">
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>
+		<Unit filename="scripts/kerr_newman_boyer.js">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="scripts/kerr_newman_boyer.json">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
 		<Unit filename="scripts/polar_base.json" />
 		<Unit filename="scripts/schwarzschild.js" />
 		<Unit filename="scripts/schwarzschild.json" />
