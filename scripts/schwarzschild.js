@@ -9,7 +9,6 @@ function metric(t, r, theta, phi)
     var dphi = r*r * CMath.sin(theta) * CMath.sin(theta);
 
     return [dt, dr, dtheta, dphi];
-    //return [-1, 1, r * r, r * r * CMath.sin(theta) * CMath.sin(theta)];
 }
 
 metric
