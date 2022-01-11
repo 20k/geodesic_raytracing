@@ -558,8 +558,6 @@ int main()
     {
         win.poll();
 
-        glFinish();
-
         auto buffer_size = rtex[which_buffer].size<2>();
 
         bool taking_screenshot = should_take_screenshot;
