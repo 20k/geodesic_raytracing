@@ -134,58 +134,63 @@ namespace metrics
 
         void load(nlohmann::json& js)
         {
-            if(js.count("name"))
-                name = js["name"];
-
-            if(js.count("use_prepass"))
-                use_prepass = js["use_prepass"];
-
-            if(js.count("max_acceleration_change"))
-                max_acceleration_change = js["max_acceleration_change"];
-
-            if(js.count("singular"))
-                singular = js["singular"];
-
-            if(js.count("traversable_event_horizon"))
-                traversable_event_horizon = js["traversable_event_horizon"];
-
-            if(js.count("singular_terminator"))
-                singular_terminator = js["singular_terminator"];
-
-            if(js.count("adaptive_precision"))
-                adaptive_precision = js["adaptive_precision"];
-
-            if(js.count("detect_singularities"))
-                detect_singularities = js["detect_singularities"];
-
-            if(js.count("follow_geodesics_forward"))
-                follow_geodesics_forward = js["follow_geodesics_forward"];
-
-            if(js.count("coordinate_system"))
+            for(auto& [key, value] : js.items())
             {
-                std::string ssystem = js["coordinate_system"];
+                if(key == "name")
+                    name = value;
 
-                if(ssystem == "X_Y_THETA_PHI")
-                    system = coordinate_system::X_Y_THETA_PHI;
-                else if(ssystem == "CARTESIAN")
-                    system = coordinate_system::CARTESIAN;
-                else if(ssystem == "CYLINDRICAL")
-                    system = coordinate_system::CYLINDRICAL;
+                else if(key == "use_prepass")
+                    use_prepass = value;
+
+                else if(key == "max_acceleration_change")
+                    max_acceleration_change = value;
+
+                else if(key == "singular")
+                    singular = value;
+
+                else if(key == "traversable_event_horizon")
+                    traversable_event_horizon = value;
+
+                else if(key == "singular_terminator")
+                    singular_terminator = value;
+
+                else if(key == "adaptive_precision")
+                    adaptive_precision = value;
+
+                else if(key == "detect_singularities")
+                    detect_singularities = value;
+
+                else if(key == "follow_geodesics_forward")
+                    follow_geodesics_forward = value;
+
+                else if(key == "coordinate_system")
+                {
+                    std::string ssystem = value;
+
+                    if(ssystem == "X_Y_THETA_PHI")
+                        system = coordinate_system::X_Y_THETA_PHI;
+                    else if(ssystem == "CARTESIAN")
+                        system = coordinate_system::CARTESIAN;
+                    else if(ssystem == "CYLINDRICAL")
+                        system = coordinate_system::CYLINDRICAL;
+                    else
+                        system = coordinate_system::OTHER;
+                }
+
+                else if(key == "to_polar")
+                    to_polar = value;
+
+                else if(key == "from_polar")
+                    from_polar = value;
+
+                else if(key == "origin_distance")
+                    origin_distance = value;
+
+                else if(key == "inherit_settings")
+                    inherit_settings = value;
                 else
-                    system = coordinate_system::OTHER;
+                    std::cout << "Warning, unknown key name " << key << std::endl;
             }
-
-            if(js.count("to_polar"))
-                to_polar = js["to_polar"];
-
-            if(js.count("from_polar"))
-                from_polar = js["from_polar"];
-
-            if(js.count("origin_distance"))
-                origin_distance = js["origin_distance"];
-
-            if(js.count("inherit_settings"))
-                inherit_settings = js["inherit_settings"];
         }
     };
 
