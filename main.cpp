@@ -331,8 +331,6 @@ int main()
 
     opencl_context& clctx = *win.clctx;
 
-    #ifdef GENERIC_METRIC
-
     std::filesystem::path scripts_dir{"./scripts"};
 
     std::vector<std::string> scripts;
@@ -412,7 +410,6 @@ int main()
     //cfg.error_override = 0.000001f;
     //cfg.error_override = 0.00001f;
     //cfg.redshift = true;
-    #endif // GENERIC_METRIC
 
     //printf("WLs %f %f %f\n", chromaticity::srgb_to_wavelength({1, 0, 0}), chromaticity::srgb_to_wavelength({0, 1, 0}), chromaticity::srgb_to_wavelength({0, 0, 1}));
 
@@ -470,10 +467,6 @@ int main()
     cl::buffer schwarzs_1(clctx.ctx);
     cl::buffer schwarzs_scratch(clctx.ctx);
     cl::buffer schwarzs_prepass(clctx.ctx);
-    #ifndef GENERIC_METRIC
-    cl::buffer kruskal_1(clctx.ctx);
-    cl::buffer kruskal_2(clctx.ctx);
-    #endif // GENERIC_METRIC
     cl::buffer finished_1(clctx.ctx);
 
     cl::buffer schwarzs_count_1(clctx.ctx);
@@ -517,10 +510,6 @@ int main()
     schwarzs_1.alloc(sizeof(lightray) * ray_count);
     schwarzs_scratch.alloc(sizeof(lightray) * ray_count);
     schwarzs_prepass.alloc(sizeof(lightray) * ray_count);
-    #ifndef GENERIC_METRIC
-    kruskal_1.alloc(sizeof(lightray) * ray_count);
-    kruskal_2.alloc(sizeof(lightray) * ray_count);
-    #endif // GENERIC_METRIC
     finished_1.alloc(sizeof(lightray) * ray_count);
 
     schwarzs_count_1.alloc(sizeof(int));
@@ -620,10 +609,6 @@ int main()
             schwarzs_1.alloc(sizeof(lightray) * ray_count);
             schwarzs_scratch.alloc(sizeof(lightray) * ray_count);
             schwarzs_prepass.alloc(sizeof(lightray) * ray_count);
-            #ifndef GENERIC_METRIC
-            kruskal_1.alloc(sizeof(lightray) * ray_count);
-            kruskal_2.alloc(sizeof(lightray) * ray_count);
-            #endif // GENERIC_METRIC
             finished_1.alloc(sizeof(lightray) * ray_count);
 
             for(int i=0; i < 2; i++)
@@ -879,60 +864,11 @@ int main()
 
         clctx.cqueue.exec("clear", clr, {width, height}, {16, 16});
 
-        #if 0
-        cl::args args;
-        args.push_back(rtex[0]);
-        args.push_back(ds);
-        args.push_back(camera);
-        args.push_back(camera_quat);
-        args.push_back(clbackground);
-
-        clctx.cqueue.exec("do_raytracing_multicoordinate", args, {win.get_window_size().x(), win.get_window_size().y()}, {16, 16});
-
-        rtex[0].unacquire(clctx.cqueue);
-
-        glFinish();
-        clctx.cqueue.block();
-        glFinish();
-        #endif // OLD_AND_GOOD
-
-        #if 1
         int fallback = 0;
 
         cl::event next;
 
         {
-            #ifndef GENERIC_METRIC
-            cl::args init_args;
-            init_args.push_back(camera);
-            init_args.push_back(camera_quat);
-            init_args.push_back(schwarzs_1);
-            init_args.push_back(kruskal_1); ///temp
-            init_args.push_back(schwarzs_count_1);
-            init_args.push_back(kruskal_count_1); ///temp
-            init_args.push_back(width);
-            init_args.push_back(height);
-
-            clctx.cqueue.exec("init_rays", init_args, {width, height}, {16, 16});
-
-            cl::args run_args;
-            run_args.push_back(schwarzs_1);
-            run_args.push_back(schwarzs_scratch);
-            run_args.push_back(kruskal_1);
-            run_args.push_back(kruskal_2);
-            run_args.push_back(finished_1);
-            run_args.push_back(schwarzs_count_1);
-            run_args.push_back(schwarzs_count_scratch);
-            run_args.push_back(kruskal_count_1);
-            run_args.push_back(kruskal_count_2);
-            run_args.push_back(finished_count_1);
-            run_args.push_back(width);
-            run_args.push_back(height);
-            run_args.push_back(fallback);
-
-            clctx.cqueue.exec("relauncher", run_args, {1}, {1});
-            #else
-
             int isnap = should_snapshot_geodesic;
 
             if(should_snapshot_geodesic)
@@ -1030,7 +966,6 @@ int main()
 
             execute_kernel(clctx.cqueue, schwarzs_1, schwarzs_scratch, finished_1, schwarzs_count_1, schwarzs_count_scratch, finished_count_1, rays_num, cfg.use_device_side_enqueue);
 
-            #endif // GENERIC_METRIC
 
             cl::args texture_args;
             texture_args.push_back(finished_1);
@@ -1110,7 +1045,6 @@ int main()
             last_event.value().block();
 
         last_event = next;
-        #endif
 
         {
             ImDrawList* lst = ImGui::GetBackgroundDrawList();
