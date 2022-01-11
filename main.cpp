@@ -472,8 +472,6 @@ int main()
     cl::buffer schwarzs_count_1(clctx.ctx);
     cl::buffer schwarzs_count_scratch(clctx.ctx);
     cl::buffer schwarzs_count_prepass(clctx.ctx);
-    cl::buffer kruskal_count_1(clctx.ctx);
-    cl::buffer kruskal_count_2(clctx.ctx);
     cl::buffer finished_count_1(clctx.ctx);
 
     cl::buffer termination_buffer(clctx.ctx);
@@ -515,8 +513,6 @@ int main()
     schwarzs_count_1.alloc(sizeof(int));
     schwarzs_count_scratch.alloc(sizeof(int));
     schwarzs_count_prepass.alloc(sizeof(int));
-    kruskal_count_1.alloc(sizeof(int));
-    kruskal_count_2.alloc(sizeof(int));
     finished_count_1.alloc(sizeof(int));
 
     printf("Alloc rays and counts\n");
