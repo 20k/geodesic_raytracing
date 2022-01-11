@@ -307,8 +307,8 @@ int main()
     //dual_types::test_operation();
 
     render_settings sett;
-    sett.width = 1422/1;
-    sett.height = 800/1;
+    sett.width = 1920;
+    sett.height = 1080;
     sett.opencl = true;
     sett.no_double_buffer = true;
     sett.is_srgb = true;
@@ -584,6 +584,9 @@ int main()
                 supersample_width = screenshot_w * supersample_mult;
                 supersample_height = screenshot_h * supersample_mult;
             }
+
+            supersample_width = max(supersample_width, 16 * supersample_mult);
+            supersample_height = max(supersample_height, 16 * supersample_mult);
 
             ray_count = supersample_width * supersample_height;
 
