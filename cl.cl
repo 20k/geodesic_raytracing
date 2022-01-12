@@ -2049,11 +2049,13 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
             //ds = (0.1 * pow((fabs(r_value) - new_max), 2) / (uniform_coordinate_precision_divisor * uniform_coordinate_precision_divisor)) + subambient_precision;
         }
 
-        #ifndef SINGULAR
-        if(fabs(polar_position.y) >= UNIVERSE_SIZE)
-        #else
-        if(fabs(polar_position.y) < rs*SINGULAR_TERMINATOR || fabs(polar_position.y) >= UNIVERSE_SIZE)
+        bool should_terminate = fabs(polar_position.y) >= UNIVERSE_SIZE;
+
+        #ifdef SINGULAR
+        should_terminate |= fabs(polar_position.y) < rs*SINGULAR_TERMINATOR;
         #endif // SINGULAR
+
+        if(should_terminate)
         {
             int out_id = atomic_inc(finished_count_out);
 
