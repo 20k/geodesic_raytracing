@@ -124,6 +124,9 @@ namespace metrics
         bool detect_singularities = false;
         bool follow_geodesics_forward = false;
 
+        bool has_cylindrical_singularity = false;
+        float cylindrical_terminator = 0.005;
+
         coordinate_system system = coordinate_system::X_Y_THETA_PHI;
 
         std::string to_polar;
@@ -188,6 +191,13 @@ namespace metrics
 
                 else if(key == "inherit_settings")
                     inherit_settings = value;
+
+                else if(key == "has_cylindrical_singularity")
+                    has_cylindrical_singularity = value;
+
+                else if(key == "cylindrical_terminator")
+                    cylindrical_terminator = value;
+
                 else
                     std::cout << "Warning, unknown key name " << key << std::endl;
             }
@@ -473,6 +483,12 @@ namespace metrics
         if(in.metric_cfg.follow_geodesics_forward)
         {
             argument_string += " -DFORWARD_GEODESIC_PATH";
+        }
+
+        if(in.metric_cfg.has_cylindrical_singularity)
+        {
+            argument_string += " -DHAS_CYLINDRICAL_SINGULARITY";
+            argument_string += " -DCYLINDRICAL_TERMINATOR=" + std::to_string(in.metric_cfg.cylindrical_terminator);
         }
 
         if(cfg.redshift)

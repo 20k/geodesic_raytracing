@@ -2055,6 +2055,11 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
         should_terminate |= fabs(polar_position.y) < rs*SINGULAR_TERMINATOR;
         #endif // SINGULAR
 
+        #ifdef HAS_CYLINDRICAL_SINGULARITY
+        if(position.y < CYLINDRICAL_TERMINATOR)
+            return;
+        #endif // CYLINDRICAL_SINGULARITY
+
         if(should_terminate)
         {
             int out_id = atomic_inc(finished_count_out);
