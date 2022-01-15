@@ -31,6 +31,15 @@ int main()
     {
         win.poll();
 
+        vec2i window_size = win.get_window_size();
+
+        ImGui::SetNextWindowPos(ImVec2(0,0), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(window_size.x(),window_size.y()), ImGuiCond_Always);
+
+        ImGui::Begin("Workshop Editor", nullptr, ImGuiWindowFlags_NoResize);
+
+        ImGui::End();
+
         win.display();
     }
 
