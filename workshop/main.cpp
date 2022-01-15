@@ -1,7 +1,53 @@
 #include <iostream>
 #include <toolkit/render_window.hpp>
+#include <toolkit/clock.hpp>
 #include <imgui/misc/freetype/imgui_freetype.h>
 #include <steam/steam_api.h>
+#include <steam/steam_api_flat.h>
+#include <optional>
+
+struct steam_api
+{
+    steady_timer last_poll;
+    std::vector<uint64_t> published_items;
+    uint32_t appid = 0;
+    uint64_t steam_id = 0;
+    uint32_t account_id = 0;
+
+    std::optional<UGCQueryHandle_t> current_query;
+
+    steam_api()
+    {
+        if(!SteamAPI_Init())
+            throw std::runtime_error("Could not initialise the steam api");
+
+        appid = SteamUtils()->GetAppID();
+
+        ISteamUser* usr = SteamAPI_SteamUser();
+
+        steam_id = SteamAPI_ISteamUser_GetSteamID(usr);
+        ///see: steamclientpublic.h
+        account_id = (steam_id >> 32);
+
+        std::cout << "Appid " << appid << std::endl;
+        std::cout << "Account " << account_id << std::endl;
+    }
+
+    void poll()
+    {
+        if(last_poll.get_elapsed_time_s() > 5)
+        {
+            UGCQueryHandle_t current_apps = SteamUGC()->CreateQueryUserUGCRequest(account_id, k_EUserUGCList_Published, k_EUGCMatchingUGCType_All, k_EUserUGCListSortOrder_CreationOrderDesc, appid, appid, 1);
+
+            last_poll.restart();
+        }
+    }
+
+    ~steam_api()
+    {
+        SteamAPI_Shutdown();
+    }
+};
 
 int main()
 {
@@ -25,7 +71,7 @@ int main()
     io.Fonts->Clear();
     io.Fonts->AddFontFromFileTTF("VeraMono.ttf", 14, &font_cfg);
 
-    SteamAPI_Init();
+    steam_api steam;
 
     while(!win.should_close())
     {
@@ -36,14 +82,12 @@ int main()
         ImGui::SetNextWindowPos(ImVec2(0,0), ImGuiCond_Always);
         ImGui::SetNextWindowSize(ImVec2(window_size.x(),window_size.y()), ImGuiCond_Always);
 
-        ImGui::Begin("Workshop Editor", nullptr, ImGuiWindowFlags_NoResize);
+        ImGui::Begin("Workshop Editor", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
 
         ImGui::End();
 
         win.display();
     }
-
-    SteamAPI_Shutdown();
 
     return 0;
 }
