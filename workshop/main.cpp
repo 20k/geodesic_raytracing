@@ -1,6 +1,7 @@
 #include <iostream>
 #include <toolkit/render_window.hpp>
 #include <imgui/misc/freetype/imgui_freetype.h>
+#include <steam/steam_api.h>
 
 int main()
 {
@@ -24,6 +25,16 @@ int main()
     io.Fonts->Clear();
     io.Fonts->AddFontFromFileTTF("VeraMono.ttf", 14, &font_cfg);
 
+    SteamAPI_Init();
+
+    while(!win.should_close())
+    {
+        win.poll();
+
+        win.display();
+    }
+
+    SteamAPI_Shutdown();
 
     return 0;
 }
