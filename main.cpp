@@ -15,6 +15,7 @@
 #include "js_interop.hpp"
 #include <toolkit/fs_helpers.hpp>
 #include <filesystem>
+#include "steam.hpp"
 //#include "dual_complex.hpp"
 
 /**
@@ -551,6 +552,13 @@ int main()
     int current_idx = -1;
     int selected_idx = -1;
     float selected_error = 0;
+
+    steam_api steam;
+    steam.init();
+
+    std::vector<uint64_t> subscribed = steam.get_subscribed_items();
+
+    std::cout << "Num subscribed " << subscribed.size() << std::endl;
 
     printf("Pre main\n");
 
