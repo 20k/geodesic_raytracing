@@ -5,16 +5,7 @@
 #include <steam/steam_api.h>
 #include <steam/steam_api_flat.h>
 #include <optional>
-
-/*struct steam_api_call
-{
-    SteamAPICall_t call = 0;
-
-    steam_api_call(SteamAPICall_t in)
-    {
-        call = in;
-    }
-};*/
+#include <functional>
 
 void free_query_handle(UGCQueryHandle_t* in)
 {
@@ -32,18 +23,25 @@ struct steam_api_call
 {
     bool has_call = false;
     SteamAPICall_t call;
+    std::function<void(const T&)> callback;
 
     steam_api_call(){}
-    steam_api_call(SteamAPICall_t in) : call(in){has_call = true;}
 
-    void take(SteamAPICall_t in)
+    template<typename U>
+    steam_api_call(SteamAPICall_t in, U&& func)
     {
+        start(in, std::forward<U>(func));
+    }
+
+    template<typename U>
+    void start(SteamAPICall_t in, U&& func)
+    {
+        callback = func;
         call = in;
         has_call = true;
     }
 
-    template<typename U>
-    bool poll(U&& on_completed)
+    bool poll()
     {
         if(!has_call)
             return false;
@@ -59,7 +57,7 @@ struct steam_api_call
 
                 SteamAPI_ISteamUtils_GetAPICallResult(utils, call, &completed, sizeof(completed), T::k_iCallback, &failed);
 
-                on_completed(completed);
+                callback(completed);
 
                 assert(!failed);
 
@@ -89,7 +87,10 @@ struct ugc_request_handle
 
         printf("Dispatched\n");
 
-        call.take(result);
+        call.start(result, [&](const SteamUGCQueryCompleted_t& result)
+        {
+            query_details(result.m_unNumResultsReturned);
+        });
     }
 
     void query_details(int num)
@@ -115,10 +116,7 @@ struct ugc_request_handle
 
     bool poll()
     {
-        return call.poll([&](const SteamUGCQueryCompleted_t& result)
-        {
-            query_details(result.m_unNumResultsReturned);
-        });
+        return call.poll();
 
         /*ISteamUtils* utils = SteamAPI_SteamUtils();
 
@@ -188,7 +186,14 @@ struct steam_api
     {
         ISteamUGC* ugc = SteamAPI_SteamUGC();
 
-        create_item_result.emplace(SteamAPI_ISteamUGC_CreateItem(ugc, appid, k_EWorkshopFileTypeCommunity));
+        auto on_created = [&](CreateItemResult_t result)
+        {
+            PublishedFileId_t id = result.m_nPublishedFileId;
+
+            std::cout << "Created item with id " << id << std::endl;
+        };
+
+        create_item_result.emplace(SteamAPI_ISteamUGC_CreateItem(ugc, appid, k_EWorkshopFileTypeCommunity), on_created);
     }
 
     void poll()
@@ -216,14 +221,7 @@ struct steam_api
 
         if(create_item_result.has_value())
         {
-            auto on_created = [&](CreateItemResult_t result)
-            {
-                PublishedFileId_t id = result.m_nPublishedFileId;
-
-                std::cout << "Created item with id " << id << std::endl;
-            };
-
-            if(create_item_result->poll(on_created))
+            if(create_item_result->poll())
             {
                 create_item_result = std::nullopt;
             }
