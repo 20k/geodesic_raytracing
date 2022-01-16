@@ -180,7 +180,7 @@ struct steam_api
 
         steam_id = SteamAPI_ISteamUser_GetSteamID(usr);
         ///see: steamclientpublic.h
-        account_id = (steam_id >> 32);
+        account_id = (steam_id & 0xFFFFFFFF);
 
         std::cout << "Appid " << appid << std::endl;
         std::cout << "Account " << account_id << std::endl;
@@ -192,8 +192,9 @@ struct steam_api
 
         UGCQueryHandle_t ugchandle = SteamAPI_ISteamUGC_CreateQueryUserUGCRequest(ugc, account_id, k_EUserUGCList_Published, k_EUGCMatchingUGCType_All, k_EUserUGCListSortOrder_CreationOrderDesc, appid, appid, 1);
 
-        SteamAPI_ISteamUGC_SetReturnOnlyIDs(ugc, ugchandle, true);
+        //SteamAPI_ISteamUGC_SetReturnOnlyIDs(ugc, ugchandle, true);
         SteamAPI_ISteamUGC_SetReturnKeyValueTags(ugc, ugchandle, true);
+        //SteamAPI_ISteamUGC_SetReturn
 
         return ugchandle;
     }
