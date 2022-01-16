@@ -18,8 +18,13 @@ void free_query_handle(UGCQueryHandle_t* in)
     delete in;
 }
 
+struct steam_api_call_base
+{
+    virtual bool poll() = 0;
+};
+
 template<typename T>
-struct steam_api_call
+struct steam_api_call : steam_api_call_base
 {
     bool has_call = false;
     SteamAPICall_t call;
@@ -41,7 +46,7 @@ struct steam_api_call
         has_call = true;
     }
 
-    bool poll()
+    virtual bool poll() override
     {
         if(!has_call)
             return false;
@@ -66,6 +71,36 @@ struct steam_api_call
         }
 
         return false;
+    }
+};
+
+struct steam_callback_executor
+{
+    std::vector<steam_api_call_base*> callbacks;
+
+    template<typename T>
+    void add(const steam_api_call<T>& in)
+    {
+        steam_api_call_base* b = new steam_api_call<T>(in);
+
+        callbacks.push_back(b);
+    }
+
+    void poll()
+    {
+        for(int i=0; i < (int)callbacks.size(); i++)
+        {
+            steam_api_call_base* val = callbacks[i];
+
+            if(val->poll())
+            {
+                delete val;
+
+                callbacks.erase(callbacks.begin() + i);
+                i--;
+                continue;
+            }
+        }
     }
 };
 
@@ -117,25 +152,6 @@ struct ugc_request_handle
     bool poll()
     {
         return call.poll();
-
-        /*ISteamUtils* utils = SteamAPI_SteamUtils();
-
-        bool failed = false;
-        if(SteamAPI_ISteamUtils_IsAPICallCompleted(utils, call, &failed))
-        {
-            if(!failed)
-            {
-                SteamUGCQueryCompleted_t completed;
-
-                SteamAPI_ISteamUtils_GetAPICallResult(utils, call, &completed, sizeof(completed), SteamUGCQueryCompleted_t::k_iCallback, &failed);
-
-                assert(!failed);
-
-                query_details(completed.m_unNumResultsReturned);
-            }
-        }
-
-        return false;*/
     }
 };
 
@@ -151,7 +167,7 @@ struct steam_api
 
     std::optional<ugc_request_handle> current_query;
 
-    std::optional<steam_api_call<CreateItemResult_t>> create_item_result;
+    steam_callback_executor exec;
 
     steam_api()
     {
@@ -193,7 +209,9 @@ struct steam_api
             std::cout << "Created item with id " << id << std::endl;
         };
 
-        create_item_result.emplace(SteamAPI_ISteamUGC_CreateItem(ugc, appid, k_EWorkshopFileTypeCommunity), on_created);
+        steam_api_call<CreateItemResult_t> result(SteamAPI_ISteamUGC_CreateItem(ugc, appid, k_EWorkshopFileTypeCommunity), on_created);
+
+        exec.add(result);
     }
 
     void poll()
@@ -219,13 +237,7 @@ struct steam_api
             }
         }
 
-        if(create_item_result.has_value())
-        {
-            if(create_item_result->poll())
-            {
-                create_item_result = std::nullopt;
-            }
-        }
+        exec.poll();
     }
 
     ~steam_api()
