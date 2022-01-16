@@ -415,35 +415,17 @@ void display(steam_api& steam, std::vector<ugc_details>& items)
 
         ImGui::Text("Name");
         ImGui::SameLine();
-        ImGui::InputText(("##" + unique_id).c_str(), &det.name);
+        ImGui::InputText(("##name" + unique_id).c_str(), &det.name);
 
         ImGui::Text("Desc");
         ImGui::SameLine();
-        ImGui::InputText(("##" + unique_id).c_str(), &det.description);
+        ImGui::InputText(("##desc" + unique_id).c_str(), &det.description);
 
         ImGui::Text("Tags");
         ImGui::SameLine();
-        ImGui::InputText(("##" + unique_id).c_str(), &det.tags);
+        ImGui::InputText(("##tags" + unique_id).c_str(), &det.tags);
 
         ImGui::Text("Visibility");
-
-        ImGui::SameLine();
-
-        if(ImGui::Button(("-##" + unique_id).c_str()))
-        {
-            int as_int = (int)det.visibility - 1;
-
-            det.visibility = visibility_from_int(as_int);
-        }
-
-        ImGui::SameLine();
-
-        if(ImGui::Button(("+##" + unique_id).c_str()))
-        {
-            int as_int = (int)det.visibility + 1;
-
-            det.visibility = visibility_from_int(as_int);
-        }
 
         std::string vis_name;
 
@@ -461,7 +443,33 @@ void display(steam_api& steam, std::vector<ugc_details>& items)
 
         ImGui::SameLine();
 
-        ImGui::Text("%s", vis_name.c_str());
+        std::array<std::string, 4> labels =
+        {
+            "public",
+            "friends only",
+            "private",
+            "unlisted",
+        };
+
+        if(ImGui::BeginCombo(("##combobox" + unique_id).c_str(), vis_name.c_str()))
+        {
+            for(int idx = 0; idx < (int)labels.size(); idx++)
+            {
+                bool is_selected = idx == (int)det.visibility;
+
+                if(ImGui::Selectable((labels[idx] + "##" + unique_id).c_str()))
+                {
+                    det.visibility = visibility_from_int((int)idx);
+                }
+
+                if(is_selected)
+                {
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+
+            ImGui::EndCombo();
+        }
 
         //if(det.dirty)
         {
