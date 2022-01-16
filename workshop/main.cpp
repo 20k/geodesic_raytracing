@@ -7,6 +7,7 @@
 #include <optional>
 #include <functional>
 #include <imgui/misc/cpp/imgui_stdlib.h>
+#include <bit>
 
 std::vector<std::string> split(const std::string& str, const std::string& delim)
 {
@@ -131,6 +132,17 @@ enum class ugc_visibility
     is_unlisted = 3,
 };
 
+ugc_visibility visibility_from_int(int v)
+{
+    if(v < 0)
+        v = 0;
+
+    if(v > 3)
+        v = 3;
+
+    return ugc_visibility{v};
+}
+
 std::string from_c_str(const char* ptr)
 {
     int size = strlen(ptr);
@@ -146,6 +158,7 @@ struct ugc_details
     std::string name;
     std::string description;
     std::string tags;
+    ugc_visibility visibility;
 
     void load(SteamUGCDetails_t in)
     {
@@ -153,6 +166,7 @@ struct ugc_details
         name = from_c_str(in.m_rgchTitle);
         description = from_c_str(in.m_rgchDescription);
         tags = from_c_str(in.m_rgchTags);
+        visibility = ugc_visibility{in.m_eVisibility};
     }
 
     void modify(UGCUpdateHandle_t handle) const
@@ -183,6 +197,10 @@ struct ugc_details
         arr.m_ppStrings = as_pp;
 
         SteamAPI_ISteamUGC_SetItemTags(ugc, handle, &arr);
+
+        ERemoteStoragePublishedFileVisibility vis = std::bit_cast<ERemoteStoragePublishedFileVisibility>(visibility);
+
+        SteamAPI_ISteamUGC_SetItemVisibility(ugc, handle, vis);
     }
 };
 
@@ -395,9 +413,55 @@ void display(steam_api& steam, std::vector<ugc_details>& items)
     {
         std::string unique_id = std::to_string(det.id);
 
-        ImGui::InputText(("Name##" + unique_id).c_str(), &det.name);
-        ImGui::InputText(("Desc##" + unique_id).c_str(), &det.description);
-        ImGui::InputText(("Tags##" + unique_id).c_str(), &det.tags);
+        ImGui::Text("Name");
+        ImGui::SameLine();
+        ImGui::InputText(("##" + unique_id).c_str(), &det.name);
+
+        ImGui::Text("Desc");
+        ImGui::SameLine();
+        ImGui::InputText(("##" + unique_id).c_str(), &det.description);
+
+        ImGui::Text("Tags");
+        ImGui::SameLine();
+        ImGui::InputText(("##" + unique_id).c_str(), &det.tags);
+
+        ImGui::Text("Visibility");
+
+        ImGui::SameLine();
+
+        if(ImGui::Button(("-##" + unique_id).c_str()))
+        {
+            int as_int = (int)det.visibility - 1;
+
+            det.visibility = visibility_from_int(as_int);
+        }
+
+        ImGui::SameLine();
+
+        if(ImGui::Button(("+##" + unique_id).c_str()))
+        {
+            int as_int = (int)det.visibility + 1;
+
+            det.visibility = visibility_from_int(as_int);
+        }
+
+        std::string vis_name;
+
+        if(det.visibility == ugc_visibility::is_public)
+            vis_name = "public";
+
+        if(det.visibility == ugc_visibility::is_friends_only)
+            vis_name = "friends only";
+
+        if(det.visibility == ugc_visibility::is_private)
+            vis_name = "private";
+
+        if(det.visibility == ugc_visibility::is_unlisted)
+            vis_name = "unlisted";
+
+        ImGui::SameLine();
+
+        ImGui::Text("%s", vis_name.c_str());
 
         //if(det.dirty)
         {
