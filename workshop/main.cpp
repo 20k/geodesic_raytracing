@@ -60,6 +60,8 @@ struct request_handle
             if(SteamAPI_ISteamUGC_GetQueryUGCResult(ugc, *handle, i, &details))
             {
                 std::string name(&details.m_rgchTitle[0], &details.m_rgchTitle[k_cchPublishedDocumentTitleMax - 1]);
+
+                std::cout << "name " << name << std::endl;
             }
         }
 
