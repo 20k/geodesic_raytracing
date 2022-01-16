@@ -6,6 +6,23 @@
 #include <steam/steam_api_flat.h>
 #include <optional>
 #include <functional>
+#include <imgui/misc/cpp/imgui_stdlib.h>
+
+std::vector<std::string> split(const std::string& str, const std::string& delim)
+{
+    std::vector<std::string> tokens;
+    size_t prev = 0, pos = 0;
+    do
+    {
+        pos = str.find(delim, prev);
+        if (pos == std::string::npos) pos = str.length();
+        std::string token = str.substr(prev, pos-prev);
+        if (!token.empty()) tokens.push_back(token);
+        prev = pos + delim.length();
+    }
+    while (pos < str.length() && prev < str.length());
+    return tokens;
+}
 
 void free_query_handle(UGCQueryHandle_t* in)
 {
@@ -21,6 +38,8 @@ void free_query_handle(UGCQueryHandle_t* in)
 struct steam_api_call_base
 {
     virtual bool poll() = 0;
+
+    virtual ~steam_api_call_base(){}
 };
 
 template<typename T>
@@ -104,10 +123,75 @@ struct steam_callback_executor
     }
 };
 
+enum class ugc_visibility
+{
+    is_public = 0,
+    is_friends_only = 1,
+    is_private = 2,
+    is_unlisted = 3,
+};
+
+std::string from_c_str(const char* ptr)
+{
+    int size = strlen(ptr);
+
+    return std::string(ptr, ptr + size);
+}
+
+struct ugc_details
+{
+    bool dirty = false;
+
+    PublishedFileId_t id;
+    std::string name;
+    std::string description;
+    std::string tags;
+
+    void load(SteamUGCDetails_t in)
+    {
+        id = in.m_nPublishedFileId;
+        name = from_c_str(in.m_rgchTitle);
+        description = from_c_str(in.m_rgchDescription);
+        tags = from_c_str(in.m_rgchTags);
+    }
+
+    void modify(UGCUpdateHandle_t handle) const
+    {
+        ISteamUGC* ugc = SteamAPI_SteamUGC();
+
+        SteamAPI_ISteamUGC_SetItemTitle(ugc, handle, name.c_str());
+        SteamAPI_ISteamUGC_SetItemDescription(ugc, handle, description.c_str());
+
+        std::vector<std::string> split_tags = split(tags, ",");
+
+        std::vector<const char*> as_cc;
+
+        for(const auto& i : split_tags)
+        {
+            as_cc.push_back(i.c_str());
+        }
+
+        const char** as_pp = nullptr;
+
+        if(as_cc.size() > 0)
+        {
+            as_pp = &as_cc[0];
+        }
+
+        struct SteamParamStringArray_t arr;
+        arr.m_nNumStrings = split_tags.size();
+        arr.m_ppStrings = as_pp;
+
+        SteamAPI_ISteamUGC_SetItemTags(ugc, handle, &arr);
+    }
+};
+
 struct ugc_request_handle
 {
     std::shared_ptr<UGCQueryHandle_t> handle;
     steam_api_call<SteamUGCQueryCompleted_t> call;
+
+    std::vector<ugc_details> items;
 
     ugc_request_handle(UGCQueryHandle_t in) : handle(new UGCQueryHandle_t(in), free_query_handle)
     {
@@ -124,15 +208,16 @@ struct ugc_request_handle
 
         call.start(result, [&](const SteamUGCQueryCompleted_t& result)
         {
-            query_details(result.m_unNumResultsReturned);
+            items = query_details(result.m_unNumResultsReturned);
         });
     }
 
-    void query_details(int num)
+    std::vector<ugc_details> query_details(int num)
     {
+        std::vector<ugc_details> ret;
+
         std::cout << "Found " << num << " published workshop items for user" << std::endl;
 
-        ISteamUtils* utils = SteamAPI_SteamUtils();
         ISteamUGC* ugc = SteamAPI_SteamUGC();
 
         for(int i=0; i < num; i++)
@@ -141,19 +226,34 @@ struct ugc_request_handle
 
             if(SteamAPI_ISteamUGC_GetQueryUGCResult(ugc, *handle, i, &details))
             {
-                int length = strlen(details.m_rgchTitle);
+                ugc_details item;
+                item.load(details);
 
-                std::string name(details.m_rgchTitle, details.m_rgchTitle + length);
-
-                std::cout << "name " << name << std::endl;
+                ret.push_back(item);
             }
         }
 
+        return ret;
     }
 
     bool poll()
     {
         return call.poll();
+    }
+};
+
+struct ugc_query
+{
+    ugc_request_handle build(uint32_t account_id, uint32_t appid)
+    {
+        ISteamUGC* ugc = SteamAPI_SteamUGC();
+
+        UGCQueryHandle_t ugchandle = SteamAPI_ISteamUGC_CreateQueryUserUGCRequest(ugc, account_id, k_EUserUGCList_Published, k_EUGCMatchingUGCType_All, k_EUserUGCListSortOrder_CreationOrderDesc, appid, appid, 1);
+
+        //SteamAPI_ISteamUGC_SetReturnOnlyIDs(ugc, ugchandle, true);
+        SteamAPI_ISteamUGC_SetReturnKeyValueTags(ugc, ugchandle, true);
+
+        return ugchandle;
     }
 };
 
@@ -168,6 +268,8 @@ struct steam_api
     bool once = false;
 
     std::optional<ugc_request_handle> current_query;
+
+    std::vector<ugc_details> items;
 
     steam_callback_executor exec;
 
@@ -190,15 +292,39 @@ struct steam_api
 
     ugc_request_handle request_published_items()
     {
+        ugc_query query;
+
+        return query.build(account_id, appid);
+    }
+
+    void update_item(const ugc_details& details)
+    {
         ISteamUGC* ugc = SteamAPI_SteamUGC();
 
-        UGCQueryHandle_t ugchandle = SteamAPI_ISteamUGC_CreateQueryUserUGCRequest(ugc, account_id, k_EUserUGCList_Published, k_EUGCMatchingUGCType_All, k_EUserUGCListSortOrder_CreationOrderDesc, appid, appid, 1);
+        UGCUpdateHandle_t handle = SteamAPI_ISteamUGC_StartItemUpdate(ugc, appid, details.id);
 
-        //SteamAPI_ISteamUGC_SetReturnOnlyIDs(ugc, ugchandle, true);
-        SteamAPI_ISteamUGC_SetReturnKeyValueTags(ugc, ugchandle, true);
-        //SteamAPI_ISteamUGC_SetReturn
+        details.modify(handle);
 
-        return ugchandle;
+        SteamAPICall_t raw_api_call = SteamAPI_ISteamUGC_SubmitItemUpdate(ugc, handle, nullptr);
+
+        steam_api_call<SubmitItemUpdateResult_t> api_result(raw_api_call, [](const SubmitItemUpdateResult_t& val)
+        {
+            if(val.m_bUserNeedsToAcceptWorkshopLegalAgreement)
+            {
+                std::cout << "Need to accept workshop legal agreement" << std::endl;
+            }
+
+            if(val.m_eResult != k_EResultOK)
+            {
+                std::cout << "Error submitting update" << std::endl;
+            }
+
+            std::cout << "SubmitItemUpdate callback" << std::endl;
+        });
+
+        exec.add(api_result);
+
+        std::cout << "Started item update" << std::endl;
     }
 
     void create_item()
@@ -216,32 +342,12 @@ struct steam_api
 
             std::cout << "Created item with id " << id << std::endl;
 
-            ISteamUGC* ugc = SteamAPI_SteamUGC();
+            ugc_details details;
+            details.id = id;
+            details.name = "This is a test item";
+            details.description = "My cats breath smells like catfood";
 
-            UGCUpdateHandle_t handle = SteamAPI_ISteamUGC_StartItemUpdate(ugc, appid, id);
-
-            SteamAPI_ISteamUGC_SetItemTitle(ugc, handle, "Hello there");
-
-            SteamAPICall_t raw_api_call = SteamAPI_ISteamUGC_SubmitItemUpdate(ugc, handle, nullptr);
-
-            steam_api_call<SubmitItemUpdateResult_t> api_result(raw_api_call, [](const SubmitItemUpdateResult_t& val)
-            {
-                if(val.m_bUserNeedsToAcceptWorkshopLegalAgreement)
-                {
-                    std::cout << "Need to accept workshop legal agreement" << std::endl;
-                }
-
-                if(val.m_eResult != k_EResultOK)
-                {
-                    std::cout << "Error submitting update" << std::endl;
-                }
-
-                std::cout << "SubmitItemUpdate callback" << std::endl;
-            });
-
-            exec.add(api_result);
-
-            std::cout << "Started item update" << std::endl;
+            update_item(details);
         };
 
         steam_api_call<CreateItemResult_t> result(SteamAPI_ISteamUGC_CreateItem(ugc, appid, k_EWorkshopFileTypeCommunity), on_created);
@@ -268,6 +374,8 @@ struct steam_api
         {
             if(current_query->poll())
             {
+                items = current_query->items;
+
                 current_query = std::nullopt;
             }
         }
@@ -280,6 +388,28 @@ struct steam_api
         SteamAPI_Shutdown();
     }
 };
+
+void display(steam_api& steam, std::vector<ugc_details>& items)
+{
+    for(ugc_details& det : items)
+    {
+        std::string unique_id = std::to_string(det.id);
+
+        ImGui::InputText(("Name##" + unique_id).c_str(), &det.name);
+        ImGui::InputText(("Desc##" + unique_id).c_str(), &det.description);
+        ImGui::InputText(("Tags##" + unique_id).c_str(), &det.tags);
+
+        //if(det.dirty)
+        {
+            if(ImGui::Button("Update"))
+            {
+                steam.update_item(det);
+            }
+        }
+
+        ImGui::NewLine();
+    }
+}
 
 int main()
 {
@@ -319,6 +449,8 @@ int main()
         ImGui::SetNextWindowSize(ImVec2(window_size.x(),window_size.y()), ImGuiCond_Always);
 
         ImGui::Begin("Workshop Editor", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
+
+        display(steam, steam.items);
 
         ImGui::End();
 
