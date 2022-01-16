@@ -94,6 +94,8 @@ struct ugc_request_handle
 
     void query_details(int num)
     {
+        std::cout << "Found " << num << " published workshop items for user" << std::endl;
+
         ISteamUtils* utils = SteamAPI_SteamUtils();
         ISteamUGC* ugc = SteamAPI_SteamUGC();
 
@@ -151,6 +153,8 @@ struct steam_api
 
     std::optional<ugc_request_handle> current_query;
 
+    std::optional<steam_api_call<CreateItemResult_t>> create_item_result;
+
     steam_api()
     {
         if(!SteamAPI_Init())
@@ -180,6 +184,13 @@ struct steam_api
         return ugchandle;
     }
 
+    void create_item()
+    {
+        ISteamUGC* ugc = SteamAPI_SteamUGC();
+
+        create_item_result.emplace(SteamAPI_ISteamUGC_CreateItem(ugc, appid, k_EWorkshopFileTypeCommunity));
+    }
+
     void poll()
     {
         //if(last_poll.get_elapsed_time_s() > 5)
@@ -200,6 +211,21 @@ struct steam_api
             if(current_query->poll())
             {
                 current_query = std::nullopt;
+            }
+        }
+
+        if(create_item_result.has_value())
+        {
+            auto on_created = [&](CreateItemResult_t result)
+            {
+                PublishedFileId_t id = result.m_nPublishedFileId;
+
+                std::cout << "Created item with id " << id << std::endl;
+            };
+
+            if(create_item_result->poll(on_created))
+            {
+                create_item_result = std::nullopt;
             }
         }
     }
@@ -233,6 +259,8 @@ int main()
     io.Fonts->AddFontFromFileTTF("VeraMono.ttf", 14, &font_cfg);
 
     steam_api steam;
+
+    //steam.create_item();
 
     while(!win.should_close())
     {
