@@ -27,12 +27,56 @@ void free_query_handle(UGCQueryHandle_t* in)
     delete in;
 }
 
-struct request_handle
+template<typename T>
+struct steam_api_call
+{
+    bool has_call = false;
+    SteamAPICall_t call;
+
+    steam_api_call(){}
+    steam_api_call(SteamAPICall_t in) : call(in){has_call = true;}
+
+    void take(SteamAPICall_t in)
+    {
+        call = in;
+        has_call = true;
+    }
+
+    template<typename U>
+    bool poll(U&& on_completed)
+    {
+        if(!has_call)
+            return false;
+
+        ISteamUtils* utils = SteamAPI_SteamUtils();
+
+        bool failed = false;
+        if(SteamAPI_ISteamUtils_IsAPICallCompleted(utils, call, &failed))
+        {
+            if(!failed)
+            {
+                T completed;
+
+                SteamAPI_ISteamUtils_GetAPICallResult(utils, call, &completed, sizeof(completed), T::k_iCallback, &failed);
+
+                on_completed(completed);
+
+                assert(!failed);
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+};
+
+struct ugc_request_handle
 {
     std::shared_ptr<UGCQueryHandle_t> handle;
-    SteamAPICall_t call = 0;
+    steam_api_call<SteamUGCQueryCompleted_t> call;
 
-    request_handle(UGCQueryHandle_t in) : handle(new UGCQueryHandle_t(in), free_query_handle)
+    ugc_request_handle(UGCQueryHandle_t in) : handle(new UGCQueryHandle_t(in), free_query_handle)
     {
 
     }
@@ -45,7 +89,7 @@ struct request_handle
 
         printf("Dispatched\n");
 
-        call = result;
+        call.take(result);
     }
 
     void query_details(int num)
@@ -69,7 +113,12 @@ struct request_handle
 
     bool poll()
     {
-        ISteamUtils* utils = SteamAPI_SteamUtils();
+        return call.poll([&](const SteamUGCQueryCompleted_t& result)
+        {
+            query_details(result.m_unNumResultsReturned);
+        });
+
+        /*ISteamUtils* utils = SteamAPI_SteamUtils();
 
         bool failed = false;
         if(SteamAPI_ISteamUtils_IsAPICallCompleted(utils, call, &failed))
@@ -86,7 +135,7 @@ struct request_handle
             }
         }
 
-        return false;
+        return false;*/
     }
 };
 
@@ -100,7 +149,7 @@ struct steam_api
 
     bool once = false;
 
-    std::optional<request_handle> current_query;
+    std::optional<ugc_request_handle> current_query;
 
     steam_api()
     {
@@ -119,23 +168,26 @@ struct steam_api
         std::cout << "Account " << account_id << std::endl;
     }
 
+    ugc_request_handle request_published_items()
+    {
+        ISteamUGC* ugc = SteamAPI_SteamUGC();
+
+        UGCQueryHandle_t ugchandle = SteamAPI_ISteamUGC_CreateQueryUserUGCRequest(ugc, account_id, k_EUserUGCList_Published, k_EUGCMatchingUGCType_All, k_EUserUGCListSortOrder_CreationOrderDesc, appid, appid, 1);
+
+        SteamAPI_ISteamUGC_SetReturnOnlyIDs(ugc, ugchandle, true);
+        SteamAPI_ISteamUGC_SetReturnKeyValueTags(ugc, ugchandle, true);
+
+        return ugchandle;
+    }
+
     void poll()
     {
         //if(last_poll.get_elapsed_time_s() > 5)
         if(!once)
         {
-            ISteamUGC* ugc = SteamAPI_SteamUGC();
-
-            UGCQueryHandle_t ugchandle = SteamAPI_ISteamUGC_CreateQueryUserUGCRequest(ugc, account_id, k_EUserUGCList_Published, k_EUGCMatchingUGCType_All, k_EUserUGCListSortOrder_CreationOrderDesc, appid, appid, 1);
-
-            SteamAPI_ISteamUGC_SetReturnOnlyIDs(ugc, ugchandle, true);
-            SteamAPI_ISteamUGC_SetReturnKeyValueTags(ugc, ugchandle, true);
-
-            request_handle handle(ugchandle);
-
             last_poll.restart();
 
-            current_query = std::move(handle);
+            current_query = request_published_items();
             current_query.value().dispatch();
 
             once = true;
