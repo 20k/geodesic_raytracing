@@ -204,9 +204,41 @@ struct steam_api
 
         auto on_created = [&](CreateItemResult_t result)
         {
+            if(result.m_bUserNeedsToAcceptWorkshopLegalAgreement)
+            {
+                std::cout << "Need to accept workshop legal agreement in create item" << std::endl;
+            }
+
             PublishedFileId_t id = result.m_nPublishedFileId;
 
             std::cout << "Created item with id " << id << std::endl;
+
+            ISteamUGC* ugc = SteamAPI_SteamUGC();
+
+            UGCUpdateHandle_t handle = SteamAPI_ISteamUGC_StartItemUpdate(ugc, appid, id);
+
+            SteamAPI_ISteamUGC_SetItemTitle(ugc, handle, "Hello there");
+
+            SteamAPICall_t raw_api_call = SteamAPI_ISteamUGC_SubmitItemUpdate(ugc, handle, nullptr);
+
+            steam_api_call<SubmitItemUpdateResult_t> api_result(raw_api_call, [](const SubmitItemUpdateResult_t& val)
+            {
+                if(val.m_bUserNeedsToAcceptWorkshopLegalAgreement)
+                {
+                    std::cout << "Need to accept workshop legal agreement" << std::endl;
+                }
+
+                if(val.m_eResult != k_EResultOK)
+                {
+                    std::cout << "Error submitting update" << std::endl;
+                }
+
+                std::cout << "SubmitItemUpdate callback" << std::endl;
+            });
+
+            exec.add(api_result);
+
+            std::cout << "Started item update" << std::endl;
         };
 
         steam_api_call<CreateItemResult_t> result(SteamAPI_ISteamUGC_CreateItem(ugc, appid, k_EWorkshopFileTypeCommunity), on_created);
