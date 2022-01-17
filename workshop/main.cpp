@@ -204,13 +204,26 @@ struct ugc_details
         SteamAPI_ISteamUGC_SetItemVisibility(ugc, handle, vis);
     }
 
-    void set_local_path_update(UGCUpdateHandle_t handle, const std::string& path) const
+    void set_local_path(UGCUpdateHandle_t handle, const std::string& path) const
     {
         std::string absolute_path = std::filesystem::absolute(path).string();
 
+        std::cout << "Absolute Path " << absolute_path << std::endl;
+
         ISteamUGC* ugc = SteamAPI_SteamUGC();
 
-        SteamAPI_ISteamUGC_SetItemContent(ugc, handle, absolute_path.c_str());
+        assert(SteamAPI_ISteamUGC_SetItemContent(ugc, handle, absolute_path.c_str()));
+    }
+
+    void set_local_preview(UGCUpdateHandle_t handle, const std::string& path) const
+    {
+        std::string absolute_path = std::filesystem::absolute(path).string();
+
+        std::cout << "Absolute Preview Path " << absolute_path << std::endl;
+
+        ISteamUGC* ugc = SteamAPI_SteamUGC();
+
+        assert(SteamAPI_ISteamUGC_SetItemPreview(ugc, handle, absolute_path.c_str()));
     }
 };
 
@@ -219,6 +232,7 @@ struct ugc_storage
 {
     ugc_details det;
     std::string local_path;
+    std::string local_preview;
 };
 
 struct ugc_request_handle
@@ -332,13 +346,9 @@ struct steam_api
         return query.build(account_id, appid);
     }
 
-    void update_item(const ugc_details& details)
+    void update_item_impl(UGCUpdateHandle_t handle)
     {
         ISteamUGC* ugc = SteamAPI_SteamUGC();
-
-        UGCUpdateHandle_t handle = SteamAPI_ISteamUGC_StartItemUpdate(ugc, appid, details.id);
-
-        details.modify(handle);
 
         SteamAPICall_t raw_api_call = SteamAPI_ISteamUGC_SubmitItemUpdate(ugc, handle, nullptr);
 
@@ -351,7 +361,7 @@ struct steam_api
 
             if(val.m_eResult != k_EResultOK)
             {
-                std::cout << "Error submitting update" << std::endl;
+                std::cout << "Error submitting update " << val.m_eResult << std::endl;
             }
 
             std::cout << "SubmitItemUpdate callback" << std::endl;
@@ -360,6 +370,30 @@ struct steam_api
         exec.add(api_result);
 
         std::cout << "Started item update" << std::endl;
+    }
+
+    void update_item(const ugc_details& details)
+    {
+        ISteamUGC* ugc = SteamAPI_SteamUGC();
+
+        UGCUpdateHandle_t handle = SteamAPI_ISteamUGC_StartItemUpdate(ugc, appid, details.id);
+
+        details.modify(handle);
+
+        update_item_impl(handle);
+    }
+
+    void update_item_with_contents(const ugc_storage& store)
+    {
+        ISteamUGC* ugc = SteamAPI_SteamUGC();
+
+        UGCUpdateHandle_t handle = SteamAPI_ISteamUGC_StartItemUpdate(ugc, appid, store.det.id);
+
+        store.det.modify(handle);
+        store.det.set_local_path(handle, store.local_path);
+        store.det.set_local_preview(handle, store.local_preview);
+
+        update_item_impl(handle);
     }
 
     void create_item()
@@ -495,11 +529,31 @@ void display(steam_api& steam, std::vector<ugc_storage>& items)
             ImGui::EndCombo();
         }
 
+        ImGui::Text("Local Path");
+        ImGui::SameLine();
+        ImGui::InputText(("##path" + unique_id).c_str(), &ustore.local_path);
+
+        ImGui::Text("Local Preview");
+        ImGui::SameLine();
+        ImGui::InputText(("##preview" + unique_id).c_str(), &ustore.local_preview);
+
         //if(det.dirty)
         {
-            if(ImGui::Button("Update"))
+            if(ImGui::Button(("Update Metadata##" + unique_id).c_str()))
             {
                 steam.update_item(det);
+            }
+
+            if(ImGui::Button(("Update Metadata and Contents##" + unique_id).c_str()))
+            {
+                if(ustore.local_path == "" || ustore.local_preview == "")
+                {
+                    printf("Path is empty for preview or contents\n");
+                }
+                else
+                {
+                    steam.update_item_with_contents(ustore);
+                }
             }
         }
 
