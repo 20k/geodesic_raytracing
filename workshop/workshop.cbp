@@ -45,6 +45,7 @@
 			<Add directory="../deps" />
 			<Add directory="../deps/imgui" />
 			<Add directory="../deps/steamworks_sdk_153a/sdk/public" />
+			<Add directory="../deps/tomlplusplus/include" />
 		</Compiler>
 		<Linker>
 			<Add option="-lmingw32" />
@@ -97,6 +98,7 @@
 		<Unit filename="../deps/imgui/imgui_widgets.cpp" />
 		<Unit filename="../deps/imgui/misc/cpp/imgui_stdlib.cpp" />
 		<Unit filename="../deps/imgui/misc/freetype/imgui_freetype.cpp" />
+		<Unit filename="../deps/toolkit/clock.cpp" />
 		<Unit filename="../deps/toolkit/fs_helpers.cpp" />
 		<Unit filename="../deps/toolkit/opencl.cpp" />
 		<Unit filename="../deps/toolkit/render_window.cpp" />
