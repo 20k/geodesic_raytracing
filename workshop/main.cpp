@@ -8,6 +8,7 @@
 #include <functional>
 #include <imgui/misc/cpp/imgui_stdlib.h>
 #include <bit>
+#include <filesystem>
 
 std::vector<std::string> split(const std::string& str, const std::string& delim)
 {
@@ -202,6 +203,22 @@ struct ugc_details
 
         SteamAPI_ISteamUGC_SetItemVisibility(ugc, handle, vis);
     }
+
+    void set_local_path_update(UGCUpdateHandle_t handle, const std::string& path) const
+    {
+        std::string absolute_path = std::filesystem::absolute(path).string();
+
+        ISteamUGC* ugc = SteamAPI_SteamUGC();
+
+        SteamAPI_ISteamUGC_SetItemContent(ugc, handle, absolute_path.c_str());
+    }
+};
+
+
+struct ugc_storage
+{
+    ugc_details det;
+    std::string local_path;
 };
 
 struct ugc_request_handle
@@ -287,7 +304,7 @@ struct steam_api
 
     std::optional<ugc_request_handle> current_query;
 
-    std::vector<ugc_details> items;
+    std::vector<ugc_storage> items;
 
     steam_callback_executor exec;
 
@@ -392,7 +409,12 @@ struct steam_api
         {
             if(current_query->poll())
             {
-                items = current_query->items;
+                items.clear();
+
+                for(auto& i : current_query->items)
+                {
+                    items.emplace_back().det = i;
+                }
 
                 current_query = std::nullopt;
             }
@@ -407,10 +429,12 @@ struct steam_api
     }
 };
 
-void display(steam_api& steam, std::vector<ugc_details>& items)
+void display(steam_api& steam, std::vector<ugc_storage>& items)
 {
-    for(ugc_details& det : items)
+    for(ugc_storage& ustore : items)
     {
+        ugc_details& det = ustore.det;
+
         std::string unique_id = std::to_string(det.id);
 
         ImGui::Text("Name");
