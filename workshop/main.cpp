@@ -484,102 +484,108 @@ void display(steam_api& steam, std::vector<ugc_storage>& items)
 
         std::string unique_id = std::to_string(det.id);
 
-        ImGui::Text(("Folder: " + std::to_string(det.id)).c_str());
+        std::string name_placeholder = det.name == "" ? "Untitled" : det.name;
 
-        ImGui::Text("Name");
-        ImGui::SameLine();
-        ImGui::InputText(("##name" + unique_id).c_str(), &det.name);
+        std::string tree_id = name_placeholder + " " + std::to_string(det.id) + "##combo_title" + std::to_string(det.id);
 
-        ImGui::Text("Desc");
-        ImGui::SameLine();
-        ImGui::InputText(("##desc" + unique_id).c_str(), &det.description);
-
-        ImGui::Text("Tags");
-        ImGui::SameLine();
-        ImGui::InputText(("##tags" + unique_id).c_str(), &det.tags);
-
-        ImGui::Text("Visibility");
-
-        std::string vis_name;
-
-        if(det.visibility == ugc_visibility::is_public)
-            vis_name = "public";
-
-        if(det.visibility == ugc_visibility::is_friends_only)
-            vis_name = "friends only";
-
-        if(det.visibility == ugc_visibility::is_private)
-            vis_name = "private";
-
-        if(det.visibility == ugc_visibility::is_unlisted)
-            vis_name = "unlisted";
-
-        ImGui::SameLine();
-
-        std::array<std::string, 4> labels =
+        if(ImGui::TreeNode(tree_id.c_str()))
         {
-            "public",
-            "friends only",
-            "private",
-            "unlisted",
-        };
+            ImGui::Text(("Folder: " + std::to_string(det.id)).c_str());
 
-        if(ImGui::BeginCombo(("##combobox" + unique_id).c_str(), vis_name.c_str()))
-        {
-            for(int idx = 0; idx < (int)labels.size(); idx++)
+            ImGui::Text("Name");
+            ImGui::SameLine();
+            ImGui::InputText(("##name" + unique_id).c_str(), &det.name);
+
+            ImGui::Text("Desc");
+            ImGui::SameLine();
+            ImGui::InputText(("##desc" + unique_id).c_str(), &det.description);
+
+            ImGui::Text("Tags");
+            ImGui::SameLine();
+            ImGui::InputText(("##tags" + unique_id).c_str(), &det.tags);
+
+            ImGui::Text("Visibility");
+
+            std::string vis_name;
+
+            if(det.visibility == ugc_visibility::is_public)
+                vis_name = "public";
+
+            if(det.visibility == ugc_visibility::is_friends_only)
+                vis_name = "friends only";
+
+            if(det.visibility == ugc_visibility::is_private)
+                vis_name = "private";
+
+            if(det.visibility == ugc_visibility::is_unlisted)
+                vis_name = "unlisted";
+
+            ImGui::SameLine();
+
+            std::array<std::string, 4> labels =
             {
-                bool is_selected = idx == (int)det.visibility;
+                "public",
+                "friends only",
+                "private",
+                "unlisted",
+            };
 
-                if(ImGui::Selectable((labels[idx] + "##" + unique_id).c_str()))
+            if(ImGui::BeginCombo(("##combobox" + unique_id).c_str(), vis_name.c_str()))
+            {
+                for(int idx = 0; idx < (int)labels.size(); idx++)
                 {
-                    det.visibility = visibility_from_int((int)idx);
+                    bool is_selected = idx == (int)det.visibility;
+
+                    if(ImGui::Selectable((labels[idx] + "##" + unique_id).c_str()))
+                    {
+                        det.visibility = visibility_from_int((int)idx);
+                    }
+
+                    if(is_selected)
+                    {
+                        ImGui::SetItemDefaultFocus();
+                    }
                 }
 
-                if(is_selected)
+                ImGui::EndCombo();
+            }
+
+            bool has_preview = std::filesystem::exists(directory + "/preview.png");
+
+            if(!has_preview)
+            {
+                ImGui::Text("No valid preview.png in folder");
+            }
+
+            //if(det.dirty)
+            {
+                if(ImGui::Button(("Update Metadata##" + unique_id).c_str()))
                 {
-                    ImGui::SetItemDefaultFocus();
+                    steam.update_item(det);
+                }
+
+                if(ImGui::Button(("Update Metadata and Contents##" + unique_id).c_str()))
+                {
+                    if(ustore.local_path == "" || ustore.local_preview == "")
+                    {
+                        printf("Path is empty for preview or contents\n");
+                    }
+                    else
+                    {
+                        steam.update_item_with_contents(ustore);
+                    }
+                }
+
+                if(ImGui::Button(("Open Directory##" + unique_id).c_str()))
+                {
+                    std::string apath = std::filesystem::absolute(directory).string();
+
+                    system(("start " + apath).c_str());
                 }
             }
 
-            ImGui::EndCombo();
+            ImGui::TreePop();
         }
-
-        bool has_preview = std::filesystem::exists(directory + "/preview.png");
-
-        if(!has_preview)
-        {
-            ImGui::Text("No valid preview.png in folder");
-        }
-
-        //if(det.dirty)
-        {
-            if(ImGui::Button(("Update Metadata##" + unique_id).c_str()))
-            {
-                steam.update_item(det);
-            }
-
-            if(ImGui::Button(("Update Metadata and Contents##" + unique_id).c_str()))
-            {
-                if(ustore.local_path == "" || ustore.local_preview == "")
-                {
-                    printf("Path is empty for preview or contents\n");
-                }
-                else
-                {
-                    steam.update_item_with_contents(ustore);
-                }
-            }
-
-            if(ImGui::Button(("Open Directory##" + unique_id).c_str()))
-            {
-                std::string apath = std::filesystem::absolute(directory).string();
-
-                system(("start " + apath).c_str());
-            }
-        }
-
-        ImGui::NewLine();
-        ImGui::NewLine();
     }
 }
 
