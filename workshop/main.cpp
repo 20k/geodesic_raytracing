@@ -486,11 +486,11 @@ void display(steam_api& steam, std::vector<ugc_storage>& items)
 
         std::string name_placeholder = det.name == "" ? "Untitled" : det.name;
 
-        std::string tree_id = name_placeholder + " " + std::to_string(det.id) + "##combo_title" + std::to_string(det.id);
+        std::string tree_id = name_placeholder + " | " + std::to_string(det.id) + "###treenode_title" + std::to_string(det.id);
 
         if(ImGui::TreeNode(tree_id.c_str()))
         {
-            ImGui::Text(("Folder: " + std::to_string(det.id)).c_str());
+            //ImGui::Text(("Folder: " + std::to_string(det.id)).c_str());
 
             ImGui::Text("Name");
             ImGui::SameLine();
