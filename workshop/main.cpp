@@ -447,7 +447,10 @@ struct steam_api
 
                 for(auto& i : current_query->items)
                 {
+                    std::string directory = "./content/" + std::to_string(i.id);
+
                     items.emplace_back().det = i;
+                    items.back().local_path = directory;
                 }
 
                 current_query = std::nullopt;
@@ -463,13 +466,25 @@ struct steam_api
     }
 };
 
+void create_directories(std::vector<ugc_storage>& items)
+{
+    for(ugc_storage& ustore : items)
+    {
+        std::filesystem::create_directory("./content/" + std::to_string(ustore.det.id));
+    }
+}
+
 void display(steam_api& steam, std::vector<ugc_storage>& items)
 {
     for(ugc_storage& ustore : items)
     {
+        std::string directory = "./content/" + std::to_string(ustore.det.id);
+
         ugc_details& det = ustore.det;
 
         std::string unique_id = std::to_string(det.id);
+
+        ImGui::Text(("Folder: " + std::to_string(det.id)).c_str());
 
         ImGui::Text("Name");
         ImGui::SameLine();
@@ -529,13 +544,12 @@ void display(steam_api& steam, std::vector<ugc_storage>& items)
             ImGui::EndCombo();
         }
 
-        ImGui::Text("Local Path");
-        ImGui::SameLine();
-        ImGui::InputText(("##path" + unique_id).c_str(), &ustore.local_path);
+        bool has_preview = std::filesystem::exists(directory + "/preview.png");
 
-        ImGui::Text("Local Preview");
-        ImGui::SameLine();
-        ImGui::InputText(("##preview" + unique_id).c_str(), &ustore.local_preview);
+        if(!has_preview)
+        {
+            ImGui::Text("No valid preview.png in folder");
+        }
 
         //if(det.dirty)
         {
@@ -555,8 +569,16 @@ void display(steam_api& steam, std::vector<ugc_storage>& items)
                     steam.update_item_with_contents(ustore);
                 }
             }
+
+            if(ImGui::Button(("Open Directory##" + unique_id).c_str()))
+            {
+                std::string apath = std::filesystem::absolute(directory).string();
+
+                system(("start " + apath).c_str());
+            }
         }
 
+        ImGui::NewLine();
         ImGui::NewLine();
     }
 }
@@ -583,6 +605,8 @@ int main()
     io.Fonts->Clear();
     io.Fonts->AddFontFromFileTTF("VeraMono.ttf", 14, &font_cfg);
 
+    std::filesystem::create_directory("./content");
+
     steam_api steam;
 
     //steam.create_item();
@@ -600,6 +624,7 @@ int main()
 
         ImGui::Begin("Workshop Editor", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
 
+        create_directories(steam.items);
         display(steam, steam.items);
 
         ImGui::End();
