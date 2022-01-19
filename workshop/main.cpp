@@ -264,6 +264,32 @@ struct ugc_storage
     std::string confirm_string;
 };
 
+std::vector<ugc_details> query_to_details(const SteamUGCQueryCompleted_t& query)
+{
+    int num = query.m_unNumResultsReturned;
+
+    std::cout << "Found " << num << " published workshop items for user" << std::endl;
+
+    std::vector<ugc_details> ret;
+
+    ISteamUGC* ugc = SteamAPI_SteamUGC();
+
+    for(int i=0; i < num; i++)
+    {
+        SteamUGCDetails_t details;
+
+        if(SteamAPI_ISteamUGC_GetQueryUGCResult(ugc, query.m_handle, i, &details))
+        {
+            ugc_details item;
+            item.load(details);
+
+            ret.push_back(item);
+        }
+    }
+
+    return ret;
+}
+
 struct ugc_request_handle
 {
     std::shared_ptr<UGCQueryHandle_t> handle;
@@ -286,32 +312,8 @@ struct ugc_request_handle
 
         call.start(result, [&](const SteamUGCQueryCompleted_t& result)
         {
-            items = query_details(result.m_unNumResultsReturned);
+            items = query_to_details(result);
         });
-    }
-
-    std::vector<ugc_details> query_details(int num)
-    {
-        std::vector<ugc_details> ret;
-
-        std::cout << "Found " << num << " published workshop items for user" << std::endl;
-
-        ISteamUGC* ugc = SteamAPI_SteamUGC();
-
-        for(int i=0; i < num; i++)
-        {
-            SteamUGCDetails_t details;
-
-            if(SteamAPI_ISteamUGC_GetQueryUGCResult(ugc, *handle, i, &details))
-            {
-                ugc_details item;
-                item.load(details);
-
-                ret.push_back(item);
-            }
-        }
-
-        return ret;
     }
 
     bool poll()
