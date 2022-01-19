@@ -320,21 +320,6 @@ struct ugc_request_handle
     }
 };
 
-struct ugc_query
-{
-    ugc_request_handle build(uint32_t account_id, uint32_t appid)
-    {
-        ISteamUGC* ugc = SteamAPI_SteamUGC();
-
-        UGCQueryHandle_t ugchandle = SteamAPI_ISteamUGC_CreateQueryUserUGCRequest(ugc, account_id, k_EUserUGCList_Published, k_EUGCMatchingUGCType_All, k_EUserUGCListSortOrder_CreationOrderDesc, appid, appid, 1);
-
-        //SteamAPI_ISteamUGC_SetReturnOnlyIDs(ugc, ugchandle, true);
-        SteamAPI_ISteamUGC_SetReturnKeyValueTags(ugc, ugchandle, true);
-
-        return ugchandle;
-    }
-};
-
 struct steam_api
 {
     steady_timer last_poll;
@@ -373,9 +358,14 @@ struct steam_api
 
     ugc_request_handle request_published_items()
     {
-        ugc_query query;
+        ISteamUGC* ugc = SteamAPI_SteamUGC();
 
-        return query.build(account_id, appid);
+        UGCQueryHandle_t ugchandle = SteamAPI_ISteamUGC_CreateQueryUserUGCRequest(ugc, account_id, k_EUserUGCList_Published, k_EUGCMatchingUGCType_All, k_EUserUGCListSortOrder_CreationOrderDesc, appid, appid, 1);
+
+        //SteamAPI_ISteamUGC_SetReturnOnlyIDs(ugc, ugchandle, true);
+        SteamAPI_ISteamUGC_SetReturnKeyValueTags(ugc, ugchandle, true);
+
+        return ugchandle;
     }
 
     ugc_storage& create_ugc_item(PublishedFileId_t id)
