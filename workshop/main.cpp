@@ -151,10 +151,10 @@ std::string from_c_str(const char* ptr)
     return std::string(ptr, ptr + size);
 }
 
+
+
 struct ugc_details
 {
-    bool dirty = false;
-
     PublishedFileId_t id;
     std::string name;
     std::string description;
