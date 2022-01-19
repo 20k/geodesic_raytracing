@@ -426,8 +426,8 @@ struct steam_api
 
             ugc_update upd;
             upd.id = id;
-            upd.name = "This is a test item";
-            upd.description = "My cats breath smells like catfood";
+            //upd.name = "This is a test item";
+            //upd.description = "My cats breath smells like catfood";
 
             update_item(upd, [](auto err_opt){});
         };
@@ -646,6 +646,11 @@ void display(steam_api& steam, std::vector<std::shared_ptr<ugc_storage>>& items)
 
             ImGui::TreePop();
         }
+    }
+
+    if(ImGui::Button("Create New"))
+    {
+        steam.create_item();
     }
 }
 
