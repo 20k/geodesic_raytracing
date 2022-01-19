@@ -385,6 +385,9 @@ struct steam_api
 
     std::optional<ugc_storage*> find_ugc_item(PublishedFileId_t id)
     {
+        if(is_ugc_deleted(id))
+            return std::nullopt;
+
         if(auto it = items.find(id); it != items.end())
             return &it->second;
 
@@ -525,6 +528,9 @@ struct steam_api
             {
                 for(const ugc_details& i : current_query->items)
                 {
+                    if(is_ugc_deleted(i.id))
+                        continue;
+
                     std::string directory = "./content/" + std::to_string(i.id);
 
                     create_ugc_item(i.id).det = i;
