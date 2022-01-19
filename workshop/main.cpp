@@ -151,7 +151,87 @@ std::string from_c_str(const char* ptr)
     return std::string(ptr, ptr + size);
 }
 
+struct ugc_update
+{
+    PublishedFileId_t id;;
 
+    std::optional<std::string> name;
+    std::optional<std::string> description;
+    std::optional<std::string> tags;
+    std::optional<ugc_visibility> visibility;
+
+    std::optional<std::string> local_content_path;
+    std::optional<std::string> local_preview_path;
+
+    void modify(UGCUpdateHandle_t handle) const
+    {
+        ISteamUGC* ugc = SteamAPI_SteamUGC();
+
+        if(name.has_value())
+        {
+            SteamAPI_ISteamUGC_SetItemTitle(ugc, handle, name.value().c_str());
+        }
+
+        if(description.has_value())
+        {
+            SteamAPI_ISteamUGC_SetItemDescription(ugc, handle, description.value().c_str());
+        }
+
+        if(tags.has_value())
+        {
+            std::vector<std::string> split_tags = split(tags.value(), ",");
+
+            std::vector<const char*> as_cc;
+
+            for(const auto& i : split_tags)
+            {
+                as_cc.push_back(i.c_str());
+            }
+
+            const char** as_pp = nullptr;
+
+            if(as_cc.size() > 0)
+            {
+                as_pp = &as_cc[0];
+            }
+
+            struct SteamParamStringArray_t arr;
+            arr.m_nNumStrings = split_tags.size();
+            arr.m_ppStrings = as_pp;
+
+            SteamAPI_ISteamUGC_SetItemTags(ugc, handle, &arr);
+        }
+
+        if(visibility.has_value())
+        {
+            ERemoteStoragePublishedFileVisibility vis = std::bit_cast<ERemoteStoragePublishedFileVisibility>(visibility.value());
+
+            SteamAPI_ISteamUGC_SetItemVisibility(ugc, handle, vis);
+        }
+
+        if(local_content_path.has_value())
+        {
+            std::string absolute_path = std::filesystem::absolute(local_content_path.value()).string();
+
+            std::cout << "Absolute Path " << absolute_path << std::endl;
+
+            ISteamUGC* ugc = SteamAPI_SteamUGC();
+
+            assert(SteamAPI_ISteamUGC_SetItemContent(ugc, handle, absolute_path.c_str()));
+        }
+
+        if(local_preview_path.has_value())
+        {
+            std::string absolute_path = std::filesystem::absolute(local_preview_path.value()).string();
+
+            std::cout << "Absolute Preview Path " << absolute_path << std::endl;
+
+            ISteamUGC* ugc = SteamAPI_SteamUGC();
+
+            assert(SteamAPI_ISteamUGC_SetItemPreview(ugc, handle, absolute_path.c_str()));
+        }
+    }
+};
 
 struct ugc_details
 {
@@ -169,69 +249,11 @@ struct ugc_details
         tags = from_c_str(in.m_rgchTags);
         visibility = ugc_visibility{in.m_eVisibility};
     }
-
-    void modify(UGCUpdateHandle_t handle) const
-    {
-        ISteamUGC* ugc = SteamAPI_SteamUGC();
-
-        SteamAPI_ISteamUGC_SetItemTitle(ugc, handle, name.c_str());
-        SteamAPI_ISteamUGC_SetItemDescription(ugc, handle, description.c_str());
-
-        std::vector<std::string> split_tags = split(tags, ",");
-
-        std::vector<const char*> as_cc;
-
-        for(const auto& i : split_tags)
-        {
-            as_cc.push_back(i.c_str());
-        }
-
-        const char** as_pp = nullptr;
-
-        if(as_cc.size() > 0)
-        {
-            as_pp = &as_cc[0];
-        }
-
-        struct SteamParamStringArray_t arr;
-        arr.m_nNumStrings = split_tags.size();
-        arr.m_ppStrings = as_pp;
-
-        SteamAPI_ISteamUGC_SetItemTags(ugc, handle, &arr);
-
-        ERemoteStoragePublishedFileVisibility vis = std::bit_cast<ERemoteStoragePublishedFileVisibility>(visibility);
-
-        SteamAPI_ISteamUGC_SetItemVisibility(ugc, handle, vis);
-    }
-
-    void set_local_path(UGCUpdateHandle_t handle, const std::string& path) const
-    {
-        std::string absolute_path = std::filesystem::absolute(path).string();
-
-        std::cout << "Absolute Path " << absolute_path << std::endl;
-
-        ISteamUGC* ugc = SteamAPI_SteamUGC();
-
-        assert(SteamAPI_ISteamUGC_SetItemContent(ugc, handle, absolute_path.c_str()));
-    }
-
-    void set_local_preview(UGCUpdateHandle_t handle, const std::string& path) const
-    {
-        std::string absolute_path = std::filesystem::absolute(path).string();
-
-        std::cout << "Absolute Preview Path " << absolute_path << std::endl;
-
-        ISteamUGC* ugc = SteamAPI_SteamUGC();
-
-        assert(SteamAPI_ISteamUGC_SetItemPreview(ugc, handle, absolute_path.c_str()));
-    }
 };
 
 struct ugc_storage
 {
     ugc_details det;
-    std::string local_path;
-    std::string local_preview;
 
     bool completed = true;
     std::string error_message;
@@ -349,9 +371,13 @@ struct steam_api
     }
 
     template<typename T>
-    void update_item_impl(UGCUpdateHandle_t handle, T&& on_complete)
+    void update_item(const ugc_update& update, T&& on_complete)
     {
         ISteamUGC* ugc = SteamAPI_SteamUGC();
+
+        UGCUpdateHandle_t handle = SteamAPI_ISteamUGC_StartItemUpdate(ugc, appid, update.id);
+
+        update.modify(handle);
 
         SteamAPICall_t raw_api_call = SteamAPI_ISteamUGC_SubmitItemUpdate(ugc, handle, nullptr);
 
@@ -383,34 +409,6 @@ struct steam_api
         std::cout << "Started item update" << std::endl;
     }
 
-    void update_item(const ugc_details& details)
-    {
-        ISteamUGC* ugc = SteamAPI_SteamUGC();
-
-        UGCUpdateHandle_t handle = SteamAPI_ISteamUGC_StartItemUpdate(ugc, appid, details.id);
-
-        details.modify(handle);
-
-        update_item_impl(handle, [](auto err_opt){});
-    }
-
-    void update_item_with_contents(std::shared_ptr<ugc_storage> store)
-    {
-        ISteamUGC* ugc = SteamAPI_SteamUGC();
-
-        UGCUpdateHandle_t handle = SteamAPI_ISteamUGC_StartItemUpdate(ugc, appid, store->det.id);
-
-        store->det.modify(handle);
-        store->det.set_local_path(handle, store->local_path);
-        store->det.set_local_preview(handle, store->local_preview);
-
-        update_item_impl(handle, [store](auto err_opt)
-        {
-            store->completed = true;
-            store->error_message = err_opt.value_or("");
-        });
-    }
-
     void create_item()
     {
         ISteamUGC* ugc = SteamAPI_SteamUGC();
@@ -426,12 +424,12 @@ struct steam_api
 
             std::cout << "Created item with id " << id << std::endl;
 
-            ugc_details details;
-            details.id = id;
-            details.name = "This is a test item";
-            details.description = "My cats breath smells like catfood";
+            ugc_update upd;
+            upd.id = id;
+            upd.name = "This is a test item";
+            upd.description = "My cats breath smells like catfood";
 
-            update_item(details);
+            update_item(upd, [](auto err_opt){});
         };
 
         steam_api_call<CreateItemResult_t> result(SteamAPI_ISteamUGC_CreateItem(ugc, appid, k_EWorkshopFileTypeCommunity), on_created);
@@ -467,7 +465,6 @@ struct steam_api
                     std::shared_ptr<ugc_storage> store = std::make_shared<ugc_storage>();
 
                     store->det = i;
-                    store->local_path = directory;
 
                     items.push_back(store);
                 }
@@ -592,37 +589,59 @@ void display(steam_api& steam, std::vector<std::shared_ptr<ugc_storage>>& items)
                 ImGui::Text("Upload in progress..");
             }
 
-            //if(det.dirty)
+            if(ImGui::Button(("Update Metadata##" + unique_id).c_str()))
             {
-                if(ImGui::Button(("Update Metadata##" + unique_id).c_str()))
-                {
-                    steam.update_item(det);
-                }
+                ustore.completed = false;
+                ustore.error_message = "";
 
-                if(ImGui::Button(("Update Metadata and Contents##" + unique_id).c_str()))
+                ugc_update update;
+                update.id = det.id;
+                update.name = det.name;
+                update.description = det.description;
+                update.tags = det.tags;
+                update.visibility = det.visibility;
+
+                steam.update_item(update, [ustore_ptr](auto err_opt)
                 {
-                    if(!has_preview)
+                    ustore_ptr->completed = true;
+                    ustore_ptr->error_message = err_opt.value_or("");
+                });
+            }
+
+            if(ImGui::Button(("Update Metadata and Contents##" + unique_id).c_str()))
+            {
+                if(!has_preview)
+                {
+                    ustore.completed = true;
+                    ustore.error_message = "No valid preview.png in root folder " + std::to_string(ustore.det.id);
+                }
+                else
+                {
+                    ustore.completed = false;
+                    ustore.error_message = "";
+
+                    ugc_update update;
+                    update.id = det.id;
+                    update.name = det.name;
+                    update.description = det.description;
+                    update.tags = det.tags;
+                    update.visibility = det.visibility;
+                    update.local_content_path = directory + "/data";
+                    update.local_preview_path = directory + "/preview.png";
+
+                    steam.update_item(update, [ustore_ptr](auto err_opt)
                     {
-                        printf("No valid preview\n");
-                    }
-                    else
-                    {
-                        ustore.completed = false;
-                        ustore.error_message = "";
-
-                        ustore.local_path = directory + "/data";
-                        ustore.local_preview = directory + "/preview.png";
-
-                        steam.update_item_with_contents(ustore_ptr);
-                    }
+                        ustore_ptr->completed = true;
+                        ustore_ptr->error_message = err_opt.value_or("");
+                    });
                 }
+            }
 
-                if(ImGui::Button(("Open Directory##" + unique_id).c_str()))
-                {
-                    std::string apath = std::filesystem::absolute(directory).string();
+            if(ImGui::Button(("Open Directory##" + unique_id).c_str()))
+            {
+                std::string apath = std::filesystem::absolute(directory).string();
 
-                    system(("start " + apath).c_str());
-                }
+                system(("start " + apath).c_str());
             }
 
             ImGui::TreePop();
