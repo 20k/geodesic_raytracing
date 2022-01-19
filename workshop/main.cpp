@@ -227,12 +227,14 @@ struct ugc_details
     }
 };
 
-
 struct ugc_storage
 {
     ugc_details det;
     std::string local_path;
     std::string local_preview;
+
+    bool completed = true;
+    std::string error_message;
 };
 
 struct ugc_request_handle
@@ -318,7 +320,7 @@ struct steam_api
 
     std::optional<ugc_request_handle> current_query;
 
-    std::vector<ugc_storage> items;
+    std::vector<std::shared_ptr<ugc_storage>> items;
 
     steam_callback_executor exec;
 
@@ -346,25 +348,34 @@ struct steam_api
         return query.build(account_id, appid);
     }
 
-    void update_item_impl(UGCUpdateHandle_t handle)
+    template<typename T>
+    void update_item_impl(UGCUpdateHandle_t handle, T&& on_complete)
     {
         ISteamUGC* ugc = SteamAPI_SteamUGC();
 
         SteamAPICall_t raw_api_call = SteamAPI_ISteamUGC_SubmitItemUpdate(ugc, handle, nullptr);
 
-        steam_api_call<SubmitItemUpdateResult_t> api_result(raw_api_call, [](const SubmitItemUpdateResult_t& val)
+        steam_api_call<SubmitItemUpdateResult_t> api_result(raw_api_call, [on_complete = std::move(on_complete)](const SubmitItemUpdateResult_t& val)
         {
+            std::optional<std::string> error_message;
+
             if(val.m_bUserNeedsToAcceptWorkshopLegalAgreement)
             {
                 std::cout << "Need to accept workshop legal agreement" << std::endl;
+
+                error_message = "Need to accept workshop legal agreement";
             }
 
             if(val.m_eResult != k_EResultOK)
             {
                 std::cout << "Error submitting update " << val.m_eResult << std::endl;
+
+                error_message = "Steam API error in submit " + std::to_string(val.m_eResult);
             }
 
             std::cout << "SubmitItemUpdate callback" << std::endl;
+
+            on_complete(error_message);
         });
 
         exec.add(api_result);
@@ -380,20 +391,24 @@ struct steam_api
 
         details.modify(handle);
 
-        update_item_impl(handle);
+        update_item_impl(handle, [](auto err_opt){});
     }
 
-    void update_item_with_contents(const ugc_storage& store)
+    void update_item_with_contents(std::shared_ptr<ugc_storage> store)
     {
         ISteamUGC* ugc = SteamAPI_SteamUGC();
 
-        UGCUpdateHandle_t handle = SteamAPI_ISteamUGC_StartItemUpdate(ugc, appid, store.det.id);
+        UGCUpdateHandle_t handle = SteamAPI_ISteamUGC_StartItemUpdate(ugc, appid, store->det.id);
 
-        store.det.modify(handle);
-        store.det.set_local_path(handle, store.local_path);
-        store.det.set_local_preview(handle, store.local_preview);
+        store->det.modify(handle);
+        store->det.set_local_path(handle, store->local_path);
+        store->det.set_local_preview(handle, store->local_preview);
 
-        update_item_impl(handle);
+        update_item_impl(handle, [store](auto err_opt)
+        {
+            store->completed = true;
+            store->error_message = err_opt.value_or("");
+        });
     }
 
     void create_item()
@@ -449,8 +464,12 @@ struct steam_api
                 {
                     std::string directory = "./content/" + std::to_string(i.id);
 
-                    items.emplace_back().det = i;
-                    items.back().local_path = directory;
+                    std::shared_ptr<ugc_storage> store = std::make_shared<ugc_storage>();
+
+                    store->det = i;
+                    store->local_path = directory;
+
+                    items.push_back(store);
                 }
 
                 current_query = std::nullopt;
@@ -466,18 +485,22 @@ struct steam_api
     }
 };
 
-void create_directories(std::vector<ugc_storage>& items)
+void create_directories(std::vector<std::shared_ptr<ugc_storage>>& items)
 {
-    for(ugc_storage& ustore : items)
+    for(auto& ustore_ptr : items)
     {
+        ugc_storage& ustore = *ustore_ptr;
+
         std::filesystem::create_directory("./content/" + std::to_string(ustore.det.id));
+        std::filesystem::create_directory("./content/" + std::to_string(ustore.det.id) + "/data");
     }
 }
 
-void display(steam_api& steam, std::vector<ugc_storage>& items)
+void display(steam_api& steam, std::vector<std::shared_ptr<ugc_storage>>& items)
 {
-    for(ugc_storage& ustore : items)
+    for(auto ustore_ptr : items)
     {
+        ugc_storage& ustore = *ustore_ptr;
         std::string directory = "./content/" + std::to_string(ustore.det.id);
 
         ugc_details& det = ustore.det;
@@ -557,6 +580,18 @@ void display(steam_api& steam, std::vector<ugc_storage>& items)
                 ImGui::Text("No valid preview.png in folder");
             }
 
+            if(ustore.completed)
+            {
+                if(ustore.error_message == "")
+                    ImGui::Text("Upload Completed Successfully");
+                else
+                    ImGui::Text("Error in upload %s", ustore.error_message.c_str());
+            }
+            else
+            {
+                ImGui::Text("Upload in progress..");
+            }
+
             //if(det.dirty)
             {
                 if(ImGui::Button(("Update Metadata##" + unique_id).c_str()))
@@ -566,13 +601,19 @@ void display(steam_api& steam, std::vector<ugc_storage>& items)
 
                 if(ImGui::Button(("Update Metadata and Contents##" + unique_id).c_str()))
                 {
-                    if(ustore.local_path == "" || ustore.local_preview == "")
+                    if(!has_preview)
                     {
-                        printf("Path is empty for preview or contents\n");
+                        printf("No valid preview\n");
                     }
                     else
                     {
-                        steam.update_item_with_contents(ustore);
+                        ustore.completed = false;
+                        ustore.error_message = "";
+
+                        ustore.local_path = directory + "/data";
+                        ustore.local_preview = directory + "/preview.png";
+
+                        steam.update_item_with_contents(ustore_ptr);
                     }
                 }
 
