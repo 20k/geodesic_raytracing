@@ -368,14 +368,14 @@ struct steam_api
         return ugchandle;
     }
 
-    ugc_storage& create_ugc_item(PublishedFileId_t id)
+    ugc_storage& create_local_item(PublishedFileId_t id)
     {
         return items[id];
     }
 
-    std::optional<ugc_storage*> find_ugc_item(PublishedFileId_t id)
+    std::optional<ugc_storage*> find_local_item(PublishedFileId_t id)
     {
-        if(is_ugc_deleted(id))
+        if(is_local_deleted(id))
             return std::nullopt;
 
         if(auto it = items.find(id); it != items.end())
@@ -384,12 +384,12 @@ struct steam_api
         return std::nullopt;
     }
 
-    bool is_ugc_deleted(PublishedFileId_t id)
+    bool is_local_deleted(PublishedFileId_t id)
     {
         return was_deleted.count(id) > 0;
     }
 
-    void delete_ugc_item(PublishedFileId_t id)
+    void delete_local_item(PublishedFileId_t id)
     {
         if(items.find(id) == items.end())
             return;
@@ -447,7 +447,7 @@ struct steam_api
         {
             if(result.m_eResult == k_EResultOK)
             {
-                delete_ugc_item(id);
+                delete_local_item(id);
             }
         });
 
@@ -469,7 +469,7 @@ struct steam_api
 
             std::cout << "Created item with id " << id << std::endl;
 
-            create_ugc_item(id);
+            create_local_item(id);
 
             ugc_update upd;
             upd.id = id;
@@ -526,12 +526,12 @@ struct steam_api
 
                 for(const ugc_details& i : current_query->items)
                 {
-                    if(is_ugc_deleted(i.id))
+                    if(is_local_deleted(i.id))
                         continue;
 
                     std::string directory = "./content/" + std::to_string(i.id);
 
-                    create_ugc_item(i.id).det = i;
+                    create_local_item(i.id).det = i;
 
                     new_items.insert(i.id);
                 }
@@ -540,7 +540,7 @@ struct steam_api
                 {
                     if(new_items.count(id) == 0)
                     {
-                        delete_ugc_item(id);
+                        delete_local_item(id);
                     }
                 }
 
@@ -675,7 +675,7 @@ void display(steam_api& steam, std::map<PublishedFileId_t, ugc_storage>& items)
 
                 steam.network_update_item(update, [id, &steam](auto err_opt)
                 {
-                    auto store_opt = steam.find_ugc_item(id);
+                    auto store_opt = steam.find_local_item(id);
 
                     if(store_opt.has_value())
                     {
@@ -708,7 +708,7 @@ void display(steam_api& steam, std::map<PublishedFileId_t, ugc_storage>& items)
 
                     steam.network_update_item(update, [id, &steam](auto err_opt)
                     {
-                        auto store_opt = steam.find_ugc_item(id);
+                        auto store_opt = steam.find_local_item(id);
 
                         if(store_opt.has_value())
                         {
