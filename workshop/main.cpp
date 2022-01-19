@@ -257,6 +257,7 @@ struct ugc_storage
 
     bool completed = true;
     std::string error_message;
+    bool should_delete = false;
 };
 
 struct ugc_request_handle
@@ -342,7 +343,9 @@ struct steam_api
 
     std::optional<ugc_request_handle> current_query;
 
-    std::vector<std::shared_ptr<ugc_storage>> items;
+    //std::vector<std::shared_ptr<ugc_storage>> items;
+
+    std::map<PublishedFileId_t, ugc_storage> items;
 
     steam_callback_executor exec;
 
@@ -368,6 +371,19 @@ struct steam_api
         ugc_query query;
 
         return query.build(account_id, appid);
+    }
+
+    ugc_storage& create_ugc_item(PublishedFileId_t id)
+    {
+        return items[id];
+    }
+
+    std::optional<ugc_storage*> find_ugc_item(PublishedFileId_t id)
+    {
+        if(auto it = items.find(id); it != items.end())
+            return &it->second;
+
+        return std::nullopt;
     }
 
     template<typename T>
@@ -409,6 +425,21 @@ struct steam_api
         std::cout << "Started item update" << std::endl;
     }
 
+    void cleanup_items()
+    {
+        for(auto it = items.begin(); it != items.end();)
+        {
+            if(it->second.should_delete)
+            {
+                it = items.erase(it);
+            }
+            else
+            {
+                it++;
+            }
+        }
+    }
+
     void create_item()
     {
         ISteamUGC* ugc = SteamAPI_SteamUGC();
@@ -424,10 +455,10 @@ struct steam_api
 
             std::cout << "Created item with id " << id << std::endl;
 
+            create_ugc_item(id);
+
             ugc_update upd;
             upd.id = id;
-            //upd.name = "This is a test item";
-            //upd.description = "My cats breath smells like catfood";
 
             update_item(upd, [](auto err_opt){});
         };
@@ -456,17 +487,11 @@ struct steam_api
         {
             if(current_query->poll())
             {
-                items.clear();
-
-                for(auto& i : current_query->items)
+                for(const ugc_details& i : current_query->items)
                 {
                     std::string directory = "./content/" + std::to_string(i.id);
 
-                    std::shared_ptr<ugc_storage> store = std::make_shared<ugc_storage>();
-
-                    store->det = i;
-
-                    items.push_back(store);
+                    create_ugc_item(i.id).det = i;
                 }
 
                 current_query = std::nullopt;
@@ -482,22 +507,19 @@ struct steam_api
     }
 };
 
-void create_directories(std::vector<std::shared_ptr<ugc_storage>>& items)
+void create_directories(std::map<PublishedFileId_t, ugc_storage>& items)
 {
-    for(auto& ustore_ptr : items)
+    for(auto& [id, ustore] : items)
     {
-        ugc_storage& ustore = *ustore_ptr;
-
         std::filesystem::create_directory("./content/" + std::to_string(ustore.det.id));
         std::filesystem::create_directory("./content/" + std::to_string(ustore.det.id) + "/data");
     }
 }
 
-void display(steam_api& steam, std::vector<std::shared_ptr<ugc_storage>>& items)
+void display(steam_api& steam, std::map<PublishedFileId_t, ugc_storage>& items)
 {
-    for(auto ustore_ptr : items)
+    for(auto& [id, ustore] : items)
     {
-        ugc_storage& ustore = *ustore_ptr;
         std::string directory = "./content/" + std::to_string(ustore.det.id);
 
         ugc_details& det = ustore.det;
@@ -601,10 +623,15 @@ void display(steam_api& steam, std::vector<std::shared_ptr<ugc_storage>>& items)
                 update.tags = det.tags;
                 update.visibility = det.visibility;
 
-                steam.update_item(update, [ustore_ptr](auto err_opt)
+                steam.update_item(update, [id, &steam](auto err_opt)
                 {
-                    ustore_ptr->completed = true;
-                    ustore_ptr->error_message = err_opt.value_or("");
+                    auto store_opt = steam.find_ugc_item(id);
+
+                    if(store_opt.has_value())
+                    {
+                        store_opt.value()->completed = true;
+                        store_opt.value()->error_message = err_opt.value_or("");
+                    }
                 });
             }
 
@@ -629,10 +656,15 @@ void display(steam_api& steam, std::vector<std::shared_ptr<ugc_storage>>& items)
                     update.local_content_path = directory + "/data";
                     update.local_preview_path = directory + "/preview.png";
 
-                    steam.update_item(update, [ustore_ptr](auto err_opt)
+                    steam.update_item(update, [id, &steam](auto err_opt)
                     {
-                        ustore_ptr->completed = true;
-                        ustore_ptr->error_message = err_opt.value_or("");
+                        auto store_opt = steam.find_ugc_item(id);
+
+                        if(store_opt.has_value())
+                        {
+                            store_opt.value()->completed = true;
+                            store_opt.value()->error_message = err_opt.value_or("");
+                        }
                     });
                 }
             }
@@ -697,6 +729,7 @@ int main()
 
         create_directories(steam.items);
         display(steam, steam.items);
+        steam.cleanup_items();
 
         ImGui::End();
 
