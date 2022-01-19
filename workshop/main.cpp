@@ -9,6 +9,7 @@
 #include <imgui/misc/cpp/imgui_stdlib.h>
 #include <bit>
 #include <filesystem>
+#include <set>
 
 std::vector<std::string> split(const std::string& str, const std::string& delim)
 {
@@ -258,6 +259,9 @@ struct ugc_storage
     bool completed = true;
     std::string error_message;
     bool should_delete = false;
+
+    bool are_you_sure = false;
+    std::string confirm_string;
 };
 
 struct ugc_request_handle
@@ -346,6 +350,7 @@ struct steam_api
     //std::vector<std::shared_ptr<ugc_storage>> items;
 
     std::map<PublishedFileId_t, ugc_storage> items;
+    std::set<PublishedFileId_t> was_deleted;
 
     steam_callback_executor exec;
 
@@ -386,8 +391,22 @@ struct steam_api
         return std::nullopt;
     }
 
+    bool is_ugc_deleted(PublishedFileId_t id)
+    {
+        return was_deleted.count(id) > 0;
+    }
+
+    void delete_ugc_item(PublishedFileId_t id)
+    {
+        if(items.find(id) == items.end())
+            return;
+
+        items[id].should_delete = true;
+        was_deleted.insert(id);
+    }
+
     template<typename T>
-    void update_item(const ugc_update& update, T&& on_complete)
+    void network_update_item(const ugc_update& update, T&& on_complete)
     {
         ISteamUGC* ugc = SteamAPI_SteamUGC();
 
@@ -425,22 +444,24 @@ struct steam_api
         std::cout << "Started item update" << std::endl;
     }
 
-    void cleanup_items()
+    void network_delete_item(PublishedFileId_t id)
     {
-        for(auto it = items.begin(); it != items.end();)
+        ISteamUGC* ugc = SteamAPI_SteamUGC();
+
+        SteamAPICall_t raw_api_call = SteamAPI_ISteamUGC_DeleteItem(ugc, id);
+
+        steam_api_call<DeleteItemResult_t> api_result(raw_api_call, [this, id](const DeleteItemResult_t& result)
         {
-            if(it->second.should_delete)
+            if(result.m_eResult == k_EResultOK)
             {
-                it = items.erase(it);
+                delete_ugc_item(id);
             }
-            else
-            {
-                it++;
-            }
-        }
+        });
+
+        exec.add(api_result);
     }
 
-    void create_item()
+    void network_create_item()
     {
         ISteamUGC* ugc = SteamAPI_SteamUGC();
 
@@ -460,12 +481,27 @@ struct steam_api
             ugc_update upd;
             upd.id = id;
 
-            update_item(upd, [](auto err_opt){});
+            network_update_item(upd, [](auto err_opt){});
         };
 
         steam_api_call<CreateItemResult_t> result(SteamAPI_ISteamUGC_CreateItem(ugc, appid, k_EWorkshopFileTypeCommunity), on_created);
 
         exec.add(result);
+    }
+
+    void cleanup_items()
+    {
+        for(auto it = items.begin(); it != items.end();)
+        {
+            if(it->second.should_delete)
+            {
+                it = items.erase(it);
+            }
+            else
+            {
+                it++;
+            }
+        }
     }
 
     void poll()
@@ -623,7 +659,7 @@ void display(steam_api& steam, std::map<PublishedFileId_t, ugc_storage>& items)
                 update.tags = det.tags;
                 update.visibility = det.visibility;
 
-                steam.update_item(update, [id, &steam](auto err_opt)
+                steam.network_update_item(update, [id, &steam](auto err_opt)
                 {
                     auto store_opt = steam.find_ugc_item(id);
 
@@ -656,7 +692,7 @@ void display(steam_api& steam, std::map<PublishedFileId_t, ugc_storage>& items)
                     update.local_content_path = directory + "/data";
                     update.local_preview_path = directory + "/preview.png";
 
-                    steam.update_item(update, [id, &steam](auto err_opt)
+                    steam.network_update_item(update, [id, &steam](auto err_opt)
                     {
                         auto store_opt = steam.find_ugc_item(id);
 
@@ -676,13 +712,34 @@ void display(steam_api& steam, std::map<PublishedFileId_t, ugc_storage>& items)
                 system(("start " + apath).c_str());
             }
 
+            if(ImGui::Button(("Delete (confirms)##" + unique_id).c_str()))
+            {
+                ustore.are_you_sure = true;
+            }
+
+            if(ustore.are_you_sure)
+            {
+                ImGui::Text("Type YESPLEASE and hit enter to delete. Anything else cancels");
+
+                if(ImGui::InputText(("##inputtextdelete" + unique_id).c_str(), &ustore.confirm_string, ImGuiInputTextFlags_EnterReturnsTrue))
+                {
+                    if(ustore.confirm_string == "YESPLEASE")
+                    {
+                        steam.network_delete_item(ustore.det.id);
+                    }
+
+                    ustore.are_you_sure = false;
+                    ustore.confirm_string = "";
+                }
+            }
+
             ImGui::TreePop();
         }
     }
 
     if(ImGui::Button("Create New"))
     {
-        steam.create_item();
+        steam.network_create_item();
     }
 }
 
