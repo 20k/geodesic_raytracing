@@ -515,6 +515,15 @@ struct steam_api
         {
             if(current_query->poll())
             {
+                std::vector<PublishedFileId_t> old_items;
+
+                for(const auto& [id, _] : items)
+                {
+                    old_items.push_back(id);
+                }
+
+                std::set<PublishedFileId_t> new_items;
+
                 for(const ugc_details& i : current_query->items)
                 {
                     if(is_ugc_deleted(i.id))
@@ -523,6 +532,16 @@ struct steam_api
                     std::string directory = "./content/" + std::to_string(i.id);
 
                     create_ugc_item(i.id).det = i;
+
+                    new_items.insert(i.id);
+                }
+
+                for(auto id : old_items)
+                {
+                    if(new_items.count(id) == 0)
+                    {
+                        delete_ugc_item(id);
+                    }
                 }
 
                 current_query = std::nullopt;
