@@ -509,8 +509,7 @@ struct steam_api
 
     void poll()
     {
-        //if(last_poll.get_elapsed_time_s() > 5)
-        if(!once)
+        if(last_poll.get_elapsed_time_s() > 20 || !once)
         {
             last_poll.restart();
 
