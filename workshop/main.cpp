@@ -88,10 +88,11 @@ struct steam_callback_executor
 
             if(val->poll())
             {
-                delete val;
-
                 callbacks.erase(callbacks.begin() + i);
                 i--;
+
+                delete val;
+
                 continue;
             }
         }
@@ -304,7 +305,6 @@ struct ugc_view
 
         SteamAPICall_t result = SteamAPI_ISteamUGC_SendQueryUGCRequest(ugc, raw_ugc_handle);
 
-        ///capture handle explicitly so it doesn't go out of scope until the api call is complete
         steam_api_call<SteamUGCQueryCompleted_t> call(result, [on_complete = std::move(on_complete), raw_ugc_handle, this](const SteamUGCQueryCompleted_t& result)
         {
             items = query_to_details(result);
@@ -404,8 +404,6 @@ struct steam_api
 
         steam_api_call<DeleteItemResult_t> api_result(raw_api_call, [this, id, info](const DeleteItemResult_t& result)
         {
-            ///submit an update request here, remove the entire deletion infrastructure
-
             if(result.m_eResult == k_EResultOK)
             {
                 ///?
@@ -449,21 +447,6 @@ struct steam_api
 
         exec.add(result);
     }
-
-    /*void cleanup_items()
-    {
-        for(auto it = items.begin(); it != items.end();)
-        {
-            if(it->second.should_delete)
-            {
-                it = items.erase(it);
-            }
-            else
-            {
-                it++;
-            }
-        }
-    }*/
 
     void set_network_items(const std::vector<ugc_details>& details)
     {
