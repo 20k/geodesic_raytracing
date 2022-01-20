@@ -292,6 +292,9 @@ struct steam_info
         account_id = (steam_id & 0xFFFFFFFF);
     }
 
+    steam_info(const steam_info&) = delete;
+    steam_info& operator=(const steam_info&) = delete;
+
     ~steam_info()
     {
         printf("Destroying steam api\n");
@@ -412,7 +415,7 @@ struct steam_api
 
         SteamAPICall_t raw_api_call = SteamAPI_ISteamUGC_DeleteItem(ugc, id);
 
-        steam_api_call<DeleteItemResult_t> api_result(raw_api_call, [this, id, info](const DeleteItemResult_t& result)
+        steam_api_call<DeleteItemResult_t> api_result(raw_api_call, [this, id, &info](const DeleteItemResult_t& result)
         {
             if(result.m_eResult == k_EResultOK)
             {
