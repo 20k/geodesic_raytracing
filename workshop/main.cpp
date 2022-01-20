@@ -216,6 +216,9 @@ struct ugc_details
     std::string tags;
     ugc_visibility visibility;
 
+    ///can be "" indicating not installed
+    std::string absolute_content_path;
+
     void load(SteamUGCDetails_t in)
     {
         id = in.m_nPublishedFileId;
@@ -223,6 +226,19 @@ struct ugc_details
         description = from_c_str(in.m_rgchDescription);
         tags = from_c_str(in.m_rgchTags);
         visibility = ugc_visibility{in.m_eVisibility};
+
+        ISteamUGC* ugc = SteamAPI_SteamUGC();
+
+        std::string folder_storage;
+        folder_storage.resize(1024 * 1024);
+
+        uint64_t size_on_disk = 0;
+        uint32_t timestamp = 0;
+        SteamAPI_ISteamUGC_GetItemInstallInfo(ugc, in.m_nPublishedFileId, &size_on_disk, &folder_storage[0], folder_storage.size(), &timestamp);
+
+        int c_length = strlen(folder_storage.c_str());
+
+        absolute_content_path = std::string(folder_storage.begin(), folder_storage.begin() + c_length);
     }
 
     auto operator<=>(const ugc_details&) const = default;
