@@ -492,6 +492,11 @@ struct steam_api
                         it->second->det = i;
                     }
                 }
+                else
+                {
+                    it->second->has_server_changes = false;
+                    it->second->pull_from_server = false;
+                }
             }
             else
             {
@@ -724,6 +729,20 @@ void display(steam_api& steam, std::vector<ugc_storage>& items, const steam_info
 
                     ustore.are_you_sure = false;
                     ustore.confirm_string = "";
+                }
+            }
+
+            if(ustore.has_server_changes)
+            {
+                ImGui::Text("Server content differs from client content");
+
+                ImGui::SameLine();
+
+                if(ImGui::Button(("Pull from server##" + unique_id).c_str()))
+                {
+                    ustore.pull_from_server = true;
+
+                    steam.network_fetch(info);
                 }
             }
 
