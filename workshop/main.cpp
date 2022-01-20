@@ -10,6 +10,7 @@
 #include <bit>
 #include <filesystem>
 #include <set>
+#include <compare>
 
 std::vector<std::string> split(const std::string& str, const std::string& delim)
 {
@@ -223,6 +224,8 @@ struct ugc_details
         tags = from_c_str(in.m_rgchTags);
         visibility = ugc_visibility{in.m_eVisibility};
     }
+
+    auto operator<=>(const ugc_details&) const = default;
 };
 
 struct ugc_storage
@@ -235,6 +238,9 @@ struct ugc_storage
 
     bool are_you_sure = false;
     std::string confirm_string;
+
+    bool has_server_changes = false;
+    bool pull_from_server = false;
 };
 
 std::vector<ugc_details> query_to_details(const SteamUGCQueryCompleted_t& query)
@@ -271,6 +277,8 @@ struct steam_info
 
     steam_info()
     {
+        printf("Initialising steam api\n");
+
         if(!SteamAPI_Init())
             throw std::runtime_error("Could not init api");
 
@@ -286,6 +294,8 @@ struct steam_info
 
     ~steam_info()
     {
+        printf("Destroying steam api\n");
+
         SteamAPI_Shutdown();
     }
 };
@@ -450,25 +460,46 @@ struct steam_api
 
     void set_network_items(const std::vector<ugc_details>& details)
     {
-        std::vector<PublishedFileId_t> old_items;
         std::map<PublishedFileId_t, ugc_storage*> item_map;
 
         for(ugc_storage& store : items)
         {
-            old_items.push_back(store.det.id);
             item_map[store.det.id] = &store;
         }
+
+        std::vector<ugc_storage> additional_items;
 
         std::set<PublishedFileId_t> new_items;
 
         for(const ugc_details& i : details)
         {
+            new_items.insert(i.id);
+
+            ///found an existing item
             if(auto it = item_map.find(i.id); it != item_map.end())
             {
-                it->second->det = i;
-            }
+                ///the servers version is different from the clients
+                if(it->second->det != i)
+                {
+                    it->second->has_server_changes = true;
 
-            new_items.insert(i.id);
+                    ///requested overwriting the local version
+                    if(it->second->pull_from_server)
+                    {
+                        it->second->pull_from_server = false;
+                        it->second->has_server_changes = false;
+
+                        it->second->det = i;
+                    }
+                }
+            }
+            else
+            {
+                ugc_storage store;
+                store.det = i;
+
+                additional_items.push_back(store);
+            }
         }
 
         for(int i=0; i < (int)items.size(); i++)
@@ -480,6 +511,9 @@ struct steam_api
                 continue;
             }
         }
+
+        ///this invalidates item_map, hence why this doesn't directly insert into items in the details loop
+        items.insert(items.end(), additional_items.begin(), additional_items.end());
     }
 
     void poll(const steam_info& info)
@@ -488,7 +522,7 @@ struct steam_api
         {
             last_poll.restart();
 
-            view.fetch(info, exec, [](){});
+            network_fetch(info);
 
             once = true;
         }
