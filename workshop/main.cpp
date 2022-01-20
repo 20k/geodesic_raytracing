@@ -27,17 +27,6 @@ std::vector<std::string> split(const std::string& str, const std::string& delim)
     return tokens;
 }
 
-void free_query_handle(UGCQueryHandle_t* in)
-{
-    ISteamUGC* self = SteamAPI_SteamUGC();
-
-    printf("Freed\n");
-
-    SteamAPI_ISteamUGC_ReleaseQueryUGCRequest(self, *in);
-
-    delete in;
-}
-
 struct steam_api_call_base
 {
     virtual bool poll() = 0;
@@ -48,31 +37,14 @@ struct steam_api_call_base
 template<typename T>
 struct steam_api_call : steam_api_call_base
 {
-    bool has_call = false;
     SteamAPICall_t call;
     std::function<void(const T&)> callback;
 
-    steam_api_call(){}
-
     template<typename U>
-    steam_api_call(SteamAPICall_t in, U&& func)
-    {
-        start(in, std::forward<U>(func));
-    }
-
-    template<typename U>
-    void start(SteamAPICall_t in, U&& func)
-    {
-        callback = func;
-        call = in;
-        has_call = true;
-    }
+    steam_api_call(SteamAPICall_t in, U&& func) : call(in), callback(func) {}
 
     virtual bool poll() override
     {
-        if(!has_call)
-            return false;
-
         ISteamUtils* utils = SteamAPI_SteamUtils();
 
         bool failed = false;
@@ -290,38 +262,6 @@ std::vector<ugc_details> query_to_details(const SteamUGCQueryCompleted_t& query)
     return ret;
 }
 
-struct ugc_request_handle
-{
-    std::shared_ptr<UGCQueryHandle_t> handle;
-    steam_api_call<SteamUGCQueryCompleted_t> call;
-
-    std::vector<ugc_details> items;
-
-    ugc_request_handle(UGCQueryHandle_t in) : handle(new UGCQueryHandle_t(in), free_query_handle)
-    {
-
-    }
-
-    void dispatch()
-    {
-        ISteamUGC* self = SteamAPI_SteamUGC();
-
-        SteamAPICall_t result = SteamAPI_ISteamUGC_SendQueryUGCRequest(self, *handle);
-
-        printf("Dispatched\n");
-
-        call.start(result, [&](const SteamUGCQueryCompleted_t& result)
-        {
-            items = query_to_details(result);
-        });
-    }
-
-    bool poll()
-    {
-        return call.poll();
-    }
-};
-
 struct steam_api
 {
     steady_timer last_poll;
@@ -331,10 +271,6 @@ struct steam_api
     uint64_t steam_id = 0;
 
     bool once = false;
-
-    std::optional<ugc_request_handle> current_query;
-
-    //std::vector<std::shared_ptr<ugc_storage>> items;
 
     std::map<PublishedFileId_t, ugc_storage> items;
     std::set<PublishedFileId_t> was_deleted;
@@ -356,18 +292,6 @@ struct steam_api
 
         std::cout << "Appid " << appid << std::endl;
         std::cout << "Account " << account_id << std::endl;
-    }
-
-    ugc_request_handle request_published_items()
-    {
-        ISteamUGC* ugc = SteamAPI_SteamUGC();
-
-        UGCQueryHandle_t ugchandle = SteamAPI_ISteamUGC_CreateQueryUserUGCRequest(ugc, account_id, k_EUserUGCList_Published, k_EUGCMatchingUGCType_All, k_EUserUGCListSortOrder_CreationOrderDesc, appid, appid, 1);
-
-        //SteamAPI_ISteamUGC_SetReturnOnlyIDs(ugc, ugchandle, true);
-        SteamAPI_ISteamUGC_SetReturnKeyValueTags(ugc, ugchandle, true);
-
-        return ugchandle;
     }
 
     ugc_storage& create_local_item(PublishedFileId_t id)
@@ -499,56 +423,72 @@ struct steam_api
         }
     }
 
+    void set_network_items(const std::vector<ugc_details>& details)
+    {
+        std::vector<PublishedFileId_t> old_items;
+
+        for(const auto& [id, _] : items)
+        {
+            old_items.push_back(id);
+        }
+
+        std::set<PublishedFileId_t> new_items;
+
+        for(const ugc_details& i : details)
+        {
+            if(is_local_deleted(i.id))
+                continue;
+
+            std::string directory = "./content/" + std::to_string(i.id);
+
+            create_local_item(i.id).det = i;
+
+            new_items.insert(i.id);
+        }
+
+        for(auto id : old_items)
+        {
+            if(new_items.count(id) == 0)
+            {
+                delete_local_item(id);
+            }
+        }
+    }
+
     void poll()
     {
         if(last_poll.get_elapsed_time_s() > 20 || !once)
         {
             last_poll.restart();
 
-            current_query = request_published_items();
-            current_query.value().dispatch();
+            ISteamUGC* ugc = SteamAPI_SteamUGC();
+
+            UGCQueryHandle_t raw_ugc_handle = SteamAPI_ISteamUGC_CreateQueryUserUGCRequest(ugc, account_id, k_EUserUGCList_Published, k_EUGCMatchingUGCType_All, k_EUserUGCListSortOrder_CreationOrderDesc, appid, appid, 1);
+
+            SteamAPI_ISteamUGC_SetReturnKeyValueTags(ugc, raw_ugc_handle, true);
+
+            SteamAPICall_t result = SteamAPI_ISteamUGC_SendQueryUGCRequest(ugc, raw_ugc_handle);
+
+            ///capture handle explicitly so it doesn't go out of scope until the api call is complete
+            steam_api_call<SteamUGCQueryCompleted_t> call(result, [raw_ugc_handle, this](const SteamUGCQueryCompleted_t& result)
+            {
+                std::vector<ugc_details> details = query_to_details(result);
+
+                set_network_items(details);
+
+                ISteamUGC* ugc = SteamAPI_SteamUGC();
+
+                SteamAPI_ISteamUGC_ReleaseQueryUGCRequest(ugc, raw_ugc_handle);
+
+                printf("Completed and released query\n");
+            });
+
+            exec.add(call);
 
             once = true;
         }
 
         SteamAPI_RunCallbacks();
-
-        if(current_query.has_value())
-        {
-            if(current_query->poll())
-            {
-                std::vector<PublishedFileId_t> old_items;
-
-                for(const auto& [id, _] : items)
-                {
-                    old_items.push_back(id);
-                }
-
-                std::set<PublishedFileId_t> new_items;
-
-                for(const ugc_details& i : current_query->items)
-                {
-                    if(is_local_deleted(i.id))
-                        continue;
-
-                    std::string directory = "./content/" + std::to_string(i.id);
-
-                    create_local_item(i.id).det = i;
-
-                    new_items.insert(i.id);
-                }
-
-                for(auto id : old_items)
-                {
-                    if(new_items.count(id) == 0)
-                    {
-                        delete_local_item(id);
-                    }
-                }
-
-                current_query = std::nullopt;
-            }
-        }
 
         exec.poll();
     }
@@ -784,8 +724,6 @@ int main()
     std::filesystem::create_directory("./content");
 
     steam_api steam;
-
-    //steam.create_item();
 
     while(!win.should_close())
     {
