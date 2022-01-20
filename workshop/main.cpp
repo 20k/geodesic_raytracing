@@ -308,15 +308,17 @@ struct steam_info
         account_id = (steam_id & 0xFFFFFFFF);
     }
 
-    steam_info(const steam_info&) = delete;
-    steam_info& operator=(const steam_info&) = delete;
-
     ~steam_info()
     {
         printf("Destroying steam api\n");
 
         SteamAPI_Shutdown();
     }
+
+    steam_info(const steam_info&) = delete;
+    steam_info(steam_info&&) = delete;
+    steam_info& operator=(const steam_info&) = delete;
+    steam_info& operator=(steam_info&&) = delete;
 };
 
 struct ugc_view
@@ -361,11 +363,6 @@ struct steam_api
     ugc_view view;
 
     steam_callback_executor exec;
-
-    ugc_storage& create_local_item(PublishedFileId_t id)
-    {
-        return items[id];
-    }
 
     std::optional<ugc_storage*> find_local_item(PublishedFileId_t id)
     {
