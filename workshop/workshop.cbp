@@ -106,6 +106,8 @@
 		<Unit filename="../deps/toolkit/stacktrace.cpp" />
 		<Unit filename="../deps/toolkit/texture.cpp" />
 		<Unit filename="main.cpp" />
+		<Unit filename="steam_ugc_manager.cpp" />
+		<Unit filename="steam_ugc_manager.hpp" />
 		<Extensions>
 			<lib_finder disable_auto="1" />
 		</Extensions>
