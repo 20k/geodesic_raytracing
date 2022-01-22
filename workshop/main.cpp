@@ -353,7 +353,7 @@ struct ugc_view
     }
 };
 
-struct steam_api
+struct steam_ugc_update_manager
 {
     steady_timer last_poll;
 
@@ -798,7 +798,7 @@ int main()
 
     steam_info info;
 
-    steam_api steam;
+    steam_ugc_update_manager steam;
 
     while(!win.should_close())
     {
