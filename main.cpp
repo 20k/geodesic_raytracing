@@ -359,16 +359,9 @@ int main()
         }
     }
 
-    //std::vector<metrics::metric_base*> all_metrics;
-
     content_manager all_content;
 
     all_content.add_content_folder("./scripts");
-
-    /*for(const std::string& sname : scripts)
-    {
-        all_metrics.push_back(load_metric_from_script(all_content, sname));
-    }*/
 
     metrics::config cfg;
     ///necessary for double schwarzs
@@ -857,8 +850,6 @@ int main()
 
             ImGui::End();
         }
-
-        //auto& current_metric = all_metrics[selected_idx];
 
         int width = win.get_window_size().x();
         int height = win.get_window_size().y();
