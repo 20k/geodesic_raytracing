@@ -178,13 +178,17 @@ struct steam_info
 struct ugc_view
 {
     std::vector<ugc_details> items;
+    EUserUGCList type = k_EUserUGCList_Published;
+
+    void only_get_published();
+    void only_get_subscribed();
 
     template<typename T>
     void fetch(const steam_info& info, steam_callback_executor& exec, T&& on_complete)
     {
         ISteamUGC* ugc = SteamAPI_SteamUGC();
 
-        UGCQueryHandle_t raw_ugc_handle = SteamAPI_ISteamUGC_CreateQueryUserUGCRequest(ugc, info.account_id, k_EUserUGCList_Published, k_EUGCMatchingUGCType_All, k_EUserUGCListSortOrder_CreationOrderDesc, info.appid, info.appid, 1);
+        UGCQueryHandle_t raw_ugc_handle = SteamAPI_ISteamUGC_CreateQueryUserUGCRequest(ugc, info.account_id, type, k_EUGCMatchingUGCType_All, k_EUserUGCListSortOrder_CreationOrderDesc, info.appid, info.appid, 1);
 
         SteamAPI_ISteamUGC_SetReturnKeyValueTags(ugc, raw_ugc_handle, true);
 
@@ -217,6 +221,8 @@ struct steam_ugc_update_manager
     ugc_view view;
 
     steam_callback_executor exec;
+
+    steam_ugc_update_manager();
 
     std::optional<ugc_storage*> find_local_item(PublishedFileId_t id);
 

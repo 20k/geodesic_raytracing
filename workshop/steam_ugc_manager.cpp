@@ -28,6 +28,16 @@ std::string from_c_str(const char* ptr)
     return std::string(ptr, ptr + size);
 }
 
+void ugc_view::only_get_published()
+{
+    type = k_EUserUGCList_Published;
+}
+
+void ugc_view::only_get_subscribed()
+{
+    type = k_EUserUGCList_Subscribed;
+}
+
 void ugc_update::modify(UGCUpdateHandle_t handle) const
 {
     ISteamUGC* ugc = SteamAPI_SteamUGC();
@@ -143,6 +153,11 @@ std::vector<ugc_details> query_to_details(const SteamUGCQueryCompleted_t& query)
     }
 
     return ret;
+}
+
+steam_ugc_update_manager::steam_ugc_update_manager()
+{
+    view.only_get_published();
 }
 
 std::optional<ugc_storage*> steam_ugc_update_manager::find_local_item(PublishedFileId_t id)

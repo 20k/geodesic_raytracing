@@ -16,6 +16,7 @@
 #include <toolkit/fs_helpers.hpp>
 #include <filesystem>
 #include "steam.hpp"
+#include "workshop/steam_ugc_manager.hpp"
 //#include "dual_complex.hpp"
 
 /**
@@ -302,9 +303,221 @@ int calculate_ray_count(int width, int height)
     return (height - 1) * width + width - 1;
 }
 
+std::vector<std::string> get_files_with_extension(const std::string& folder, const std::string& ext)
+{
+    std::vector<std::string> ret;
+
+    try
+    {
+        for(const auto& entry : std::filesystem::directory_iterator{folder})
+        {
+            if(entry.path().string().ends_with(ext))
+            {
+                ret.push_back(std::filesystem::absolute(entry).string());
+            }
+        }
+    }
+    catch(...)
+    {
+        std::cout << "No content " << folder << " for ext " << ext << std::endl;
+    }
+
+    return ret;
+}
+
+struct content
+{
+    std::string folder;
+
+    std::vector<std::string> metrics;
+    std::vector<std::string> configs;
+    std::vector<std::string> coordinates;
+    std::vector<std::string> origins;
+
+    void load(const std::string& path)
+    {
+        folder = path;
+
+        std::filesystem::path coordinate = folder / std::filesystem::path("coordinates");
+        std::filesystem::path origin = folder / std::filesystem::path("origins");
+
+        metrics = get_files_with_extension(path, ".js");
+        configs = get_files_with_extension(path, ".json");
+        coordinates = get_files_with_extension(coordinate.string(), ".js");
+        origins = get_files_with_extension(origin.string(), ".js");
+    }
+};
+
+struct metric_manager
+{
+    std::vector<content> content_directories;
+
+    void add_content_folder(const std::string& folder)
+    {
+        for(const content& c : content_directories)
+        {
+            if(c.folder == folder)
+                return;
+        }
+
+        content con;
+        con.load(folder);
+
+        content_directories.push_back(con);
+    }
+
+    std::optional<std::string> lookup_path_to_config_file(const std::string& name)
+    {
+        std::string name_as_file = name + ".json";
+
+        for(const content& c : content_directories)
+        {
+            for(const std::string& s : c.configs)
+            {
+                std::string fname = std::filesystem::path(s).filename().string();
+
+                if(fname == name_as_file)
+                    return s;
+
+            }
+        }
+
+        return std::nullopt;
+    }
+
+    std::optional<std::string> lookup_path_to_coordinates_file(const std::string& name)
+    {
+        std::string name_as_file = name + ".js";
+
+        for(const content& c : content_directories)
+        {
+            for(const std::string& s : c.coordinates)
+            {
+                std::string fname = std::filesystem::path(s).filename().string();
+
+                if(fname == name_as_file)
+                    return s;
+
+            }
+        }
+
+        return std::nullopt;
+    }
+
+    std::optional<std::string> lookup_path_to_origins_file(const std::string& name)
+    {
+        std::string name_as_file = name + ".js";
+
+        for(const content& c : content_directories)
+        {
+            for(const std::string& s : c.origins)
+            {
+                std::string fname = std::filesystem::path(s).filename().string();
+
+                if(fname == name_as_file)
+                    return s;
+
+            }
+        }
+
+        return std::nullopt;
+    }
+};
+
+metrics::metric* load_metric_from_script(metric_manager& all_content, const std::string& sname)
+{
+    js_metric jfunc(file::read(sname, file::mode::TEXT));
+
+    std::string cfg = sname;
+
+    assert(cfg.ends_with(".js"));
+
+    cfg.pop_back();
+    cfg.pop_back();
+    cfg.pop_back();
+
+    std::string base_name = cfg;
+
+    cfg += ".json";
+
+    nlohmann::json js = nlohmann::json::parse(file::read(cfg, file::mode::TEXT));
+
+    auto met = new metrics::metric;
+
+    if(js.count("inherit_settings"))
+    {
+        std::string new_filename = js["inherit_settings"];
+
+        std::optional<std::string> lookup_file = all_content.lookup_path_to_config_file(new_filename);
+
+        if(!lookup_file.has_value())
+            throw std::runtime_error("Could not lookup " + new_filename);
+
+        nlohmann::json parent_json = nlohmann::json::parse(file::read(lookup_file.value(), file::mode::TEXT));
+
+        metrics::metric_config parent;
+        parent.load(parent_json);
+
+        met->metric_cfg = parent;
+    }
+
+    met->metric_cfg.load(js);
+
+    std::optional<std::string> to_polar_file = all_content.lookup_path_to_coordinates_file(met->metric_cfg.to_polar);
+    std::optional<std::string> from_polar_file = all_content.lookup_path_to_coordinates_file(met->metric_cfg.from_polar);
+    std::optional<std::string> origin_file = all_content.lookup_path_to_origins_file(met->metric_cfg.origin_distance);
+
+    if(!to_polar_file.has_value())
+        throw std::runtime_error("No to polar file " + met->metric_cfg.to_polar);
+
+    if(!from_polar_file.has_value())
+        throw std::runtime_error("No from polar file " + met->metric_cfg.from_polar);
+
+    if(!origin_file.has_value())
+        throw std::runtime_error("No origin coordinate system file " + met->metric_cfg.origin_distance);
+
+    js_function func_to_polar(file::read(to_polar_file.value(), file::mode::TEXT));
+    js_function func_from_polar(file::read(from_polar_file.value(), file::mode::TEXT));
+    js_single_function fun_origin_distance(file::read(origin_file.value(), file::mode::TEXT));
+
+    std::cout << "loading " << sname << std::endl;
+
+    met->desc.load(jfunc, func_to_polar, func_from_polar, fun_origin_distance);
+
+    printf("Finished loading script\n");
+
+    return met;
+}
+
+metrics::metric* load_metric_from_folder(metric_manager& all_content, const std::string& folder)
+{
+    for(const auto& entry : std::filesystem::directory_iterator{folder})
+    {
+        std::string name = entry.path().string();
+
+        if(name.ends_with(".js"))
+        {
+            return load_metric_from_script(all_content, name);
+        }
+    }
+
+    throw std::runtime_error("No .js files found in folder");
+}
+
 ///i need the ability to have dynamic parameters
 int main()
 {
+    bool has_new_content = false;
+
+    steam_info steam;
+
+    ugc_view workshop;
+    workshop.only_get_subscribed();
+
+    steam_callback_executor exec;
+
+    workshop.fetch(steam, exec, [&](){has_new_content = true;});
+
     //dual_types::test_operation();
 
     render_settings sett;
@@ -348,58 +561,13 @@ int main()
 
     std::vector<metrics::metric_base*> all_metrics;
 
+    metric_manager all_content;
+
+    all_content.add_content_folder("./scripts");
+
     for(const std::string& sname : scripts)
     {
-        js_metric jfunc(file::read(sname, file::mode::TEXT));
-
-        std::string cfg = sname;
-
-        assert(cfg.ends_with(".js"));
-
-        cfg.pop_back();
-        cfg.pop_back();
-        cfg.pop_back();
-
-        std::string base_name = cfg;
-
-        cfg += ".json";
-
-        nlohmann::json js = nlohmann::json::parse(file::read(cfg, file::mode::TEXT));
-
-        auto met = new metrics::metric;
-
-        if(js.count("inherit_settings"))
-        {
-            std::filesystem::path p(sname);
-            p.remove_filename();
-
-            std::string new_filename = js["inherit_settings"];
-
-            new_filename += ".json";
-
-            p = p / new_filename;
-
-            nlohmann::json parent_json = nlohmann::json::parse(file::read(p.string(), file::mode::TEXT));
-
-            metrics::metric_config parent;
-            parent.load(parent_json);
-
-            met->metric_cfg = parent;
-        }
-
-        met->metric_cfg.load(js);
-
-        js_function func_to_polar(file::read("./scripts/coordinates/" + met->metric_cfg.to_polar + ".js", file::mode::TEXT));
-        js_function func_from_polar(file::read("./scripts/coordinates/" + met->metric_cfg.from_polar + ".js", file::mode::TEXT));
-        js_single_function fun_origin_distance(file::read("./scripts/origins/" + met->metric_cfg.origin_distance + ".js", file::mode::TEXT));
-
-        std::cout << "loading " << sname << std::endl;
-
-        met->desc.load(jfunc, func_to_polar, func_from_polar, fun_origin_distance);
-
-        printf("Doneload\n");
-
-        all_metrics.push_back(met);
+        all_metrics.push_back(load_metric_from_script(all_content, sname));
     }
 
     metrics::config cfg;
@@ -553,17 +721,31 @@ int main()
     int selected_idx = -1;
     float selected_error = 0;
 
-    steam_api steam;
-    steam.init();
-
-    std::vector<uint64_t> subscribed = steam.get_subscribed_items();
-
-    std::cout << "Num subscribed " << subscribed.size() << std::endl;
-
     printf("Pre main\n");
 
     while(!win.should_close())
     {
+        exec.poll();
+
+        if(has_new_content)
+        {
+            for(const ugc_details& det : workshop.items)
+            {
+                std::string path = det.absolute_content_path;
+
+                if(path == "")
+                    continue;
+
+                all_content.add_content_folder(path);
+
+                std::cout << "Loading content " << path << std::endl;
+
+                all_metrics.push_back(load_metric_from_folder(all_content, path));
+            }
+
+            has_new_content = false;
+        }
+
         win.poll();
 
         auto buffer_size = rtex[which_buffer].size<2>();
