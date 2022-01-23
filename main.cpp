@@ -325,16 +325,16 @@ std::vector<std::string> get_files_with_extension(const std::string& folder, con
     return ret;
 }
 
-struct metric_manager;
+struct content_manager;
 struct content;
 
-metrics::metric_config load_config(metric_manager& all_content, const std::string& filename, bool inherit);
+metrics::metric_config load_config(content_manager& all_content, const std::string& filename, bool inherit);
 
 struct metric_cache
 {
     metrics::metric* met = nullptr;
 
-    metrics::metric* lazy_fetch(metric_manager& manage, content& c, const std::string& friendly_name);
+    metrics::metric* lazy_fetch(content_manager& manage, content& c, const std::string& friendly_name);
 };
 
 struct content
@@ -349,7 +349,7 @@ struct content
 
     std::map<std::string, metric_cache> cache;
 
-    void load(metric_manager& all_content, const std::string& path)
+    void load(content_manager& all_content, const std::string& path)
     {
         folder = path;
 
@@ -390,13 +390,13 @@ struct content
         throw std::runtime_error("No config for filename " + filename);
     }
 
-    metrics::metric* lazy_fetch(metric_manager& manage, const std::string& friendly_name)
+    metrics::metric* lazy_fetch(content_manager& manage, const std::string& friendly_name)
     {
         return cache[friendly_name].lazy_fetch(manage, *this, friendly_name);
     }
 };
 
-struct metric_manager
+struct content_manager
 {
     std::vector<content> content_directories;
 
@@ -467,7 +467,7 @@ struct metric_manager
     }
 };
 
-metrics::metric* load_metric_from_script(metric_manager& all_content, const std::string& sname)
+metrics::metric* load_metric_from_script(content_manager& all_content, const std::string& sname)
 {
     js_metric jfunc(file::read(sname, file::mode::TEXT));
 
@@ -513,7 +513,7 @@ metrics::metric* load_metric_from_script(metric_manager& all_content, const std:
     return met;
 }
 
-metrics::metric* load_metric_from_folder(metric_manager& all_content, const std::string& folder)
+metrics::metric* load_metric_from_folder(content_manager& all_content, const std::string& folder)
 {
     for(const auto& entry : std::filesystem::directory_iterator{folder})
     {
@@ -528,7 +528,7 @@ metrics::metric* load_metric_from_folder(metric_manager& all_content, const std:
     throw std::runtime_error("No .js files found in folder");
 }
 
-metrics::metric* metric_cache::lazy_fetch(metric_manager& manage, content& c, const std::string& friendly_name)
+metrics::metric* metric_cache::lazy_fetch(content_manager& manage, content& c, const std::string& friendly_name)
 {
     if(met == nullptr)
     {
@@ -540,7 +540,7 @@ metrics::metric* metric_cache::lazy_fetch(metric_manager& manage, content& c, co
     return met;
 }
 
-metrics::metric_config load_config(metric_manager& all_content, const std::string& filename, bool inherit)
+metrics::metric_config load_config(content_manager& all_content, const std::string& filename, bool inherit)
 {
     metrics::metric_config cfg;
 
@@ -625,7 +625,7 @@ int main()
 
     //std::vector<metrics::metric_base*> all_metrics;
 
-    metric_manager all_content;
+    content_manager all_content;
 
     all_content.add_content_folder("./scripts");
 
