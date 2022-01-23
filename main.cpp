@@ -410,6 +410,19 @@ struct content_manager
         content_directories.push_back(con);
     }
 
+    std::optional<std::filesystem::path> lookup_path_to_metric_file(const std::string& name)
+    {
+        std::optional<std::filesystem::path> cfg = lookup_path_to_config_file(name);
+
+        if(!cfg.has_value())
+            return std::nullopt;
+
+        std::filesystem::path met = cfg.value();
+        met.replace_extension(".js");
+
+        return met;
+    }
+
     std::optional<std::filesystem::path> lookup_path_to_config_file(const std::string& name)
     {
         for(const content& c : content_directories)
@@ -520,10 +533,20 @@ metrics::metric* metric_cache::lazy_fetch(content_manager& manage, content& c, c
 {
     if(met == nullptr)
     {
-        ///this aint right
-        std::filesystem::path path = c.folder / std::filesystem::path(friendly_name + ".js");
+        std::cout << "Serving up " << friendly_name << std::endl;
 
-        met = load_metric_from_script(manage, path);
+        std::optional<std::filesystem::path> path = manage.lookup_path_to_metric_file(friendly_name);
+
+        if(!path.has_value())
+        {
+            std::cout << "No metric found for " << friendly_name << std::endl;
+
+            throw std::runtime_error("No metric found for " + friendly_name);
+        }
+
+        std::cout << "Found path " << path.value().string() << std::endl;
+
+        met = load_metric_from_script(manage, path.value());
     }
 
     return met;
