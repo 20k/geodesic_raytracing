@@ -4,6 +4,9 @@
 #include "dual.hpp"
 #include <set>
 #include <optional>
+#include <cmath>
+#include <map>
+#include <assert.h>
 
 namespace dual_types
 {

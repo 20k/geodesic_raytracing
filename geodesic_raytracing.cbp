@@ -107,6 +107,8 @@
 		<Unit filename="cl.cl">
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>
+		<Unit filename="content_manager.cpp" />
+		<Unit filename="content_manager.hpp" />
 		<Unit filename="deps/imgui/backends/imgui_impl_glfw.cpp" />
 		<Unit filename="deps/imgui/backends/imgui_impl_opengl3.cpp" />
 		<Unit filename="deps/imgui/imgui.cpp" />

@@ -3,6 +3,7 @@
 
 #include "dual.hpp"
 #include "dual_value.hpp"
+#include <nlohmann/json.hpp>
 
 namespace metrics
 {
