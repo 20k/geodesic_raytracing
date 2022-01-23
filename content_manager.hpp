@@ -32,6 +32,7 @@ struct content
 
     void load(content_manager& all_content, std::filesystem::path path);
 
+    std::optional<std::filesystem::path> lookup_path_to_metric_file(const std::string& name);
     metrics::metric_config* get_config_of_filename(std::filesystem::path filename);
 
     metrics::metric* lazy_fetch(content_manager& manage, const std::string& friendly_name);

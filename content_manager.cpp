@@ -92,7 +92,7 @@ metrics::metric* metric_cache::lazy_fetch(content_manager& manage, content& c, c
     {
         std::cout << "Serving up " << friendly_name << std::endl;
 
-        std::optional<std::filesystem::path> path = manage.lookup_path_to_metric_file(friendly_name);
+        std::optional<std::filesystem::path> path = c.lookup_path_to_metric_file(friendly_name);
 
         if(!path.has_value())
         {
@@ -149,6 +149,23 @@ void content::load(content_manager& all_content, std::filesystem::path path)
 
         base_configs.push_back(cfg);
     }
+}
+
+std::optional<std::filesystem::path> content::lookup_path_to_metric_file(const std::string& name)
+{
+    for(int i=0; i < (int)base_configs.size(); i++)
+    {
+        if(base_configs[i].name == name)
+        {
+            std::filesystem::path cfg_path = configs[i];
+
+            cfg_path.replace_extension(".js");
+
+            return cfg_path;
+       }
+    }
+
+    return std::nullopt;
 }
 
 metrics::metric_config* content::get_config_of_filename(std::filesystem::path filename)
