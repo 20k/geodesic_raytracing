@@ -526,9 +526,18 @@ int main()
     ///quite hacky
     metrics::metric* current_metric = nullptr;
 
+    steady_timer workshop_poll;
+
     while(!win.should_close())
     {
         exec.poll();
+
+        if(workshop_poll.get_elapsed_time_s() > 20)
+        {
+            workshop.fetch(steam, exec, [&](){has_new_content = true;});
+
+            workshop_poll.restart();
+        }
 
         if(has_new_content)
         {
