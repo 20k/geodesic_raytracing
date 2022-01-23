@@ -303,9 +303,9 @@ int calculate_ray_count(int width, int height)
     return (height - 1) * width + width - 1;
 }
 
-std::vector<std::string> get_files_with_extension(const std::string& folder, const std::string& ext)
+std::vector<std::filesystem::path> get_files_with_extension(std::filesystem::path folder, const std::string& ext)
 {
-    std::vector<std::string> ret;
+    std::vector<std::filesystem::path> ret;
 
     try
     {
@@ -313,7 +313,7 @@ std::vector<std::string> get_files_with_extension(const std::string& folder, con
         {
             if(entry.path().string().ends_with(ext))
             {
-                ret.push_back(std::filesystem::absolute(entry).string());
+                ret.push_back(std::filesystem::absolute(entry));
             }
         }
     }
@@ -328,7 +328,7 @@ std::vector<std::string> get_files_with_extension(const std::string& folder, con
 struct content_manager;
 struct content;
 
-metrics::metric_config load_config(content_manager& all_content, const std::string& filename, bool inherit);
+metrics::metric_config load_config(content_manager& all_content, std::filesystem::path filename, bool inherit);
 
 struct metric_cache
 {
@@ -339,17 +339,17 @@ struct metric_cache
 
 struct content
 {
-    std::string folder;
+    std::filesystem::path folder;
 
-    std::vector<std::string> metrics;
-    std::vector<std::string> configs;
+    std::vector<std::filesystem::path> metrics;
+    std::vector<std::filesystem::path> configs;
     std::vector<metrics::metric_config> base_configs;
-    std::vector<std::string> coordinates;
-    std::vector<std::string> origins;
+    std::vector<std::filesystem::path> coordinates;
+    std::vector<std::filesystem::path> origins;
 
     std::map<std::string, metric_cache> cache;
 
-    void load(content_manager& all_content, const std::string& path)
+    void load(content_manager& all_content, std::filesystem::path path)
     {
         folder = path;
 
@@ -361,7 +361,7 @@ struct content
         coordinates = get_files_with_extension(coordinate.string(), ".js");
         origins = get_files_with_extension(origin.string(), ".js");
 
-        for(const std::string& cfg_name : configs)
+        for(const std::filesystem::path& cfg_name : configs)
         {
             metrics::metric_config cfg = load_config(all_content, cfg_name, false);
 
@@ -369,15 +369,11 @@ struct content
         }
     }
 
-    metrics::metric_config* get_config_of_filename(std::string filename)
+    metrics::metric_config* get_config_of_filename(std::filesystem::path filename)
     {
-        assert(filename.ends_with(".js"));
+        assert(filename.extension().string() == ".js");
 
-        filename.pop_back();
-        filename.pop_back();
-        filename.pop_back();
-
-        filename += ".json";
+        filename.replace_extension(".json");
 
         for(int i=0; i < (int)configs.size(); i++)
         {
@@ -387,7 +383,7 @@ struct content
             }
         }
 
-        throw std::runtime_error("No config for filename " + filename);
+        throw std::runtime_error("No config for filename " + filename.string());
     }
 
     metrics::metric* lazy_fetch(content_manager& manage, const std::string& friendly_name)
@@ -400,7 +396,7 @@ struct content_manager
 {
     std::vector<content> content_directories;
 
-    void add_content_folder(const std::string& folder)
+    void add_content_folder(std::filesystem::path folder)
     {
         for(const content& c : content_directories)
         {
@@ -414,7 +410,7 @@ struct content_manager
         content_directories.push_back(con);
     }
 
-    std::optional<std::string> lookup_path_to_config_file(const std::string& name)
+    std::optional<std::filesystem::path> lookup_path_to_config_file(const std::string& name)
     {
         for(const content& c : content_directories)
         {
@@ -428,15 +424,15 @@ struct content_manager
         return std::nullopt;
     }
 
-    std::optional<std::string> lookup_path_to_coordinates_file(const std::string& name)
+    std::optional<std::filesystem::path> lookup_path_to_coordinates_file(const std::string& name)
     {
         std::string name_as_file = name + ".js";
 
         for(const content& c : content_directories)
         {
-            for(const std::string& s : c.coordinates)
+            for(const std::filesystem::path& s : c.coordinates)
             {
-                std::string fname = std::filesystem::path(s).filename().string();
+                std::string fname = s.filename().string();
 
                 if(fname == name_as_file)
                     return s;
@@ -447,15 +443,15 @@ struct content_manager
         return std::nullopt;
     }
 
-    std::optional<std::string> lookup_path_to_origins_file(const std::string& name)
+    std::optional<std::filesystem::path> lookup_path_to_origins_file(const std::string& name)
     {
         std::string name_as_file = name + ".js";
 
         for(const content& c : content_directories)
         {
-            for(const std::string& s : c.origins)
+            for(const std::filesystem::path& s : c.origins)
             {
-                std::string fname = std::filesystem::path(s).filename().string();
+                std::string fname = s.filename().string();
 
                 if(fname == name_as_file)
                     return s;
@@ -467,29 +463,21 @@ struct content_manager
     }
 };
 
-metrics::metric* load_metric_from_script(content_manager& all_content, const std::string& sname)
+metrics::metric* load_metric_from_script(content_manager& all_content, std::filesystem::path sname)
 {
-    js_metric jfunc(file::read(sname, file::mode::TEXT));
+    js_metric jfunc(file::read(sname.string(), file::mode::TEXT));
 
-    std::string cfg = sname;
+    std::filesystem::path cfg = sname;
 
-    assert(cfg.ends_with(".js"));
-
-    cfg.pop_back();
-    cfg.pop_back();
-    cfg.pop_back();
-
-    std::string base_name = cfg;
-
-    cfg += ".json";
+    cfg.replace_extension(".json");
 
     auto met = new metrics::metric;
 
     met->metric_cfg = load_config(all_content, cfg, true);
 
-    std::optional<std::string> to_polar_file = all_content.lookup_path_to_coordinates_file(met->metric_cfg.to_polar);
-    std::optional<std::string> from_polar_file = all_content.lookup_path_to_coordinates_file(met->metric_cfg.from_polar);
-    std::optional<std::string> origin_file = all_content.lookup_path_to_origins_file(met->metric_cfg.origin_distance);
+    std::optional<std::filesystem::path> to_polar_file = all_content.lookup_path_to_coordinates_file(met->metric_cfg.to_polar);
+    std::optional<std::filesystem::path> from_polar_file = all_content.lookup_path_to_coordinates_file(met->metric_cfg.from_polar);
+    std::optional<std::filesystem::path> origin_file = all_content.lookup_path_to_origins_file(met->metric_cfg.origin_distance);
 
     if(!to_polar_file.has_value())
         throw std::runtime_error("No to polar file " + met->metric_cfg.to_polar);
@@ -500,9 +488,9 @@ metrics::metric* load_metric_from_script(content_manager& all_content, const std
     if(!origin_file.has_value())
         throw std::runtime_error("No origin coordinate system file " + met->metric_cfg.origin_distance);
 
-    js_function func_to_polar(file::read(to_polar_file.value(), file::mode::TEXT));
-    js_function func_from_polar(file::read(from_polar_file.value(), file::mode::TEXT));
-    js_single_function fun_origin_distance(file::read(origin_file.value(), file::mode::TEXT));
+    js_function func_to_polar(file::read(to_polar_file.value().string(), file::mode::TEXT));
+    js_function func_from_polar(file::read(from_polar_file.value().string(), file::mode::TEXT));
+    js_single_function fun_origin_distance(file::read(origin_file.value().string(), file::mode::TEXT));
 
     std::cout << "loading " << sname << std::endl;
 
@@ -513,13 +501,13 @@ metrics::metric* load_metric_from_script(content_manager& all_content, const std
     return met;
 }
 
-metrics::metric* load_metric_from_folder(content_manager& all_content, const std::string& folder)
+metrics::metric* load_metric_from_folder(content_manager& all_content, std::filesystem::path folder)
 {
     for(const auto& entry : std::filesystem::directory_iterator{folder})
     {
-        std::string name = entry.path().string();
+        std::filesystem::path name = entry.path();
 
-        if(name.ends_with(".js"))
+        if(name.extension().string() == ".js")
         {
             return load_metric_from_script(all_content, name);
         }
@@ -532,7 +520,8 @@ metrics::metric* metric_cache::lazy_fetch(content_manager& manage, content& c, c
 {
     if(met == nullptr)
     {
-        std::string path = (std::filesystem::path(c.folder) / std::filesystem::path(friendly_name + ".js")).string();
+        ///this aint right
+        std::filesystem::path path = c.folder / std::filesystem::path(friendly_name + ".js");
 
         met = load_metric_from_script(manage, path);
     }
@@ -540,22 +529,22 @@ metrics::metric* metric_cache::lazy_fetch(content_manager& manage, content& c, c
     return met;
 }
 
-metrics::metric_config load_config(content_manager& all_content, const std::string& filename, bool inherit)
+metrics::metric_config load_config(content_manager& all_content, std::filesystem::path filename, bool inherit)
 {
     metrics::metric_config cfg;
 
-    nlohmann::json js = nlohmann::json::parse(file::read(filename, file::mode::TEXT));
+    nlohmann::json js = nlohmann::json::parse(file::read(filename.string(), file::mode::TEXT));
 
     if(inherit && js.count("inherit_settings"))
     {
         std::string new_filename = js["inherit_settings"];
 
-        std::optional<std::string> lookup_file = all_content.lookup_path_to_config_file(new_filename);
+        std::optional<std::filesystem::path> lookup_file = all_content.lookup_path_to_config_file(new_filename);
 
         if(!lookup_file.has_value())
             throw std::runtime_error("Could not lookup " + new_filename);
 
-        nlohmann::json parent_json = nlohmann::json::parse(file::read(lookup_file.value(), file::mode::TEXT));
+        nlohmann::json parent_json = nlohmann::json::parse(file::read(lookup_file.value().string(), file::mode::TEXT));
 
         metrics::metric_config parent;
         parent.load(parent_json);
