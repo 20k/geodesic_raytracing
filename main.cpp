@@ -325,16 +325,31 @@ std::vector<std::string> get_files_with_extension(const std::string& folder, con
     return ret;
 }
 
+struct metric_manager;
+struct content;
+
+metrics::metric_config load_config(metric_manager& all_content, const std::string& filename, bool inherit);
+
+struct metric_cache
+{
+    metrics::metric* met = nullptr;
+
+    metrics::metric* lazy_fetch(metric_manager& manage, content& c, const std::string& friendly_name);
+};
+
 struct content
 {
     std::string folder;
 
     std::vector<std::string> metrics;
     std::vector<std::string> configs;
+    std::vector<metrics::metric_config> base_configs;
     std::vector<std::string> coordinates;
     std::vector<std::string> origins;
 
-    void load(const std::string& path)
+    std::map<std::string, metric_cache> cache;
+
+    void load(metric_manager& all_content, const std::string& path)
     {
         folder = path;
 
@@ -345,6 +360,39 @@ struct content
         configs = get_files_with_extension(path, ".json");
         coordinates = get_files_with_extension(coordinate.string(), ".js");
         origins = get_files_with_extension(origin.string(), ".js");
+
+        for(const std::string& cfg_name : configs)
+        {
+            metrics::metric_config cfg = load_config(all_content, cfg_name, false);
+
+            base_configs.push_back(cfg);
+        }
+    }
+
+    metrics::metric_config* get_config_of_filename(std::string filename)
+    {
+        assert(filename.ends_with(".js"));
+
+        filename.pop_back();
+        filename.pop_back();
+        filename.pop_back();
+
+        filename += ".json";
+
+        for(int i=0; i < (int)configs.size(); i++)
+        {
+            if(configs[i] == filename)
+            {
+                return &base_configs[i];
+            }
+        }
+
+        throw std::runtime_error("No config for filename " + filename);
+    }
+
+    metrics::metric* lazy_fetch(metric_manager& manage, const std::string& friendly_name)
+    {
+        return cache[friendly_name].lazy_fetch(manage, *this, friendly_name);
     }
 };
 
@@ -361,24 +409,19 @@ struct metric_manager
         }
 
         content con;
-        con.load(folder);
+        con.load(*this, folder);
 
         content_directories.push_back(con);
     }
 
     std::optional<std::string> lookup_path_to_config_file(const std::string& name)
     {
-        std::string name_as_file = name + ".json";
-
         for(const content& c : content_directories)
         {
-            for(const std::string& s : c.configs)
+            for(int i=0; i < (int)c.base_configs.size(); i++)
             {
-                std::string fname = std::filesystem::path(s).filename().string();
-
-                if(fname == name_as_file)
-                    return s;
-
+                if(c.base_configs[i].name == name)
+                    return c.configs[i];
             }
         }
 
@@ -440,28 +483,9 @@ metrics::metric* load_metric_from_script(metric_manager& all_content, const std:
 
     cfg += ".json";
 
-    nlohmann::json js = nlohmann::json::parse(file::read(cfg, file::mode::TEXT));
-
     auto met = new metrics::metric;
 
-    if(js.count("inherit_settings"))
-    {
-        std::string new_filename = js["inherit_settings"];
-
-        std::optional<std::string> lookup_file = all_content.lookup_path_to_config_file(new_filename);
-
-        if(!lookup_file.has_value())
-            throw std::runtime_error("Could not lookup " + new_filename);
-
-        nlohmann::json parent_json = nlohmann::json::parse(file::read(lookup_file.value(), file::mode::TEXT));
-
-        metrics::metric_config parent;
-        parent.load(parent_json);
-
-        met->metric_cfg = parent;
-    }
-
-    met->metric_cfg.load(js);
+    met->metric_cfg = load_config(all_content, cfg, true);
 
     std::optional<std::string> to_polar_file = all_content.lookup_path_to_coordinates_file(met->metric_cfg.to_polar);
     std::optional<std::string> from_polar_file = all_content.lookup_path_to_coordinates_file(met->metric_cfg.from_polar);
@@ -502,6 +526,46 @@ metrics::metric* load_metric_from_folder(metric_manager& all_content, const std:
     }
 
     throw std::runtime_error("No .js files found in folder");
+}
+
+metrics::metric* metric_cache::lazy_fetch(metric_manager& manage, content& c, const std::string& friendly_name)
+{
+    if(met == nullptr)
+    {
+        std::string path = (std::filesystem::path(c.folder) / std::filesystem::path(friendly_name + ".js")).string();
+
+        met = load_metric_from_script(manage, path);
+    }
+
+    return met;
+}
+
+metrics::metric_config load_config(metric_manager& all_content, const std::string& filename, bool inherit)
+{
+    metrics::metric_config cfg;
+
+    nlohmann::json js = nlohmann::json::parse(file::read(filename, file::mode::TEXT));
+
+    if(inherit && js.count("inherit_settings"))
+    {
+        std::string new_filename = js["inherit_settings"];
+
+        std::optional<std::string> lookup_file = all_content.lookup_path_to_config_file(new_filename);
+
+        if(!lookup_file.has_value())
+            throw std::runtime_error("Could not lookup " + new_filename);
+
+        nlohmann::json parent_json = nlohmann::json::parse(file::read(lookup_file.value(), file::mode::TEXT));
+
+        metrics::metric_config parent;
+        parent.load(parent_json);
+
+        cfg = parent;
+    }
+
+    cfg.load(js);
+
+    return cfg;
 }
 
 ///i need the ability to have dynamic parameters
@@ -559,16 +623,16 @@ int main()
         }
     }
 
-    std::vector<metrics::metric_base*> all_metrics;
+    //std::vector<metrics::metric_base*> all_metrics;
 
     metric_manager all_content;
 
     all_content.add_content_folder("./scripts");
 
-    for(const std::string& sname : scripts)
+    /*for(const std::string& sname : scripts)
     {
         all_metrics.push_back(load_metric_from_script(all_content, sname));
-    }
+    }*/
 
     metrics::config cfg;
     ///necessary for double schwarzs
@@ -723,6 +787,9 @@ int main()
 
     printf("Pre main\n");
 
+    ///quite hacky
+    metrics::metric* current_metric = nullptr;
+
     while(!win.should_close())
     {
         exec.poll();
@@ -736,11 +803,13 @@ int main()
                 if(path == "")
                     continue;
 
+                std::cout << "Added content " << path << std::endl;
+
                 all_content.add_content_folder(path);
 
-                std::cout << "Loading content " << path << std::endl;
+                //std::cout << "Loading content " << path << std::endl;
 
-                all_metrics.push_back(load_metric_from_folder(all_content, path));
+                //all_metrics.push_back(load_metric_from_folder(all_content, path));
             }
 
             has_new_content = false;
@@ -981,22 +1050,41 @@ int main()
 
             ImGui::InputFloat("Error Tolerance", &selected_error, 0.0000001f, 0.00001f, "%.8f");
 
-            std::vector<const char*> items;
+            std::vector<std::string> concrete_strings;
 
-            for(auto& i : all_metrics)
+            std::vector<const char*> items;
+            std::vector<content*> parent_directories;
+
+            for(content& c : all_content.content_directories)
             {
-                items.push_back(i->metric_cfg.name.c_str());
+                for(int idx = 0; idx < (int)c.metrics.size(); idx++)
+                {
+                    std::string friendly_name = c.get_config_of_filename(c.metrics[idx])->name;
+
+                    concrete_strings.push_back(friendly_name);
+                    parent_directories.push_back(&c);
+                }
             }
+
+            for(const std::string& str : concrete_strings)
+            {
+                items.push_back(str.c_str());
+            }
+
+            assert(items.size() > 0);
 
             ImGui::ListBox("Metrics", &selected_idx, &items[0], items.size());
 
-            if(ImGui::Button("Recompile") || current_idx == -1)
+            if(ImGui::Button("Recompile") || current_idx == -1 || current_metric == nullptr)
             {
                 if(selected_idx == -1)
                     selected_idx = 0;
 
                 if(selected_idx != current_idx)
-                    selected_error = all_metrics[selected_idx]->metric_cfg.max_acceleration_change;
+                {
+                    current_metric = parent_directories[selected_idx]->lazy_fetch(all_content, items[selected_idx]);
+                    selected_error = current_metric->metric_cfg.max_acceleration_change;
+                }
 
                 cfg.error_override = selected_error;
 
@@ -1005,7 +1093,7 @@ int main()
                 if(clctx.ctx.programs.size() > 0)
                     clctx.ctx.deregister_program(0);
 
-                std::string argument_string = "-O3 -cl-std=CL2.0 " + all_metrics[selected_idx]->build(cfg);
+                std::string argument_string = "-O3 -cl-std=CL2.0 " + current_metric->build(cfg);
 
                 if(cfg.use_device_side_enqueue)
                 {
@@ -1029,7 +1117,7 @@ int main()
             ImGui::End();
         }
 
-        auto& current_metric = all_metrics[selected_idx];
+        //auto& current_metric = all_metrics[selected_idx];
 
         int width = win.get_window_size().x();
         int height = win.get_window_size().y();
