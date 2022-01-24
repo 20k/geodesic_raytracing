@@ -264,7 +264,8 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
                                                cl::buffer& count_in, cl::buffer& count_out,
                                                cl::buffer& count_finished,
                                                int num_rays,
-                                               bool use_device_side_enqueue)
+                                               bool use_device_side_enqueue,
+                                               cl::buffer& dynamic_config)
 {
     if(use_device_side_enqueue)
     {
@@ -278,6 +279,7 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
         run_args.push_back(count_out);
         run_args.push_back(count_finished);
         run_args.push_back(fallback);
+        run_args.push_back(dynamic_config);
 
         cqueue.exec("relauncher_generic", run_args, {1}, {1});
     }
@@ -294,6 +296,7 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
         run_args.push_back(count_in);
         run_args.push_back(count_out);
         run_args.push_back(count_finished);
+        run_args.push_back(dynamic_config);
 
         cqueue.exec("do_generic_rays", run_args, {num_rays}, {256});
     }
@@ -437,6 +440,8 @@ int main()
     cl::buffer finished_count_1(clctx.ctx);
 
     cl::buffer termination_buffer(clctx.ctx);
+
+    cl::buffer dynamic_config(clctx.ctx);
 
     printf("Post buffer declarations\n");
 
@@ -830,6 +835,20 @@ int main()
                     assert(current_metric);
 
                     selected_error = current_metric->metric_cfg.max_acceleration_change;
+
+                    int dyn_config_bytes = current_metric->dynamic_vars.default_values.size() * sizeof(cl_float);
+
+                    if(dyn_config_bytes < 4)
+                        dyn_config_bytes = 4;
+
+                    dynamic_config.alloc(dyn_config_bytes);
+
+                    std::vector<float> vars = current_metric->dynamic_vars.default_values;
+
+                    if(vars.size() == 0)
+                        vars.resize(1);
+
+                    dynamic_config.write(clctx.cqueue, vars);
                 }
 
                 cfg.error_override = selected_error;
@@ -927,12 +946,13 @@ int main()
                 init_args_prepass.push_back(prepass_height);
                 init_args_prepass.push_back(isnap);
                 init_args_prepass.push_back(base_angle);
+                init_args_prepass.push_back(dynamic_config);
 
                 clctx.cqueue.exec("init_rays_generic", init_args_prepass, {prepass_width*prepass_height}, {256});
 
                 int rays_num = calculate_ray_count(prepass_width, prepass_height);
 
-                execute_kernel(clctx.cqueue, schwarzs_prepass, schwarzs_scratch, finished_1, schwarzs_count_prepass, schwarzs_count_scratch, finished_count_1, rays_num, cfg.use_device_side_enqueue);
+                execute_kernel(clctx.cqueue, schwarzs_prepass, schwarzs_scratch, finished_1, schwarzs_count_prepass, schwarzs_count_scratch, finished_count_1, rays_num, cfg.use_device_side_enqueue, dynamic_config);
 
                 cl::args singular_args;
                 singular_args.push_back(finished_1);
@@ -956,6 +976,7 @@ int main()
             init_args.push_back(prepass_height);
             init_args.push_back(isnap);
             init_args.push_back(base_angle);
+            init_args.push_back(dynamic_config);
 
             clctx.cqueue.exec("init_rays_generic", init_args, {width*height}, {16*16});
 
@@ -975,6 +996,7 @@ int main()
                 snapshot_args.push_back(scamera);
                 snapshot_args.push_back(camera_quat);
                 snapshot_args.push_back(base_angle);
+                snapshot_args.push_back(dynamic_config);
 
                 clctx.cqueue.exec("get_geodesic_path", snapshot_args, {1}, {1});
 
@@ -983,7 +1005,7 @@ int main()
 
             int rays_num = calculate_ray_count(width, height);
 
-            execute_kernel(clctx.cqueue, schwarzs_1, schwarzs_scratch, finished_1, schwarzs_count_1, schwarzs_count_scratch, finished_count_1, rays_num, cfg.use_device_side_enqueue);
+            execute_kernel(clctx.cqueue, schwarzs_1, schwarzs_scratch, finished_1, schwarzs_count_1, schwarzs_count_scratch, finished_count_1, rays_num, cfg.use_device_side_enqueue, dynamic_config);
 
 
             cl::args texture_args;

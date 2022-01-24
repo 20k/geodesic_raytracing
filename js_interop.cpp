@@ -624,7 +624,7 @@ js::value cfg_proxy_get(js::value_context* vctx, js::value target, js::value pro
     sandbox->add(key, 0.f);
 
     dual v;
-    v.make_constant("cfg." + key);
+    v.make_constant("cfg->" + key);
 
     return to_value(*vctx, v);
 }

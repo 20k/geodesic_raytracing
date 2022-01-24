@@ -531,8 +531,10 @@ struct dynamic_config
     #endif // DYNVARS
 };
 
+#define dynamic_config_space __constant
+
 #ifndef GENERIC_BIG_METRIC
-void calculate_metric_generic(float4 spacetime_position, float g_metric_out[])
+void calculate_metric_generic(float4 spacetime_position, float g_metric_out[], dynamic_config_space struct dynamic_config* cfg)
 {
     float v1 = spacetime_position.x;
     float v2 = spacetime_position.y;
@@ -548,7 +550,7 @@ void calculate_metric_generic(float4 spacetime_position, float g_metric_out[])
     g_metric_out[3] = F4_I;
 }
 
-void calculate_partial_derivatives_generic(float4 spacetime_position, float g_metric_partials[])
+void calculate_partial_derivatives_generic(float4 spacetime_position, float g_metric_partials[], dynamic_config_space struct dynamic_config* cfg)
 {
     float v1 = spacetime_position.x;
     float v2 = spacetime_position.y;
@@ -582,7 +584,7 @@ void calculate_partial_derivatives_generic(float4 spacetime_position, float g_me
 ///[8, 9, 10,11]
 ///[12,13,14,15]
 #ifdef GENERIC_BIG_METRIC
-void calculate_metric_generic_big(float4 spacetime_position, float g_metric_out[])
+void calculate_metric_generic_big(float4 spacetime_position, float g_metric_out[], dynamic_config_space struct dynamic_config* cfg)
 {
     float v1 = spacetime_position.x;
     float v2 = spacetime_position.y;
@@ -610,7 +612,7 @@ void calculate_metric_generic_big(float4 spacetime_position, float g_metric_out[
     g_metric_out[15] = F16_I;
 }
 
-void calculate_partial_derivatives_generic_big(float4 spacetime_position, float g_metric_partials[])
+void calculate_partial_derivatives_generic_big(float4 spacetime_position, float g_metric_partials[], dynamic_config_space struct dynamic_config* cfg)
 {
     float v1 = spacetime_position.x;
     float v2 = spacetime_position.y;
@@ -1410,7 +1412,7 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat,
                        int width, int height,
                        __global int* termination_buffer,
                        int prepass_width, int prepass_height,
-                       int flip_geodesic_direction, float2 base_angle)
+                       int flip_geodesic_direction, float2 base_angle, dynamic_config_space struct dynamic_config* cfg)
 {
     int id = get_global_id(0);
 
@@ -1445,7 +1447,7 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat,
 
     #ifndef GENERIC_BIG_METRIC
     float g_metric[4] = {};
-    calculate_metric_generic(at_metric, g_metric);
+    calculate_metric_generic(at_metric, g_metric, cfg);
 
     float4 co_basis = (float4){native_sqrt(-g_metric[0]), native_sqrt(g_metric[1]), native_sqrt(g_metric[2]), native_sqrt(g_metric[3])};
 
@@ -1455,7 +1457,7 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat,
     float4 bphi = (float4)(0, 0, 0, 1/co_basis.w);
     #else
     float g_metric_big[16] = {0};
-    calculate_metric_generic_big(at_metric, g_metric_big);
+    calculate_metric_generic_big(at_metric, g_metric_big, cfg);
 
     ///contravariant
     float4 bT;
@@ -1577,16 +1579,16 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat,
         #ifndef GENERIC_BIG_METRIC
         float g_partials[16] = {0};
 
-        calculate_metric_generic(lightray_spacetime_position, g_metric);
-        calculate_partial_derivatives_generic(lightray_spacetime_position, g_partials);
+        calculate_metric_generic(lightray_spacetime_position, g_metric, cfg);
+        calculate_partial_derivatives_generic(lightray_spacetime_position, g_partials, cfg);
 
         lightray_velocity = fix_light_velocity2(lightray_velocity, g_metric);
         lightray_acceleration = calculate_acceleration(lightray_velocity, g_metric, g_partials);
         #else
         float g_partials_big[64] = {0};
 
-        calculate_metric_generic_big(lightray_spacetime_position, g_metric_big);
-        calculate_partial_derivatives_generic_big(lightray_spacetime_position, g_partials_big);
+        calculate_metric_generic_big(lightray_spacetime_position, g_metric_big, cfg);
+        calculate_partial_derivatives_generic_big(lightray_spacetime_position, g_partials_big, cfg);
 
         //float4 prefix = lightray_velocity;
 
@@ -1696,6 +1698,7 @@ void rk4_evaluate_position_at(float4 position, float4 velocity, float* out_k_pos
 
 #ifdef GENERIC_BIG_METRIC
 ///velocity
+#if 0
 float4 rk4_g(float t, float4 position, float4 velocity)
 {
     /*float4 estimated_pos = position + velocity * t;
@@ -1724,6 +1727,7 @@ float4 rk4_f(float t, float4 position, float4 velocity)
 
     return calculate_acceleration_big(velocity, g_metric_big, g_partials_big);
 }
+#endif // 0
 
 /*void rk4_generic_big(float4* position, float4* velocity, float* step)
 {
@@ -1823,7 +1827,7 @@ float4 rk4_f(float t, float4 position, float4 velocity)
 ///todo:
 ///it would be useful to be able to combine data from multiple ticks which are separated by some delta, but where I don't have control over that delta
 ///I wonder if a taylor series expansion of F(y + dt) might be helpful
-void step_verlet(float4 position, float4 velocity, float4 acceleration, float ds, float4* position_out, float4* velocity_out, float4* acceleration_out)
+void step_verlet(float4 position, float4 velocity, float4 acceleration, float ds, float4* position_out, float4* velocity_out, float4* acceleration_out, dynamic_config_space struct dynamic_config* cfg)
 {
     #ifndef GENERIC_BIG_METRIC
     float g_metric[4] = {};
@@ -1838,16 +1842,16 @@ void step_verlet(float4 position, float4 velocity, float4 acceleration, float ds
     float4 intermediate_next_velocity = velocity + acceleration * ds;
 
     #ifndef GENERIC_BIG_METRIC
-    calculate_metric_generic(next_position, g_metric);
-    calculate_partial_derivatives_generic(next_position, g_partials);
+    calculate_metric_generic(next_position, g_metric, cfg);
+    calculate_partial_derivatives_generic(next_position, g_partials, cfg);
 
     ///1ms
     intermediate_next_velocity = fix_light_velocity2(intermediate_next_velocity, g_metric);
 
     float4 next_acceleration = calculate_acceleration(intermediate_next_velocity, g_metric, g_partials);
     #else
-    calculate_metric_generic_big(next_position, g_metric_big);
-    calculate_partial_derivatives_generic_big(next_position, g_partials_big);
+    calculate_metric_generic_big(next_position, g_metric_big, cfg);
+    calculate_partial_derivatives_generic_big(next_position, g_partials_big, cfg);
 
     //intermediate_next_velocity = fix_light_velocity_big(intermediate_next_velocity, g_metric_big);
     float4 next_acceleration = calculate_acceleration_big(intermediate_next_velocity, g_metric_big, g_partials_big);
@@ -1860,7 +1864,7 @@ void step_verlet(float4 position, float4 velocity, float4 acceleration, float ds
     *acceleration_out = next_acceleration;
 }
 
-void step_euler(float4 position, float4 velocity, float ds, float4* position_out, float4* velocity_out)
+void step_euler(float4 position, float4 velocity, float ds, float4* position_out, float4* velocity_out, dynamic_config_space struct dynamic_config* cfg)
 {
     #ifndef GENERIC_BIG_METRIC
     float g_metric[4] = {};
@@ -1871,15 +1875,15 @@ void step_euler(float4 position, float4 velocity, float ds, float4* position_out
     #endif // GENERIC_BIG_METRIC
 
     #ifndef GENERIC_BIG_METRIC
-    calculate_metric_generic(position, g_metric);
-    calculate_partial_derivatives_generic(position, g_partials);
+    calculate_metric_generic(position, g_metric, cfg);
+    calculate_partial_derivatives_generic(position, g_partials, cfg);
 
     velocity = fix_light_velocity2(velocity, g_metric);
 
     float4 lacceleration = calculate_acceleration(velocity, g_metric, g_partials);
     #else
-    calculate_metric_generic_big(position, g_metric_big);
-    calculate_partial_derivatives_generic_big(position, g_partials_big);
+    calculate_metric_generic_big(position, g_metric_big, cfg);
+    calculate_partial_derivatives_generic_big(position, g_partials_big, cfg);
 
     float4 lacceleration = calculate_acceleration_big(velocity, g_metric_big, g_partials_big);
     #endif // GENERIC_BIG_METRIC
@@ -1961,7 +1965,7 @@ __kernel
 void do_generic_rays (__global struct lightray* restrict generic_rays_in, __global struct lightray* restrict generic_rays_out,
                       __global struct lightray* restrict finished_rays,
                       __global int* restrict generic_count_in, __global int* restrict generic_count_out,
-                      __global int* restrict finished_count_out)
+                      __global int* restrict finished_count_out, dynamic_config_space struct dynamic_config* cfg)
 {
     int id = get_global_id(0);
 
@@ -1983,7 +1987,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
     #ifndef GENERIC_BIG_METRIC
     {
         float g_metric[4] = {0};
-        calculate_metric_generic(position, g_metric);
+        calculate_metric_generic(position, g_metric, cfg);
 
         velocity = fix_light_velocity2(velocity, g_metric);
     }
@@ -2091,7 +2095,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
         float4 next_position;
         float4 next_velocity;
 
-        step_euler(position, velocity, ds, &next_position, &next_velocity);
+        step_euler(position, velocity, ds, &next_position, &next_velocity, cfg);
 
         position = next_position;
         velocity = next_velocity;
@@ -2102,7 +2106,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
         float4 next_position, next_velocity, next_acceleration;
 
-        step_verlet(position, velocity, acceleration, ds, &next_position, &next_velocity, &next_acceleration);
+        step_verlet(position, velocity, acceleration, ds, &next_position, &next_velocity, &next_acceleration, cfg);
 
         #ifdef ADAPTIVE_PRECISION
 
@@ -2162,7 +2166,7 @@ __kernel
 void get_geodesic_path(__global struct lightray* generic_rays_in,
                        __global float4* positions_out,
                        __global int* generic_count_in, int geodesic_start, int width, int height,
-                       float4 polar_camera_pos, float4 camera_quat, float2 base_angle)
+                       float4 polar_camera_pos, float4 camera_quat, float2 base_angle, dynamic_config_space struct dynamic_config* cfg)
 {
     int id = geodesic_start;
 
@@ -2184,7 +2188,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
     #ifndef GENERIC_BIG_METRIC
     {
         float g_metric[4] = {0};
-        calculate_metric_generic(position, g_metric);
+        calculate_metric_generic(position, g_metric, cfg);
 
         velocity = fix_light_velocity2(velocity, g_metric);
     }
@@ -2251,7 +2255,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
 
         float4 next_position, next_velocity, next_acceleration;
 
-        step_verlet(position, velocity, acceleration, ds, &next_position, &next_velocity, &next_acceleration);
+        step_verlet(position, velocity, acceleration, ds, &next_position, &next_velocity, &next_acceleration, cfg);
 
         #ifdef ADAPTIVE_PRECISION
 
@@ -2295,7 +2299,8 @@ void relauncher_generic(__global struct lightray* generic_rays_in, __global stru
                         __global struct lightray* finished_rays,
                         __global int* restrict generic_count_in, __global int* restrict generic_count_out,
                         __global int* finished_count_out,
-                        int fallback)
+                        int fallback,
+                        dynamic_config_space struct dynamic_config* cfg)
 {
     ///failed to converge
     if(fallback > 125)
@@ -2326,7 +2331,7 @@ void relauncher_generic(__global struct lightray* generic_rays_in, __global stru
                         do_generic_rays (generic_rays_in, generic_rays_out,
                                          finished_rays,
                                          generic_count_in, generic_count_out,
-                                         finished_count_out);
+                                         finished_count_out, cfg);
                    });
 
     enqueue_kernel(get_default_queue(), CLK_ENQUEUE_FLAGS_WAIT_KERNEL,
@@ -2336,7 +2341,7 @@ void relauncher_generic(__global struct lightray* generic_rays_in, __global stru
                         relauncher_generic(generic_rays_out, generic_rays_in,
                                            finished_rays,
                                            generic_count_out, generic_count_in,
-                                           finished_count_out, fallback + 1);
+                                           finished_count_out, fallback + 1, cfg);
                    });
 
     release_event(f3);
