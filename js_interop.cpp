@@ -741,3 +741,25 @@ dual js_single_function::operator()(dual iv1, dual iv2, dual iv3, dual iv4)
 
     return {getr(result)};
 }
+
+std::vector<config_variable> pull_configs(js::value_context& vctx)
+{
+    js::value glob = js::get_global(vctx);
+
+    js::value cfg = glob["$cfg"];
+
+    std::vector<std::pair<js::value, js::value>> vars = cfg.iterate();
+
+    std::vector<config_variable> ret;
+
+    for(auto& [key, val] : vars)
+    {
+        config_variable out;
+        out.name = (std::string)key;
+        out.default_value = 0.0f; ///TODO
+
+        ret.push_back(out);
+    }
+
+    return ret;
+}

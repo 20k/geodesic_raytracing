@@ -123,8 +123,10 @@ metrics::metric* metric_cache::lazy_fetch(content_manager& manage, content& c, c
         {
             met = load_metric_from_script(manage, path.value());
         }
-        catch(...)
+        catch(std::exception& err)
         {
+            std::cout << "Error loading metric " << err.what() << std::endl;
+
             return nullptr;
         }
     }
