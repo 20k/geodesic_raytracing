@@ -12,8 +12,10 @@ struct config_variables
 {
     std::vector<std::string> names;
     std::vector<float> default_values;
+    std::vector<float> current_values;
 
     void add(const std::string& name, float val);
+    bool display();
 };
 
 struct js_metric

@@ -783,6 +783,30 @@ int main()
 
             ImGui::Separator();
 
+            ImGui::Text("Dynamic Options");
+
+            if(current_metric)
+            {
+                if(current_metric->dynamic_vars.display())
+                {
+                    int dyn_config_bytes = current_metric->dynamic_vars.current_values.size() * sizeof(cl_float);
+
+                    if(dyn_config_bytes < 4)
+                        dyn_config_bytes = 4;
+
+                    dynamic_config.alloc(dyn_config_bytes);
+
+                    std::vector<float> vars = current_metric->dynamic_vars.current_values;
+
+                    if(vars.size() == 0)
+                        vars.resize(1);
+
+                    dynamic_config.write(clctx.cqueue, vars);
+                }
+            }
+
+            ImGui::Separator();
+
             ImGui::Text("Compile Options");
 
             ImGui::Checkbox("Redshift", &cfg.redshift);

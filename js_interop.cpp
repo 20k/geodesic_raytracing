@@ -3,6 +3,7 @@
 #include <iostream>
 #include "dual_value.hpp"
 #include <cctype>
+#include <imgui/imgui.h>
 
 #define M_E		2.7182818284590452354
 #define M_LOG2E		1.4426950408889634074
@@ -28,6 +29,19 @@ void config_variables::add(const std::string& name, float val)
 
     names.push_back(name);
     default_values.push_back(val);
+    current_values.push_back(val);
+}
+
+bool config_variables::display()
+{
+    bool any_modified = false;
+
+    for(int i=0; i < (int)names.size(); i++)
+    {
+        any_modified |= ImGui::DragFloat((names[i] + "##df").c_str(), &current_values[i], 0.1f);
+    }
+
+    return any_modified;
 }
 
 struct storage
