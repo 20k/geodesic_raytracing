@@ -366,7 +366,7 @@ int main()
     metrics::config cfg;
     ///necessary for double schwarzs
     cfg.universe_size = 20;
-    cfg.use_device_side_enqueue = false;
+    cfg.use_device_side_enqueue = true;
     //cfg.error_override = 100.f;
     //cfg.error_override = 0.000001f;
     //cfg.error_override = 0.000001f;
