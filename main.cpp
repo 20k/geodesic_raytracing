@@ -809,14 +809,26 @@ int main()
 
             ImGui::ListBox("Metrics", &selected_idx, &items[0], items.size());
 
-            if(ImGui::Button("Recompile") || current_idx == -1 || current_metric == nullptr)
+            if(ImGui::Button("Recompile") || current_idx == -1)
             {
                 if(selected_idx == -1)
                     selected_idx = 0;
 
                 if(selected_idx != current_idx)
                 {
-                    current_metric = parent_directories[selected_idx]->lazy_fetch(all_content, items[selected_idx]);
+                    metrics::metric* next = parent_directories[selected_idx]->lazy_fetch(all_content, items[selected_idx]);
+
+                    if(next == nullptr)
+                    {
+                        std::cout << "Broken metric " << concrete_strings[selected_idx] << std::endl;
+                    }
+                    else
+                    {
+                        current_metric = next;
+                    }
+
+                    assert(current_metric);
+
                     selected_error = current_metric->metric_cfg.max_acceleration_change;
                 }
 

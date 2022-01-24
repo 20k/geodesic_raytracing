@@ -62,26 +62,42 @@ metrics::metric_config load_config(content_manager& all_content, std::filesystem
 {
     metrics::metric_config cfg;
 
-    nlohmann::json js = nlohmann::json::parse(file::read(filename.string(), file::mode::TEXT));
-
-    if(inherit && js.count("inherit_settings"))
+    try
     {
-        std::string new_filename = js["inherit_settings"];
+        nlohmann::json js = nlohmann::json::parse(file::read(filename.string(), file::mode::TEXT));
 
-        std::optional<std::filesystem::path> lookup_file = all_content.lookup_path_to_config_file(new_filename);
+        if(inherit && js.count("inherit_settings"))
+        {
+            try
+            {
+                std::string new_filename = js["inherit_settings"];
 
-        if(!lookup_file.has_value())
-            throw std::runtime_error("Could not lookup " + new_filename);
+                std::optional<std::filesystem::path> lookup_file = all_content.lookup_path_to_config_file(new_filename);
 
-        nlohmann::json parent_json = nlohmann::json::parse(file::read(lookup_file.value().string(), file::mode::TEXT));
+                if(!lookup_file.has_value())
+                    throw std::runtime_error("Could not lookup " + new_filename);
 
-        metrics::metric_config parent;
-        parent.load(parent_json);
+                nlohmann::json parent_json = nlohmann::json::parse(file::read(lookup_file.value().string(), file::mode::TEXT));
 
-        cfg = parent;
+                metrics::metric_config parent;
+                parent.load(parent_json);
+
+                cfg = parent;
+            }
+            catch(std::exception& err)
+            {
+                std::cout << "Error loading inherited config in " << filename << " with error " << err.what() << std::endl;
+            }
+        }
+
+        cfg.load(js);
     }
+    catch(std::exception& err)
+    {
+        cfg.name = filename.filename().string() + " (broken)";
 
-    cfg.load(js);
+        std::cout << "Error loading config " << filename << " with error " << err.what() << std::endl;
+    }
 
     return cfg;
 }
@@ -98,12 +114,19 @@ metrics::metric* metric_cache::lazy_fetch(content_manager& manage, content& c, c
         {
             std::cout << "No metric found for " << friendly_name << std::endl;
 
-            throw std::runtime_error("No metric found for " + friendly_name);
+            return nullptr;
         }
 
         std::cout << "Found path " << path.value().string() << std::endl;
 
-        met = load_metric_from_script(manage, path.value());
+        try
+        {
+            met = load_metric_from_script(manage, path.value());
+        }
+        catch(...)
+        {
+            return nullptr;
+        }
     }
 
     return met;
