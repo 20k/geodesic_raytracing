@@ -1112,7 +1112,7 @@ namespace dual_types
     {
         value ret;
         ret.type = type;
-        ret.args = {args...};
+        ret.args = {std::move(args)...};
         ret.value_payload = std::nullopt;
 
         return ret.flatten();
