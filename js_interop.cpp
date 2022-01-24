@@ -586,9 +586,60 @@ js::value extract_function(js::value_context& vctx, const std::string& script_da
     return js::eval(vctx, script_data);
 }
 
+std::pair<js::value, js::value> get_proxy_handlers(js::value_context& vctx)
+{
+    js::value dummy_func = js::make_value(vctx, js::function<js::empty_function>);
+    js::value dummy_obj(vctx);
+
+    return {dummy_func, dummy_obj};
+}
+
+js::value cfg_proxy_get(js::value_context* vctx, js::value target, js::value prop, js::value receiver)
+{
+    std::string key = prop;
+
+    dual v;
+    v.make_constant(key);
+
+    return to_value(*vctx, v);
+}
+
+js::value cfg_proxy_set(js::value_context* vctx, js::value target, js::value prop, js::value val, js::value receiver)
+{
+    std::string key = prop;
+
+    std::cout << "Warning, setting a config from js" << std::endl;
+
+    return js::make_success(*vctx);
+}
+
+js::value finish_proxy(js::value& func, js::value& object)
+{
+    object.get("get") = js::function<cfg_proxy_get>;
+    object.get("set") = js::function<cfg_proxy_set>;
+
+    return js::make_proxy(func, object);
+}
+
+js::value cfg_getter(js::value_context* vctx)
+{
+    auto [func, object] = get_proxy_handlers(*vctx);
+
+    return finish_proxy(func, object);
+}
+
+void inject_config(js::value_context& vctx)
+{
+    js::value global = js::get_global(vctx);
+
+    js::add_getter_setter(global, "$cfg", js::function<cfg_getter>, js::function<js::empty_function>);
+}
+
 js_metric::js_metric(const std::string& script_data) : vctx(nullptr, nullptr), func(vctx)
 {
     func = extract_function(vctx, script_data);
+
+    inject_config(vctx);
 }
 
 std::array<dual, 16> js_metric::operator()(dual t, dual r, dual theta, dual phi)
@@ -642,6 +693,8 @@ std::array<dual, 16> js_metric::operator()(dual t, dual r, dual theta, dual phi)
 js_function::js_function(const std::string& script_data) : vctx(nullptr, nullptr), func(vctx)
 {
     func = extract_function(vctx, script_data);
+
+    inject_config(vctx);
 }
 
 std::array<dual, 4> js_function::operator()(dual iv1, dual iv2, dual iv3, dual iv4)
@@ -670,6 +723,8 @@ std::array<dual, 4> js_function::operator()(dual iv1, dual iv2, dual iv3, dual i
 js_single_function::js_single_function(const std::string& script_data) : vctx(nullptr, nullptr), func(vctx)
 {
     func = extract_function(vctx, script_data);
+
+    inject_config(vctx);
 }
 
 dual js_single_function::operator()(dual iv1, dual iv2, dual iv3, dual iv4)
