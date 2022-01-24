@@ -524,6 +524,13 @@ void small_to_big_partials(float g_metric_partials[], float g_metric_partials_bi
     }
 }
 
+struct dynamic_config
+{
+    #ifdef DYNVARS
+    float DYNVARS;
+    #endif // DYNVARS
+};
+
 #ifndef GENERIC_BIG_METRIC
 void calculate_metric_generic(float4 spacetime_position, float g_metric_out[])
 {

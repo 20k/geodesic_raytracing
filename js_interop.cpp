@@ -18,6 +18,18 @@
 #define M_SQRT2		1.41421356237309504880
 #define M_SQRT1_2	0.70710678118654752440
 
+void config_variables::add(const std::string& name, float val)
+{
+    for(const std::string& existing : names)
+    {
+        if(name == existing)
+            return;
+    }
+
+    names.push_back(name);
+    default_values.push_back(val);
+}
+
 struct storage
 {
     int which = 0;
@@ -605,6 +617,12 @@ js::value cfg_proxy_get(js::value_context* vctx, js::value target, js::value pro
             throw std::runtime_error("Cfg key must be alphanumeric");
     }
 
+    config_variables* sandbox = js::get_sandbox_data<config_variables>(*vctx);
+
+    assert(sandbox);
+
+    sandbox->add(key, 0.f);
+
     dual v;
     v.make_constant("cfg." + key);
 
@@ -642,7 +660,7 @@ void inject_config(js::value_context& vctx)
     js::add_getter_setter(global, "$cfg", js::function<cfg_getter>, js::function<js::empty_function>);
 }
 
-js_metric::js_metric(const std::string& script_data) : vctx(nullptr, nullptr), func(vctx)
+js_metric::js_metric(config_variables& cfg, const std::string& script_data) : vctx(nullptr, &cfg), func(vctx)
 {
     func = extract_function(vctx, script_data);
 
@@ -697,7 +715,7 @@ std::array<dual, 16> js_metric::operator()(dual t, dual r, dual theta, dual phi)
     }
 }
 
-js_function::js_function(const std::string& script_data) : vctx(nullptr, nullptr), func(vctx)
+js_function::js_function(config_variables& cfg, const std::string& script_data) : vctx(nullptr, &cfg), func(vctx)
 {
     func = extract_function(vctx, script_data);
 
@@ -727,7 +745,7 @@ std::array<dual, 4> js_function::operator()(dual iv1, dual iv2, dual iv3, dual i
     return {getr(values[0]), getr(values[1]), getr(values[2]), getr(values[3])};
 }
 
-js_single_function::js_single_function(const std::string& script_data) : vctx(nullptr, nullptr), func(vctx)
+js_single_function::js_single_function(config_variables& cfg, const std::string& script_data) : vctx(nullptr, &cfg), func(vctx)
 {
     func = extract_function(vctx, script_data);
 
@@ -747,35 +765,4 @@ dual js_single_function::operator()(dual iv1, dual iv2, dual iv3, dual iv4)
         throw std::runtime_error("Error in 1x4 exec " + (std::string)result.to_error_message());
 
     return {getr(result)};
-}
-
-void pull_configs(js::value_context& vctx, config_variables& out)
-{
-    js::value glob = js::get_global(vctx);
-
-    js::value cfg = glob["$cfg"];
-
-    std::vector<std::pair<js::value, js::value>> vars = cfg.iterate();
-
-    for(auto& [key, val] : vars)
-    {
-        std::string skey = (std::string)key;
-
-        bool found = false;
-
-        for(const std::string& existing : out.names)
-        {
-            if(existing == skey)
-            {
-                found = true;
-                break;
-            }
-        }
-
-        if(found)
-            continue;
-
-        out.names.push_back((std::string)key);
-        out.default_values.push_back(0.0f);
-    }
 }

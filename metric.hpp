@@ -4,6 +4,7 @@
 #include "dual.hpp"
 #include "dual_value.hpp"
 #include <nlohmann/json.hpp>
+#include "js_interop.hpp"
 
 namespace metrics
 {
@@ -294,6 +295,7 @@ namespace metrics
     {
         metric_descriptor desc;
         metric_config metric_cfg;
+        config_variables dynamic_vars;
 
         virtual std::string build(const config& cfg){return std::string();}
     };
@@ -500,6 +502,24 @@ namespace metrics
         argument_string += " -DDISTANCE_FUNC=" + in.desc.distance_function;
 
         argument_string += " -DUNIVERSE_SIZE=" + std::to_string(cfg.universe_size);
+
+        if(in.dynamic_vars.names.size() > 0)
+        {
+            assert(in.dynamic_vars.names.size() == in.dynamic_vars.default_values.size());
+
+            std::string vars = "";
+
+            for(int i=0; i < (int)in.dynamic_vars.names.size() - 1; i++)
+            {
+                vars += in.dynamic_vars.names[i] + ",";
+            }
+
+            vars += in.dynamic_vars.names.back();
+
+            std::cout << "Dynamic variables " << vars << std::endl;
+
+            argument_string += " -DDYNVARS=" + vars;
+        }
 
         return argument_string;
     }
