@@ -1,9 +1,13 @@
 ///https://arxiv.org/pdf/1502.03809.pdf
 function wormhole(t, l, theta, phi)
 {
-    var M = 0.01;
-    var p = 1;
-    var a = 0.001;
+	$cfg.M.$default = 0.01;
+	$cfg.p.$default = 1;
+	$cfg.a.$default = 0.001;
+	
+    var M = $cfg.M;
+    var p = $cfg.p;
+    var a = $cfg.a;
 
     var x = 2 * (CMath.fabs(l) - a) / (Math.PI * M);
 
