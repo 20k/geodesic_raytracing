@@ -198,7 +198,7 @@ storage s_lt(const storage& s1, const storage& s2)
     if(s1.which == 0 && s2.which == 0)
         return (dual)(s1.d < s2.d);
     else
-        throw std::runtime_error("Can only use < on complex values");
+        throw std::runtime_error("Can only use < on real values");
 }
 
 storage s_eq(const storage& s1, const storage& s2)
@@ -206,7 +206,7 @@ storage s_eq(const storage& s1, const storage& s2)
     if(s1.which == 0 && s2.which == 0)
         return (dual)(s1.d == s2.d);
     else
-        throw std::runtime_error("Can only use == on complex values");
+        throw std::runtime_error("Can only use == on real values");
 }
 
 js::value to_class(js::value_context& vctx, js::value in)
@@ -274,7 +274,7 @@ dual getr(js::value& v)
         throw std::runtime_error("getr which");
 }
 
-js::value to_value(js::value_context& vctx, dual in)
+js::value to_value(js::value_context& vctx, const dual& in)
 {
     storage s;
     s.d = in;
@@ -289,7 +289,7 @@ js::value to_value(js::value_context& vctx, dual in)
     return to_class(vctx, v);
 }
 
-js::value to_value(js::value_context& vctx, dual_complex in)
+js::value to_value(js::value_context& vctx, const dual_complex& in)
 {
     storage s;
     s.which = 1;
@@ -307,12 +307,14 @@ js::value to_value(js::value_context& vctx, dual_complex in)
     return to_class(vctx, v);
 }
 
-js::value to_value(js::value_context& vctx, storage in)
+js::value to_value(js::value_context& vctx, const storage& in)
 {
     js::value v(vctx);
 
+    storage* ptr = new storage(in);
+
     js::value as_object(vctx);
-    as_object.allocate_in_heap(in);
+    as_object.set_ptr(ptr);
 
     v.add("v", as_object);
 

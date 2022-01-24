@@ -5,12 +5,19 @@ function unequal_double_kerr(t, p, phi, z)
 
     /*dual a1 = -0.09;
     dual a2 = 0.091;*/
+	
+	$cfg.m1.$default = 0.15;
+	$cfg.m2.$default = 0.3;
+	$cfg.fa1.$default = 1;
+	$cfg.fa2.$default = -0.3;
+	
+	$cfg.R.$default = 4;
 
-    var m1 = 0.15;
-    var m2 = 0.3;
+    var m1 = $cfg.m1;
+    var m2 = $cfg.m2;
 
-    var fa1 = 1;
-    var fa2 = -0.3;
+    var fa1 = $cfg.fa1;
+    var fa2 = $cfg.fa2;
 
     var a1 = fa1 * m1;
     var a2 = fa2 * m2;
@@ -21,7 +28,7 @@ function unequal_double_kerr(t, p, phi, z)
     var m1 = 0.4;
     var m2 = 0.4;*/
 
-    var R = 4;
+    var R = $cfg.R;
 
     var J = m1 * a1 + m2 * a2;
     var M = m1 + m2;
