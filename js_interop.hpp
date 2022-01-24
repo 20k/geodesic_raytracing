@@ -15,6 +15,7 @@ struct config_variables
     std::vector<float> current_values;
 
     void add(const std::string& name, float val);
+    void set_default(const std::string& name, float val);
     bool display();
 };
 

@@ -1,6 +1,8 @@
 function metric(t, r, theta, phi)
 {
-    var rs = $cfg.m;
+	$cfg.rs.$default = 1;
+	
+    var rs = $cfg.rs;
     var c = 1;
 
     var dt = -(1 - rs / r) * c * c;
@@ -9,7 +11,6 @@ function metric(t, r, theta, phi)
     var dphi = r*r * CMath.sin(theta) * CMath.sin(theta);
 
     return [dt, dr, dtheta, dphi];
-    //return [-1, 1, r * r, r * r * CMath.sin(theta) * CMath.sin(theta)];
 }
 
 metric

@@ -32,6 +32,25 @@ void config_variables::add(const std::string& name, float val)
     current_values.push_back(val);
 }
 
+void config_variables::set_default(const std::string& name, float val)
+{
+    for(int i=0; i < (int)names.size(); i++)
+    {
+        const std::string& existing = names[i];
+
+        if(name == existing)
+        {
+            default_values[i] = val;
+            current_values[i] = val;
+            return;
+        }
+    }
+
+    names.push_back(name);
+    default_values.push_back(val);
+    current_values.push_back(val);
+}
+
 bool config_variables::display()
 {
     bool any_modified = false;
@@ -621,15 +640,53 @@ std::pair<js::value, js::value> get_proxy_handlers(js::value_context& vctx)
     return {dummy_func, dummy_obj};
 }
 
+void validate(const std::string& in)
+{
+    for(char c : in)
+    {
+        if(!std::isalnum(c))
+            throw std::runtime_error("Value must be alphanumeric");
+    }
+}
+
+js::value setter_set_default(js::value_context* vctx, js::value value)
+{
+    js::value object = js::get_this(*vctx);
+
+    storage s = get(object);
+
+    if(s.which != 0)
+        throw std::runtime_error("Something really weirds happened in setter_set_default");
+
+    if(!s.d.real.value_payload.has_value())
+        throw std::runtime_error("Must be pseudoconstant value in $default set");
+
+    std::string name = s.d.real.value_payload.value();
+
+    if(name.starts_with("cfg->"))
+    {
+        for(int i=0; i < strlen("cfg->"); i++)
+            name.erase(name.begin());
+    }
+
+    validate(name);
+
+    float valf = (double)value;
+
+    config_variables* sandbox = js::get_sandbox_data<config_variables>(*vctx);
+
+    assert(sandbox);
+
+    sandbox->set_default(name, valf);
+
+    return js::make_value(*vctx, 0.f);
+}
+
 js::value cfg_proxy_get(js::value_context* vctx, js::value target, js::value prop, js::value receiver)
 {
     std::string key = prop;
 
-    for(char c : key)
-    {
-        if(!std::isalnum(c))
-            throw std::runtime_error("Cfg key must be alphanumeric");
-    }
+    validate(key);
 
     config_variables* sandbox = js::get_sandbox_data<config_variables>(*vctx);
 
@@ -640,7 +697,11 @@ js::value cfg_proxy_get(js::value_context* vctx, js::value target, js::value pro
     dual v;
     v.make_constant("cfg->" + key);
 
-    return to_value(*vctx, v);
+    js::value result = to_value(*vctx, v);
+
+    js::add_getter_setter(result, "$default", js::function<js::empty_function>, js::function<setter_set_default>);
+
+    return result;
 }
 
 js::value cfg_proxy_set(js::value_context* vctx, js::value target, js::value prop, js::value val, js::value receiver)
