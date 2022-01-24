@@ -38,14 +38,12 @@ struct js_single_function
     dual operator()(dual v1, dual v2, dual v3, dual v4);
 };
 
-struct config_variable
+struct config_variables
 {
-    std::string name;
-    double default_value = 0;
-
-    auto operator<=>(const config_variable&) const = default;
+    std::vector<std::string> names;
+    std::vector<float> default_values;
 };
 
-std::vector<config_variable> pull_configs(js::value_context& vctx);
+void pull_configs(js::value_context& vctx, config_variables& out);
 
 #endif // JS_INTEROP_HPP_INCLUDED

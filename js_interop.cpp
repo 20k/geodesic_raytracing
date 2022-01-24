@@ -2,6 +2,7 @@
 #include <toolkit/fs_helpers.hpp>
 #include <iostream>
 #include "dual_value.hpp"
+#include <cctype>
 
 #define M_E		2.7182818284590452354
 #define M_LOG2E		1.4426950408889634074
@@ -598,8 +599,14 @@ js::value cfg_proxy_get(js::value_context* vctx, js::value target, js::value pro
 {
     std::string key = prop;
 
+    for(char c : key)
+    {
+        if(!std::isalnum(c))
+            throw std::runtime_error("Cfg key must be alphanumeric");
+    }
+
     dual v;
-    v.make_constant(key);
+    v.make_constant("cfg." + key);
 
     return to_value(*vctx, v);
 }
@@ -742,7 +749,7 @@ dual js_single_function::operator()(dual iv1, dual iv2, dual iv3, dual iv4)
     return {getr(result)};
 }
 
-std::vector<config_variable> pull_configs(js::value_context& vctx)
+void pull_configs(js::value_context& vctx, config_variables& out)
 {
     js::value glob = js::get_global(vctx);
 
@@ -750,16 +757,25 @@ std::vector<config_variable> pull_configs(js::value_context& vctx)
 
     std::vector<std::pair<js::value, js::value>> vars = cfg.iterate();
 
-    std::vector<config_variable> ret;
-
     for(auto& [key, val] : vars)
     {
-        config_variable out;
-        out.name = (std::string)key;
-        out.default_value = 0.0f; ///TODO
+        std::string skey = (std::string)key;
 
-        ret.push_back(out);
+        bool found = false;
+
+        for(const std::string& existing : out.names)
+        {
+            if(existing == skey)
+            {
+                found = true;
+                break;
+            }
+        }
+
+        if(found)
+            continue;
+
+        out.names.push_back((std::string)key);
+        out.default_values.push_back(0.0f);
     }
-
-    return ret;
 }
