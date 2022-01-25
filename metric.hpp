@@ -295,7 +295,7 @@ namespace metrics
     {
         metric_descriptor desc;
         metric_config metric_cfg;
-        config_variables dynamic_vars;
+        sandbox sand;
 
         virtual std::string build(const config& cfg){return std::string();}
     };
@@ -503,18 +503,18 @@ namespace metrics
 
         argument_string += " -DUNIVERSE_SIZE=" + std::to_string(cfg.universe_size);
 
-        if(in.dynamic_vars.names.size() > 0)
-        {
-            assert(in.dynamic_vars.names.size() == in.dynamic_vars.default_values.size());
+        const config_variables& dynamic_vars = in.sand.cfg;
 
+        if(dynamic_vars.names.size() > 0)
+        {
             std::string vars = "";
 
-            for(int i=0; i < (int)in.dynamic_vars.names.size() - 1; i++)
+            for(int i=0; i < (int)dynamic_vars.names.size() - 1; i++)
             {
-                vars += in.dynamic_vars.names[i] + ",";
+                vars += dynamic_vars.names[i] + ",";
             }
 
-            vars += in.dynamic_vars.names.back();
+            vars += dynamic_vars.names.back();
 
             std::cout << "Dynamic variables " << vars << std::endl;
 

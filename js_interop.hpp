@@ -5,6 +5,7 @@
 #include <string>
 #include "dual_value.hpp"
 #include <compare>
+#include "equation_context.hpp"
 
 namespace js = js_quickjs;
 
@@ -19,12 +20,18 @@ struct config_variables
     bool display();
 };
 
+struct sandbox
+{
+    config_variables cfg;
+    equation_context ctx;
+};
+
 struct js_metric
 {
     js::value_context vctx;
     js::value func;
 
-    js_metric(config_variables& cfg, const std::string& script);
+    js_metric(sandbox& sand, const std::string& script);
 
     std::array<dual, 16> operator()(dual t, dual r, dual theta, dual phi);
 };
@@ -34,7 +41,7 @@ struct js_function
     js::value_context vctx;
     js::value func;
 
-    js_function(config_variables& cfg, const std::string& script);
+    js_function(sandbox& sand, const std::string& script);
 
     std::array<dual, 4> operator()(dual v1, dual v2, dual v3, dual v4);
 };
@@ -44,7 +51,7 @@ struct js_single_function
     js::value_context vctx;
     js::value func;
 
-    js_single_function(config_variables& cfg, const std::string& script);
+    js_single_function(sandbox& sand, const std::string& script);
 
     dual operator()(dual v1, dual v2, dual v3, dual v4);
 };

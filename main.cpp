@@ -18,6 +18,7 @@
 #include "steam.hpp"
 #include "workshop/steam_ugc_manager.hpp"
 #include "content_manager.hpp"
+#include "equation_context.hpp"
 //#include "dual_complex.hpp"
 
 /**
@@ -787,16 +788,16 @@ int main()
 
             if(current_metric)
             {
-                if(current_metric->dynamic_vars.display())
+                if(current_metric->sand.cfg.display())
                 {
-                    int dyn_config_bytes = current_metric->dynamic_vars.current_values.size() * sizeof(cl_float);
+                    int dyn_config_bytes = current_metric->sand.cfg.current_values.size() * sizeof(cl_float);
 
                     if(dyn_config_bytes < 4)
                         dyn_config_bytes = 4;
 
                     dynamic_config.alloc(dyn_config_bytes);
 
-                    std::vector<float> vars = current_metric->dynamic_vars.current_values;
+                    std::vector<float> vars = current_metric->sand.cfg.current_values;
 
                     if(vars.size() == 0)
                         vars.resize(1);
@@ -860,14 +861,14 @@ int main()
 
                     selected_error = current_metric->metric_cfg.max_acceleration_change;
 
-                    int dyn_config_bytes = current_metric->dynamic_vars.default_values.size() * sizeof(cl_float);
+                    int dyn_config_bytes = current_metric->sand.cfg.default_values.size() * sizeof(cl_float);
 
                     if(dyn_config_bytes < 4)
                         dyn_config_bytes = 4;
 
                     dynamic_config.alloc(dyn_config_bytes);
 
-                    std::vector<float> vars = current_metric->dynamic_vars.default_values;
+                    std::vector<float> vars = current_metric->sand.cfg.default_values;
 
                     if(vars.size() == 0)
                         vars.resize(1);

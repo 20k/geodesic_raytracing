@@ -15,7 +15,7 @@ metrics::metric* load_metric_from_script(content_manager& all_content, std::file
 
     met->metric_cfg = load_config(all_content, cfg, true);
 
-    js_metric jfunc(met->dynamic_vars, file::read(sname.string(), file::mode::TEXT));
+    js_metric jfunc(met->sand, file::read(sname.string(), file::mode::TEXT));
 
     std::optional<std::filesystem::path> to_polar_file = all_content.lookup_path_to_coordinates_file(met->metric_cfg.to_polar);
     std::optional<std::filesystem::path> from_polar_file = all_content.lookup_path_to_coordinates_file(met->metric_cfg.from_polar);
@@ -30,9 +30,9 @@ metrics::metric* load_metric_from_script(content_manager& all_content, std::file
     if(!origin_file.has_value())
         throw std::runtime_error("No origin coordinate system file " + met->metric_cfg.origin_distance);
 
-    js_function func_to_polar(met->dynamic_vars, file::read(to_polar_file.value().string(), file::mode::TEXT));
-    js_function func_from_polar(met->dynamic_vars, file::read(from_polar_file.value().string(), file::mode::TEXT));
-    js_single_function fun_origin_distance(met->dynamic_vars, file::read(origin_file.value().string(), file::mode::TEXT));
+    js_function func_to_polar(met->sand, file::read(to_polar_file.value().string(), file::mode::TEXT));
+    js_function func_from_polar(met->sand, file::read(from_polar_file.value().string(), file::mode::TEXT));
+    js_single_function fun_origin_distance(met->sand, file::read(origin_file.value().string(), file::mode::TEXT));
 
     std::cout << "loading " << sname << std::endl;
 

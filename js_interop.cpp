@@ -675,11 +675,11 @@ js::value setter_set_default(js::value_context* vctx, js::value value)
 
     float valf = (double)value;
 
-    config_variables* sandbox = js::get_sandbox_data<config_variables>(*vctx);
+    sandbox* sand = js::get_sandbox_data<sandbox>(*vctx);
 
-    assert(sandbox);
+    assert(sand);
 
-    sandbox->set_default(name, valf);
+    sand->cfg.set_default(name, valf);
 
     return js::make_value(*vctx, 0.f);
 }
@@ -690,11 +690,11 @@ js::value cfg_proxy_get(js::value_context* vctx, js::value target, js::value pro
 
     validate(key);
 
-    config_variables* sandbox = js::get_sandbox_data<config_variables>(*vctx);
+    sandbox* sand = js::get_sandbox_data<sandbox>(*vctx);
 
-    assert(sandbox);
+    assert(sand);
 
-    sandbox->add(key, 0.f);
+    sand->cfg.add(key, 0.f);
 
     dual v;
     v.make_constant("cfg->" + key);
@@ -737,7 +737,7 @@ void inject_config(js::value_context& vctx)
     js::add_getter_setter(global, "$cfg", js::function<cfg_getter>, js::function<js::empty_function>);
 }
 
-js_metric::js_metric(config_variables& cfg, const std::string& script_data) : vctx(nullptr, &cfg), func(vctx)
+js_metric::js_metric(sandbox& sand, const std::string& script_data) : vctx(nullptr, &sand), func(vctx)
 {
     func = extract_function(vctx, script_data);
 
@@ -792,7 +792,7 @@ std::array<dual, 16> js_metric::operator()(dual t, dual r, dual theta, dual phi)
     }
 }
 
-js_function::js_function(config_variables& cfg, const std::string& script_data) : vctx(nullptr, &cfg), func(vctx)
+js_function::js_function(sandbox& sand, const std::string& script_data) : vctx(nullptr, &sand), func(vctx)
 {
     func = extract_function(vctx, script_data);
 
@@ -822,7 +822,7 @@ std::array<dual, 4> js_function::operator()(dual iv1, dual iv2, dual iv3, dual i
     return {getr(values[0]), getr(values[1]), getr(values[2]), getr(values[3])};
 }
 
-js_single_function::js_single_function(config_variables& cfg, const std::string& script_data) : vctx(nullptr, &cfg), func(vctx)
+js_single_function::js_single_function(sandbox& sand, const std::string& script_data) : vctx(nullptr, &sand), func(vctx)
 {
     func = extract_function(vctx, script_data);
 
