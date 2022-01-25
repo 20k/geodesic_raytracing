@@ -11,7 +11,9 @@ function alcubierre_distance(t, r, theta, phi)
 {
     var cart = polar_to_cartesian(t, r, theta, phi);
 
-    var dxs_t = 2;
+	$cfg.velocity.$default = 2;
+
+    var dxs_t = $cfg.velocity;
 
     var x_pos = cart[1] - dxs_t * t;
 

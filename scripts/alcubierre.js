@@ -4,7 +4,9 @@
 ///performance and quality is made significantly better with a dynamic timestep based on an error estimate, and then unstepping if it steps too far
 function alcubierre_metric(t, x, y, z)
 {
-    var dxs_t = 2;
+	$cfg.velocity.$default = 2;
+	
+    var dxs_t = $cfg.velocity;
     var xs_t = dxs_t * t;
     var vs_t = dxs_t;
 
