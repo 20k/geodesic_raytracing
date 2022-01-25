@@ -1,5 +1,5 @@
 {
-	"name":"cosmic_string",
+	"name":"black_hole_cosmic_string",
 	"adaptive_precision": true,
 	"detect_singularities": true,
 	"max_acceleration_change": 0.000001,
