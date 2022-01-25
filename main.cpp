@@ -260,7 +260,25 @@ cl::image_with_mipmaps load_mipped_image(const std::string& fname, opencl_contex
     return image_mipped;
 }
 
-void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& rays_out,
+struct execution_state
+{
+    std::vector<cl_int> cpu_counts;
+    std::vector<cl::buffer> gpu_counts;
+    std::vector<cl::event> in_progress_reads;
+
+    execution_state(cl::context& ctx)
+    {
+        for(int i=0; i < 256; i++)
+        {
+            gpu_counts.emplace_back(ctx).alloc(sizeof(cl_int));
+        }
+
+        cpu_counts.resize(256);
+    }
+};
+
+void execute_kernel(execution_state& exec_state,
+                    cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& rays_out,
                                                cl::buffer& rays_finished,
                                                cl::buffer& count_in, cl::buffer& count_out,
                                                cl::buffer& count_finished,
@@ -271,6 +289,8 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
     if(use_device_side_enqueue)
     {
         int fallback = 0;
+
+        //count_in.write_async(cqueue, (const char*)&num_rays, sizeof(int));
 
         cl::args run_args;
         run_args.push_back(rays_in);
@@ -286,20 +306,56 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
     }
     else
     {
-        count_in.write_async(cqueue, (const char*)&num_rays, sizeof(int));
-        count_out.set_to_zero(cqueue);
+        exec_state.in_progress_reads.clear();
+
+        for(int i=0; i < 256; i++)
+        {
+            exec_state.gpu_counts[i].set_to_zero(cqueue);
+            exec_state.cpu_counts[i] = 0;
+        }
+
+        exec_state.gpu_counts[0].write_async(cqueue, (const char*)&num_rays, sizeof(cl_int));
+
+        int max_iterations = 254;
+
+        //count_in.write_async(cqueue, (const char*)&num_rays, sizeof(int));
+        //count_out.set_to_zero(cqueue);
         count_finished.set_to_zero(cqueue);
 
-        cl::args run_args;
-        run_args.push_back(rays_in);
-        run_args.push_back(rays_out);
-        run_args.push_back(rays_finished);
-        run_args.push_back(count_in);
-        run_args.push_back(count_out);
-        run_args.push_back(count_finished);
-        run_args.push_back(dynamic_config);
+        for(int i=0; i < 1; i++)
+        {
+            for(int kk=0; kk < (int)exec_state.in_progress_reads.size(); kk++)
+            {
+                cl::event& evt = exec_state.in_progress_reads[kk];
 
-        cqueue.exec("do_generic_rays", run_args, {num_rays}, {256});
+                if(evt.is_finished())
+                {
+                    if(exec_state.cpu_counts[kk] == 0)
+                    {
+                        //return;
+                    }
+                }
+            }
+
+            cl::buffer& next_count_in = exec_state.gpu_counts[i];
+            cl::buffer& next_count_out = exec_state.gpu_counts[i + 1];
+
+            cl::args run_args;
+            run_args.push_back(rays_in);
+            run_args.push_back(rays_out);
+            run_args.push_back(rays_finished);
+            run_args.push_back(next_count_in);
+            run_args.push_back(next_count_out);
+            run_args.push_back(count_finished);
+            run_args.push_back(dynamic_config);
+
+            cl::event evt_p1 = cqueue.exec("do_generic_rays", run_args, {num_rays}, {256});
+
+            //exec_state.in_progress_reads.push_back(next_count_out.read_async(cqueue, (char*)&exec_state.cpu_counts[i + 1], sizeof(cl_int), {evt_p1}));
+
+            //if(i % 4)
+            //    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
     }
 }
 
@@ -443,6 +499,8 @@ int main()
     cl::buffer termination_buffer(clctx.ctx);
 
     cl::buffer dynamic_config(clctx.ctx);
+
+    execution_state exec_state(clctx.ctx);
 
     printf("Post buffer declarations\n");
 
@@ -979,7 +1037,7 @@ int main()
 
                 int rays_num = calculate_ray_count(prepass_width, prepass_height);
 
-                execute_kernel(clctx.cqueue, schwarzs_prepass, schwarzs_scratch, finished_1, schwarzs_count_prepass, schwarzs_count_scratch, finished_count_1, rays_num, cfg.use_device_side_enqueue, dynamic_config);
+                execute_kernel(exec_state, clctx.cqueue, schwarzs_prepass, schwarzs_scratch, finished_1, schwarzs_count_prepass, schwarzs_count_scratch, finished_count_1, rays_num, cfg.use_device_side_enqueue, dynamic_config);
 
                 cl::args singular_args;
                 singular_args.push_back(finished_1);
@@ -1032,7 +1090,7 @@ int main()
 
             int rays_num = calculate_ray_count(width, height);
 
-            execute_kernel(clctx.cqueue, schwarzs_1, schwarzs_scratch, finished_1, schwarzs_count_1, schwarzs_count_scratch, finished_count_1, rays_num, cfg.use_device_side_enqueue, dynamic_config);
+            execute_kernel(exec_state, clctx.cqueue, schwarzs_1, schwarzs_scratch, finished_1, schwarzs_count_1, schwarzs_count_scratch, finished_count_1, rays_num, cfg.use_device_side_enqueue, dynamic_config);
 
 
             cl::args texture_args;

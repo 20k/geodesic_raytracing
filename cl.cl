@@ -2024,6 +2024,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
     int loop_limit = 64000;
 
+    loop_limit /= 125;
+
     #ifdef DEVICE_SIDE_ENQUEUE
     loop_limit /= 125;
     #endif // DEVICE_SIDE_ENQUEUE
