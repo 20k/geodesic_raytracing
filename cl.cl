@@ -1923,32 +1923,44 @@ enum ds_result
 };
 
 #ifdef ADAPTIVE_PRECISION
-int calculate_ds_error(float current_ds, float4 next_acceleration, float4 acceleration, float* next_ds_out)
+
+#define I_HATE_COMPUTERS (256*256)
+
+float acceleration_to_precision(float4 acceleration, float* next_ds_out)
 {
     float uniform_coordinate_precision_divisor = max(max(W_V1, W_V2), max(W_V3, W_V4));
 
-    float current_acceleration_err = fast_length(next_acceleration * (float4)(W_V1, W_V2, W_V3, W_V4)) * 0.01f;
+    float current_acceleration_err = fast_length(acceleration * (float4)(W_V1, W_V2, W_V3, W_V4)) * 0.01f;
     current_acceleration_err /= uniform_coordinate_precision_divisor;
 
     float experienced_acceleration_change = current_acceleration_err;
 
     float err = MAX_ACCELERATION_CHANGE;
-    float i_hate_computers = 256*256;
 
     //#define MIN_STEP 0.00001f
     #define MIN_STEP 0.000001f
 
     float max_timestep = 100000;
 
-    float diff = experienced_acceleration_change * i_hate_computers;
+    float diff = experienced_acceleration_change * I_HATE_COMPUTERS;
 
-    if(diff < err * i_hate_computers / pow(max_timestep, 2))
-        diff = err * i_hate_computers / pow(max_timestep, 2);
+    if(diff < err * I_HATE_COMPUTERS / pow(max_timestep, 2))
+        diff = err * I_HATE_COMPUTERS / pow(max_timestep, 2);
 
     ///of course, as is tradition, whatever works for kerr does not work for alcubierre
     ///the sqrt error calculation is significantly better for alcubierre, largely in terms of having no visual artifacts at all
     ///whereas the pow version is nearly 2x faster for kerr
-    float next_ds = native_sqrt(((err * i_hate_computers) / diff));
+    float next_ds = native_sqrt(((err * I_HATE_COMPUTERS) / diff));
+
+    *next_ds_out = next_ds;
+
+    return diff;
+}
+
+int calculate_ds_error(float current_ds, float4 next_acceleration, float4 acceleration, float* next_ds_out)
+{
+    float next_ds = 0;
+    float diff = acceleration_to_precision(next_acceleration, &next_ds);
 
     ///produces strictly worse results for kerr
     next_ds = 0.99f * current_ds * clamp(next_ds / current_ds, 0.3f, 2.f);
@@ -1957,8 +1969,10 @@ int calculate_ds_error(float current_ds, float4 next_acceleration, float4 accele
 
     *next_ds_out = next_ds;
 
+    float err = MAX_ACCELERATION_CHANGE;
+
     #ifdef SINGULARITY_DETECTION
-    if(next_ds == MIN_STEP && (diff/i_hate_computers) > err * 10000)
+    if(next_ds == MIN_STEP && (diff/I_HATE_COMPUTERS) > err * 10000)
         return DS_RETURN;
     #endif // SINGULARITY_DETECTION
 
@@ -2008,6 +2022,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
     #endif // IS_CONSTANT_THETA
 
     float next_ds = 0.00001;
+
+    (void)acceleration_to_precision(acceleration, &next_ds);
 
     ///results:
     ///subambient_precision can't go above 0.5 much while in verlet mode without the size of the event horizon changing
