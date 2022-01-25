@@ -5,6 +5,8 @@
 function alcubierre_metric(t, x, y, z)
 {
 	$cfg.velocity.$default = 2;
+	$cfg.sigma.$default = 1;
+	$cfg.R.$default = 2;
 	
     var dxs_t = $cfg.velocity;
     var xs_t = dxs_t * t;
@@ -12,8 +14,8 @@ function alcubierre_metric(t, x, y, z)
 
     var rs_t = CMath.fast_length(x - xs_t, y, z);
 
-    var sigma = 1;
-    var R = 2;
+    var sigma = $cfg.sigma;
+    var R = $cfg.R;
 
     var f_rs = (CMath.tanh(sigma * (rs_t + R)) - CMath.tanh(sigma * (rs_t - R))) / (2 * CMath.tanh(sigma * R));
 
