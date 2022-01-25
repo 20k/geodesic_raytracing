@@ -729,7 +729,7 @@ void calculate_partial_derivatives_generic_big(float4 spacetime_position, float 
 }
 #endif // GENERIC_BIG_METRIC
 
-float4 generic_to_spherical(float4 in)
+float4 generic_to_spherical(float4 in, dynamic_config_space struct dynamic_config* cfg)
 {
     float v1 = in.x;
     float v2 = in.y;
@@ -744,7 +744,7 @@ float4 generic_to_spherical(float4 in)
     return (float4)(o1, o2, o3, o4);
 }
 
-float4 generic_velocity_to_spherical_velocity(float4 in, float4 inv)
+float4 generic_velocity_to_spherical_velocity(float4 in, float4 inv, dynamic_config_space struct dynamic_config* cfg)
 {
     float v1 = in.x;
     float v2 = in.y;
@@ -764,7 +764,7 @@ float4 generic_velocity_to_spherical_velocity(float4 in, float4 inv)
     return (float4)(o1, o2, o3, o4);
 }
 
-float4 spherical_to_generic(float4 in)
+float4 spherical_to_generic(float4 in, dynamic_config_space struct dynamic_config* cfg)
 {
     float v1 = in.x;
     float v2 = in.y;
@@ -779,7 +779,7 @@ float4 spherical_to_generic(float4 in)
     return (float4)(o1, o2, o3, o4);
 }
 
-float4 spherical_velocity_to_generic_velocity(float4 in, float4 inv)
+float4 spherical_velocity_to_generic_velocity(float4 in, float4 inv, dynamic_config_space struct dynamic_config* cfg)
 {
     float v1 = in.x;
     float v2 = in.y;
@@ -1445,7 +1445,7 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat,
         //printf("Pixel direction %f %f %f cam %f %f %f\n", pixel_direction.x, pixel_direction.y, pixel_direction.z, polar_camera.y, polar_camera.z, polar_camera.w);
     }
 
-    float4 at_metric = spherical_to_generic(polar_camera);
+    float4 at_metric = spherical_to_generic(polar_camera, cfg);
 
     /*if(cx == 500 && cy == 400)
     {
@@ -1527,9 +1527,9 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat,
     float4 sVy = tensor_contract(lorentz, bphi);
     float4 sVz = tensor_contract(lorentz, bX);
 
-    float4 polar_x = generic_velocity_to_spherical_velocity(at_metric, sVx);
-    float4 polar_y = generic_velocity_to_spherical_velocity(at_metric, sVy);
-    float4 polar_z = generic_velocity_to_spherical_velocity(at_metric, sVz);
+    float4 polar_x = generic_velocity_to_spherical_velocity(at_metric, sVx, cfg);
+    float4 polar_y = generic_velocity_to_spherical_velocity(at_metric, sVy, cfg);
+    float4 polar_z = generic_velocity_to_spherical_velocity(at_metric, sVz, cfg);
 
     float3 apolar = polar_camera.yzw;
     apolar.x = fabs(apolar.x);
@@ -1567,9 +1567,9 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat,
         pixel_t = -pixel_t;
     }
 
-    pixel_x = spherical_velocity_to_generic_velocity(polar_camera, pixel_x);
-    pixel_y = spherical_velocity_to_generic_velocity(polar_camera, pixel_y);
-    pixel_z = spherical_velocity_to_generic_velocity(polar_camera, pixel_z);
+    pixel_x = spherical_velocity_to_generic_velocity(polar_camera, pixel_x, cfg);
+    pixel_y = spherical_velocity_to_generic_velocity(polar_camera, pixel_y, cfg);
+    pixel_z = spherical_velocity_to_generic_velocity(polar_camera, pixel_z, cfg);
 
     float4 lightray_velocity = pixel_x + pixel_y + pixel_z + pixel_t;
     float4 lightray_spacetime_position = at_metric;
@@ -1903,7 +1903,7 @@ void step_euler(float4 position, float4 velocity, float ds, float4* position_out
     *velocity_out = velocity;
 }
 
-float get_distance_to_object(float4 polar)
+float get_distance_to_object(float4 polar, dynamic_config_space struct dynamic_config* cfg)
 {
     float v1 = polar.x;
     float v2 = polar.y;
@@ -2040,7 +2040,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
         float new_max = 10 * rs;
         float new_min = 3 * rs;
 
-        float4 polar_position = generic_to_spherical(position);
+        float4 polar_position = generic_to_spherical(position, cfg);
 
         #ifdef IS_CONSTANT_THETA
         polar_position.z = M_PIf/2;
@@ -2048,7 +2048,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
         //float r_value = polar_position.y;
 
-        float r_value = get_distance_to_object(polar_position);
+        float r_value = get_distance_to_object(polar_position, cfg);
 
         float ds = linear_val(fabs(r_value), new_min, new_max, ambient_precision, subambient_precision);
 
@@ -2083,7 +2083,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
         {
             int out_id = atomic_inc(finished_count_out);
 
-            float4 polar_velocity = generic_velocity_to_spherical_velocity(position, velocity);
+            float4 polar_velocity = generic_velocity_to_spherical_velocity(position, velocity, cfg);
 
             struct lightray out_ray;
             out_ray.sx = sx;
@@ -2231,7 +2231,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         float new_max = 10 * rs;
         float new_min = 3 * rs;
 
-        float4 polar_position = generic_to_spherical(position);
+        float4 polar_position = generic_to_spherical(position, cfg);
 
         #ifdef IS_CONSTANT_THETA
         polar_position.z = M_PIf/2;
@@ -2239,7 +2239,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
 
         //float r_value = polar_position.y;
 
-        float r_value = get_distance_to_object(polar_position);
+        float r_value = get_distance_to_object(polar_position, cfg);
 
         float ds = linear_val(fabs(r_value), new_min, new_max, ambient_precision, subambient_precision);
 
@@ -2285,7 +2285,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         velocity = next_velocity;
         acceleration = next_acceleration;
 
-        float4 polar_out = generic_to_spherical(position);
+        float4 polar_out = generic_to_spherical(position, cfg);
 
         #if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC) || defined(DEBUG_CONSTANT_THETA)
         polar_out.yzw = get_texture_constant_theta_rotation(pixel_direction, polar_camera_pos, polar_out);
