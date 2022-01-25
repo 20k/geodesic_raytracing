@@ -897,6 +897,8 @@ int main()
                     argument_string += " -DLINEAR_FRAMEBUFFER";
                 }
 
+                file::write("./argument_string.txt", argument_string, file::mode::TEXT);
+
                 cl::program prog(clctx.ctx, "cl.cl");
 
                 prog.build(clctx.ctx, argument_string);
