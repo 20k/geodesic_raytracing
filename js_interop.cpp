@@ -220,7 +220,7 @@ js::value to_class(js::value_context& vctx, js::value in)
 
 void san(js::value& v)
 {
-    if(!v.has("v"))
+    if(!v.has_hidden("v"))
     {
         storage s;
 
@@ -228,7 +228,7 @@ void san(js::value& v)
 
         next.allocate_in_heap(s);
 
-        v.add("v", next);
+        v.add_hidden("v", next);
     }
 }
 
@@ -259,7 +259,37 @@ storage get(js::value& v)
 
     san(v);
 
-    return *v.get("v").get_ptr<storage>();
+    return *v.get_hidden("v").get_ptr<storage>();
+}
+
+js::value pin(js::value_context* vctx, js::value in)
+{
+    if(!in.has_hidden("v"))
+        return in;
+
+    storage* s = in.get_hidden("v").get_ptr<storage>();
+
+    assert(s);
+
+    sandbox* sand = js::get_sandbox_data<sandbox>(*vctx);
+
+    assert(sand);
+
+    if(s->which == 0)
+    {
+        sand->ctx.pin(s->d.real);
+        sand->ctx.pin(s->d.dual);
+    }
+    else
+    {
+        sand->ctx.pin(s->c.real.real);
+        sand->ctx.pin(s->c.real.imaginary);
+
+        sand->ctx.pin(s->c.dual.real);
+        sand->ctx.pin(s->c.dual.imaginary);
+    }
+
+    return in;
 }
 
 dual getr(js::value& v)
@@ -284,7 +314,7 @@ js::value to_value(js::value_context& vctx, const dual& in)
     js::value as_object(vctx);
     as_object.allocate_in_heap(s);
 
-    v.add("v", as_object);
+    v.add_hidden("v", as_object);
 
     return to_class(vctx, v);
 }
@@ -300,9 +330,9 @@ js::value to_value(js::value_context& vctx, const dual_complex& in)
     js::value as_object(vctx);
     as_object.allocate_in_heap(s);
 
-    v.add("v", as_object);
+    v.add_hidden("v", as_object);
 
-    assert(v.has("v"));
+    assert(v.has_hidden("v"));
 
     return to_class(vctx, v);
 }
@@ -316,7 +346,7 @@ js::value to_value(js::value_context& vctx, const storage& in)
     js::value as_object(vctx);
     as_object.set_ptr(ptr);
 
-    v.add("v", as_object);
+    v.add_hidden("v", as_object);
 
     return to_class(vctx, v);
 }
@@ -328,7 +358,7 @@ void construct(js::value_context* vctx, js::value js_this, js::value v2)
     js::value as_object(*vctx);
     as_object.allocate_in_heap(v);
 
-    js_this.add("v", as_object);
+    js_this.add_hidden("v", as_object);
 }
 
 js::value add(js::value_context* vctx, js::value v1, js::value v2)
@@ -626,6 +656,8 @@ js::value extract_function(js::value_context& vctx, const std::string& script_da
     js::add_key_value(global, "CMath", cmath);
 
     js::add_key_value(global, "M_PI", js::make_value(vctx, M_PI));
+
+    js::add_key_value(global, "$pin", js::function<pin>);
 
     js::value result = js::eval(vctx, wrapper);
 

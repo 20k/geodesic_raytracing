@@ -521,6 +521,16 @@ namespace metrics
             argument_string += " -DDYNVARS=" + vars;
         }
 
+        {
+            std::string extra_string;
+
+            in.sand.ctx.build(extra_string, 0);
+
+            //std::cout << "ADDED " << extra_string << std::endl;
+
+            argument_string += " " + extra_string;
+        }
+
         return argument_string;
     }
 }

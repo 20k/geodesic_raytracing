@@ -14,6 +14,9 @@ struct equation_context
 
     void pin(dual_types::value& v)
     {
+        if(v.is_constant())
+            return;
+
         for(auto& i : temporaries)
         {
             if(dual_types::equivalent(v, i.second))
@@ -52,7 +55,7 @@ struct equation_context
         values.push_back({name, v});
     }
 
-    void build_impl(std::string& argument_string, const std::string& str)
+    void build_impl(std::string& argument_string, const std::string& str) const
     {
         for(auto& i : values)
         {
@@ -81,7 +84,7 @@ struct equation_context
         argument_string += "-DTEMPORARIES" + str + "=" + temporary_string + " ";
     }
 
-    void build(std::string& argument_string, const std::string& str)
+    void build(std::string& argument_string, const std::string& str) const
     {
         int old_length = argument_string.size();
 
@@ -92,7 +95,7 @@ struct equation_context
         std::cout << "EXTRA LENGTH " << (new_length - old_length) << " " << str << std::endl;
     }
 
-    void build(std::string& argument_string, int idx)
+    void build(std::string& argument_string, int idx) const
     {
         build(argument_string, std::to_string(idx));
     }

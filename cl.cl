@@ -544,6 +544,8 @@ void calculate_metric_generic(float4 spacetime_position, float g_metric_out[], d
     float rs = RS_IMPL;
     float c = C_IMPL;
 
+    float TEMPORARIES0;
+
     g_metric_out[0] = F1_I;
     g_metric_out[1] = F2_I;
     g_metric_out[2] = F3_I;
@@ -559,6 +561,8 @@ void calculate_partial_derivatives_generic(float4 spacetime_position, float g_me
 
     float rs = RS_IMPL;
     float c = C_IMPL;
+
+    float TEMPORARIES0;
 
     g_metric_partials[0] = F1_P;
     g_metric_partials[1] = F2_P;
@@ -594,6 +598,8 @@ void calculate_metric_generic_big(float4 spacetime_position, float g_metric_out[
     float rs = RS_IMPL;
     float c = C_IMPL;
 
+    float TEMPORARIES0;
+
     g_metric_out[0] = F1_I;
     g_metric_out[1] = F2_I;
     g_metric_out[2] = F3_I;
@@ -621,6 +627,8 @@ void calculate_partial_derivatives_generic_big(float4 spacetime_position, float 
 
     float rs = RS_IMPL;
     float c = C_IMPL;
+
+    float TEMPORARIES0;
 
     g_metric_partials[0 * 16 + 0] = F1_P;
     g_metric_partials[0 * 16 + 1] = F2_P;

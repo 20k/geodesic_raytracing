@@ -370,7 +370,7 @@ int main()
     metrics::config cfg;
     ///necessary for double schwarzs
     cfg.universe_size = 20;
-    cfg.use_device_side_enqueue = true;
+    cfg.use_device_side_enqueue = false;
     //cfg.error_override = 100.f;
     //cfg.error_override = 0.000001f;
     //cfg.error_override = 0.000001f;
@@ -860,6 +860,8 @@ int main()
                     assert(current_metric);
 
                     selected_error = current_metric->metric_cfg.max_acceleration_change;
+
+                    std::cout << "ALLOCATING DYNCONFIG " << current_metric->sand.cfg.default_values.size() << std::endl;
 
                     int dyn_config_bytes = current_metric->sand.cfg.default_values.size() * sizeof(cl_float);
 

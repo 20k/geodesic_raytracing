@@ -24,6 +24,7 @@ struct sandbox
 {
     config_variables cfg;
     equation_context ctx;
+    bool in_metric = false;
 };
 
 struct js_metric
