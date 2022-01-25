@@ -136,6 +136,43 @@ storage func(const storage& s1, T&& functor)
         throw std::runtime_error("Invalid type in dual/complex internals");
     }
 }
+
+void shrink(storage& s)
+{
+    if(s.which == 0)
+    {
+        dual& d = s.d;
+
+        std::string as_str_real = type_to_string(d.real);
+        std::string as_str_dual = type_to_string(d.dual);
+
+        dual replacement;
+        replacement.real = as_str_real;
+        replacement.dual = as_str_dual;
+
+        d = replacement;
+    }
+    else
+    {
+        dual_complex& d = s.c;
+
+        std::string as_str_real_real = type_to_string(d.real.real);
+        std::string as_str_dual_real = type_to_string(d.dual.real);
+
+        std::string as_str_real_complex = type_to_string(d.real.imaginary);
+        std::string as_str_dual_complex = type_to_string(d.dual.imaginary);
+
+        dual_complex replacement;
+        replacement.real.real = as_str_real_real;
+        replacement.dual.real = as_str_dual_real;
+
+        replacement.real.imaginary = as_str_real_complex;
+        replacement.dual.imaginary = as_str_dual_complex;
+
+        d = replacement;
+    }
+}
+
 template<typename T>
 storage func_real(const storage& s1, T&& functor)
 {
@@ -199,6 +236,19 @@ storage s_sub(const storage& s1, const storage& s2)
 storage s_mul(const storage& s1, const storage& s2)
 {
     timer t("mul");
+
+    /*if(s1.which == 0)
+    {
+        int len = type_to_string(s1.d.dual).size() + type_to_string(s1.d.real).size();
+
+        printf("Len %i\n", len);
+    }
+    else
+    {
+        int len = type_to_string(s1.c.real.real).size() + type_to_string(s1.c.dual.real).size() + type_to_string(s1.c.real.imaginary).size() + type_to_string(s1.c.dual.imaginary).size();
+
+        printf("Clen %i\n", len);
+    }*/
 
     return func(s1, s2, [](const auto& v1, const auto& v2)
     {
@@ -281,6 +331,8 @@ storage get(js::value& v)
         storage s;
         s.d = val;
 
+        shrink(s);
+
         return s;
     }
 
@@ -291,12 +343,18 @@ storage get(js::value& v)
         storage s;
         s.d = val;
 
+        shrink(s);
+
         return s;
     }
 
     san(v);
 
-    return *v.get("v").get_ptr<storage>();
+    storage* sp = v.get("v").get_ptr<storage>();
+
+    shrink(*sp);
+
+    return *sp;
 }
 
 dual getr(js::value& v)
@@ -316,6 +374,8 @@ js::value to_value(js::value_context& vctx, const dual& in)
     storage s;
     s.d = in;
 
+    shrink(s);
+
     js::value v(vctx);
 
     js::value as_object(vctx);
@@ -331,6 +391,8 @@ js::value to_value(js::value_context& vctx, const dual_complex& in)
     storage s;
     s.which = 1;
     s.c = in;
+
+    shrink(s);
 
     js::value v(vctx);
 
@@ -349,6 +411,8 @@ js::value to_value(js::value_context& vctx, const storage& in)
     js::value v(vctx);
 
     storage* ptr = new storage(in);
+
+    shrink(*ptr);
 
     js::value as_object(vctx);
     as_object.set_ptr(ptr);
