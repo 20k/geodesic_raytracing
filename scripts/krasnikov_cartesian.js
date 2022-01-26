@@ -7,12 +7,17 @@ function krasnikov_thetae(v, e)
 ///values here are picked for numerical stability, in particular D should be < the precision bounding box, and its more numerically stable the higher e is
 function krasnikov_tube_metric_cart(t, x, y, z)
 {
-    var e = 0.75; ///width o the tunnel
-    var D = 5; ///length of the tube
-    var pmax = 2; ///size of the mouth
+	$cfg.e.$default = 0.75;
+	$cfg.D.$default = 5;
+	$cfg.pmax.$default = 2;
+	$cfg.littled.$default = 0.01;
+	
+    var e = $cfg.e; ///width o the tunnel
+    var D = $cfg.D; ///length of the tube
+    var pmax = $cfg.pmax; ///size of the mouth
 
     ///[0, 2], approx= 0?
-    var little_d = 0.01; ///unsure, <1 required for superluminosity
+    var little_d = $cfg.littled; ///unsure, <1 required for superluminosity
 
     var p = CMath.sqrt(y * y + z * z);
 
