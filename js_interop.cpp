@@ -524,15 +524,19 @@ namespace CMath
         if(s2.which != 0)
             throw std::runtime_error("Pow cannot be used with a complex second argument");
 
-        if(!s2.d.real.is_constant())
-            throw std::runtime_error("Pow's second argument must be constant");
+        //if(!s2.d.real.is_constant())
+        //    throw std::runtime_error("Pow's second argument must be constant");
 
-        double exponent = s2.d.real.get_constant();
 
         if(s1.which == 0)
         {
-            return to_value(*vctx, pow(s1.d, exponent));
+            return to_value(*vctx, pow(s1.d, s2.d));
         }
+
+        if(!s2.d.real.is_constant())
+            throw std::runtime_error("Pow's second argument must be constant if arg1 is complex");
+
+        double exponent = s2.d.real.get_constant();
 
         if(s1.which == 1)
         {

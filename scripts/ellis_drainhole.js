@@ -2,8 +2,11 @@ function ellis_drainhole(t, r, theta, phi)
 {
     var c = 1;
 
-    var m = 0.5;
-    var n = 1;
+	$cfg.m.$default = 0.5;
+	$cfg.n.$default = 1;
+
+    var m = $cfg.m;
+    var n = $cfg.n;
 
     var alpha = CMath.sqrt(n * n - m * m);
 

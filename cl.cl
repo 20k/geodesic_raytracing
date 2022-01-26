@@ -2023,7 +2023,9 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
     float next_ds = 0.00001;
 
+    #ifdef ADAPTIVE_PRECISION
     (void)acceleration_to_precision(acceleration, &next_ds);
+    #endif // ADAPTIVE_PRECISION
 
     ///results:
     ///subambient_precision can't go above 0.5 much while in verlet mode without the size of the event horizon changing

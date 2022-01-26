@@ -1,9 +1,12 @@
 ///https://arxiv.org/pdf/1408.6041.pdf is where this formulation comes from
 function janis_newman_winicour(t, r, theta, phi)
 {
-    var r0 = 1;
+	$cfg.r0.$default = 1;
+	$cfg.mu.$default = 4;
+	
+    var r0 = $cfg.r0;
     ///mu = [1, +inf]
-    var mu = 4;
+    var mu = $cfg.mu;
 
     var Ar = CMath.pow((2 * r - r0 * (mu - 1)) / (2 * r + r0 * (mu + 1)), 1/mu);
     var Br = (1/4.) * CMath.pow(2 * r + r0 * (mu + 1), (1/mu) + 1) / CMath.pow(2 * r - r0 * (mu - 1), (1/mu) - 1);
