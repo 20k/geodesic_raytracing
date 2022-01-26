@@ -2,13 +2,18 @@ function double_schwarzschild(t, p, phi, z)
 {
     ///this functions performance would indicate that something very suboptimal is happening
     ///probably around the poles
-    var M1 = 1;
-    var M2 = 0.1;
+	
+	$cfg.M1.$default = 1;
+	$cfg.M2.$default = 0.1;
+	$cfg.z.$default = 2;
+	
+    var M1 = $cfg.M1;
+    var M2 = $cfg.M2;
 
     var e = M2 - M1;
     var M = M1 + M2;
 
-    var z0 = 2;
+    var z0 = $cfg.z;
 
     var a1 = -0.5 * (M - e) - z0;
     var a2 = 0.5 * (M - e) - z0;

@@ -1,6 +1,8 @@
 function de_sitter(t, r, theta, phi)
 {
-    var cosmo = 0.01;
+	$cfg.cosmological_constant.$default = 0.01;
+	
+    var cosmo = $cfg.cosmological_constant;
 
     var c = 1;
 
