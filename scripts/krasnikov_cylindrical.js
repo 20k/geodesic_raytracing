@@ -8,6 +8,10 @@ function krasnikov_thetae(v, e)
 ///krasnikov is extremely terrible, because its situated down the z axis here which is super incredibly bad for performance
 function krasnikov_tube_metric(t, p, phi, x)
 {
+	$cfg.e.$default = 0.1;
+	$cfg.D.$default = 2;
+	$cfg.pmax.$default = 1;
+	
     var e = 0.1; ///width o the tunnel
     var D = 2; ///length of the tube
     var pmax = 1; ///size of the mouth

@@ -1,7 +1,9 @@
 ////https://arxiv.org/pdf/0904.4184.pdf
 function wormhole(t, p, theta, phi)
 {
-    var n = 1;
+	$cfg.n.$default = 1;
+	
+    var n = $cfg.n;
 
     var dt = -1;
     var dr = 1;
