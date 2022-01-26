@@ -1,11 +1,15 @@
 function kerr_newman(t, r, theta, phi)
 {
+	$cfg.rs.$default = 1;
+	$cfg.r2q.$default = 0.51;
+	$cfg.a.$default = -0.51;
+	
     var c = 1;
-    var rs = 1;
-    var r2q = 0.51;
+    var rs = $cfg.rs;
+    var r2q = $cfg.r2q;
     //dual r2q = 0.5;
     //dual a = 0.51;
-    var a = -0.51;
+    var a = $cfg.a;
 
     var p2 = r * r + a * a * CMath.cos(theta) * CMath.cos(theta);
     var D = r * r - rs * r + a * a + r2q * r2q;
