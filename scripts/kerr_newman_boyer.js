@@ -7,8 +7,6 @@ function kerr_newman(t, r, theta, phi)
     var c = 1;
     var rs = $cfg.rs;
     var r2q = $cfg.r2q;
-    //dual r2q = 0.5;
-    //dual a = 0.51;
     var a = $cfg.a;
 
     var p2 = r * r + a * a * CMath.cos(theta) * CMath.cos(theta);

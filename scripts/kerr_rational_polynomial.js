@@ -1,7 +1,10 @@
 function kerr_rational_polynomial(t, r, X, phi)
 {
-    var m = 0.5;
-    var a = -2;
+	$cfg.m.$default = 0.5;
+	$cfg.a.$default = -0.25;
+	
+    var m = $cfg.m;
+    var a = $cfg.a;
 
     var dt = -(1 - 2 * m * r / (r * r + a * a * X * X));
     var dphidt = - (4 * a * m * r * (1 - X * X))/(r * r + a * a * X * X);
