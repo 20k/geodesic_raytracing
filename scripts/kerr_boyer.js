@@ -1,8 +1,11 @@
 function kerr_metric(t, r, theta, phi)
 {
-    var rs = 1;
+	$cfg.rs.$default = 1;
+	$cfg.a.$default = -0.5;
+	
+    var rs = $cfg.rs;
 
-    var a = -0.5;
+    var a = $cfg.a;
     var E = r * r + a * a * CMath.cos(theta) * CMath.cos(theta);
     var D = r * r  - rs * r + a * a;
 
