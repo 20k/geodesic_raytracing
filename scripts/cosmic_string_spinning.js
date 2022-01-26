@@ -2,10 +2,13 @@ function spinning_cosmic_string(t, p, phi, z)
 {
     var c = 1;
 
+	$cfg.a.$default = 0.01;
+	$cfg.k.$default = 0.98;
+
     ///spin
-    var a = 0.01;
+    var a = $cfg.a;
     ///deficit angle is (1 - k) * 2pi, aka the segment cut out of a circle
-    var k = 0.98;
+    var k = $cfg.k;
     ///a = 0, k = 1 = minkowski
 
     var dt = -1;
