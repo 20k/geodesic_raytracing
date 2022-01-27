@@ -308,6 +308,11 @@ int calculate_ray_count(int width, int height)
     return (height - 1) * width + width - 1;
 }
 
+struct settings_context
+{
+
+};
+
 ///i need the ability to have dynamic parameters
 int main()
 {
@@ -746,74 +751,6 @@ int main()
 
         if(!taking_screenshot)
         {
-            ImGui::Begin("DBG", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-
-            ImGui::DragFloat3("Polar Pos", &scamera.v[1]);
-            ImGui::DragFloat3("Cart Pos", &camera.v[1]);
-
-            ImGui::DragFloat("Time", &time);
-
-            ImGui::Checkbox("Supersample", &supersample);
-
-            ImGui::SliderFloat("CTime", &camera.v[0], 0.f, 100.f);
-
-            ImGui::Checkbox("Time Progresses", &time_progresses);
-
-            if(time_progresses)
-                camera.v[0] += time / 1000.f;
-
-            if(ImGui::Button("Screenshot"))
-                should_take_screenshot = true;
-
-            ImGui::DragFloat("Geodesic Camera Time", &current_geodesic_time, 0.1, -100.f, 100.f);
-            //ImGui::SliderFloat("Geodesic Camera Time", &current_geodesic_time, -100.f, 100.f);
-
-            ImGui::Checkbox("Use Camera Geodesic", &camera_on_geodesic);
-
-            ImGui::Checkbox("Camera Time Progresses", &camera_time_progresses);
-
-            if(camera_time_progresses)
-                current_geodesic_time += time / 1000.f;
-
-            if(ImGui::Button("Snapshot Camera Geodesic"))
-            {
-                should_snapshot_geodesic = true;
-            }
-
-            ImGui::Checkbox("Camera Snapshot Geodesic goes forward", &camera_geodesics_go_foward);
-
-            ImGui::Separator();
-
-            ImGui::Text("Dynamic Options");
-
-            if(current_metric)
-            {
-                if(current_metric->sand.cfg.display())
-                {
-                    int dyn_config_bytes = current_metric->sand.cfg.current_values.size() * sizeof(cl_float);
-
-                    if(dyn_config_bytes < 4)
-                        dyn_config_bytes = 4;
-
-                    dynamic_config.alloc(dyn_config_bytes);
-
-                    std::vector<float> vars = current_metric->sand.cfg.current_values;
-
-                    if(vars.size() == 0)
-                        vars.resize(1);
-
-                    dynamic_config.write(clctx.cqueue, vars);
-                }
-            }
-
-            ImGui::Separator();
-
-            ImGui::Text("Compile Options");
-
-            ImGui::Checkbox("Redshift", &cfg.redshift);
-
-            ImGui::InputFloat("Error Tolerance", &selected_error, 0.0000001f, 0.00001f, "%.8f");
-
             std::vector<std::string> concrete_strings;
 
             std::vector<const char*> items;
@@ -837,9 +774,104 @@ int main()
 
             assert(items.size() > 0);
 
-            ImGui::ListBox("Metrics", &selected_idx, &items[0], items.size());
+            ImGui::Begin("DBG", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 
-            if(ImGui::Button("Recompile") || current_idx == -1)
+            bool should_recompile = false;
+
+            if(ImGui::BeginTabBar("TabBar"))
+            {
+                if(ImGui::BeginTabItem("General"))
+                {
+                    ImGui::DragFloat3("Polar Pos", &scamera.v[1]);
+                    ImGui::DragFloat3("Cart Pos", &camera.v[1]);
+                    ImGui::SliderFloat("Camera Time", &camera.v[0], 0.f, 100.f);
+
+                    ImGui::DragFloat("Frametime", &time);
+
+                    ImGui::Checkbox("Supersample", &supersample);
+
+                    ImGui::Checkbox("Time Progresses", &time_progresses);
+
+                    if(time_progresses)
+                        camera.v[0] += time / 1000.f;
+
+                    if(ImGui::Button("Screenshot"))
+                        should_take_screenshot = true;
+
+                    ImGui::EndTabItem();
+                }
+
+                if(ImGui::BeginTabItem("Settings"))
+                {
+                    ImGui::Text("Dynamic Options");
+
+                    if(current_metric)
+                    {
+                        if(current_metric->sand.cfg.display())
+                        {
+                            int dyn_config_bytes = current_metric->sand.cfg.current_values.size() * sizeof(cl_float);
+
+                            if(dyn_config_bytes < 4)
+                                dyn_config_bytes = 4;
+
+                            dynamic_config.alloc(dyn_config_bytes);
+
+                            std::vector<float> vars = current_metric->sand.cfg.current_values;
+
+                            if(vars.size() == 0)
+                                vars.resize(1);
+
+                            dynamic_config.write(clctx.cqueue, vars);
+                        }
+                    }
+
+                    ImGui::Separator();
+
+                    ImGui::Text("Compile Options");
+
+                    ImGui::Checkbox("Redshift", &cfg.redshift);
+
+                    ImGui::InputFloat("Error Tolerance", &selected_error, 0.0000001f, 0.00001f, "%.8f");
+
+                    should_recompile |= ImGui::Button("Recompile");
+
+                    ImGui::EndTabItem();
+                }
+
+                if(ImGui::BeginTabItem("Paths"))
+                {
+                    ImGui::DragFloat("Geodesic Camera Time", &current_geodesic_time, 0.1, -100.f, 100.f);
+
+                    ImGui::Checkbox("Use Camera Geodesic", &camera_on_geodesic);
+
+                    ImGui::Checkbox("Camera Time Progresses", &camera_time_progresses);
+
+                    if(camera_time_progresses)
+                        current_geodesic_time += time / 1000.f;
+
+                    if(ImGui::Button("Snapshot Camera Geodesic"))
+                    {
+                        should_snapshot_geodesic = true;
+                    }
+
+                    ImGui::Checkbox("Camera Snapshot Geodesic goes forward", &camera_geodesics_go_foward);
+
+                    ImGui::EndTabItem();
+                }
+
+                if(ImGui::BeginTabItem("Metrics"))
+                {
+                    ImGui::ListBox("Metrics", &selected_idx, &items[0], items.size());
+
+                    should_recompile |= ImGui::Button("Switch");
+
+                    ImGui::EndTabItem();
+                }
+
+                ImGui::EndTabBar();
+            }
+
+            if(should_recompile || current_idx == -1)
             {
                 if(selected_idx == -1)
                     selected_idx = 0;
