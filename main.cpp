@@ -308,11 +308,6 @@ int calculate_ray_count(int width, int height)
     return (height - 1) * width + width - 1;
 }
 
-struct settings_context
-{
-
-};
-
 ///i need the ability to have dynamic parameters
 int main()
 {
