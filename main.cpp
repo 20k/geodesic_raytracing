@@ -861,7 +861,7 @@ int main()
 
                 if(ImGui::BeginTabItem("Metrics"))
                 {
-                    ImGui::ListBox("Metrics", &selected_idx, &items[0], items.size());
+                    ImGui::ListBox("##Metrics", &selected_idx, &items[0], items.size());
 
                     should_recompile |= ImGui::Button("Switch");
 
