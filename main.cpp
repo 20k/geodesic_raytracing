@@ -155,6 +155,7 @@ vec4f interpolate_geodesic(const std::vector<cl_float4>& geodesic, float coordin
             float r1 = cur.y();
             float r2 = next.y();
 
+            ///this might be why things bug out, the division here could easily be singular
             float dx = (coordinate_time - cur.x()) / (next.x() - cur.x());
 
             vec3f next_cart = cartesian_to_polar(mix(as_cart1, as_cart2, dx));
