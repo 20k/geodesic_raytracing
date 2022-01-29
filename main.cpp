@@ -829,6 +829,8 @@ int main()
 
                     ImGui::InputFloat("Error Tolerance", &selected_error, 0.0000001f, 0.00001f, "%.8f");
 
+                    ImGui::Separator();
+
                     should_recompile |= ImGui::Button("Recompile");
 
                     ImGui::EndTabItem();
