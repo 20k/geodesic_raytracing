@@ -381,6 +381,7 @@ int main()
     //printf("WLs %f %f %f\n", chromaticity::srgb_to_wavelength({1, 0, 0}), chromaticity::srgb_to_wavelength({0, 1, 0}), chromaticity::srgb_to_wavelength({0, 0, 1}));
 
     int supersample_mult = 2;
+    int last_supersample_mult = supersample_mult;
 
     int start_width = sett.width;
     int start_height = sett.height;
@@ -568,7 +569,7 @@ int main()
 
         vec<2, size_t> super_adjusted_width = supersample ? (buffer_size / supersample_mult) : buffer_size;
 
-        if((vec2i){super_adjusted_width.x(), super_adjusted_width.y()} != win.get_window_size() || taking_screenshot || last_supersample != supersample)
+        if((vec2i){super_adjusted_width.x(), super_adjusted_width.y()} != win.get_window_size() || taking_screenshot || last_supersample != supersample || last_supersample_mult != supersample_mult)
         {
             if(last_event.has_value())
                 last_event.value().block();
@@ -627,6 +628,7 @@ int main()
             }
 
             last_supersample = supersample;
+            last_supersample_mult = supersample_mult;
         }
 
         rtex[which_buffer].acquire(clctx.cqueue);
@@ -796,8 +798,6 @@ int main()
 
                 ImGui::DragFloat("Frametime", &time);
 
-                ImGui::Checkbox("Supersample", &supersample);
-
                 ImGui::Checkbox("Time Progresses", &time_progresses);
 
                 if(time_progresses)
@@ -855,6 +855,12 @@ int main()
 
                 screenshot_w = std::max(screenshot_w, 16);
                 screenshot_h = std::max(screenshot_h, 16);
+
+                ImGui::Checkbox("Supersample", &supersample);
+
+                ImGui::InputInt("Supersample Factor", &supersample_mult, 1, 1);
+
+                supersample_mult = clamp(supersample_mult, 1, 8);
 
                 ImGui::TreePop();
             }
