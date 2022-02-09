@@ -382,12 +382,12 @@ int main()
 
     int supersample_mult = 2;
 
-    int supersample_width = sett.width * supersample_mult;
-    int supersample_height = sett.height * supersample_mult;
+    int start_width = sett.width;
+    int start_height = sett.height;
 
     texture_settings tsett;
-    tsett.width = supersample_width;
-    tsett.height = supersample_height;
+    tsett.width = start_width;
+    tsett.height = start_height;
     tsett.is_srgb = false;
     tsett.generate_mipmaps = false;
 
@@ -427,7 +427,7 @@ int main()
 
     sf::Clock clk;
 
-    int ray_count = supersample_width * supersample_height;
+    int ray_count = start_width * start_height;
 
     printf("Pre buffer declarations\n");
 
@@ -447,7 +447,7 @@ int main()
 
     printf("Post buffer declarations\n");
 
-    termination_buffer.alloc(supersample_width * supersample_height * sizeof(cl_int));
+    termination_buffer.alloc(start_width * start_height * sizeof(cl_int));
 
     printf("Allocated termination buffer\n");
 
@@ -468,7 +468,7 @@ int main()
 
     for(int i=0; i < 2; i++)
     {
-        texture_coordinates[i].alloc(supersample_width * supersample_height * sizeof(float) * 2);
+        texture_coordinates[i].alloc(start_width * start_height * sizeof(float) * 2);
         texture_coordinates[i].set_to_zero(clctx.cqueue);
     }
 
@@ -504,6 +504,7 @@ int main()
 
     std::cout << "Supports shared events? " << cl::supports_extension(clctx.ctx, "cl_khr_gl_event") << std::endl;
 
+    bool last_supersample = false;
     bool supersample = false;
     bool should_take_screenshot = false;
 
@@ -565,32 +566,41 @@ int main()
 
         bool should_snapshot_geodesic = false;
 
-        if((vec2i){buffer_size.x() / supersample_mult, buffer_size.y() / supersample_mult} != win.get_window_size() || taking_screenshot)
+        if((vec2i){buffer_size.x(), buffer_size.y()} != win.get_window_size() || taking_screenshot || last_supersample != supersample)
         {
             if(last_event.has_value())
                 last_event.value().block();
 
             last_event = std::nullopt;
 
+            int width = 16;
+            int height = 16;
+
             if(!taking_screenshot)
             {
-                supersample_width = win.get_window_size().x() * supersample_mult;
-                supersample_height = win.get_window_size().y() * supersample_mult;
+                width = win.get_window_size().x();
+                height = win.get_window_size().y();
+
+                if(supersample)
+                {
+                    width *= supersample_mult;
+                    height *= supersample_mult;
+                }
             }
             else
             {
-                supersample_width = screenshot_w * supersample_mult;
-                supersample_height = screenshot_h * supersample_mult;
+                width = screenshot_w * supersample_mult;
+                height = screenshot_h * supersample_mult;
             }
 
-            supersample_width = max(supersample_width, 16 * supersample_mult);
-            supersample_height = max(supersample_height, 16 * supersample_mult);
+            width = max(width, 16 * supersample_mult);
+            height = max(height, 16 * supersample_mult);
 
-            ray_count = supersample_width * supersample_height;
+            ray_count = width * height;
 
             texture_settings new_sett;
-            new_sett.width = supersample_width;
-            new_sett.height = supersample_height;
+            new_sett.width = width;
+            new_sett.height = height;
             new_sett.is_srgb = false;
             new_sett.generate_mipmaps = false;
 
@@ -600,7 +610,7 @@ int main()
             rtex[0].create_from_texture(tex[0].handle);
             rtex[1].create_from_texture(tex[1].handle);
 
-            termination_buffer.alloc(supersample_width * supersample_height * sizeof(cl_int));
+            termination_buffer.alloc(width * height * sizeof(cl_int));
             termination_buffer.set_to_zero(clctx.cqueue);
 
             schwarzs_1.alloc(sizeof(lightray) * ray_count);
@@ -610,9 +620,11 @@ int main()
 
             for(int i=0; i < 2; i++)
             {
-                texture_coordinates[i].alloc(supersample_width * supersample_height * sizeof(float) * 2);
+                texture_coordinates[i].alloc(width * height * sizeof(float) * 2);
                 texture_coordinates[i].set_to_zero(clctx.cqueue);
             }
+
+            last_supersample = supersample;
         }
 
         rtex[which_buffer].acquire(clctx.cqueue);
@@ -795,7 +807,7 @@ int main()
                 ImGui::TreePop();
             }
 
-            if(ImGui::TreeNode("Settings"))
+            if(ImGui::TreeNode("Metric Settings"))
             {
                 ImGui::Text("Dynamic Options");
 
@@ -830,6 +842,17 @@ int main()
                 ImGui::Separator();
 
                 should_recompile |= ImGui::Button("Recompile");
+
+                ImGui::TreePop();
+            }
+
+            if(ImGui::TreeNode("Rendering Settings"))
+            {
+                ImGui::InputInt("Screenshot Width", &screenshot_w, 1, 10);
+                ImGui::InputInt("Screenshot Height", &screenshot_h, 1, 10);
+
+                screenshot_w = std::max(screenshot_w, 16);
+                screenshot_h = std::max(screenshot_h, 16);
 
                 ImGui::TreePop();
             }
@@ -1160,10 +1183,7 @@ int main()
                 br.y += screen_pos.y;
             }
 
-            if(!supersample)
-                lst->AddImage((void*)rtex[which_buffer].texture_id, tl, br, ImVec2(0, 0), ImVec2(1.f/supersample_mult, 1.f/supersample_mult));
-            else
-                lst->AddImage((void*)rtex[which_buffer].texture_id, tl, br, ImVec2(0, 0), ImVec2(1, 1));
+            lst->AddImage((void*)rtex[which_buffer].texture_id, tl, br, ImVec2(0, 0), ImVec2(1, 1));
         }
 
         win.display();
