@@ -566,7 +566,9 @@ int main()
 
         bool should_snapshot_geodesic = false;
 
-        if((vec2i){buffer_size.x(), buffer_size.y()} != win.get_window_size() || taking_screenshot || last_supersample != supersample)
+        vec<2, size_t> super_adjusted_width = supersample ? (buffer_size / supersample_mult) : buffer_size;
+
+        if((vec2i){super_adjusted_width.x(), super_adjusted_width.y()} != win.get_window_size() || taking_screenshot || last_supersample != supersample)
         {
             if(last_event.has_value())
                 last_event.value().block();
@@ -961,20 +963,8 @@ int main()
             ImGui::End();
         }
 
-        int width = win.get_window_size().x();
-        int height = win.get_window_size().y();
-
-        if(supersample)
-        {
-            width *= supersample_mult;
-            height *= supersample_mult;
-        }
-
-        if(taking_screenshot)
-        {
-            width = rtex[which_buffer].size<2>().x();
-            height = rtex[which_buffer].size<2>().y();
-        }
+        int width = rtex[which_buffer].size<2>().x();
+        int height = rtex[which_buffer].size<2>().y();
 
         cl::args clr;
         clr.push_back(rtex[which_buffer]);
