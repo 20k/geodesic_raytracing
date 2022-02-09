@@ -855,6 +855,8 @@ int main()
                 ImGui::TreePop();
             }
 
+            ImGui::SetNextItemOpen(true, ImGuiCond_Once);
+
             if(ImGui::TreeNode("Metrics"))
             {
                 ImGui::ListBox("##Metrics", &selected_idx, &items[0], items.size());
