@@ -803,9 +803,6 @@ int main()
                 if(time_progresses)
                     camera.v[0] += time / 1000.f;
 
-                if(ImGui::Button("Screenshot"))
-                    should_take_screenshot = true;
-
                 ImGui::TreePop();
             }
 
@@ -861,6 +858,9 @@ int main()
                 ImGui::InputInt("Supersample Factor", &supersample_mult, 1, 1);
 
                 supersample_mult = clamp(supersample_mult, 1, 8);
+
+                if(ImGui::Button("Screenshot"))
+                    should_take_screenshot = true;
 
                 ImGui::TreePop();
             }
