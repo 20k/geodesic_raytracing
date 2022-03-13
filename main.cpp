@@ -792,6 +792,7 @@ int main()
             ImGui::Begin("DBG", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 
             bool should_recompile = false;
+            bool should_soft_recompile = false;
 
             if(ImGui::TreeNode("General"))
             {
@@ -830,6 +831,7 @@ int main()
                             vars.resize(1);
 
                         dynamic_config.write(clctx.cqueue, vars);
+                        should_soft_recompile = true;
                     }
                 }
 
@@ -900,8 +902,10 @@ int main()
                 ImGui::TreePop();
             }
 
-            if(should_recompile || current_idx == -1)
+            if(should_recompile || current_idx == -1 || should_soft_recompile)
             {
+                bool should_hard_recompile = should_recompile || current_idx == -1;
+
                 if(selected_idx == -1)
                     selected_idx = 0;
 
@@ -940,12 +944,7 @@ int main()
                 }
 
                 cfg.error_override = selected_error;
-
                 current_idx = selected_idx;
-
-                if(clctx.ctx.programs.size() > 0)
-                    clctx.ctx.deregister_program(0);
-
                 std::string argument_string_prefix = "-O3 -cl-std=CL2.0 -cl-fast-relaxed-math ";
 
                 if(cfg.use_device_side_enqueue)
@@ -958,32 +957,47 @@ int main()
                     argument_string_prefix += "-DLINEAR_FRAMEBUFFER ";
                 }
 
-                auto substitution_map = current_metric->sand.cfg.as_substitution_map();
-
-                metrics::metric_impl<std::string> substituted_impl = metrics::build_concrete(substitution_map, current_metric->desc.raw);
-
-                std::string dynamic_argument_string = argument_string_prefix + build_argument_string(*current_metric, current_metric->desc.abstract, cfg, {});
-                std::string substituted_argument_string = argument_string_prefix + build_argument_string(*current_metric, substituted_impl, cfg, substitution_map);
-
-                std::cout << "SUB " << substituted_argument_string << std::endl;
-
-                file::write("./argument_string.txt", dynamic_argument_string, file::mode::TEXT);
-
-                dynamic_program_opt = std::nullopt;
-                dynamic_program_opt.emplace(clctx.ctx, "cl.cl");
-                dynamic_program_opt->build(clctx.ctx, dynamic_argument_string);
-
-                clctx.ctx.register_program(*dynamic_program_opt);
-
-                if(substituted_program_opt.has_value())
+                if(should_hard_recompile)
                 {
-                    substituted_program_opt->ensure_built();
-                    substituted_program_opt = std::nullopt;
+                    if(clctx.ctx.programs.size() > 0)
+                        clctx.ctx.deregister_program(0);
+
+                    std::string dynamic_argument_string = argument_string_prefix + build_argument_string(*current_metric, current_metric->desc.abstract, cfg, {});
+
+                    file::write("./argument_string.txt", dynamic_argument_string, file::mode::TEXT);
+
+                    dynamic_program_opt = std::nullopt;
+                    dynamic_program_opt.emplace(clctx.ctx, "cl.cl");
+                    dynamic_program_opt->build(clctx.ctx, dynamic_argument_string);
+
+                    clctx.ctx.register_program(*dynamic_program_opt);
                 }
 
-                substituted_program_opt.emplace(clctx.ctx, "cl.cl");
-                substituted_program_opt->build(clctx.ctx, substituted_argument_string);
+                if(should_soft_recompile || should_hard_recompile)
+                {
+                    if(clctx.ctx.programs.size() > 0)
+                        clctx.ctx.deregister_program(0);
 
+                    ///Reregister the dynamic program again, static is invalid
+                    clctx.ctx.register_program(*dynamic_program_opt);
+
+                    auto substitution_map = current_metric->sand.cfg.as_substitution_map();
+
+                    metrics::metric_impl<std::string> substituted_impl = metrics::build_concrete(substitution_map, current_metric->desc.raw);
+
+                    std::string substituted_argument_string = argument_string_prefix + build_argument_string(*current_metric, substituted_impl, cfg, substitution_map);
+
+                    if(substituted_program_opt.has_value())
+                    {
+                        //substituted_program_opt->ensure_built();
+                        substituted_program_opt = std::nullopt;
+                    }
+
+                    substituted_program_opt.emplace(clctx.ctx, "cl.cl");
+                    substituted_program_opt->build(clctx.ctx, substituted_argument_string);
+                }
+
+                ///Is this necessary?
                 termination_buffer.set_to_zero(clctx.cqueue);
             }
 
