@@ -989,7 +989,7 @@ int main()
 
                     if(substituted_program_opt.has_value())
                     {
-                        //substituted_program_opt->ensure_built();
+                        substituted_program_opt->cancel();
                         substituted_program_opt = std::nullopt;
                     }
 
