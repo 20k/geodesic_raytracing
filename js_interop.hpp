@@ -18,6 +18,8 @@ struct config_variables
     void add(const std::string& name, float val);
     void set_default(const std::string& name, float val);
     bool display();
+
+    std::map<std::string, std::string> as_substitution_map();
 };
 
 struct sandbox

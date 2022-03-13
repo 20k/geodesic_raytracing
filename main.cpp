@@ -487,6 +487,9 @@ int main()
 
     printf("Alloc rays and counts\n");
 
+    std::optional<cl::program> substituted_program_opt;
+    std::optional<cl::program> dynamic_program_opt;
+
     cl_sampler_properties sampler_props[] = {
     CL_SAMPLER_NORMALIZED_COORDS, CL_TRUE,
     CL_SAMPLER_ADDRESSING_MODE, CL_ADDRESS_REPEAT,
@@ -943,27 +946,62 @@ int main()
                 if(clctx.ctx.programs.size() > 0)
                     clctx.ctx.deregister_program(0);
 
-                std::string argument_string = "-O3 -cl-std=CL2.0 -cl-fast-relaxed-math " + build_argument_string(*current_metric, current_metric->desc.abstract, cfg);
+                std::string argument_string_prefix = "-O3 -cl-std=CL2.0 -cl-fast-relaxed-math ";
 
                 if(cfg.use_device_side_enqueue)
                 {
-                    argument_string += " -DDEVICE_SIDE_ENQUEUE";
+                    argument_string_prefix += "-DDEVICE_SIDE_ENQUEUE ";
                 }
 
                 if(sett.is_srgb)
                 {
-                    argument_string += " -DLINEAR_FRAMEBUFFER";
+                    argument_string_prefix += "-DLINEAR_FRAMEBUFFER ";
                 }
 
-                file::write("./argument_string.txt", argument_string, file::mode::TEXT);
+                auto substitution_map = current_metric->sand.cfg.as_substitution_map();
 
-                cl::program prog(clctx.ctx, "cl.cl");
+                metrics::metric_impl<std::string> substituted_impl = metrics::build_concrete(substitution_map, current_metric->desc.raw);
 
-                prog.build(clctx.ctx, argument_string);
+                std::string dynamic_argument_string = argument_string_prefix + build_argument_string(*current_metric, current_metric->desc.abstract, cfg, {});
+                std::string substituted_argument_string = argument_string_prefix + build_argument_string(*current_metric, substituted_impl, cfg, substitution_map);
 
-                clctx.ctx.register_program(prog);
+                std::cout << "SUB " << substituted_argument_string << std::endl;
+
+                file::write("./argument_string.txt", dynamic_argument_string, file::mode::TEXT);
+
+                dynamic_program_opt = std::nullopt;
+                dynamic_program_opt.emplace(clctx.ctx, "cl.cl");
+                dynamic_program_opt->build(clctx.ctx, dynamic_argument_string);
+
+                clctx.ctx.register_program(*dynamic_program_opt);
+
+                if(substituted_program_opt.has_value())
+                {
+                    substituted_program_opt->ensure_built();
+                    substituted_program_opt = std::nullopt;
+                }
+
+                substituted_program_opt.emplace(clctx.ctx, "cl.cl");
+                substituted_program_opt->build(clctx.ctx, substituted_argument_string);
 
                 termination_buffer.set_to_zero(clctx.cqueue);
+            }
+
+            if(substituted_program_opt.has_value())
+            {
+                cl::program& pending = substituted_program_opt.value();
+
+                if(pending.is_built())
+                {
+                    printf("Swapped\n");
+
+                    if(clctx.ctx.programs.size() > 0)
+                        clctx.ctx.deregister_program(0);
+
+                    clctx.ctx.register_program(pending);
+
+                    substituted_program_opt = std::nullopt;
+                }
             }
 
             ImGui::End();

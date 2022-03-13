@@ -394,7 +394,7 @@ namespace metrics
     };
 
     inline
-    std::string build_argument_string(const metric& in, const metric_impl<std::string>& impl, const config& cfg)
+    std::string build_argument_string(const metric& in, const metric_impl<std::string>& impl, const config& cfg, const std::map<std::string, std::string>& substitution_map)
     {
         std::string argument_string = " -DRS_IMPL=1 -DC_IMPL=1 ";
 
@@ -589,7 +589,7 @@ namespace metrics
         {
             std::string extra_string;
 
-            in.sand.ctx.build(extra_string, 0);
+            in.sand.ctx.build(extra_string, 0, substitution_map);
 
             //std::cout << "ADDED " << extra_string << std::endl;
 

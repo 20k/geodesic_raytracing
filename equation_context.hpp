@@ -55,7 +55,7 @@ struct equation_context
         values.push_back({name, v});
     }
 
-    void build_impl(std::string& argument_string, const std::string& str) const
+    void build_impl(std::string& argument_string, const std::string& str, const std::map<std::string, std::string>& substitution_map) const
     {
         for(auto& i : values)
         {
@@ -72,9 +72,20 @@ struct equation_context
 
         std::string temporary_string;
 
-        for(auto& [current_name, value] : temporaries)
+        for(auto& [current_name, val] : temporaries)
         {
-            temporary_string += current_name + "=" + type_to_string(value) + ",";
+            if(substitution_map.size() != 0)
+            {
+                dual_types::value cp = val;
+
+                cp.substitute(substitution_map);
+
+                temporary_string += current_name + "=" + type_to_string(cp) + ",";
+            }
+            else
+            {
+                temporary_string += current_name + "=" + type_to_string(val) + ",";
+            }
         }
 
         ///remove trailing comma
@@ -84,20 +95,20 @@ struct equation_context
         argument_string += "-DTEMPORARIES" + str + "=" + temporary_string + " ";
     }
 
-    void build(std::string& argument_string, const std::string& str) const
+    void build(std::string& argument_string, const std::string& str, const std::map<std::string, std::string>& substitution_map) const
     {
         int old_length = argument_string.size();
 
-        build_impl(argument_string, str);
+        build_impl(argument_string, str, substitution_map);
 
         int new_length = argument_string.size();
 
         std::cout << "EXTRA LENGTH " << (new_length - old_length) << " " << str << std::endl;
     }
 
-    void build(std::string& argument_string, int idx) const
+    void build(std::string& argument_string, int idx, const std::map<std::string, std::string>& substitution_map) const
     {
-        build(argument_string, std::to_string(idx));
+        build(argument_string, std::to_string(idx), substitution_map);
     }
 };
 

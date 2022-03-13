@@ -63,6 +63,18 @@ bool config_variables::display()
     return any_modified;
 }
 
+std::map<std::string, std::string> config_variables::as_substitution_map()
+{
+    std::map<std::string, std::string> ret;
+
+    for(int i=0; i < (int)names.size(); i++)
+    {
+        ret["cfg->" + names[i]] = std::to_string(current_values[i]);
+    }
+
+    return ret;
+}
+
 struct storage
 {
     int which = 0;
