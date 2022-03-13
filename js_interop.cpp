@@ -682,8 +682,8 @@ void validate(const std::string& in)
 {
     for(char c : in)
     {
-        if(!std::isalnum(c))
-            throw std::runtime_error("Value must be alphanumeric");
+        if(!(std::isalnum(c) || c == '_'))
+            throw std::runtime_error("Value must be alphanumeric or _");
     }
 }
 
