@@ -943,7 +943,7 @@ int main()
                 if(clctx.ctx.programs.size() > 0)
                     clctx.ctx.deregister_program(0);
 
-                std::string argument_string = "-O3 -cl-std=CL2.0 -cl-fast-relaxed-math " + current_metric->build(cfg);
+                std::string argument_string = "-O3 -cl-std=CL2.0 -cl-fast-relaxed-math " + build_argument_string(*current_metric, current_metric->desc.abstract, cfg);
 
                 if(cfg.use_device_side_enqueue)
                 {

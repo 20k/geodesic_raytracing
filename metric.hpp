@@ -10,12 +10,12 @@ namespace metrics
 {
     template<typename Func, typename... T>
     inline
-    std::pair<std::vector<std::string>, std::vector<std::string>> evaluate_metric2D(Func&& f, T... raw_variables)
+    std::pair<std::vector<value>, std::vector<value>> evaluate_metric2D(Func&& f, T... raw_variables)
     {
         std::array<std::string, sizeof...(T)> variable_names{raw_variables...};
 
-        std::vector<std::string> raw_eq;
-        std::vector<std::string> raw_derivatives;
+        std::vector<value> raw_eq;
+        std::vector<value> raw_derivatives;
 
         for(int i=0; i < (int)variable_names.size(); i++)
         {
@@ -39,13 +39,13 @@ namespace metrics
             {
                 for(auto& kk : eqs)
                 {
-                    raw_eq.push_back(type_to_string(kk.real));
+                    raw_eq.push_back(kk.real);
                 }
             }
 
             for(auto& kk : eqs)
             {
-                raw_derivatives.push_back(type_to_string(kk.dual));
+                raw_derivatives.push_back(kk.dual);
             }
         }
 
@@ -54,7 +54,7 @@ namespace metrics
 
     template<typename Func, typename... T>
     inline
-    std::pair<std::vector<std::string>, std::vector<std::string>> total_diff(Func&& f, T... raw_variables)
+    std::pair<std::vector<value>, std::vector<value>> total_diff(Func&& f, T... raw_variables)
     {
         std::array<std::string, sizeof...(T)> variable_names{raw_variables...};
 
@@ -62,18 +62,17 @@ namespace metrics
 
         constexpr int N = sizeof...(T);
 
-        std::vector<std::string> total_differentials;
+        std::vector<value> total_differentials;
 
         for(int i=0; i < N; i++)
         {
-            std::string accum;
+            value accum = 0;
 
             for(int j=0; j < N; j++)
             {
-                accum += "(" + partial_differentials[j * N + i] + ")*d" + variable_names[j];
+                value diff_variable = "d" + variable_names[j];
 
-                if(j != N-1)
-                    accum += "+";
+                accum += partial_differentials[j * N + i] * diff_variable;
             }
 
             total_differentials.push_back(accum);
@@ -206,51 +205,120 @@ namespace metrics
         }
     };
 
+    template<typename T>
+    struct metric_impl
+    {
+        std::vector<T> real_eq;
+        std::vector<T> derivatives;
+
+        std::vector<T> to_polar;
+        std::vector<T> dt_to_spherical;
+
+        std::vector<T> from_polar;
+        std::vector<T> dt_from_spherical;
+
+        T distance_function;
+    };
+
+    inline
+    std::vector<std::string> stringify_vector(const std::vector<value>& in)
+    {
+        std::vector<std::string> ret;
+
+        for(const value& i : in)
+        {
+            ret.push_back(type_to_string(i));
+        }
+
+        return ret;
+    }
+
+    inline
+    metric_impl<std::string> stringify(const metric_impl<value>& raw)
+    {
+        metric_impl<std::string> ret;
+
+        ret.real_eq = stringify_vector(raw.real_eq);
+        ret.derivatives = stringify_vector(raw.derivatives);
+
+        ret.to_polar = stringify_vector(raw.to_polar);
+        ret.dt_to_spherical = stringify_vector(raw.dt_to_spherical);
+
+        ret.from_polar = stringify_vector(raw.from_polar);
+        ret.dt_from_spherical = stringify_vector(raw.dt_from_spherical);
+
+        ret.distance_function = type_to_string(raw.distance_function);
+
+        return ret;
+    }
+
+    inline
+    metric_impl<std::string> build_concrete(const std::map<std::string, std::string>& mapping, const metric_impl<value>& raw)
+    {
+        metric_impl<value> raw_copy = raw;
+
+        for(value& v : raw_copy.real_eq)
+        {
+            v.substitute(mapping);
+        }
+
+        for(value& v : raw_copy.derivatives)
+        {
+            v.substitute(mapping);
+        }
+
+        for(value& v : raw_copy.to_polar)
+        {
+            v.substitute(mapping);
+        }
+
+        for(value& v : raw_copy.dt_to_spherical)
+        {
+            v.substitute(mapping);
+        }
+
+        for(value& v : raw_copy.from_polar)
+        {
+            v.substitute(mapping);
+        }
+
+        for(value& v : raw_copy.dt_from_spherical)
+        {
+            v.substitute(mapping);
+        }
+
+        raw_copy.distance_function.substitute(mapping);
+
+        return stringify(raw_copy);
+    }
+
     struct metric_descriptor
     {
-        std::vector<std::string> real_eq;
-        std::vector<std::string> derivatives;
-
-        std::vector<std::string> to_polar;
-        std::vector<std::string> dt_to_spherical;
-
-        std::vector<std::string> from_polar;
-        std::vector<std::string> dt_from_spherical;
-
-        std::string distance_function;
-
-        template<auto T, auto U, auto V, auto distance_func>
-        void load()
-        {
-            std::tie(real_eq, derivatives) = evaluate_metric2D(T, "v1", "v2", "v3", "v4");
-
-            std::tie(to_polar, dt_to_spherical) = total_diff(U, "v1", "v2", "v3", "v4");
-            std::tie(from_polar, dt_from_spherical) = total_diff(V, "v1", "v2", "v3", "v4");
-
-            distance_function = get_function(distance_func, "v1", "v2", "v3", "v4");
-
-            debiggen();
-        }
+        metric_impl<value> raw;
+        metric_impl<std::string> abstract;
+        metric_impl<std::string> concrete;
 
         template<typename T, typename U, typename V, typename W>
         void load(T& func, U& func1, V& func2, W& func3)
         {
-            std::tie(real_eq, derivatives) = evaluate_metric2D(func, "v1", "v2", "v3", "v4");
+            std::tie(raw.real_eq, raw.derivatives) = evaluate_metric2D(func, "v1", "v2", "v3", "v4");
 
-            std::tie(to_polar, dt_to_spherical) = total_diff(func1, "v1", "v2", "v3", "v4");
-            std::tie(from_polar, dt_from_spherical) = total_diff(func2, "v1", "v2", "v3", "v4");
+            std::tie(raw.to_polar, raw.dt_to_spherical) = total_diff(func1, "v1", "v2", "v3", "v4");
+            std::tie(raw.from_polar, raw.dt_from_spherical) = total_diff(func2, "v1", "v2", "v3", "v4");
 
-            distance_function = get_function(func3, "v1", "v2", "v3", "v4");
+            raw.distance_function = get_function(func3, "v1", "v2", "v3", "v4");
 
             debiggen();
+
+            abstract = stringify(raw);
         }
 
         void debiggen()
         {
-            if(real_eq.size() == 4)
+            if(raw.real_eq.size() == 4)
                 return;
 
-            if(real_eq.size() != 16)
+            if(raw.real_eq.size() != 16)
                 throw std::runtime_error("Something terrible has happened in the metric");
 
             ///check for offdiagonal components
@@ -258,7 +326,7 @@ namespace metrics
             {
                 for(int j=0; j < 4; j++)
                 {
-                    bool is_zero = real_eq[j * 4 + i] == "0" || real_eq[j * 4 + i] == "0.0";
+                    bool is_zero = type_to_string(raw.real_eq[j * 4 + i]) == "0" || type_to_string(raw.real_eq[j * 4 + i]) == "0.0";
 
                     if(!is_zero && abs(i) != abs(j))
                         return;
@@ -267,12 +335,12 @@ namespace metrics
 
             std::cout << "Offdiagonal reduction" << std::endl;
 
-            std::vector<std::string> diagonal_equations;
-            std::vector<std::string> diagonal_derivatives;
+            std::vector<value> diagonal_equations;
+            std::vector<value> diagonal_derivatives;
 
             for(int i=0; i < 4; i++)
             {
-                diagonal_equations.push_back(real_eq[i * 4 + i]);
+                diagonal_equations.push_back(raw.real_eq[i * 4 + i]);
             }
 
             for(int k=0; k < 4; k++)
@@ -282,12 +350,12 @@ namespace metrics
                     ///so the structure of the derivatives is that we rows are the derivating variable
                     ///so like [dtdt by dt, dtdr by dt, dtdtheta by dt, dtdphi by dt,
                     ///         dtdt by dr, etc]
-                    diagonal_derivatives.push_back(derivatives[k * 16 + i * 4 + i]);
+                    diagonal_derivatives.push_back(raw.derivatives[k * 16 + i * 4 + i]);
                 }
             }
 
-            real_eq = diagonal_equations;
-            derivatives = diagonal_derivatives;
+            raw.real_eq = diagonal_equations;
+            raw.derivatives = diagonal_derivatives;
         }
     };
 
@@ -297,7 +365,7 @@ namespace metrics
         metric_config metric_cfg;
         sandbox sand;
 
-        virtual std::string build(const config& cfg){return std::string();}
+        //virtual std::string build(const config& cfg){return std::string();}
     };
 
     struct metric;
@@ -307,10 +375,7 @@ namespace metrics
 
     struct metric : metric_base
     {
-        virtual std::string build(const config& cfg) override
-        {
-            return build_argument_string(*this, cfg);
-        }
+
     };
 
     enum integration_type
@@ -329,12 +394,12 @@ namespace metrics
     };
 
     inline
-    std::string build_argument_string(const metric& in, const config& cfg)
+    std::string build_argument_string(const metric& in, const metric_impl<std::string>& impl, const config& cfg)
     {
         std::string argument_string = " -DRS_IMPL=1 -DC_IMPL=1 ";
 
-        auto real_eq = in.desc.real_eq;
-        auto derivatives = in.desc.derivatives;
+        auto real_eq = impl.real_eq;
+        auto derivatives = impl.derivatives;
 
         for(int i=0; i < (int)real_eq.size(); i++)
         {
@@ -391,11 +456,11 @@ namespace metrics
         }
 
         {
-            auto to_polar = in.desc.to_polar;
-            auto dt_to_spherical = in.desc.dt_to_spherical;
+            auto to_polar = impl.to_polar;
+            auto dt_to_spherical = impl.dt_to_spherical;
 
-            auto from_polar = in.desc.from_polar;
-            auto dt_from_spherical = in.desc.dt_from_spherical;
+            auto from_polar = impl.from_polar;
+            auto dt_from_spherical = impl.dt_from_spherical;
 
             for(int i=0; i < (int)to_polar.size(); i++)
             {
@@ -499,7 +564,7 @@ namespace metrics
             argument_string += " -DREDSHIFT";
         }
 
-        argument_string += " -DDISTANCE_FUNC=" + in.desc.distance_function;
+        argument_string += " -DDISTANCE_FUNC=" + impl.distance_function;
 
         argument_string += " -DUNIVERSE_SIZE=" + std::to_string(cfg.universe_size);
 
