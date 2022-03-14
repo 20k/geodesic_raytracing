@@ -392,15 +392,11 @@ int main()
     tsett.is_srgb = false;
     tsett.generate_mipmaps = false;
 
-    std::array<texture, 2> tex;
-    tex[0].load_from_memory(tsett, nullptr);
-    tex[1].load_from_memory(tsett, nullptr);
+    texture tex;
+    tex.load_from_memory(tsett, nullptr);
 
-    std::array<cl::gl_rendertexture, 2> rtex{clctx.ctx, clctx.ctx};
-    rtex[0].create_from_texture(tex[0].handle);
-    rtex[1].create_from_texture(tex[1].handle);
-
-    int which_buffer = 0;
+    cl::gl_rendertexture rtex{clctx.ctx};
+    rtex.create_from_texture(tex.handle);
 
     cl::image_with_mipmaps background_mipped = load_mipped_image("background.png", clctx);
     cl::image_with_mipmaps background_mipped2 = load_mipped_image("background2.png", clctx);
@@ -465,13 +461,10 @@ int main()
 
     printf("Pre texture coordinates\n");
 
-    cl::buffer texture_coordinates[2] = {clctx.ctx, clctx.ctx};
+    cl::buffer texture_coordinates{clctx.ctx};
 
-    for(int i=0; i < 2; i++)
-    {
-        texture_coordinates[i].alloc(start_width * start_height * sizeof(float) * 2);
-        texture_coordinates[i].set_to_zero(clctx.cqueue);
-    }
+    texture_coordinates.alloc(start_width * start_height * sizeof(float) * 2);
+    texture_coordinates.set_to_zero(clctx.cqueue);
 
     printf("Post texture coordinates\n");
 
@@ -563,7 +556,7 @@ int main()
 
         win.poll();
 
-        auto buffer_size = rtex[which_buffer].size<2>();
+        auto buffer_size = rtex.size<2>();
 
         bool taking_screenshot = should_take_screenshot;
         should_take_screenshot = false;
@@ -610,11 +603,8 @@ int main()
             new_sett.is_srgb = false;
             new_sett.generate_mipmaps = false;
 
-            tex[0].load_from_memory(new_sett, nullptr);
-            tex[1].load_from_memory(new_sett, nullptr);
-
-            rtex[0].create_from_texture(tex[0].handle);
-            rtex[1].create_from_texture(tex[1].handle);
+            tex.load_from_memory(new_sett, nullptr);
+            rtex.create_from_texture(tex.handle);
 
             termination_buffer.alloc(width * height * sizeof(cl_int));
             termination_buffer.set_to_zero(clctx.cqueue);
@@ -624,17 +614,14 @@ int main()
             schwarzs_prepass.alloc(sizeof(lightray) * ray_count);
             finished_1.alloc(sizeof(lightray) * ray_count);
 
-            for(int i=0; i < 2; i++)
-            {
-                texture_coordinates[i].alloc(width * height * sizeof(float) * 2);
-                texture_coordinates[i].set_to_zero(clctx.cqueue);
-            }
+            texture_coordinates.alloc(width * height * sizeof(float) * 2);
+            texture_coordinates.set_to_zero(clctx.cqueue);
 
             last_supersample = supersample;
             last_supersample_mult = supersample_mult;
         }
 
-        rtex[which_buffer].acquire(clctx.cqueue);
+        rtex.acquire(clctx.cqueue);
 
         float speed = 0.001;
 
@@ -1021,11 +1008,11 @@ int main()
             ImGui::End();
         }
 
-        int width = rtex[which_buffer].size<2>().x();
-        int height = rtex[which_buffer].size<2>().y();
+        int width = rtex.size<2>().x();
+        int height = rtex.size<2>().y();
 
         cl::args clr;
-        clr.push_back(rtex[which_buffer]);
+        clr.push_back(rtex);
 
         clctx.cqueue.exec("clear", clr, {width, height}, {16, 16});
 
@@ -1138,7 +1125,7 @@ int main()
             cl::args texture_args;
             texture_args.push_back(finished_1);
             texture_args.push_back(finished_count_1);
-            texture_args.push_back(texture_coordinates[which_buffer]);
+            texture_args.push_back(texture_coordinates);
             texture_args.push_back(width);
             texture_args.push_back(height);
             texture_args.push_back(scamera);
@@ -1150,12 +1137,12 @@ int main()
             cl::args render_args;
             render_args.push_back(finished_1);
             render_args.push_back(finished_count_1);
-            render_args.push_back(rtex[which_buffer]);
+            render_args.push_back(rtex);
             render_args.push_back(background_mipped);
             render_args.push_back(background_mipped2);
             render_args.push_back(width);
             render_args.push_back(height);
-            render_args.push_back(texture_coordinates[which_buffer]);
+            render_args.push_back(texture_coordinates);
             render_args.push_back(sam);
 
             next = clctx.cqueue.exec("render", render_args, {width * height}, {256});
@@ -1163,7 +1150,7 @@ int main()
 
         clctx.cqueue.flush();
 
-        rtex[which_buffer].unacquire(clctx.cqueue);
+        rtex.unacquire(clctx.cqueue);
 
         if(taking_screenshot)
         {
@@ -1175,7 +1162,7 @@ int main()
 
             std::cout << "WIDTH " << (screenshot_w * supersample_mult) << " HEIGHT "<< (screenshot_h * supersample_mult) << std::endl;
 
-            std::vector<vec4f> pixels = tex[which_buffer].read(0);
+            std::vector<vec4f> pixels = tex.read(0);
 
             std::cout << "pixels size " << pixels.size() << std::endl;
 
@@ -1207,7 +1194,6 @@ int main()
             img.saveToFile(fname);
         }
 
-        which_buffer = (which_buffer + 1) % 2;
 
         if(last_event.has_value())
             last_event.value().block();
@@ -1231,7 +1217,7 @@ int main()
                 br.y += screen_pos.y;
             }
 
-            lst->AddImage((void*)rtex[which_buffer].texture_id, tl, br, ImVec2(0, 0), ImVec2(1, 1));
+            lst->AddImage((void*)rtex.texture_id, tl, br, ImVec2(0, 0), ImVec2(1, 1));
         }
 
         win.display();
