@@ -359,24 +359,15 @@ namespace metrics
         }
     };
 
-    struct metric_base
+    struct metric
     {
         metric_descriptor desc;
         metric_config metric_cfg;
         sandbox sand;
-
-        //virtual std::string build(const config& cfg){return std::string();}
     };
-
-    struct metric;
 
     inline
     std::string build_argument_string(const metric& in, const config& cfg);
-
-    struct metric : metric_base
-    {
-
-    };
 
     enum integration_type
     {
