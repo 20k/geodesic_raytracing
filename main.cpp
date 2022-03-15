@@ -822,17 +822,13 @@ int main()
                     }
                 }
 
-                ImGui::Separator();
-
                 ImGui::Text("Compile Options");
 
                 ImGui::Checkbox("Redshift", &cfg.redshift);
 
                 ImGui::InputFloat("Error Tolerance", &selected_error, 0.0000001f, 0.00001f, "%.8f");
 
-                ImGui::Separator();
-
-                should_recompile |= ImGui::Button("Recompile");
+                should_recompile |= ImGui::Button("Update");
 
                 ImGui::TreePop();
             }
