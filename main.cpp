@@ -1148,8 +1148,6 @@ int main()
             next = clctx.cqueue.exec("render", render_args, {width * height}, {256});
         }
 
-        clctx.cqueue.flush();
-
         rtex.unacquire(clctx.cqueue);
 
         if(taking_screenshot)
