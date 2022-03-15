@@ -801,6 +801,8 @@ int main()
             {
                 ImGui::Text("Dynamic Options");
 
+                ImGui::Indent();
+
                 if(current_metric)
                 {
                     if(current_metric->sand.cfg.display())
@@ -822,13 +824,19 @@ int main()
                     }
                 }
 
+                ImGui::Unindent();
+
                 ImGui::Text("Compile Options");
+
+                ImGui::Indent();
 
                 ImGui::Checkbox("Redshift", &cfg.redshift);
 
                 ImGui::InputFloat("Error Tolerance", &selected_error, 0.0000001f, 0.00001f, "%.8f");
 
                 should_recompile |= ImGui::Button("Update");
+
+                ImGui::Unindent();
 
                 ImGui::TreePop();
             }
