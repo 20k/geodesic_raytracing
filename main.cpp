@@ -309,6 +309,36 @@ int calculate_ray_count(int width, int height)
     return (height - 1) * width + width - 1;
 }
 
+struct graphics_settings
+{
+    int width = 1920;
+    int height = 1080;
+    bool fullscreen = false;
+
+    int supersample_factor = 2;
+    bool supersample = false;
+
+    bool vsync_enabled = false;
+
+    ///Returns true if we need to refresh our opencl context
+    bool display()
+    {
+        bool opencl_dirty = false;
+
+        opencl_dirty |= ImGui::InputInt("Width", &width);
+        opencl_dirty |= ImGui::InputInt("Height", &height);
+
+        opencl_dirty |= ImGui::Checkbox("Fullscreen", &fullscreen);
+
+        opencl_dirty |= ImGui::Checkbox("Supersample", &supersample);
+        opencl_dirty |= ImGui::InputInt("Supersample Factor", &supersample_factor);
+
+        ImGui::Checkbox("Vsync", &vsync_enabled);
+
+        return opencl_dirty;
+    }
+};
+
 ///i need the ability to have dynamic parameters
 int main()
 {
@@ -324,6 +354,8 @@ int main()
     workshop.fetch(steam, exec, [&](){has_new_content = true;});
 
     //dual_types::test_operation();
+
+    bool menu_window_open = true;
 
     render_settings sett;
     sett.width = 1920;
@@ -526,6 +558,8 @@ int main()
 
     steady_timer workshop_poll;
 
+    bool open_main_menu_trigger = true;
+
     while(!win.should_close())
     {
         exec.poll();
@@ -556,651 +590,686 @@ int main()
 
         win.poll();
 
-        auto buffer_size = rtex.size<2>();
-
-        bool taking_screenshot = should_take_screenshot;
-        should_take_screenshot = false;
-
-        bool should_snapshot_geodesic = false;
-
-        vec<2, size_t> super_adjusted_width = supersample ? (buffer_size / supersample_mult) : buffer_size;
-
-        if((vec2i){super_adjusted_width.x(), super_adjusted_width.y()} != win.get_window_size() || taking_screenshot || last_supersample != supersample || last_supersample_mult != supersample_mult)
+        if(open_main_menu_trigger)
         {
-            if(last_event.has_value())
-                last_event.value().block();
+            ImGui::OpenPopup("Main Menu");
 
-            last_event = std::nullopt;
+            open_main_menu_trigger = false;
+        }
 
-            int width = 16;
-            int height = 16;
+        if(ImGui::BeginPopupModal("Main Menu", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
+        {
+            int window_width = ImGui::GetWindowSize().x;
+            int window_height = ImGui::GetWindowSize().y;
+
+            int viewport_pos_x = ImGui::GetMainViewport()->Pos.x;
+            int viewport_pos_y = ImGui::GetMainViewport()->Pos.y;
+
+            int viewport_width = ImGui::GetMainViewport()->Size.x;
+            int viewport_height = ImGui::GetMainViewport()->Size.y;
+
+            int window_pos_x = viewport_pos_x + (viewport_width/2 - window_width/2);
+            int window_pos_y = viewport_pos_y + (viewport_height/2 - window_height/2);
+
+            ImGui::SetWindowPos(ImVec2(window_pos_x, window_pos_y), ImGuiCond_Always);
+
+            if(ImGui::Button("Start"))
+            {
+                ImGui::CloseCurrentPopup();
+            }
+
+            ImGui::Text("Hello!\n");
+
+            ImGui::EndPopup();
+        }
+        else
+        {
+            auto buffer_size = rtex.size<2>();
+
+            bool taking_screenshot = should_take_screenshot;
+            should_take_screenshot = false;
+
+            bool should_snapshot_geodesic = false;
+
+            vec<2, size_t> super_adjusted_width = supersample ? (buffer_size / supersample_mult) : buffer_size;
+
+            if((vec2i){super_adjusted_width.x(), super_adjusted_width.y()} != win.get_window_size() || taking_screenshot || last_supersample != supersample || last_supersample_mult != supersample_mult)
+            {
+                if(last_event.has_value())
+                    last_event.value().block();
+
+                last_event = std::nullopt;
+
+                int width = 16;
+                int height = 16;
+
+                if(!taking_screenshot)
+                {
+                    width = win.get_window_size().x();
+                    height = win.get_window_size().y();
+
+                    if(supersample)
+                    {
+                        width *= supersample_mult;
+                        height *= supersample_mult;
+                    }
+                }
+                else
+                {
+                    width = screenshot_w * supersample_mult;
+                    height = screenshot_h * supersample_mult;
+                }
+
+                width = max(width, 16 * supersample_mult);
+                height = max(height, 16 * supersample_mult);
+
+                ray_count = width * height;
+
+                texture_settings new_sett;
+                new_sett.width = width;
+                new_sett.height = height;
+                new_sett.is_srgb = false;
+                new_sett.generate_mipmaps = false;
+
+                tex.load_from_memory(new_sett, nullptr);
+                rtex.create_from_texture(tex.handle);
+
+                termination_buffer.alloc(width * height * sizeof(cl_int));
+                termination_buffer.set_to_zero(clctx.cqueue);
+
+                schwarzs_1.alloc(sizeof(lightray) * ray_count);
+                schwarzs_scratch.alloc(sizeof(lightray) * ray_count);
+                schwarzs_prepass.alloc(sizeof(lightray) * ray_count);
+                finished_1.alloc(sizeof(lightray) * ray_count);
+
+                texture_coordinates.alloc(width * height * sizeof(float) * 2);
+                texture_coordinates.set_to_zero(clctx.cqueue);
+
+                last_supersample = supersample;
+                last_supersample_mult = supersample_mult;
+            }
+
+            rtex.acquire(clctx.cqueue);
+
+            float speed = 0.001;
+
+            if(!ImGui::GetIO().WantCaptureKeyboard)
+            {
+                if(ImGui::IsKeyDown(GLFW_KEY_LEFT_SHIFT))
+                    speed = 0.1;
+
+                if(ImGui::IsKeyDown(GLFW_KEY_LEFT_CONTROL))
+                    speed = 0.00001;
+
+                if(ImGui::IsKeyDown(GLFW_KEY_LEFT_ALT))
+                    speed /= 1000;
+
+                if(ImGui::IsKeyDown(GLFW_KEY_Z))
+                    speed *= 100;
+
+                if(ImGui::IsKeyDown(GLFW_KEY_X))
+                    speed *= 100;
+
+                if(ImGui::IsKeyPressed(GLFW_KEY_B))
+                {
+                    camera = {0, 0, 0, -100};
+                }
+
+                if(ImGui::IsKeyPressed(GLFW_KEY_N))
+                {
+                    camera = {0, 0, 0, -1.16};
+                }
+
+                if(ImGui::IsKeyPressed(GLFW_KEY_M))
+                {
+                    camera = {0, 0, 0, 1.16};
+                }
+
+                if(ImGui::IsKeyPressed(GLFW_KEY_J))
+                {
+                    camera = {0, -1.16, 0, 0};
+                }
+
+                if(ImGui::IsKeyPressed(GLFW_KEY_K))
+                {
+                    camera = {0, 1.16, 0, 0};
+                }
+
+                if(ImGui::IsKeyPressed(GLFW_KEY_V))
+                {
+                    camera = {0, 0, 0, 1.03};
+                }
+
+                if(ImGui::IsKeyPressed(GLFW_KEY_C))
+                {
+                    camera = {0, 0, 0, 0};
+                }
+
+                if(ImGui::IsKeyPressed(GLFW_KEY_R))
+                {
+                    camera = {0, 0, 22, 0};
+                }
+
+                if(ImGui::IsKeyDown(GLFW_KEY_RIGHT))
+                {
+                    mat3f m = mat3f().ZRot(M_PI/128);
+
+                    quat q;
+                    q.load_from_matrix(m);
+
+                    camera_quat = q * camera_quat;
+                }
+
+                if(ImGui::IsKeyDown(GLFW_KEY_LEFT))
+                {
+                    mat3f m = mat3f().ZRot(-M_PI/128);
+
+                    quat q;
+                    q.load_from_matrix(m);
+
+                    camera_quat = q * camera_quat;
+                }
+
+                if(ImGui::IsKeyPressed(GLFW_KEY_1))
+                {
+                    flip_sign = !flip_sign;
+                }
+
+                vec3f up = {0, 0, -1};
+                vec3f right = rot_quat({1, 0, 0}, camera_quat);
+                vec3f forward_axis = rot_quat({0, 0, 1}, camera_quat);
+
+                if(ImGui::IsKeyDown(GLFW_KEY_DOWN))
+                {
+                    quat q;
+                    q.load_from_axis_angle({right.x(), right.y(), right.z(), M_PI/128});
+
+                    camera_quat = q * camera_quat;
+                }
+
+                if(ImGui::IsKeyDown(GLFW_KEY_UP))
+                {
+                    quat q;
+                    q.load_from_axis_angle({right.x(), right.y(), right.z(), -M_PI/128});
+
+                    camera_quat = q * camera_quat;
+                }
+
+                vec3f offset = {0,0,0};
+
+                offset += forward_axis * ((ImGui::IsKeyDown(GLFW_KEY_W) - ImGui::IsKeyDown(GLFW_KEY_S)) * speed);
+                offset += right * (ImGui::IsKeyDown(GLFW_KEY_D) - ImGui::IsKeyDown(GLFW_KEY_A)) * speed;
+                offset += up * (ImGui::IsKeyDown(GLFW_KEY_E) - ImGui::IsKeyDown(GLFW_KEY_Q)) * speed;
+
+                camera.y() += offset.x();
+                camera.z() += offset.y();
+                camera.w() += offset.z();
+            }
+
+            vec4f scamera = cartesian_to_schwarz(camera);
+
+            if(flip_sign)
+                scamera.y() = -scamera.y();
+
+            float time = clk.restart().asMicroseconds() / 1000.;
+
+            if(camera_on_geodesic)
+            {
+                scamera = interpolate_geodesic(current_geodesic_path, current_geodesic_time);
+                base_angle = get_geodesic_intersection(current_geodesic_path);
+            }
 
             if(!taking_screenshot)
             {
-                width = win.get_window_size().x();
-                height = win.get_window_size().y();
+                std::vector<std::string> concrete_strings;
 
-                if(supersample)
+                std::vector<const char*> items;
+                std::vector<content*> parent_directories;
+
+                for(content& c : all_content.content_directories)
                 {
-                    width *= supersample_mult;
-                    height *= supersample_mult;
-                }
-            }
-            else
-            {
-                width = screenshot_w * supersample_mult;
-                height = screenshot_h * supersample_mult;
-            }
-
-            width = max(width, 16 * supersample_mult);
-            height = max(height, 16 * supersample_mult);
-
-            ray_count = width * height;
-
-            texture_settings new_sett;
-            new_sett.width = width;
-            new_sett.height = height;
-            new_sett.is_srgb = false;
-            new_sett.generate_mipmaps = false;
-
-            tex.load_from_memory(new_sett, nullptr);
-            rtex.create_from_texture(tex.handle);
-
-            termination_buffer.alloc(width * height * sizeof(cl_int));
-            termination_buffer.set_to_zero(clctx.cqueue);
-
-            schwarzs_1.alloc(sizeof(lightray) * ray_count);
-            schwarzs_scratch.alloc(sizeof(lightray) * ray_count);
-            schwarzs_prepass.alloc(sizeof(lightray) * ray_count);
-            finished_1.alloc(sizeof(lightray) * ray_count);
-
-            texture_coordinates.alloc(width * height * sizeof(float) * 2);
-            texture_coordinates.set_to_zero(clctx.cqueue);
-
-            last_supersample = supersample;
-            last_supersample_mult = supersample_mult;
-        }
-
-        rtex.acquire(clctx.cqueue);
-
-        float speed = 0.001;
-
-        if(!ImGui::GetIO().WantCaptureKeyboard)
-        {
-            if(ImGui::IsKeyDown(GLFW_KEY_LEFT_SHIFT))
-                speed = 0.1;
-
-            if(ImGui::IsKeyDown(GLFW_KEY_LEFT_CONTROL))
-                speed = 0.00001;
-
-            if(ImGui::IsKeyDown(GLFW_KEY_LEFT_ALT))
-                speed /= 1000;
-
-            if(ImGui::IsKeyDown(GLFW_KEY_Z))
-                speed *= 100;
-
-            if(ImGui::IsKeyDown(GLFW_KEY_X))
-                speed *= 100;
-
-            if(ImGui::IsKeyPressed(GLFW_KEY_B))
-            {
-                camera = {0, 0, 0, -100};
-            }
-
-            if(ImGui::IsKeyPressed(GLFW_KEY_N))
-            {
-                camera = {0, 0, 0, -1.16};
-            }
-
-            if(ImGui::IsKeyPressed(GLFW_KEY_M))
-            {
-                camera = {0, 0, 0, 1.16};
-            }
-
-            if(ImGui::IsKeyPressed(GLFW_KEY_J))
-            {
-                camera = {0, -1.16, 0, 0};
-            }
-
-            if(ImGui::IsKeyPressed(GLFW_KEY_K))
-            {
-                camera = {0, 1.16, 0, 0};
-            }
-
-            if(ImGui::IsKeyPressed(GLFW_KEY_V))
-            {
-                camera = {0, 0, 0, 1.03};
-            }
-
-            if(ImGui::IsKeyPressed(GLFW_KEY_C))
-            {
-                camera = {0, 0, 0, 0};
-            }
-
-            if(ImGui::IsKeyPressed(GLFW_KEY_R))
-            {
-                camera = {0, 0, 22, 0};
-            }
-
-            if(ImGui::IsKeyDown(GLFW_KEY_RIGHT))
-            {
-                mat3f m = mat3f().ZRot(M_PI/128);
-
-                quat q;
-                q.load_from_matrix(m);
-
-                camera_quat = q * camera_quat;
-            }
-
-            if(ImGui::IsKeyDown(GLFW_KEY_LEFT))
-            {
-                mat3f m = mat3f().ZRot(-M_PI/128);
-
-                quat q;
-                q.load_from_matrix(m);
-
-                camera_quat = q * camera_quat;
-            }
-
-            if(ImGui::IsKeyPressed(GLFW_KEY_1))
-            {
-                flip_sign = !flip_sign;
-            }
-
-            vec3f up = {0, 0, -1};
-            vec3f right = rot_quat({1, 0, 0}, camera_quat);
-            vec3f forward_axis = rot_quat({0, 0, 1}, camera_quat);
-
-            if(ImGui::IsKeyDown(GLFW_KEY_DOWN))
-            {
-                quat q;
-                q.load_from_axis_angle({right.x(), right.y(), right.z(), M_PI/128});
-
-                camera_quat = q * camera_quat;
-            }
-
-            if(ImGui::IsKeyDown(GLFW_KEY_UP))
-            {
-                quat q;
-                q.load_from_axis_angle({right.x(), right.y(), right.z(), -M_PI/128});
-
-                camera_quat = q * camera_quat;
-            }
-
-            vec3f offset = {0,0,0};
-
-            offset += forward_axis * ((ImGui::IsKeyDown(GLFW_KEY_W) - ImGui::IsKeyDown(GLFW_KEY_S)) * speed);
-            offset += right * (ImGui::IsKeyDown(GLFW_KEY_D) - ImGui::IsKeyDown(GLFW_KEY_A)) * speed;
-            offset += up * (ImGui::IsKeyDown(GLFW_KEY_E) - ImGui::IsKeyDown(GLFW_KEY_Q)) * speed;
-
-            camera.y() += offset.x();
-            camera.z() += offset.y();
-            camera.w() += offset.z();
-        }
-
-        vec4f scamera = cartesian_to_schwarz(camera);
-
-        if(flip_sign)
-            scamera.y() = -scamera.y();
-
-        float time = clk.restart().asMicroseconds() / 1000.;
-
-        if(camera_on_geodesic)
-        {
-            scamera = interpolate_geodesic(current_geodesic_path, current_geodesic_time);
-            base_angle = get_geodesic_intersection(current_geodesic_path);
-        }
-
-        if(!taking_screenshot)
-        {
-            std::vector<std::string> concrete_strings;
-
-            std::vector<const char*> items;
-            std::vector<content*> parent_directories;
-
-            for(content& c : all_content.content_directories)
-            {
-                for(int idx = 0; idx < (int)c.metrics.size(); idx++)
-                {
-                    std::string friendly_name = c.get_config_of_filename(c.metrics[idx])->name;
-
-                    concrete_strings.push_back(friendly_name);
-                    parent_directories.push_back(&c);
-                }
-            }
-
-            for(const std::string& str : concrete_strings)
-            {
-                items.push_back(str.c_str());
-            }
-
-            assert(items.size() > 0);
-
-            ImGui::Begin("DBG", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-
-            bool should_recompile = false;
-            bool should_soft_recompile = false;
-
-            if(ImGui::TreeNode("General"))
-            {
-                ImGui::DragFloat3("Polar Pos", &scamera.v[1]);
-                ImGui::DragFloat3("Cart Pos", &camera.v[1]);
-                ImGui::SliderFloat("Camera Time", &camera.v[0], 0.f, 100.f);
-
-                ImGui::DragFloat("Frametime", &time);
-
-                ImGui::Checkbox("Time Progresses", &time_progresses);
-
-                if(time_progresses)
-                    camera.v[0] += time / 1000.f;
-
-                ImGui::TreePop();
-            }
-
-            if(ImGui::TreeNode("Metric Settings"))
-            {
-                ImGui::Text("Dynamic Options");
-
-                ImGui::Indent();
-
-                if(current_metric)
-                {
-                    if(current_metric->sand.cfg.display())
+                    for(int idx = 0; idx < (int)c.metrics.size(); idx++)
                     {
-                        int dyn_config_bytes = current_metric->sand.cfg.current_values.size() * sizeof(cl_float);
+                        std::string friendly_name = c.get_config_of_filename(c.metrics[idx])->name;
+
+                        concrete_strings.push_back(friendly_name);
+                        parent_directories.push_back(&c);
+                    }
+                }
+
+                for(const std::string& str : concrete_strings)
+                {
+                    items.push_back(str.c_str());
+                }
+
+                assert(items.size() > 0);
+
+                ImGui::Begin("DBG", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+
+                bool should_recompile = false;
+                bool should_soft_recompile = false;
+
+                if(ImGui::TreeNode("General"))
+                {
+                    ImGui::DragFloat3("Polar Pos", &scamera.v[1]);
+                    ImGui::DragFloat3("Cart Pos", &camera.v[1]);
+                    ImGui::SliderFloat("Camera Time", &camera.v[0], 0.f, 100.f);
+
+                    ImGui::DragFloat("Frametime", &time);
+
+                    ImGui::Checkbox("Time Progresses", &time_progresses);
+
+                    if(time_progresses)
+                        camera.v[0] += time / 1000.f;
+
+                    ImGui::TreePop();
+                }
+
+                if(ImGui::TreeNode("Metric Settings"))
+                {
+                    ImGui::Text("Dynamic Options");
+
+                    ImGui::Indent();
+
+                    if(current_metric)
+                    {
+                        if(current_metric->sand.cfg.display())
+                        {
+                            int dyn_config_bytes = current_metric->sand.cfg.current_values.size() * sizeof(cl_float);
+
+                            if(dyn_config_bytes < 4)
+                                dyn_config_bytes = 4;
+
+                            dynamic_config.alloc(dyn_config_bytes);
+
+                            std::vector<float> vars = current_metric->sand.cfg.current_values;
+
+                            if(vars.size() == 0)
+                                vars.resize(1);
+
+                            dynamic_config.write(clctx.cqueue, vars);
+                            should_soft_recompile = true;
+                        }
+                    }
+
+                    ImGui::Unindent();
+
+                    ImGui::Text("Compile Options");
+
+                    ImGui::Indent();
+
+                    ImGui::Checkbox("Redshift", &cfg.redshift);
+
+                    ImGui::InputFloat("Error Tolerance", &selected_error, 0.0000001f, 0.00001f, "%.8f");
+
+                    should_recompile |= ImGui::Button("Update");
+
+                    ImGui::Unindent();
+
+                    ImGui::TreePop();
+                }
+
+                if(ImGui::TreeNode("Rendering Settings"))
+                {
+                    ImGui::InputInt("Screenshot Width", &screenshot_w, 1, 10);
+                    ImGui::InputInt("Screenshot Height", &screenshot_h, 1, 10);
+
+                    screenshot_w = std::max(screenshot_w, 16);
+                    screenshot_h = std::max(screenshot_h, 16);
+
+                    ImGui::Checkbox("Supersample", &supersample);
+
+                    ImGui::InputInt("Supersample Factor", &supersample_mult, 1, 1);
+
+                    supersample_mult = clamp(supersample_mult, 1, 8);
+
+                    if(ImGui::Button("Screenshot"))
+                        should_take_screenshot = true;
+
+                    ImGui::TreePop();
+                }
+
+                if(ImGui::TreeNode("Paths"))
+                {
+                    ImGui::DragFloat("Geodesic Camera Time", &current_geodesic_time, 0.1, -100.f, 100.f);
+
+                    ImGui::Checkbox("Use Camera Geodesic", &camera_on_geodesic);
+
+                    ImGui::Checkbox("Camera Time Progresses", &camera_time_progresses);
+
+                    if(camera_time_progresses)
+                        current_geodesic_time += time / 1000.f;
+
+                    if(ImGui::Button("Snapshot Camera Geodesic"))
+                    {
+                        should_snapshot_geodesic = true;
+                    }
+
+                    ImGui::Checkbox("Camera Snapshot Geodesic goes forward", &camera_geodesics_go_foward);
+
+                    ImGui::TreePop();
+                }
+
+                ImGui::SetNextItemOpen(true, ImGuiCond_Once);
+
+                if(ImGui::TreeNode("Metrics"))
+                {
+                    ImGui::ListBox("##Metrics", &selected_idx, &items[0], items.size());
+
+                    should_recompile |= ImGui::Button("Switch");
+
+                    ImGui::TreePop();
+                }
+
+                if(should_recompile || current_idx == -1 || should_soft_recompile)
+                {
+                    bool should_hard_recompile = should_recompile || current_idx == -1;
+
+                    if(selected_idx == -1)
+                        selected_idx = 0;
+
+                    if(selected_idx != current_idx)
+                    {
+                        metrics::metric* next = parent_directories[selected_idx]->lazy_fetch(all_content, items[selected_idx]);
+
+                        if(next == nullptr)
+                        {
+                            std::cout << "Broken metric " << concrete_strings[selected_idx] << std::endl;
+                        }
+                        else
+                        {
+                            current_metric = next;
+                        }
+
+                        assert(current_metric);
+
+                        selected_error = current_metric->metric_cfg.max_acceleration_change;
+
+                        std::cout << "ALLOCATING DYNCONFIG " << current_metric->sand.cfg.default_values.size() << std::endl;
+
+                        int dyn_config_bytes = current_metric->sand.cfg.default_values.size() * sizeof(cl_float);
 
                         if(dyn_config_bytes < 4)
                             dyn_config_bytes = 4;
 
                         dynamic_config.alloc(dyn_config_bytes);
 
-                        std::vector<float> vars = current_metric->sand.cfg.current_values;
+                        std::vector<float> vars = current_metric->sand.cfg.default_values;
 
                         if(vars.size() == 0)
                             vars.resize(1);
 
                         dynamic_config.write(clctx.cqueue, vars);
-                        should_soft_recompile = true;
+                    }
+
+                    cfg.error_override = selected_error;
+                    current_idx = selected_idx;
+                    std::string argument_string_prefix = "-O3 -cl-std=CL2.0 -cl-fast-relaxed-math ";
+
+                    if(cfg.use_device_side_enqueue)
+                    {
+                        argument_string_prefix += "-DDEVICE_SIDE_ENQUEUE ";
+                    }
+
+                    if(sett.is_srgb)
+                    {
+                        argument_string_prefix += "-DLINEAR_FRAMEBUFFER ";
+                    }
+
+                    if(should_hard_recompile)
+                    {
+                        if(clctx.ctx.programs.size() > 0)
+                            clctx.ctx.deregister_program(0);
+
+                        std::string dynamic_argument_string = argument_string_prefix + build_argument_string(*current_metric, current_metric->desc.abstract, cfg, {});
+
+                        file::write("./argument_string.txt", dynamic_argument_string, file::mode::TEXT);
+
+                        dynamic_program_opt = std::nullopt;
+                        dynamic_program_opt.emplace(clctx.ctx, "cl.cl");
+                        dynamic_program_opt->build(clctx.ctx, dynamic_argument_string);
+
+                        clctx.ctx.register_program(*dynamic_program_opt);
+                    }
+
+                    if(should_soft_recompile || should_hard_recompile)
+                    {
+                        if(clctx.ctx.programs.size() > 0)
+                            clctx.ctx.deregister_program(0);
+
+                        ///Reregister the dynamic program again, static is invalid
+                        clctx.ctx.register_program(*dynamic_program_opt);
+
+                        auto substitution_map = current_metric->sand.cfg.as_substitution_map();
+
+                        metrics::metric_impl<std::string> substituted_impl = metrics::build_concrete(substitution_map, current_metric->desc.raw);
+
+                        std::string substituted_argument_string = argument_string_prefix + build_argument_string(*current_metric, substituted_impl, cfg, substitution_map);
+
+                        if(substituted_program_opt.has_value())
+                        {
+                            substituted_program_opt->cancel();
+                            substituted_program_opt = std::nullopt;
+                        }
+
+                        substituted_program_opt.emplace(clctx.ctx, "cl.cl");
+                        substituted_program_opt->build(clctx.ctx, substituted_argument_string);
+                    }
+
+                    ///Is this necessary?
+                    termination_buffer.set_to_zero(clctx.cqueue);
+                }
+
+                if(substituted_program_opt.has_value())
+                {
+                    cl::program& pending = substituted_program_opt.value();
+
+                    if(pending.is_built())
+                    {
+                        printf("Swapped\n");
+
+                        if(clctx.ctx.programs.size() > 0)
+                            clctx.ctx.deregister_program(0);
+
+                        clctx.ctx.register_program(pending);
+
+                        substituted_program_opt = std::nullopt;
                     }
                 }
 
-                ImGui::Unindent();
-
-                ImGui::Text("Compile Options");
-
-                ImGui::Indent();
-
-                ImGui::Checkbox("Redshift", &cfg.redshift);
-
-                ImGui::InputFloat("Error Tolerance", &selected_error, 0.0000001f, 0.00001f, "%.8f");
-
-                should_recompile |= ImGui::Button("Update");
-
-                ImGui::Unindent();
-
-                ImGui::TreePop();
+                ImGui::End();
             }
 
-            if(ImGui::TreeNode("Rendering Settings"))
+            int width = rtex.size<2>().x();
+            int height = rtex.size<2>().y();
+
+            cl::args clr;
+            clr.push_back(rtex);
+
+            clctx.cqueue.exec("clear", clr, {width, height}, {16, 16});
+
+            int fallback = 0;
+
+            cl::event next;
+
             {
-                ImGui::InputInt("Screenshot Width", &screenshot_w, 1, 10);
-                ImGui::InputInt("Screenshot Height", &screenshot_h, 1, 10);
+                int isnap = should_snapshot_geodesic;
 
-                screenshot_w = std::max(screenshot_w, 16);
-                screenshot_h = std::max(screenshot_h, 16);
-
-                ImGui::Checkbox("Supersample", &supersample);
-
-                ImGui::InputInt("Supersample Factor", &supersample_mult, 1, 1);
-
-                supersample_mult = clamp(supersample_mult, 1, 8);
-
-                if(ImGui::Button("Screenshot"))
-                    should_take_screenshot = true;
-
-                ImGui::TreePop();
-            }
-
-            if(ImGui::TreeNode("Paths"))
-            {
-                ImGui::DragFloat("Geodesic Camera Time", &current_geodesic_time, 0.1, -100.f, 100.f);
-
-                ImGui::Checkbox("Use Camera Geodesic", &camera_on_geodesic);
-
-                ImGui::Checkbox("Camera Time Progresses", &camera_time_progresses);
-
-                if(camera_time_progresses)
-                    current_geodesic_time += time / 1000.f;
-
-                if(ImGui::Button("Snapshot Camera Geodesic"))
+                if(should_snapshot_geodesic)
                 {
-                    should_snapshot_geodesic = true;
-                }
-
-                ImGui::Checkbox("Camera Snapshot Geodesic goes forward", &camera_geodesics_go_foward);
-
-                ImGui::TreePop();
-            }
-
-            ImGui::SetNextItemOpen(true, ImGuiCond_Once);
-
-            if(ImGui::TreeNode("Metrics"))
-            {
-                ImGui::ListBox("##Metrics", &selected_idx, &items[0], items.size());
-
-                should_recompile |= ImGui::Button("Switch");
-
-                ImGui::TreePop();
-            }
-
-            if(should_recompile || current_idx == -1 || should_soft_recompile)
-            {
-                bool should_hard_recompile = should_recompile || current_idx == -1;
-
-                if(selected_idx == -1)
-                    selected_idx = 0;
-
-                if(selected_idx != current_idx)
-                {
-                    metrics::metric* next = parent_directories[selected_idx]->lazy_fetch(all_content, items[selected_idx]);
-
-                    if(next == nullptr)
+                    if(camera_geodesics_go_foward)
                     {
-                        std::cout << "Broken metric " << concrete_strings[selected_idx] << std::endl;
+                        isnap = 1;
                     }
                     else
                     {
-                        current_metric = next;
+                        isnap = 0;
                     }
-
-                    assert(current_metric);
-
-                    selected_error = current_metric->metric_cfg.max_acceleration_change;
-
-                    std::cout << "ALLOCATING DYNCONFIG " << current_metric->sand.cfg.default_values.size() << std::endl;
-
-                    int dyn_config_bytes = current_metric->sand.cfg.default_values.size() * sizeof(cl_float);
-
-                    if(dyn_config_bytes < 4)
-                        dyn_config_bytes = 4;
-
-                    dynamic_config.alloc(dyn_config_bytes);
-
-                    std::vector<float> vars = current_metric->sand.cfg.default_values;
-
-                    if(vars.size() == 0)
-                        vars.resize(1);
-
-                    dynamic_config.write(clctx.cqueue, vars);
                 }
 
-                cfg.error_override = selected_error;
-                current_idx = selected_idx;
-                std::string argument_string_prefix = "-O3 -cl-std=CL2.0 -cl-fast-relaxed-math ";
+                cl_int prepass_width = width/16;
+                cl_int prepass_height = height/16;
 
-                if(cfg.use_device_side_enqueue)
+                if(current_metric->metric_cfg.use_prepass)
                 {
-                    argument_string_prefix += "-DDEVICE_SIDE_ENQUEUE ";
+                    cl::args clear_args;
+                    clear_args.push_back(termination_buffer);
+                    clear_args.push_back(prepass_width);
+                    clear_args.push_back(prepass_height);
+
+                    clctx.cqueue.exec("clear_termination_buffer", clear_args, {prepass_width*prepass_height}, {256});
+
+                    cl::args init_args_prepass;
+
+                    init_args_prepass.push_back(scamera);
+                    init_args_prepass.push_back(camera_quat);
+                    init_args_prepass.push_back(schwarzs_prepass);
+                    init_args_prepass.push_back(schwarzs_count_prepass);
+                    init_args_prepass.push_back(prepass_width);
+                    init_args_prepass.push_back(prepass_height);
+                    init_args_prepass.push_back(termination_buffer);
+                    init_args_prepass.push_back(prepass_width);
+                    init_args_prepass.push_back(prepass_height);
+                    init_args_prepass.push_back(isnap);
+                    init_args_prepass.push_back(base_angle);
+                    init_args_prepass.push_back(dynamic_config);
+
+                    clctx.cqueue.exec("init_rays_generic", init_args_prepass, {prepass_width*prepass_height}, {256});
+
+                    int rays_num = calculate_ray_count(prepass_width, prepass_height);
+
+                    execute_kernel(clctx.cqueue, schwarzs_prepass, schwarzs_scratch, finished_1, schwarzs_count_prepass, schwarzs_count_scratch, finished_count_1, rays_num, cfg.use_device_side_enqueue, dynamic_config);
+
+                    cl::args singular_args;
+                    singular_args.push_back(finished_1);
+                    singular_args.push_back(finished_count_1);
+                    singular_args.push_back(termination_buffer);
+                    singular_args.push_back(prepass_width);
+                    singular_args.push_back(prepass_height);
+
+                    clctx.cqueue.exec("calculate_singularities", singular_args, {prepass_width*prepass_height}, {256});
                 }
 
-                if(sett.is_srgb)
+                cl::args init_args;
+                init_args.push_back(scamera);
+                init_args.push_back(camera_quat);
+                init_args.push_back(schwarzs_1);
+                init_args.push_back(schwarzs_count_1);
+                init_args.push_back(width);
+                init_args.push_back(height);
+                init_args.push_back(termination_buffer);
+                init_args.push_back(prepass_width);
+                init_args.push_back(prepass_height);
+                init_args.push_back(isnap);
+                init_args.push_back(base_angle);
+                init_args.push_back(dynamic_config);
+
+                clctx.cqueue.exec("init_rays_generic", init_args, {width*height}, {16*16});
+
+                if(should_snapshot_geodesic)
                 {
-                    argument_string_prefix += "-DLINEAR_FRAMEBUFFER ";
+                    int idx = (height/2) * width + width/2;
+
+                    geodesic_trace_buffer.set_to_zero(clctx.cqueue);
+
+                    cl::args snapshot_args;
+                    snapshot_args.push_back(schwarzs_1);
+                    snapshot_args.push_back(geodesic_trace_buffer);
+                    snapshot_args.push_back(schwarzs_count_1);
+                    snapshot_args.push_back(idx);
+                    snapshot_args.push_back(width);
+                    snapshot_args.push_back(height);
+                    snapshot_args.push_back(scamera);
+                    snapshot_args.push_back(camera_quat);
+                    snapshot_args.push_back(base_angle);
+                    snapshot_args.push_back(dynamic_config);
+
+                    clctx.cqueue.exec("get_geodesic_path", snapshot_args, {1}, {1});
+
+                    current_geodesic_path = geodesic_trace_buffer.read<cl_float4>(clctx.cqueue);
                 }
 
-                if(should_hard_recompile)
+                int rays_num = calculate_ray_count(width, height);
+
+                execute_kernel(clctx.cqueue, schwarzs_1, schwarzs_scratch, finished_1, schwarzs_count_1, schwarzs_count_scratch, finished_count_1, rays_num, cfg.use_device_side_enqueue, dynamic_config);
+
+
+                cl::args texture_args;
+                texture_args.push_back(finished_1);
+                texture_args.push_back(finished_count_1);
+                texture_args.push_back(texture_coordinates);
+                texture_args.push_back(width);
+                texture_args.push_back(height);
+                texture_args.push_back(scamera);
+                texture_args.push_back(camera_quat);
+                texture_args.push_back(base_angle);
+
+                clctx.cqueue.exec("calculate_texture_coordinates", texture_args, {width * height}, {256});
+
+                cl::args render_args;
+                render_args.push_back(finished_1);
+                render_args.push_back(finished_count_1);
+                render_args.push_back(rtex);
+                render_args.push_back(background_mipped);
+                render_args.push_back(background_mipped2);
+                render_args.push_back(width);
+                render_args.push_back(height);
+                render_args.push_back(texture_coordinates);
+                render_args.push_back(sam);
+
+                next = clctx.cqueue.exec("render", render_args, {width * height}, {256});
+            }
+
+            rtex.unacquire(clctx.cqueue);
+
+            if(taking_screenshot)
+            {
+                printf("Taking screenie\n");
+
+                clctx.cqueue.block();
+
+                printf("Blocked\n");
+
+                std::cout << "WIDTH " << (screenshot_w * supersample_mult) << " HEIGHT "<< (screenshot_h * supersample_mult) << std::endl;
+
+                std::vector<vec4f> pixels = tex.read(0);
+
+                std::cout << "pixels size " << pixels.size() << std::endl;
+
+                assert(pixels.size() == (screenshot_w * supersample_mult * screenshot_h * supersample_mult));
+
+                sf::Image img;
+                img.create(screenshot_w * supersample_mult, screenshot_h * supersample_mult);
+
+                for(int y=0; y < screenshot_h * supersample_mult; y++)
                 {
-                    if(clctx.ctx.programs.size() > 0)
-                        clctx.ctx.deregister_program(0);
-
-                    std::string dynamic_argument_string = argument_string_prefix + build_argument_string(*current_metric, current_metric->desc.abstract, cfg, {});
-
-                    file::write("./argument_string.txt", dynamic_argument_string, file::mode::TEXT);
-
-                    dynamic_program_opt = std::nullopt;
-                    dynamic_program_opt.emplace(clctx.ctx, "cl.cl");
-                    dynamic_program_opt->build(clctx.ctx, dynamic_argument_string);
-
-                    clctx.ctx.register_program(*dynamic_program_opt);
-                }
-
-                if(should_soft_recompile || should_hard_recompile)
-                {
-                    if(clctx.ctx.programs.size() > 0)
-                        clctx.ctx.deregister_program(0);
-
-                    ///Reregister the dynamic program again, static is invalid
-                    clctx.ctx.register_program(*dynamic_program_opt);
-
-                    auto substitution_map = current_metric->sand.cfg.as_substitution_map();
-
-                    metrics::metric_impl<std::string> substituted_impl = metrics::build_concrete(substitution_map, current_metric->desc.raw);
-
-                    std::string substituted_argument_string = argument_string_prefix + build_argument_string(*current_metric, substituted_impl, cfg, substitution_map);
-
-                    if(substituted_program_opt.has_value())
+                    for(int x=0; x < screenshot_w * supersample_mult; x++)
                     {
-                        substituted_program_opt->cancel();
-                        substituted_program_opt = std::nullopt;
+                        vec4f current_pixel = pixels[y * (screenshot_w * supersample_mult) + x];
+
+                        current_pixel = clamp(current_pixel, 0.f, 1.f);
+                        current_pixel = lin_to_srgb(current_pixel);
+                        current_pixel = clamp(current_pixel, 0.f, 1.f);
+
+                        img.setPixel(x, y, sf::Color(current_pixel.x() * 255.f, current_pixel.y() * 255.f, current_pixel.z() * 255.f, current_pixel.w() * 255.f));
                     }
-
-                    substituted_program_opt.emplace(clctx.ctx, "cl.cl");
-                    substituted_program_opt->build(clctx.ctx, substituted_argument_string);
                 }
 
-                ///Is this necessary?
-                termination_buffer.set_to_zero(clctx.cqueue);
+                std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
+                auto duration = now.time_since_epoch();
+                auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+
+                std::string fname = "./screenshots/" + current_metric->metric_cfg.name + "_" + std::to_string(millis) + ".png";
+
+                img.saveToFile(fname);
             }
 
-            if(substituted_program_opt.has_value())
-            {
-                cl::program& pending = substituted_program_opt.value();
 
-                if(pending.is_built())
-                {
-                    printf("Swapped\n");
+            if(last_event.has_value())
+                last_event.value().block();
 
-                    if(clctx.ctx.programs.size() > 0)
-                        clctx.ctx.deregister_program(0);
-
-                    clctx.ctx.register_program(pending);
-
-                    substituted_program_opt = std::nullopt;
-                }
-            }
-
-            ImGui::End();
+            last_event = next;
         }
-
-        int width = rtex.size<2>().x();
-        int height = rtex.size<2>().y();
-
-        cl::args clr;
-        clr.push_back(rtex);
-
-        clctx.cqueue.exec("clear", clr, {width, height}, {16, 16});
-
-        int fallback = 0;
-
-        cl::event next;
-
-        {
-            int isnap = should_snapshot_geodesic;
-
-            if(should_snapshot_geodesic)
-            {
-                if(camera_geodesics_go_foward)
-                {
-                    isnap = 1;
-                }
-                else
-                {
-                    isnap = 0;
-                }
-            }
-
-            cl_int prepass_width = width/16;
-            cl_int prepass_height = height/16;
-
-            if(current_metric->metric_cfg.use_prepass)
-            {
-                cl::args clear_args;
-                clear_args.push_back(termination_buffer);
-                clear_args.push_back(prepass_width);
-                clear_args.push_back(prepass_height);
-
-                clctx.cqueue.exec("clear_termination_buffer", clear_args, {prepass_width*prepass_height}, {256});
-
-                cl::args init_args_prepass;
-
-                init_args_prepass.push_back(scamera);
-                init_args_prepass.push_back(camera_quat);
-                init_args_prepass.push_back(schwarzs_prepass);
-                init_args_prepass.push_back(schwarzs_count_prepass);
-                init_args_prepass.push_back(prepass_width);
-                init_args_prepass.push_back(prepass_height);
-                init_args_prepass.push_back(termination_buffer);
-                init_args_prepass.push_back(prepass_width);
-                init_args_prepass.push_back(prepass_height);
-                init_args_prepass.push_back(isnap);
-                init_args_prepass.push_back(base_angle);
-                init_args_prepass.push_back(dynamic_config);
-
-                clctx.cqueue.exec("init_rays_generic", init_args_prepass, {prepass_width*prepass_height}, {256});
-
-                int rays_num = calculate_ray_count(prepass_width, prepass_height);
-
-                execute_kernel(clctx.cqueue, schwarzs_prepass, schwarzs_scratch, finished_1, schwarzs_count_prepass, schwarzs_count_scratch, finished_count_1, rays_num, cfg.use_device_side_enqueue, dynamic_config);
-
-                cl::args singular_args;
-                singular_args.push_back(finished_1);
-                singular_args.push_back(finished_count_1);
-                singular_args.push_back(termination_buffer);
-                singular_args.push_back(prepass_width);
-                singular_args.push_back(prepass_height);
-
-                clctx.cqueue.exec("calculate_singularities", singular_args, {prepass_width*prepass_height}, {256});
-            }
-
-            cl::args init_args;
-            init_args.push_back(scamera);
-            init_args.push_back(camera_quat);
-            init_args.push_back(schwarzs_1);
-            init_args.push_back(schwarzs_count_1);
-            init_args.push_back(width);
-            init_args.push_back(height);
-            init_args.push_back(termination_buffer);
-            init_args.push_back(prepass_width);
-            init_args.push_back(prepass_height);
-            init_args.push_back(isnap);
-            init_args.push_back(base_angle);
-            init_args.push_back(dynamic_config);
-
-            clctx.cqueue.exec("init_rays_generic", init_args, {width*height}, {16*16});
-
-            if(should_snapshot_geodesic)
-            {
-                int idx = (height/2) * width + width/2;
-
-                geodesic_trace_buffer.set_to_zero(clctx.cqueue);
-
-                cl::args snapshot_args;
-                snapshot_args.push_back(schwarzs_1);
-                snapshot_args.push_back(geodesic_trace_buffer);
-                snapshot_args.push_back(schwarzs_count_1);
-                snapshot_args.push_back(idx);
-                snapshot_args.push_back(width);
-                snapshot_args.push_back(height);
-                snapshot_args.push_back(scamera);
-                snapshot_args.push_back(camera_quat);
-                snapshot_args.push_back(base_angle);
-                snapshot_args.push_back(dynamic_config);
-
-                clctx.cqueue.exec("get_geodesic_path", snapshot_args, {1}, {1});
-
-                current_geodesic_path = geodesic_trace_buffer.read<cl_float4>(clctx.cqueue);
-            }
-
-            int rays_num = calculate_ray_count(width, height);
-
-            execute_kernel(clctx.cqueue, schwarzs_1, schwarzs_scratch, finished_1, schwarzs_count_1, schwarzs_count_scratch, finished_count_1, rays_num, cfg.use_device_side_enqueue, dynamic_config);
-
-
-            cl::args texture_args;
-            texture_args.push_back(finished_1);
-            texture_args.push_back(finished_count_1);
-            texture_args.push_back(texture_coordinates);
-            texture_args.push_back(width);
-            texture_args.push_back(height);
-            texture_args.push_back(scamera);
-            texture_args.push_back(camera_quat);
-            texture_args.push_back(base_angle);
-
-            clctx.cqueue.exec("calculate_texture_coordinates", texture_args, {width * height}, {256});
-
-            cl::args render_args;
-            render_args.push_back(finished_1);
-            render_args.push_back(finished_count_1);
-            render_args.push_back(rtex);
-            render_args.push_back(background_mipped);
-            render_args.push_back(background_mipped2);
-            render_args.push_back(width);
-            render_args.push_back(height);
-            render_args.push_back(texture_coordinates);
-            render_args.push_back(sam);
-
-            next = clctx.cqueue.exec("render", render_args, {width * height}, {256});
-        }
-
-        rtex.unacquire(clctx.cqueue);
-
-        if(taking_screenshot)
-        {
-            printf("Taking screenie\n");
-
-            clctx.cqueue.block();
-
-            printf("Blocked\n");
-
-            std::cout << "WIDTH " << (screenshot_w * supersample_mult) << " HEIGHT "<< (screenshot_h * supersample_mult) << std::endl;
-
-            std::vector<vec4f> pixels = tex.read(0);
-
-            std::cout << "pixels size " << pixels.size() << std::endl;
-
-            assert(pixels.size() == (screenshot_w * supersample_mult * screenshot_h * supersample_mult));
-
-            sf::Image img;
-            img.create(screenshot_w * supersample_mult, screenshot_h * supersample_mult);
-
-            for(int y=0; y < screenshot_h * supersample_mult; y++)
-            {
-                for(int x=0; x < screenshot_w * supersample_mult; x++)
-                {
-                    vec4f current_pixel = pixels[y * (screenshot_w * supersample_mult) + x];
-
-                    current_pixel = clamp(current_pixel, 0.f, 1.f);
-                    current_pixel = lin_to_srgb(current_pixel);
-                    current_pixel = clamp(current_pixel, 0.f, 1.f);
-
-                    img.setPixel(x, y, sf::Color(current_pixel.x() * 255.f, current_pixel.y() * 255.f, current_pixel.z() * 255.f, current_pixel.w() * 255.f));
-                }
-            }
-
-            std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
-            auto duration = now.time_since_epoch();
-            auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
-
-            std::string fname = "./screenshots/" + current_metric->metric_cfg.name + "_" + std::to_string(millis) + ".png";
-
-            img.saveToFile(fname);
-        }
-
-
-        if(last_event.has_value())
-            last_event.value().block();
-
-        last_event = next;
 
         {
             ImDrawList* lst = ImGui::GetBackgroundDrawList();
