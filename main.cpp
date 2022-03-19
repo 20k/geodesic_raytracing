@@ -339,6 +339,99 @@ struct graphics_settings
     }
 };
 
+struct main_menu
+{
+    enum windows
+    {
+        MAIN,
+        SETTINGS,
+    };
+
+    graphics_settings sett;
+
+    int state = MAIN;
+    bool should_open = false;
+    bool is_open = true;
+    bool dirty_settings = false;
+
+    void display_main_menu()
+    {
+        if(ImGui::Button("Start"))
+        {
+            close();
+        }
+
+        if(ImGui::Button("Settings"))
+        {
+            state = SETTINGS;
+        }
+    }
+
+    void display_settings_menu()
+    {
+        dirty_settings |= sett.display();
+
+        ImGui::NewLine();
+
+        if(ImGui::Button("Back"))
+        {
+            state = MAIN;
+        }
+    }
+
+    void close()
+    {
+        ImGui::CloseCurrentPopup();
+        is_open = false;
+    }
+
+    void open()
+    {
+        should_open = true;
+    }
+
+    void poll_open()
+    {
+        if(should_open)
+        {
+            ImGui::OpenPopup("Main Menu");
+            is_open = true;
+        }
+
+        should_open = false;
+    }
+
+    void display()
+    {
+        if(ImGui::BeginPopupModal("Main Menu", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
+        {
+            int current_state = state;
+
+            if(current_state == MAIN)
+            {
+                display_main_menu();
+            }
+
+            if(current_state == SETTINGS)
+            {
+                display_settings_menu();
+            }
+
+            if(ImGui::IsKeyPressed(GLFW_KEY_ESCAPE))
+            {
+                if(current_state == MAIN)
+                {
+                    close();
+                }
+
+                state = MAIN;
+            }
+
+            ImGui::EndPopup();
+        }
+    }
+};
+
 ///i need the ability to have dynamic parameters
 int main()
 {
@@ -354,8 +447,6 @@ int main()
     workshop.fetch(steam, exec, [&](){has_new_content = true;});
 
     //dual_types::test_operation();
-
-    bool menu_window_open = true;
 
     render_settings sett;
     sett.width = 1920;
@@ -559,6 +650,7 @@ int main()
     steady_timer workshop_poll;
 
     bool open_main_menu_trigger = true;
+    main_menu menu;
 
     while(!win.should_close())
     {
@@ -592,38 +684,24 @@ int main()
 
         if(open_main_menu_trigger)
         {
-            ImGui::OpenPopup("Main Menu");
+            menu.open();
 
             open_main_menu_trigger = false;
         }
 
-        if(ImGui::BeginPopupModal("Main Menu", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
+        menu.poll_open();
+
+        if(menu.is_open)
         {
-            int window_width = ImGui::GetWindowSize().x;
-            int window_height = ImGui::GetWindowSize().y;
-
-            int viewport_pos_x = ImGui::GetMainViewport()->Pos.x;
-            int viewport_pos_y = ImGui::GetMainViewport()->Pos.y;
-
-            int viewport_width = ImGui::GetMainViewport()->Size.x;
-            int viewport_height = ImGui::GetMainViewport()->Size.y;
-
-            int window_pos_x = viewport_pos_x + (viewport_width/2 - window_width/2);
-            int window_pos_y = viewport_pos_y + (viewport_height/2 - window_height/2);
-
-            ImGui::SetWindowPos(ImVec2(window_pos_x, window_pos_y), ImGuiCond_Always);
-
-            if(ImGui::Button("Start"))
-            {
-                ImGui::CloseCurrentPopup();
-            }
-
-            ImGui::Text("Hello!\n");
-
-            ImGui::EndPopup();
+            menu.display();
         }
         else
         {
+            if(ImGui::IsKeyPressed(GLFW_KEY_ESCAPE))
+            {
+                menu.open();
+            }
+
             auto buffer_size = rtex.size<2>();
 
             bool taking_screenshot = should_take_screenshot;
