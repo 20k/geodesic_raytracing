@@ -345,6 +345,7 @@ struct main_menu
     {
         MAIN,
         SETTINGS,
+        QUIT
     };
 
     graphics_settings sett;
@@ -353,6 +354,7 @@ struct main_menu
     bool should_open = false;
     bool is_open = true;
     bool dirty_settings = false;
+    bool should_quit = false;
 
     void display_main_menu()
     {
@@ -365,6 +367,11 @@ struct main_menu
         {
             state = SETTINGS;
         }
+
+        if(ImGui::Button("Quit"))
+        {
+            state = QUIT;
+        }
     }
 
     void display_settings_menu()
@@ -374,6 +381,25 @@ struct main_menu
         ImGui::NewLine();
 
         if(ImGui::Button("Back"))
+        {
+            state = MAIN;
+        }
+    }
+
+    void display_quit_menu()
+    {
+        ImGui::Text("Are you sure?");
+
+        ImGui::SameLine();
+
+        if(ImGui::Button("Yes"))
+        {
+            should_quit = true;
+        }
+
+        ImGui::SameLine();
+
+        if(ImGui::Button("No"))
         {
             state = MAIN;
         }
@@ -415,6 +441,11 @@ struct main_menu
             if(current_state == SETTINGS)
             {
                 display_settings_menu();
+            }
+
+            if(current_state == QUIT)
+            {
+                display_quit_menu();
             }
 
             if(ImGui::IsKeyPressed(GLFW_KEY_ESCAPE))
@@ -652,7 +683,7 @@ int main()
     bool open_main_menu_trigger = true;
     main_menu menu;
 
-    while(!win.should_close())
+    while(!win.should_close() && !menu.should_quit)
     {
         exec.poll();
 
