@@ -323,19 +323,19 @@ struct graphics_settings
     ///Returns true if we need to refresh our opencl context
     bool display()
     {
-        bool opencl_dirty = false;
+        ImGui::InputInt("Width", &width);
+        ImGui::InputInt("Height", &height);
 
-        opencl_dirty |= ImGui::InputInt("Width", &width);
-        opencl_dirty |= ImGui::InputInt("Height", &height);
+        ImGui::Checkbox("Fullscreen", &fullscreen);
 
-        opencl_dirty |= ImGui::Checkbox("Fullscreen", &fullscreen);
-
-        opencl_dirty |= ImGui::Checkbox("Supersample", &supersample);
-        opencl_dirty |= ImGui::InputInt("Supersample Factor", &supersample_factor);
+        ImGui::Checkbox("Supersample", &supersample);
+        ImGui::InputInt("Supersample Factor", &supersample_factor);
 
         ImGui::Checkbox("Vsync", &vsync_enabled);
 
-        return opencl_dirty;
+        ImGui::NewLine();
+
+        return ImGui::Button("Apply");
     }
 };
 
@@ -377,8 +377,6 @@ struct main_menu
     void display_settings_menu()
     {
         dirty_settings |= sett.display();
-
-        ImGui::NewLine();
 
         if(ImGui::Button("Back"))
         {
@@ -429,7 +427,9 @@ struct main_menu
 
     void display()
     {
-        if(ImGui::BeginPopupModal("Main Menu", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
+        //ImGui::Begin("Main Menu", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse)
+
+        if(ImGui::BeginPopupModal("Main Menu", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse))
         {
             int current_state = state;
 
@@ -457,6 +457,13 @@ struct main_menu
 
                 state = MAIN;
             }
+
+            ImVec2 viewport_size = ImGui::GetWindowViewport()->Size;
+            ImVec2 viewport_pos = ImGui::GetWindowViewport()->Pos;
+
+            ImVec2 window_size = ImGui::GetWindowSize();
+
+            ImGui::SetWindowPos({viewport_size.x/2 - window_size.x/2, viewport_size.y/2 - window_size.y/2});
 
             ImGui::EndPopup();
         }
@@ -685,6 +692,18 @@ int main()
 
     while(!win.should_close() && !menu.should_quit)
     {
+        if(menu.dirty_settings)
+        {
+            vec2i dim = {menu.sett.width, menu.sett.height};
+
+            if(dim != win.get_window_size())
+            {
+                win.resize(dim);
+            }
+
+            menu.dirty_settings = false;
+        }
+
         exec.poll();
 
         if(workshop_poll.get_elapsed_time_s() > 20)
@@ -742,7 +761,7 @@ int main()
 
             vec<2, size_t> super_adjusted_width = supersample ? (buffer_size / supersample_mult) : buffer_size;
 
-            if((vec2i){super_adjusted_width.x(), super_adjusted_width.y()} != win.get_window_size() || taking_screenshot || last_supersample != supersample || last_supersample_mult != supersample_mult)
+            if((vec2i){super_adjusted_width.x(), super_adjusted_width.y()} != win.get_window_size() || taking_screenshot || last_supersample != supersample || last_supersample_mult != supersample_mult || menu.dirty_settings)
             {
                 if(last_event.has_value())
                     last_event.value().block();
