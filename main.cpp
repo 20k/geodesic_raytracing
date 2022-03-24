@@ -704,6 +704,13 @@ int main()
             menu.dirty_settings = false;
         }
 
+        {
+            vec2i real_dim = win.get_window_size();
+
+            menu.sett.width = real_dim.x();
+            menu.sett.height = real_dim.y();
+        }
+
         exec.poll();
 
         if(workshop_poll.get_elapsed_time_s() > 20)
