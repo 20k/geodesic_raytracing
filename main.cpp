@@ -355,11 +355,16 @@ struct main_menu
     bool is_open = true;
     bool dirty_settings = false;
     bool should_quit = false;
+    bool already_started = false;
 
     void display_main_menu()
     {
-        if(ImGui::Button("Start"))
+        std::string start_string = already_started ? "Continue" : "Start";
+
+        if(ImGui::Button(start_string.c_str()))
         {
+            already_started = true;
+
             close();
         }
 
@@ -701,11 +706,25 @@ int main()
                 win.resize(dim);
             }
 
+            supersample = menu.sett.supersample;
+            supersample_mult = menu.sett.supersample_factor;
+
+            if(win.backend->is_vsync() != menu.sett.vsync_enabled)
+            {
+                win.backend->set_vsync(menu.sett.vsync_enabled);
+            }
+
             menu.dirty_settings = false;
         }
 
+        if(!menu.is_open)
         {
             vec2i real_dim = win.get_window_size();
+
+            menu.sett.supersample = supersample;
+            menu.sett.supersample_factor = supersample_mult;
+
+            menu.sett.vsync_enabled = win.backend->is_vsync();
 
             menu.sett.width = real_dim.x();
             menu.sett.height = real_dim.y();
