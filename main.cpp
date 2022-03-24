@@ -1016,6 +1016,9 @@ int main()
                     if(time_progresses)
                         camera.v[0] += time / 1000.f;
 
+                    if(ImGui::Button("Screenshot"))
+                        should_take_screenshot = true;
+
                     ImGui::TreePop();
                 }
 
@@ -1059,26 +1062,6 @@ int main()
                     should_recompile |= ImGui::Button("Update");
 
                     ImGui::Unindent();
-
-                    ImGui::TreePop();
-                }
-
-                if(ImGui::TreeNode("Rendering Settings"))
-                {
-                    ImGui::InputInt("Screenshot Width", &screenshot_w, 1, 10);
-                    ImGui::InputInt("Screenshot Height", &screenshot_h, 1, 10);
-
-                    screenshot_w = std::max(screenshot_w, 16);
-                    screenshot_h = std::max(screenshot_h, 16);
-
-                    ImGui::Checkbox("Supersample", &supersample);
-
-                    ImGui::InputInt("Supersample Factor", &supersample_mult, 1, 1);
-
-                    supersample_mult = clamp(supersample_mult, 1, 8);
-
-                    if(ImGui::Button("Screenshot"))
-                        should_take_screenshot = true;
 
                     ImGui::TreePop();
                 }
