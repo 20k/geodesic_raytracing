@@ -154,6 +154,8 @@
 		<Unit filename="dual.hpp" />
 		<Unit filename="dual_value.hpp" />
 		<Unit filename="equation_context.hpp" />
+		<Unit filename="fullscreen_window_manager.cpp" />
+		<Unit filename="fullscreen_window_manager.hpp" />
 		<Unit filename="js_interop.cpp" />
 		<Unit filename="js_interop.hpp" />
 		<Unit filename="main.cpp" />
