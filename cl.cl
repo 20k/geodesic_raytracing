@@ -2056,7 +2056,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
         #endif // IS_CONSTANT_THETA
 
         float new_max = MAX_PRECISION_RADIUS * rs;
-        float new_min = 10 * rs;
+        float new_min = 3 * rs;
 
         float4 polar_position = generic_to_spherical(position, cfg);
 
