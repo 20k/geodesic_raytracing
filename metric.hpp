@@ -382,6 +382,7 @@ namespace metrics
         std::optional<float> error_override = std::nullopt;
         bool redshift = false;
         bool use_device_side_enqueue = true;
+        float max_precision_radius = 10;
     };
 
     inline
@@ -558,6 +559,8 @@ namespace metrics
         argument_string += " -DDISTANCE_FUNC=" + impl.distance_function;
 
         argument_string += " -DUNIVERSE_SIZE=" + std::to_string(cfg.universe_size);
+
+        argument_string += " -DMAX_PRECISION_RADIUS=" + std::to_string(cfg.max_precision_radius);
 
         const config_variables& dynamic_vars = in.sand.cfg;
 
