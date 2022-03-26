@@ -1450,7 +1450,7 @@ int main()
         }
 
         {
-            ImDrawList* lst = ImGui::GetBackgroundDrawList();
+            ImDrawList* lst = ImGui::GetBackgroundDrawList(ImGui::GetMainViewport());
 
             ImVec2 screen_pos = ImGui::GetMainViewport()->Pos;
 
