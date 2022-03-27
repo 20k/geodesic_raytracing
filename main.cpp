@@ -514,8 +514,8 @@ int main()
     //dual_types::test_operation();
 
     render_settings sett;
-    sett.width = 1920;
-    sett.height = 1080;
+    sett.width = 800;
+    sett.height = 600;
     sett.opencl = true;
     sett.no_double_buffer = true;
     sett.is_srgb = true;
@@ -523,6 +523,9 @@ int main()
     sett.viewports = false;
 
     render_window win(sett, "Geodesics");
+
+    win.backend->set_is_maximised(true);
+    win.backend->clear_demaximise_cache();
 
     assert(win.clctx);
 
