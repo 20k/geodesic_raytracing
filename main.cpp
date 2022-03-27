@@ -478,6 +478,18 @@ struct main_menu
     }
 };
 
+std::vector<const char*> get_imgui_view(const std::vector<std::string>& in)
+{
+    std::vector<const char*> ret;
+
+    for(const std::string& s : in)
+    {
+        ret.push_back(s.c_str());
+    }
+
+    return ret;
+}
+
 ///i need the ability to have dynamic parameters
 int main()
 {
@@ -789,6 +801,38 @@ int main()
 
         fullscreen.start(win);
 
+        bool should_recompile = false;
+
+        std::vector<std::string> metric_names;
+        std::vector<content*> parent_directories;
+
+        for(content& c : all_content.content_directories)
+        {
+            for(int idx = 0; idx < (int)c.metrics.size(); idx++)
+            {
+                std::string friendly_name = c.get_config_of_filename(c.metrics[idx])->name;
+
+                metric_names.push_back(friendly_name);
+                parent_directories.push_back(&c);
+            }
+        }
+
+        if(ImGui::BeginMainMenuBar())
+        {
+            std::vector<const char*> items = get_imgui_view(metric_names);
+
+            ///steam fps padder
+            ImGui::Indent();
+            ImGui::Indent();
+
+            ImGui::Text("Metric: ");
+
+            //should_recompile |= ImGui::ListBox("##Metrics", &selected_idx, &items[0], items.size());
+            should_recompile |= ImGui::Combo("##Metrics", &selected_idx, &items[0], items.size());
+
+            ImGui::EndMainMenuBar();
+        }
+
         fullscreen.stop();
 
         ImGui::PopStyleVar(1);
@@ -1007,32 +1051,12 @@ int main()
 
             if(!taking_screenshot)
             {
-                std::vector<std::string> concrete_strings;
-
-                std::vector<const char*> items;
-                std::vector<content*> parent_directories;
-
-                for(content& c : all_content.content_directories)
-                {
-                    for(int idx = 0; idx < (int)c.metrics.size(); idx++)
-                    {
-                        std::string friendly_name = c.get_config_of_filename(c.metrics[idx])->name;
-
-                        concrete_strings.push_back(friendly_name);
-                        parent_directories.push_back(&c);
-                    }
-                }
-
-                for(const std::string& str : concrete_strings)
-                {
-                    items.push_back(str.c_str());
-                }
+                std::vector<const char*> items = get_imgui_view(metric_names);
 
                 assert(items.size() > 0);
 
                 ImGui::Begin("DBG", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 
-                bool should_recompile = false;
                 bool should_soft_recompile = false;
 
                 if(ImGui::TreeNode("General"))
@@ -1130,15 +1154,6 @@ int main()
 
                 ImGui::SetNextItemOpen(true, ImGuiCond_Once);
 
-                if(ImGui::TreeNode("Metrics"))
-                {
-                    ImGui::ListBox("##Metrics", &selected_idx, &items[0], items.size());
-
-                    should_recompile |= ImGui::Button("Switch");
-
-                    ImGui::TreePop();
-                }
-
                 if(should_recompile || current_idx == -1 || should_soft_recompile)
                 {
                     bool should_hard_recompile = should_recompile || current_idx == -1;
@@ -1152,7 +1167,7 @@ int main()
 
                         if(next == nullptr)
                         {
-                            std::cout << "Broken metric " << concrete_strings[selected_idx] << std::endl;
+                            std::cout << "Broken metric " << metric_names[selected_idx] << std::endl;
                         }
                         else
                         {
