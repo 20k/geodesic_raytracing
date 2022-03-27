@@ -19,6 +19,21 @@
 #define M_SQRT2		1.41421356237309504880
 #define M_SQRT1_2	0.70710678118654752440
 
+std::string to_high_precision_string(float v)
+{
+    std::ostringstream oss;
+    oss << std::setprecision(32) << std::fixed << std::showpoint << v;
+    std::string str = oss.str();
+
+    while(str.size() > 0 && str.back() == '0')
+        str.pop_back();
+
+    if(str.size() > 0 && str.back() == '.')
+        str += "0";
+
+    return str;
+}
+
 void config_variables::add(const std::string& name, float val)
 {
     for(const std::string& existing : names)
@@ -69,7 +84,7 @@ std::map<std::string, std::string> config_variables::as_substitution_map()
 
     for(int i=0; i < (int)names.size(); i++)
     {
-        ret["cfg->" + names[i]] = std::to_string(current_values[i]);
+        ret["cfg->" + names[i]] = to_high_precision_string(current_values[i]);
     }
 
     return ret;
