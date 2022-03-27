@@ -817,7 +817,7 @@ int main()
             }
         }
 
-        if(ImGui::BeginMainMenuBar())
+        if(ImGui::BeginMenuBar())
         {
             std::vector<const char*> items = get_imgui_view(metric_names);
 
@@ -830,7 +830,7 @@ int main()
             //should_recompile |= ImGui::ListBox("##Metrics", &selected_idx, &items[0], items.size());
             should_recompile |= ImGui::Combo("##Metrics", &selected_idx, &items[0], items.size());
 
-            ImGui::EndMainMenuBar();
+            ImGui::EndMenuBar();
         }
 
         fullscreen.stop();
