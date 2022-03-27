@@ -14,7 +14,7 @@ namespace dual_types
     std::string to_string_s(float v)
     {
         std::ostringstream oss;
-        oss << std::setprecision(16) << std::showpoint << v;
+        oss << std::setprecision(32) << std::fixed << std::showpoint << v;
         std::string str = oss.str();
 
         while(str.size() > 0 && str.back() == '0')
