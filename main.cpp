@@ -1218,6 +1218,12 @@ int main()
 
                         file::write("./argument_string.txt", dynamic_argument_string, file::mode::TEXT);
 
+                        if(substituted_program_opt.has_value())
+                        {
+                            substituted_program_opt->cancel();
+                            substituted_program_opt = std::nullopt;
+                        }
+
                         dynamic_program_opt = std::nullopt;
                         dynamic_program_opt.emplace(clctx.ctx, "cl.cl");
                         dynamic_program_opt->build(clctx.ctx, dynamic_argument_string);
