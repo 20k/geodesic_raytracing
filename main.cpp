@@ -1463,7 +1463,6 @@ int main()
                 img.saveToFile(fname);
             }
 
-
             if(last_event.has_value())
                 last_event.value().block();
 
