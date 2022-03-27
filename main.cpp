@@ -513,7 +513,7 @@ int main()
     sett.no_double_buffer = true;
     sett.is_srgb = true;
     sett.no_decoration = true;
-    sett.viewports = true;
+    sett.viewports = false;
 
     render_window win(sett, "Geodesics");
 
