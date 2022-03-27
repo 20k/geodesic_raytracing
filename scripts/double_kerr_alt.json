@@ -1,0 +1,7 @@
+{
+	"name": "double_kerr_alt",
+	"adaptive_precision": true,
+	"detect_singularities": true,
+	"max_acceleration_change": 0.00001,
+	"inherit_settings": "cylindrical_base"
+}

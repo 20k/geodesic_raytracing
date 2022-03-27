@@ -1,0 +1,6 @@
+{
+	"name": "de_sitter",
+	"adaptive_precision": false,
+	"detect_singularities": false,
+	"inherit_settings": "polar_base"
+}

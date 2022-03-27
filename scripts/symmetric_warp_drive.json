@@ -1,0 +1,9 @@
+{
+	"name":"symmetric_warp_drive",
+	"adaptive_precision": true,
+	"detect_singularities": true,
+	"singular": true,
+	"singular_terminator": 1.001,
+	"max_acceleration_change": 0.000001,
+	"inherit_settings": "polar_base"
+}

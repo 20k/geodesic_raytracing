@@ -12,6 +12,14 @@
 #include "numerical.hpp"
 #include <imgui/misc/freetype/imgui_freetype.h>
 #include <imgui/imgui_internal.h>
+#include "js_interop.hpp"
+#include <toolkit/fs_helpers.hpp>
+#include <filesystem>
+#include "steam.hpp"
+#include "workshop/steam_ugc_manager.hpp"
+#include "content_manager.hpp"
+#include "equation_context.hpp"
+#include "fullscreen_window_manager.hpp"
 //#include "dual_complex.hpp"
 
 /**
@@ -44,6 +52,8 @@ https://www2.mpia-hd.mpg.de/homes/tmueller/pdfs/catalogue_2014-05-21.pdf - loads
 https://www.sciencedirect.com/science/article/pii/S0370269319304563 - binary kerr
 https://www.sciencedirect.com/science/article/pii/S0370269320307206 - binary kerr newman, equal
 https://arxiv.org/abs/1502.03809 - the interstellar paper
+https://arxiv.org/pdf/2110.00679.pdf - unequal binary kerr newman
+https://arxiv.org/pdf/2110.04879.pdf - binary kerr newman, unequal, extremal
 
 https://www.reed.edu/physics/courses/Physics411/html/page2/page2.html - some useful info
 https://www.uio.no/studier/emner/matnat/astro/nedlagte-emner/AST1100/h11/undervisningsmateriale/lecture15.pdf - useful basic info
@@ -91,6 +101,8 @@ https://www.aanda.org/articles/aa/full_html/2012/07/aa19209-12/aa19209-12.html -
 https://gyoto.obspm.fr/GyotoManual.pdf - gyoto, general relativity tracer
 https://core.ac.uk/download/pdf/25279526.pdf - binary black hole approximation?
 
+https://hal.archives-ouvertes.fr/hal-01862911/document - natario warp drive
+
 "how do i convert rgb to wavelengths"
 https://github.com/colour-science/smits1999
 https://github.com/appleseedhq/appleseed/blob/54ce23fc940087180511cb5659d8a7aac33712fb/src/appleseed/foundation/image/colorspace.h#L956
@@ -121,1296 +133,6 @@ struct lightray
     cl_int early_terminate;
 };
 
-inline
-std::array<dual, 4> schwarzschild_blackhole(dual t, dual r, dual theta, dual phi)
-{
-    dual rs = 1;
-    dual c = 1;
-
-    //theta = "M_PI/2";
-
-    dual dt = -(1 - rs / r) * c * c;
-
-    dual dr = 1/(1 - rs / r);
-    dual dtheta = r * r;
-    dual dphi = r * r * sin(theta) * sin(theta);
-
-    return {dt, dr, dtheta, dphi};
-}
-
-#define BIG
-inline
-#ifdef BIG
-std::array<dual, 16> schwarzschild_blackhole_lemaitre(dual T, dual p, dual theta, dual phi)
-#else
-std::array<dual, 4> schwarzschild_blackhole_lemaitre(dual T, dual p, dual theta, dual phi)
-#endif // BIG
-{
-    dual rs = 1;
-
-    theta = M_PI/2;
-
-    dual r = pow(((3/2.f) * (p - T)), 2.f/3.f) * pow(rs, 1.f/3.f);
-
-    dual dT = -1;
-    dual dp = (rs / r);
-    dual dtheta = r * r;
-    dual dphi = r * r * sin(theta) * sin(theta);
-
-    #ifdef BIG
-    std::array<dual, 16> ret;
-    ret[0 * 4 + 0] = dT;
-    ret[1 * 4 + 1] = dp;
-    ret[2 * 4 + 2] = dtheta;
-    ret[3 * 4 + 3] = dphi;
-
-    return ret;
-    #else
-    return {dT, dp, dtheta, dphi};
-    #endif // BIG
-}
-
-inline
-std::array<dual, 16> schwarzschild_eddington_finkelstein_outgoing(dual u, dual r, dual theta, dual phi)
-{
-    std::array<dual, 16> ret;
-
-    dual rs = 1;
-
-    dual du_dr = -2;
-
-    ret[0 * 4 + 0] = -(1 - rs/r);
-    ret[0 * 4 + 1] = 0.5 * du_dr;
-    ret[1 * 4 + 0] = 0.5 * du_dr;
-
-    ret[2 * 4 + 2] = r * r;
-    ret[3 * 4 + 3] = r * r * sin(theta) * sin(theta);
-
-    return ret;
-}
-
-////https://arxiv.org/pdf/0904.4184.pdf
-inline
-std::array<dual, 4> traversible_wormhole(dual t, dual p, dual theta, dual phi)
-{
-    dual c = "c";
-    dual n = 1;
-
-    dual dt = -1 * c * c;
-    dual dr = 1;
-    dual dtheta = (p * p + n * n);
-    dual dphi = (p * p + n * n) * (sin(theta) * sin(theta));
-
-    /*std::array<dual, 16> ret;
-    ret[0 * 4 + 0] = dt;
-    ret[1 * 4 + 1] = dr;
-    ret[2 * 4 + 2] = dtheta;
-    ret[3 * 4 + 3] = dphi;
-
-    return ret;*/
-
-    return {dt, dr, dtheta, dphi};
-}
-
-///https://arxiv.org/pdf/1502.03809.pdf
-inline
-std::array<dual, 4> configurable_wormhole(dual t, dual l, dual theta, dual phi)
-{
-    dual M = 0.01;
-    dual p = 1;
-    dual a = 0.001;
-
-    dual x = 2 * (fabs(l) - a) / (M_PI * M);
-
-    dual r = dual_if(fabs(l) <= a,
-    [&]()
-    {
-        return p;
-    },
-    [&]()
-    {
-        return p + M * (x * atan(x) - 0.5 * log(1 + x * x));
-    });
-
-    dual dt = -1;
-    dual dl = 1;
-    dual dtheta = r * r;
-    dual dphi = r * r * sin(theta) * sin(theta);
-
-    return {dt, dl, dtheta, dphi};
-}
-
-/*
-///suffers from event horizonitus
-inline
-std::array<dual, 4> schwarzschild_wormhole(dual t, dual r, dual theta, dual phi)
-{
-    dual c = make_constant("c");
-    dual rs = make_constant("1");
-
-    dual dt = - c * c * (1 - rs/(r * c * c));
-    dual dr = 1/(1 - (rs / (r * c * c)));
-    dual dtheta = r * r;
-    dual dphi = r * r * sin(theta) * sin(theta);
-
-    return {dt, dr, dtheta, dphi};
-}*/
-
-inline
-std::array<dual, 4> cosmic_string(dual t, dual r, dual theta, dual phi)
-{
-    dual c = "c";
-    dual rs = 1;
-
-    dual dt = -(1 - rs/r) * c * c;
-    dual dr = 1 / (1 - rs/r);
-    dual dtheta = r * r;
-
-    dual B = 0.3;
-    dual dphi = r * r * B * B * sin(theta) * sin(theta);
-
-    return {dt, dr, dtheta, dphi};
-}
-
-inline
-std::array<dual, 16> spinning_cosmic_string(dual t, dual p, dual phi, dual z)
-{
-    dual c = 1;
-
-    ///spin
-    dual a = 0.01f;
-    ///deficit angle is (1 - k) * 2pi, aka the segment cut out of a circle
-    dual k = 0.98f;
-    ///a = 0, k = 1 = minkowski
-
-    dual dt = -1;
-    dual dtdphi = 2 * a;
-    dual dphi1 = a * a;
-
-    dual dz = 1;
-    dual dp = 1;
-
-    dual dphi2 = k*k * p*p;
-
-    std::array<dual, 16> ret;
-    ret[0] = dt;
-    ret[1 * 4 + 1] = dp;
-    ret[2 * 4 + 2] = dphi1 + dphi2;
-    ret[3 * 4 + 3] = dz;
-
-    ret[0 * 4 + 1] = 0.5f * dtdphi;
-    ret[1 * 4 + 0] = 0.5f * dtdphi;
-
-    return ret;
-}
-
-inline
-std::array<dual, 4> ernst_metric(dual t, dual r, dual theta, dual phi)
-{
-    dual B = 0.05;
-
-    dual lambda_sq = 1 + B * B * r * r * sin(theta) * sin(theta);
-
-    dual rs = 1;
-    dual c = 1;
-
-    dual dt = -lambda_sq * (1 - rs/r);
-    dual dr = lambda_sq * 1/(1 - rs/r);
-    dual dtheta = lambda_sq * r * r;
-    dual dphi = r * r * sin(theta) * sin(theta) / (lambda_sq);
-
-    return {dt, dr, dtheta, dphi};
-}
-
-///https://arxiv.org/pdf/1408.6041.pdf is where this formulation comes from
-std::array<dual, 4> janis_newman_winicour(dual t, dual r, dual theta, dual phi)
-{
-    dual r0 = 1;
-    ///mu = [1, +inf]
-    dual mu = 4;
-
-    dual Ar = pow((2 * r - r0 * (mu - 1)) / (2 * r + r0 * (mu + 1)), 1/mu);
-    dual Br = (1/4.f) * pow(2 * r + r0 * (mu + 1), (1/mu) + 1) / pow(2 * r - r0 * (mu - 1), (1/mu) - 1);
-
-    dual dt = -Ar;
-    dual dr = 1/Ar;
-    dual dtheta = Br;
-    dual dphi = Br * sin(theta) * sin(theta);
-
-    return {dt, dr, dtheta, dphi};
-
-    ///this formulation has coordinate singularities coming out of its butt
-    /*dual q = sqrt(3) * 1.1;
-    dual M = 1;
-    dual b = 2 * sqrt(M * M + q * q);
-
-    dual gamma = 2*M/b;
-
-    dual dt = -pow(1 - b/r, gamma);
-    dual dr = pow(1 - b/r, -gamma);
-    dual dtheta = pow(1 - b/r, 1-gamma) * r * r;
-    dual dphi = pow(1 - b/r, 1-gamma) * r * r * sin(theta) * sin(theta);
-
-    return {dt, dr, dtheta, dphi};*/
-}
-
-inline
-std::array<dual, 4> de_sitter(dual t, dual r, dual theta, dual phi)
-{
-    float cosmo = 0.01;
-
-    dual c = 1;
-
-    dual dt = -(1 - cosmo * r * r/3) * c * c;
-    dual dr = 1/(1 - cosmo * r * r / 3);
-    dual dtheta = r * r;
-    dual dphi = r * r * sin(theta) * sin(theta);
-
-    return {dt, dr, dtheta, dphi};
-}
-
-inline auto test_metric = traversible_wormhole;
-
-inline
-std::array<dual, 16> ellis_drainhole(dual t, dual r, dual theta, dual phi)
-{
-    dual c = 1;
-
-    dual m = 0.5;
-    dual n = 1;
-
-    dual alpha = sqrt(n * n - m * m);
-
-    dual pseudophi = (n / alpha) * (M_PI/2 - atan2((r - m), alpha));
-
-    dual Fp = -sqrt(1 - exp(-(2 * m/n) * pseudophi));
-
-    dual Rp = sqrt(((r - m) * (r - m) + alpha * alpha) / (1 - Fp * Fp));
-
-    dual dt1 = c*c;
-    dual dt2 = -Fp * Fp * c * c;
-    dual dp = -1;
-    dual dpdt = 2 * Fp * c;
-    dual dtheta = -Rp * Rp;
-    dual dphi = -Rp * Rp * sin(theta) * sin(theta);
-
-    std::array<dual, 16> ret;
-    ret[0] = -dt1 - dt2;
-    ret[1 * 4 + 1] = -dp;
-    ret[2 * 4 + 2] = -dtheta;
-    ret[3 * 4 + 3] = -dphi;
-    ret[0 * 4 + 1] = -dpdt * 0.5;
-    ret[1 * 4 + 0] = -dpdt * 0.5;
-
-    return ret;
-}
-
-inline
-std::array<dual, 16> big_metric_test(dual t, dual p, dual theta, dual phi)
-{
-    dual c = "c";
-    dual n = 1;
-
-    dual dt = -1 * c * c;
-    dual dr = 1;
-    dual dtheta = (p * p + n * n);
-    dual dphi = (p * p + n * n) * (sin(theta) * sin(theta));
-
-    std::array<dual, 16> ret;
-    ret[0] = dt;
-    ret[1 * 4 + 1] = dr;
-    ret[2 * 4 + 2] = dtheta;
-    ret[3 * 4 + 3] = dphi;
-
-    return ret;
-}
-
-///nanning derivatives: 21, 31, 16, 37, 44 47 35 19 28 5 15 21
-///((((v2+v2)*(((v2*v2)-v2)+4))-(((v2*v2)+((4*native_cos(v3))*native_cos(v3)))*((v2+v2)-1)))/((((v2*v2)-v2)+4)*(((v2*v2)-v2)+4)))
-inline
-std::array<dual, 16> kerr_metric(dual t, dual r, dual theta, dual phi)
-{
-    dual rs = 1;
-
-    dual a = -0.5;
-    dual E = r * r + a * a * cos(theta) * cos(theta);
-    dual D = r * r  - rs * r + a * a;
-
-    dual c = 1;
-
-    std::array<dual, 16> ret;
-
-    ret[0] = -(1 - rs * r / E) * c * c;
-    ret[1 * 4 + 1] = E / D;
-    ret[2 * 4 + 2] = E;
-    ret[3 * 4 + 3] = (r * r + a * a + (rs * r * a * a / E) * sin(theta) * sin(theta)) * sin(theta) * sin(theta);
-    ret[0 * 4 + 3] = 0.5 * -2 * rs * r * a * sin(theta) * sin(theta) * c / E;
-    ret[3 * 4 + 0] = ret[0 * 4 + 3];
-
-    return ret;
-}
-
-inline
-std::array<value, 16> kerr_operation(value t, value r, value theta, value phi)
-{
-    value rs = 1;
-
-    value a = -0.5;
-    value E = r * r + a * a * cos(theta) * cos(theta);
-    value D = r * r  - rs * r + a * a;
-
-    value c = 1;
-
-    std::array<value, 16> ret;
-
-    ret[0] = -(1 - rs * r / E) * c * c;
-    ret[1 * 4 + 1] = E / D;
-    ret[2 * 4 + 2] = E;
-    ret[3 * 4 + 3] = (r * r + a * a + (rs * r * a * a / E) * sin(theta) * sin(theta)) * sin(theta) * sin(theta);
-    ret[0 * 4 + 3] = 0.5 * -2 * rs * r * a * sin(theta) * sin(theta) * c / E;
-    ret[3 * 4 + 0] = ret[0 * 4 + 3];
-
-    return ret;
-}
-
-///https://arxiv.org/pdf/0706.0622.pdf
-inline
-std::array<dual, 16> kerr_schild_metric(dual t, dual x, dual y, dual z)
-{
-    dual a = -0.5;
-
-    dual R2 = x * x + y * y + z * z;
-    dual Rm2 = x * x + y * y - z * z;
-
-    //dual r2 = (R2 - a*a + sqrt((R2 - a*a) * (R2 - a*a) + 4 * a*a * z*z))/2;
-
-    dual r2 = (-a*a + sqrt(a*a*a*a - 2*a*a * Rm2 + R2*R2) + R2) / 2;
-
-    dual r = sqrt(r2);
-
-    std::array<dual, 16> minkowski = {-1, 0, 0, 0,
-                                       0, 1, 0, 0,
-                                       0, 0, 1, 0,
-                                       0, 0, 0, 1};
-
-    std::array<dual, 4> lv = {1, (r*x + a*y) / (r2 + a*a), (r*y - a*x) / (r2 + a*a), z/r};
-
-    dual rs = 1;
-
-    dual f = rs * r2 * r / (r2 * r2 + a*a * z*z);
-    //dual f = rs * r*r*r / (r*r*r*r + a*a * z*z);
-
-    std::array<dual, 16> g;
-
-    for(int a=0; a < 4; a++)
-    {
-        for(int b=0; b < 4; b++)
-        {
-            g[a * 4 + b] = minkowski[a * 4 + b] + f * lv[a] * lv[b];
-        }
-    }
-
-    return g;
-}
-
-inline
-std::array<dual, 16> kerr_rational_polynomial(dual t, dual r, dual X, dual phi)
-{
-    dual m = 0.5;
-    dual a = -2;
-
-    dual dt = -(1 - 2 * m * r / (r * r + a * a * X * X));
-    dual dphidt = - (4 * a * m * r * (1 - X * X))/(r * r + a * a * X * X);
-    dual dr = (r * r + a * a * X * X) / (r * r - 2 * m * r + a * a);
-    dual dX = (r * r + a * a * X * X) / (1 - X * X);
-    dual dphi = (1 - X * X) * (r * r + a * a + (2 * m * a * a * r * (1 - X * X)) / (r * r + a * a * X * X));
-
-    std::array<dual, 16> ret;
-    ret[0 * 4 + 0] = dt;
-    ret[1 * 4 + 1] = dr;
-    ret[2 * 4 + 2] = dX;
-    ret[3 * 4 + 3] = dphi;
-    ret[0 * 4 + 3] = dphidt * 0.5;
-    ret[3 * 4 + 0] = dphidt * 0.5;
-
-    return ret;
-}
-
-inline
-std::array<dual, 16> kerr_newman(dual t, dual r, dual theta, dual phi)
-{
-    dual c = 1;
-    dual rs = 1;
-    dual r2q = 0.51;
-    //dual r2q = 0.5;
-    //dual a = 0.51;
-    dual a = -0.51;
-
-    dual p2 = r * r + a * a * cos(theta) * cos(theta);
-    dual D = r * r - rs * r + a * a + r2q * r2q;
-
-    dual dr = -p2 / D;
-    dual dtheta = -p2;
-
-    dual dt_1 = c * c * D / p2;
-    dual dtdphi_1 = -2 * c * a * sin(theta) * sin(theta) * D/p2;
-    dual dphi_1 = pow(a * sin(theta) * sin(theta), 2) * D/p2;
-
-    dual dphi_2 = -pow(r * r + a * a, 2) * sin(theta) * sin(theta) / p2;
-    dual dtdphi_2 = 2 * a * c * (r * r + a * a) * sin(theta) * sin(theta) / p2;
-    dual dt_2 = -a * a * c * c * sin(theta) * sin(theta) / p2;
-
-    dual dtdphi = dtdphi_1 + dtdphi_2;
-
-    std::array<dual, 16> ret;
-    ret[0 * 4 + 0] = -(dt_1 + dt_2);
-    ret[1 * 4 + 1] = -dr;
-    ret[2 * 4 + 2] = -dtheta;
-    ret[3 * 4 + 3] = -(dphi_1 + dphi_2);
-    ret[0 * 4 + 3] = -dtdphi * 0.5;
-    ret[3 * 4 + 0] = -dtdphi * 0.5;
-
-    return ret;
-}
-
-inline
-std::array<dual, 16> double_kerr(dual t, dual p, dual phi, dual z)
-{
-    dual_complex i = dual_types::unit_i();
-
-    ///distance between black holes
-    dual R = 3;
-
-    dual M = 0.3;
-    dual a = 0.27;
-
-    dual d = 2 * M * a * (R * R - 4 * M * M + 4 * a * a) / (R * R + 2 * M * R + 4 * a * a);
-
-    dual sigma_sq = M * M - a * a + (4 * M * M * a * a * (R * R - 4 * M * M + 4 * a * a)) / pow(R * R + 2 * M * R + 4 * a * a, 2);
-
-    dual sigmap = sqrt(sigma_sq);
-
-    dual sigman = -sigmap;
-
-    dual_complex ia = i * a;
-    dual_complex id = i * d;
-
-    dual_complex Rp = ((-M * (2 * sigmap + R) + id) / (2 * M * M + (R + 2 * ia) * (sigmap + ia))) * sqrt(p * p + pow((z + 0.5 * R + sigmap), 2));
-    dual_complex Rn = ((-M * (2 * sigman + R) + id) / (2 * M * M + (R + 2 * ia) * (sigman + ia))) * sqrt(p * p + pow((z + 0.5 * R + sigman), 2));
-
-    dual_complex rp = ((-M * (2 * sigmap - R) + id) / (2 * M * M - (R - 2 * ia) * (sigmap + ia))) * sqrt(p * p + pow((z - 0.5 * R + sigmap), 2));
-    dual_complex rn = ((-M * (2 * sigman - R) + id) / (2 * M * M - (R - 2 * ia) * (sigman + ia))) * sqrt(p * p + pow((z - 0.5 * R + sigman), 2));
-
-    //dual K0 = (4 * R * R * sigmap * sigmap * (R * R - 4 * sigmap * sigmap) * ((R * R + 4 * a * a) * (sigmap * sigmap + a * a) - 4 * M * (M * M * M + a * d))) / ((M * M * pow(R + 2 * sigmap, 2) + d * d) * (M * M * pow(R - 2 * sigmap, 2) + d * d));
-
-    dual K0 = 4 * sigma_sq * (pow(R * R + 2 * M * R + 4 * a * a, 2) - 16 * M * M * a * a) / (M * M * (pow(R + 2 * M, 2) + 4 * a * a));
-
-    dual_complex A = R * R * (Rp - Rn) * (rp - rn) - 4 * sigma_sq * (Rp - rp) * (Rn - rn);
-    dual_complex B = 2 * R * sigmap * ((R + 2 * sigmap) * (Rn - rp) - (R - 2 * sigmap) * (Rp - rn));
-
-    dual_complex G = -z * B + R * sigmap * (2 * R * (Rn * rn - Rp * rp) + 4 * sigmap * (Rp * Rn - rp * rn) - (R * R - 4 * sigma_sq) * (Rp - Rn - rp + rn));
-
-    dual w = 4 * a - (2 * Imaginary(G * (conjugate(A) + conjugate(B))) / (self_conjugate_multiply(A) - self_conjugate_multiply(B)));
-
-    ///the denominator only has real components
-    dual f = (self_conjugate_multiply(A) - self_conjugate_multiply(B)) / Real((A + B) * (conjugate(A) + conjugate(B)));
-    dual i_f = Real((A + B) * (conjugate(A) + conjugate(B))) / (self_conjugate_multiply(A) - self_conjugate_multiply(B));
-
-    dual i_f_e2g = Real((A + B) * (conjugate(A) + conjugate(B))) / Real(K0 * K0 * Rp * Rn * rp * rn);
-
-    //dual i_f = 1/f;
-
-    ///I'm not sure if the denominator is real... but I guess it must be?
-    dual e2g = (self_conjugate_multiply(A) - self_conjugate_multiply(B)) / Real(K0 * K0 * Rp * Rn * rp * rn);
-
-    //dual i_f_e2g = i_f * e2g;
-
-    dual dphi2 = w * w * -f;
-    dual dphi1 = i_f * p * p;
-
-    dual dt_dphi = f * w * 2;
-
-    dual dp = i_f_e2g;
-    dual dz = i_f_e2g;
-
-    std::array<dual, 16> ret;
-    ret[0 * 4 + 0] = -f;
-    ret[2 * 4 + 2] = dphi1 + dphi2;
-    ret[0 * 4 + 2] = dt_dphi * 0.5;
-    ret[2 * 4 + 0] = dt_dphi * 0.5;
-
-    ret[1 * 4 + 1] = dp;
-    ret[3 * 4 + 3] = dz;
-
-    return ret;
-}
-
-///gives exactly the same weird results as double_kerr regular
-///https://arxiv.org/pdf/1702.02209.pdf
-///something must be wrong somewhere
-inline
-std::array<dual, 16> double_kerr_alt(dual t, dual p, dual phi, dual z)
-{
-    dual_complex i = dual_types::unit_i();
-
-    dual R = 4;
-    dual M = 0.3;
-    dual q = 0.2;
-
-    dual sigma = sqrt(M*M - q*q * (1 - (4 * M * M * (R * R - 4 * M * M + 4 * q * q)) / pow(R * (R + 2 * M) + 4 * q * q, 2)));
-
-    dual r1 = sqrt(p*p + pow(z - R/2 - sigma, 2));
-    dual r2 = sqrt(p*p + pow(z - R/2 + sigma, 2));
-
-    dual r3 = sqrt(p*p + pow(z + R/2 - sigma, 2));
-    dual r4 = sqrt(p*p + pow(z + R/2 + sigma, 2));
-
-    dual littled = 2 * M * q * (R * R - 4 * M * M + 4 * q * q) / (R * (R + 2 * M) + 4 * q * q);
-
-    dual_complex pp = 2 * (M*M - q*q) - (R + 2 * M) * sigma + M * R + i * (q * (R - 2 * sigma) + littled);
-    dual_complex pn = 2 * (M*M - q*q) - (R - 2 * M) * sigma - M * R + i * (q * (R - 2 * sigma) - littled);
-
-    dual_complex sp = 2 * (M*M - q*q) + (R - 2 * M) * sigma - M * R + i * (q * (R + 2 * sigma) - littled);
-    dual_complex sn = 2 * (M*M - q*q) + (R + 2 * M) * sigma + M * R + i * (q * (R + 2 * sigma) + littled);
-
-    dual k0 = (R * R - 4 * sigma * sigma) * ((R * R - 4 * M * M) * (M * M - sigma * sigma) + 4 * q * q * q * q + 4 * M * q * littled);
-    dual_complex kp = R + 2 * (sigma + 2 * i * q);
-    dual_complex kn = R - 2 * (sigma + 2 * i * q);
-
-    dual_complex delta = 4 * sigma * sigma * (pp * pn * sp * sn * r1 * r2 + conjugate(pp) * conjugate(pn) * conjugate(sp) * conjugate(sn) * r3 * r4)
-                        -R * R * (conjugate(pp) * conjugate(pn) * sp * sn * r1 * r3 + pp * pn * conjugate(sp) * conjugate(sn) * r2 * r4)
-                        +(R * R - 4 * sigma * sigma) * (conjugate(pp) * pn * conjugate(sp) * sn * r1 * r4 + pp * conjugate(pn) * sp * conjugate(sn) * r2 * r3);
-
-    dual_complex gamma = -2 * i * sigma * R * ((R - 2 * sigma) * Imaginary(pp * conjugate(pn)) * (sp * sn * r1 - conjugate(sp) * conjugate(sn) * r4) + (R + 2 * sigma) * Imaginary(sp * conjugate(sn)) * (pp * pn * r2 - conjugate(pp) * conjugate(pn) * r3));
-
-    dual_complex G = 4 * sigma * sigma * ((R - 2 * i * q) * pp * pn * sp * sn * r1 * r2 - (R + 2 * i * q) * conjugate(pp) * conjugate(pn) * conjugate(sp) * conjugate(sn) * r3 * r4)
-                    -2 * R * R * ((sigma - i * q) * conjugate(pp) * conjugate(pn) * sp * sn * r1 * r3 - (sigma + i * q) * pp * pn * conjugate(sp) * conjugate(sn) * r2 * r4)
-                    - 2 * i * q * (R * R - 4 * sigma * sigma) * Real(pp * conjugate(pn) * sp * conjugate(sn)) * (r1 * r4 + r2 * r3)
-                    - i * sigma * R * ((R - 2 * sigma) * Imaginary(pp * conjugate(pn)) * (conjugate(kp) * sp * sn * r1 + kp * conjugate(sp) * conjugate(sn) * r4)
-                                       + (R + 2 * sigma) * Imaginary(sp * conjugate(sn)) * (kn * pp * pn * r2 + conjugate(kn) * conjugate(pp) * conjugate(pn) * r3));
-
-    dual w = 2 * Imaginary((delta - gamma) * (z * conjugate(gamma) + conjugate(G))) / (self_conjugate_multiply(delta) - self_conjugate_multiply(gamma));
-
-    dual e2y = (self_conjugate_multiply(delta) - self_conjugate_multiply(gamma)) / (256 * sigma * sigma * sigma * sigma * R * R * R * R * k0 * k0 * r1 * r2 * r3 * r4);
-    dual f = (self_conjugate_multiply(delta) - self_conjugate_multiply(gamma)) / Real((delta - gamma) * (conjugate(delta) - conjugate(gamma)));
-
-    dual dp = (e2y / f);
-    dual dz = e2y / f;
-    dual dphi_1 = p * p / f;
-    dual dt = -f;
-    dual dphi_2 = -f * w * w;
-    dual dt_dphi = f * 2 * w;
-
-    std::array<dual, 16> ret;
-    ret[0 * 4 + 0] = dt;
-    ret[1 * 4 + 1] = dp;
-    ret[2 * 4 + 2] = dphi_1 + dphi_2;
-    ret[3 * 4 + 3] = dz;
-
-    ret[0 * 4 + 2] = dt_dphi * 0.5;
-    ret[2 * 4 + 0] = dt_dphi * 0.5;
-
-    return ret;
-}
-
-/*void debugp(dual_complex p)
-{
-    std::cout << p.real.real.sym << std::endl;
-}*/
-
-///https://www.sciencedirect.com/science/article/pii/S0370269319303375
-inline
-std::array<dual, 16> unequal_double_kerr(dual t, dual p, dual phi, dual z)
-{
-    dual_complex i = dual_types::unit_i();
-
-    /*dual a1 = -0.09;
-    dual a2 = 0.091;*/
-
-    dual m1 = 0.15;
-    dual m2 = 0.3;
-
-    dual fa1 = 1.f;
-    dual fa2 = -0.3;
-
-    dual a1 = fa1 * m1;
-    dual a2 = fa2 * m2;
-
-    /*dual a1 = 0.3;
-    dual a2 = 0.1;
-
-    dual m1 = 0.4;
-    dual m2 = 0.4;*/
-
-    dual R = 4;
-
-    dual J = m1 * a1 + m2 * a2;
-    dual M = m1 + m2;
-
-    ///https://www.wolframalpha.com/input/?i=%28%28a_1+%2B+a_2+-+x%29+*+%28R%5E2+-+M%5E2+%2B+x%5E2%29+%2F+%282+*+%28R+%2B+M%29%29%29+-+M+*+x+%2B+J+%3D+0+Solve+for+x
-    ///https://www.wolframalpha.com/input/?i=%28%28k+-+a%29+*+%28B+%2B+a%5E2%29+%2F+C%29+-+M+*+a+%2B+J+solve+for+a
-
-    dual a = 0;
-
-    {
-        dual k = a1 + a2;
-        dual B = R*R - M*M;
-        dual C = 2 * (R + M);
-
-        dual inner_val = pow(sqrt(pow(18 * B * k + 27 * C * J - 9 * C * k * M + 2 * k*k*k, 2) + 4 * pow(3 * B + 3 * C * M - k*k, 3)) + 18 * B * k + 27 * C * J - 9 * C * k * M + 2 *k*k*k, 1.f/3.f);
-
-        dual third_root_2 = pow(2.f, 1.f/3.f);
-
-        a = (1.f / (3 * third_root_2)) * inner_val - ((third_root_2 * (3 * B + 3 * C * M - k*k)) / (3 * inner_val)) + k/3;
-    }
-
-    dual d1 = ((m1 * (a1 - a2 + a) + R * a) * (pow(R + M, 2) + a * a) + m2 * a1 * a*a) / pow(pow(R + M, 2) + a*a, 2);
-    dual d2 = ((m2 * (a2 - a1 + a) + R * a) * (pow(R + M, 2) + a * a) + m1 * a2 * a*a) / pow(pow(R + M, 2) + a*a, 2);
-
-    dual_complex s1 = csqrt(m1 * m1 - a1 * a1 + 4 * m2 * a1 * d1);
-    dual_complex s2 = csqrt(m2 * m2 - a2 * a2 + 4 * m1 * a2 * d2);
-
-    ///R+ with a squiggle on
-    dual_complex Rsp = psqrt(p * p + pow(z + 0.5 * R + s2, 2));
-    dual_complex Rsn = psqrt(p * p + pow(z + 0.5 * R - s2, 2));
-
-    dual_complex rsp = psqrt(p * p + pow(z - 0.5 * R + s1, 2));
-    dual_complex rsn = psqrt(p * p + pow(z - 0.5 * R - s1, 2));
-
-    //std::cout << "S1 " << d1.real.sym << " S2 " << d2.real.sym << std::endl;
-
-    //assert(false);
-
-    //std::cout << "S1 " << Rsp.real.sym << " S2 " << Rsn.real.sym << " S3 " << rsp.real.sym << " S4 " << rsn.real.sym << std::endl;
-
-    //throw std::runtime_error("Err");
-
-    dual_complex mu0 = (R + M - i * a) / (R + M + i * a);
-
-
-    dual_complex rp = (1/mu0) *  (((s1 - m1 - i * a1) * (pow(R + M, 2) + a*a) + 2 * a1 * (m1 * a + i * M * (R + M))) /
-                                  ((s1 - m1 + i * a1) * (pow(R + M, 2) + a*a) + 2 * a1 * (m1 * a - i * M * (R + M))))
-                                  * rsp;
-
-    dual_complex rn = (1/mu0) * (((-s1 - m1 - i * a1) * (pow(R + M, 2) + a*a) + 2 * a1 * (m1 * a + i * M * (R + M))) /
-                                 ((-s1 - m1 + i * a1) * (pow(R + M, 2) + a*a) + 2 * a1 * (m1 * a - i * M * (R + M))))
-                                 * rsn;
-
-    dual_complex Rp = -mu0    *  (((s2 + m2 - i * a2) * (pow(R + M, 2) + a*a) - 2 * a2 * (m2 * a - i * M * (R + M))) /
-                                  ((s2 + m2 + i * a2) * (pow(R + M, 2) + a*a) - 2 * a2 * (m2 * a + i * M * (R + M))))
-                                 * Rsp;
-
-    dual_complex Rn = -mu0    * (((-s2 + m2 - i * a2) * (pow(R + M, 2) + a*a) - 2 * a2 * (m2 * a - i * M * (R + M))) /
-                                 ((-s2 + m2 + i * a2) * (pow(R + M, 2) + a*a) - 2 * a2 * (m2 * a + i * M * (R + M))))
-                                 * Rsn;
-
-    //std::cout << "S1 " << rp.real.real.sym << " S2 " << rn.real.real.sym << " S3 " << Rp.real.real.sym << " S4 " << Rn.real.real.sym << std::endl;
-    //std::cout << "S1I " << rp.real.imaginary.sym << " S2I " << rn.real.imaginary.sym << " S3I " << Rp.real.imaginary.sym << " S4I " << Rn.real.imaginary.sym << std::endl;
-
-    //throw std::runtime_error("Err");
-
-    /*dual_complex A = R * R * (Rp - Rn) * (rp - rn) - 4 * sigma_sq * (Rp - rp) * (Rn - rn);
-    dual_complex B = 2 * R * sigmap * ((R + 2 * sigmap) * (Rn - rp) - (R - 2 * sigmap) * (Rp - rn));*/
-
-    dual_complex A = (R*R - pow(s1 + s2, 2)) * (Rp - Rn) * (rp - rn) - 4 * s1 * s2 * (Rp - rn) * (Rn - rp);
-    dual_complex B = 2 * s1 * (R*R - s1*s1 + s2*s2) * (Rn - Rp) + 2 * s2 * (R * R + s1 * s1 - s2 * s2) * (rn - rp) + 4 * R * s1 * s2 * (Rp + Rn - rp - rn);
-
-    //std::cout << "A " << A.real.real.sym << " AI " << A.real.imaginary.sym << std::endl;
-
-    //throw std::runtime_error("Err");
-
-    dual_complex G = -z * B + s1 * (R * R - s1 * s1 + s2 * s2) * (Rn - Rp) * (rp + rn + R) + s2 * (R * R + s1 * s1 - s2*s2) * (rn - rp) * (Rp + Rn - R)
-                     -2 * s1 * s2 * (2 * R * (rp * rn - Rp * Rn - s1 * (rn - rp) + s2 * (Rn - Rp)) + (s1 * s1 - s2 * s2) * (rp + rn - Rp - Rn));
-
-    dual K0 = ((pow(R + M, 2) + a*a) * (R*R - pow(m1 - m2, 2) + a*a) - 4 * m1*m1 * m2*m2 * a*a) / (m1 * m2 * (pow(R + M, 2) + a*a));
-
-    dual w = 2 * a - (2 * Imaginary(G * (conjugate(A) + conjugate(B))) / (self_conjugate_multiply(A) - self_conjugate_multiply(B)));
-
-    dual f = (self_conjugate_multiply(A) - self_conjugate_multiply(B)) / Real((A + B) * (conjugate(A) + conjugate(B)));
-    dual e2g = (self_conjugate_multiply(A) - self_conjugate_multiply(B)) / Real(16 * pow(fabs(s1), 2) * pow(fabs(s2), 2) * K0*K0 * Rsp * Rsn * rsp * rsn);
-
-    dual dphi2 = w * w * -f;
-    dual dphi1 = (1/f) * p * p;
-
-    dual dt_dphi = f * w * 2;
-
-    dual dp = (1/f) * e2g;
-    dual dz = (1/f) * e2g;
-
-    std::array<dual, 16> ret;
-    ret[0 * 4 + 0] = -f;
-    ret[2 * 4 + 2] = dphi1 + dphi2;
-    ret[0 * 4 + 2] = dt_dphi * 0.5;
-    ret[2 * 4 + 0] = dt_dphi * 0.5;
-
-    ret[1 * 4 + 1] = dp;
-    ret[3 * 4 + 3] = dz;
-
-    return ret;
-}
-
-inline
-std::array<dual, 16> double_schwarzschild(dual t, dual p, dual phi, dual z)
-{
-    dual M1 = 1;
-    dual M2 = 0.1;
-
-    dual e = M2 - M1;
-    dual M = M1 + M2;
-
-    dual z0 = 2;
-
-    dual a1 = -0.5 * (M - e) - z0;
-    dual a2 = 0.5 * (M - e) - z0;
-    dual a3 = -0.5 * (M + e) + z0;
-    dual a4 = 0.5 * (M + e) + z0;
-
-    ///idx [1, 4]
-    auto ak = [&](int idx)
-    {
-        if(idx == 1)
-            return a1;
-
-        if(idx == 2)
-            return a2;
-
-        if(idx == 3)
-            return a3;
-
-        if(idx == 4)
-            return a4;
-
-        assert(false);
-    };
-
-    auto Rk = [&](int idx)
-    {
-        return sqrt(p*p + (z - ak(idx)) * (z - ak(idx)));
-    };
-
-    auto Yk = [&](int idx)
-    {
-        return Rk(idx) + ak(idx) - z;
-    };
-
-    auto Yij = [&](int i1, int j1)
-    {
-        return Rk(i1) * Rk(j1) + (z - ak(i1)) * (z - ak(j1)) + p*p;
-    };
-
-    dual e2k = (Yij(4, 3) * Yij(2, 1) * Yij(4, 1) * Yij(3, 2)) / (4 * Yij(4, 2) * Yij(3, 1) * Rk(1) * Rk(2) * Rk(3) * Rk(4));
-
-    dual e_2U = (Yk(1) * Yk(3)) / (Yk(2) * Yk(4));
-    dual e_m2U = (Yk(2) * Yk(4)) / (Yk(1) * Yk(3));
-
-    dual dt = -e_2U;
-    dual dp = e_m2U * e2k;
-    dual dphi = e_m2U * p * p;
-    dual dz = e_m2U * e2k;
-
-    std::array<dual, 16> ret;
-    ret[0 * 4 + 0] = dt;
-    ret[1 * 4 + 1] = dp;
-    ret[2 * 4 + 2] = dphi;
-    ret[3 * 4 + 3] = dz;
-
-    return ret;
-}
-
-inline
-std::array<dual_complex, 16> big_imaginary_metric_test(dual_complex t, dual_complex p, dual_complex theta, dual_complex phi)
-{
-    dual_complex c = 1;
-    dual_complex n = 1;
-
-    dual_complex dt = -c * c;
-    dual_complex dr = 1;
-    dual_complex dtheta = (p * p + n * n);
-    dual_complex dphi = (p * p + n * n) * (sin(theta) * sin(theta));
-
-    std::array<dual_complex, 16> ret_fat;
-    ret_fat[0] = dt;
-    ret_fat[1 * 4 + 1] = dr;
-    ret_fat[2 * 4 + 2] = dtheta;
-    ret_fat[3 * 4 + 3] = dphi;
-
-    /*if(phi.dual.real == "1")
-    {
-        std::cout << "PHI? " << dphi.dual.real << std::endl;
-        std::cout << "Theta? " << n.dual.real << std::endl;
-    }*/
-
-    return ret_fat;
-}
-
-/*inline
-std::array<dual_complex, 16> minkowski_space(dual_complex t, dual_complex x, dual_complex y, dual_complex z)
-{
-    std::array<dual_complex, 16> ret_fat;
-    ret_fat[0] = -1;
-    ret_fat[1 * 4 + 1] = 1;
-    ret_fat[2 * 4 + 2] = 1;
-    ret_fat[3 * 4 + 3] = 1;
-
-    return ret_fat;
-}*/
-
-inline
-std::array<dual, 16> minkowski_polar(dual t, dual r, dual theta, dual phi)
-{
-    std::array<dual, 16> ret_fat;
-    ret_fat[0] = -1;
-    ret_fat[1 * 4 + 1] = 1;
-    ret_fat[2 * 4 + 2] = r * r;
-    ret_fat[3 * 4 + 3] = r * r * sin(theta) * sin(theta);
-
-    return ret_fat;
-}
-
-///we're in inclination
-/*inline
-std::array<dual_complex, 16> minkowski_cylindrical(dual_complex t, dual_complex r, dual_complex phi, dual_complex z)
-{
-    std::array<dual_complex, 16> ret_fat;
-    ret_fat[0] = -1;
-    ret_fat[1 * 4 + 1] = 1;
-    ret_fat[2 * 4 + 2] = r * r;
-    ret_fat[3 * 4 + 3] = 1;
-
-    return ret_fat;
-}*/
-
-///krasnikov tubes: https://core.ac.uk/download/pdf/25208925.pdf
-dual krasnikov_thetae(dual v, dual e)
-{
-    return 0.5f * (tanh(2 * ((2 * v / e) - 1)) + 1);
-}
-
-///they call x, z
-///krasnikov is extremely terrible, because its situated down the z axis here which is super incredibly bad for performance
-std::array<dual, 16> krasnikov_tube_metric(dual t, dual p, dual phi, dual x)
-{
-    dual e = 0.1; ///width o the tunnel
-    dual D = 2; ///length of the tube
-    dual pmax = 1; ///size of the mouth
-
-    ///[0, 2], approx= 0?
-    dual little_d = 0.01; ///unsure, <1 required for superluminosity
-
-    auto k_t_x_p = [e, pmax, D, little_d](dual t, dual x, dual p)
-    {
-        return 1 - (2 - little_d) * krasnikov_thetae(pmax - p, e) * krasnikov_thetae(t - x - p, e) * (krasnikov_thetae(x, e) - krasnikov_thetae(x + e - D, e));
-    };
-
-    dual dxdt = (1 - k_t_x_p(t, x, p));
-
-    std::array<dual, 16> ret;
-    ret[0 * 4 + 0] = -1;
-    ret[1 * 4 + 1] = 1;
-    ret[2 * 4 + 2] = p * p;
-    ret[3 * 4 + 3] = k_t_x_p(t, x, p);
-    ret[0 * 4 + 3] = 0.5 * dxdt;
-    ret[3 * 4 + 0] = 0.5 * dxdt;
-
-    return ret;
-}
-
-///values here are picked for numerical stability, in particular D should be < the precision bounding box, and its more numerically stable the higher e is
-std::array<dual, 16> krasnikov_tube_metric_cart(dual t, dual x, dual y, dual z)
-{
-    dual e = 0.75; ///width o the tunnel
-    dual D = 5; ///length of the tube
-    dual pmax = 2; ///size of the mouth
-
-    ///[0, 2], approx= 0?
-    dual little_d = 0.01; ///unsure, <1 required for superluminosity
-
-    dual p = sqrt(y * y + z * z);
-
-    auto k_t_x_p = [e, pmax, D, little_d](dual t, dual x, dual p)
-    {
-        return 1 - (2 - little_d) * krasnikov_thetae(pmax - p, e) * krasnikov_thetae(t - x - p, e) * (krasnikov_thetae(x, e) - krasnikov_thetae(x + e - D, e));
-    };
-
-    dual dxdt = (1 - k_t_x_p(t, x, p));
-
-    std::array<dual, 16> ret;
-    ret[0 * 4 + 0] = -1;
-    ret[1 * 4 + 1] = k_t_x_p(t, x, p);
-    ret[2 * 4 + 2] = 1;
-    ret[3 * 4 + 3] = 1;
-    ret[0 * 4 + 1] = 0.5 * dxdt;
-    ret[1 * 4 + 0] = 0.5 * dxdt;
-
-    return ret;
-}
-
-///https://hal.archives-ouvertes.fr/hal-01862911/document
-inline
-std::array<dual, 16> natario_warp_drive_metric(dual t, dual rs_t, dual theta, dual phi)
-{
-    dual sigma = 1;
-    dual R = 2;
-
-    std::array<dual, 16> ret;
-
-    dual f_rs = (tanh(sigma * (rs_t + R)) - tanh(sigma * (rs_t - R))) / (2 * tanh(sigma * R));
-    dual n_rs = 0.5f * (1 - f_rs);
-}
-
-///rendering alcubierre nicely is very hard: the shell is extremely thin, and flat on both sides
-///this means that a naive timestepping method results in a lot of distortion
-///need to crank down subambient_precision, and crank up new_max to about 20 * rs
-///performance and quality is made significantly better with a dynamic timestep based on an error estimate, and then unstepping if it steps too far
-inline
-std::array<dual, 16> alcubierre_metric(dual t, dual x, dual y, dual z)
-{
-    dual dxs_t = 2;
-    dual xs_t = dxs_t * t;
-    dual vs_t = dxs_t;
-
-    dual rs_t = fast_length(x - xs_t, y, z);
-
-    dual sigma = 1;
-    dual R = 2;
-
-    dual f_rs = (tanh(sigma * (rs_t + R)) - tanh(sigma * (rs_t - R))) / (2 * tanh(sigma * R));
-
-    dual dt = (vs_t * vs_t * f_rs * f_rs - 1);
-    dual dxdt = -2 * vs_t * f_rs;
-    dual dx = 1;
-    dual dy = 1;
-    dual dz = 1;
-
-    std::array<dual, 16> ret;
-    ret[0 * 4 + 0] = dt;
-    ret[1 * 4 + 0] = dxdt * 0.5;
-    ret[0 * 4 + 1] = dxdt * 0.5;
-    ret[1 * 4 + 1] = dx;
-    ret[2 * 4 + 2] = dy;
-    ret[3 * 4 + 3] = dz;
-
-    return ret;
-}
-
-
-/*std::array<dual, 16> ret;
-ret[0 * 4 + 0] = dt;
-ret[1 * 4 + 1] = yrr;
-ret[2 * 4 + 2] = ythetatheta;
-ret[3 * 4 + 3] = yphiphi;
-
-return ret;*/
-
-
-///https://arxiv.org/pdf/2010.11031.pdf
-inline
-std::array<dual, 4> symmetric_warp_drive(dual t, dual r, dual theta, dual phi)
-{
-    theta = M_PI/2;
-
-    dual rg = 1;
-    dual rk = rg;
-
-    dual a20 = (1 - rg / r);
-
-    dual a0 = sqrt(a20);
-
-    dual a1 = t / theta;
-
-    dual a2 = a20 + a1;
-
-    dual yrr0 = 1 / (1 - (rg / r));
-    dual ythetatheta0 = r * r;
-    dual yphiphi0 = r * r * sin(theta) * sin(theta);
-
-    dual gamma_0 = pow(r, 4) * sin(theta) * sin(theta) / (1 - rg/r);
-
-    dual littlea = rk * theta * pow(a0, -1);
-    dual littleb = rk * theta - sqrt(gamma_0);
-
-    dual Urt = (littlea * pow(a20 + t/theta, 3/2.f) - littleb) / (littlea * a0*a0*a0 - littleb);
-
-    dual yrr = Urt * yrr0;
-    dual ythetatheta = Urt * ythetatheta0;
-    dual yphiphi = Urt * yphiphi0;
-
-    dual dt = -a2;
-
-    return {dt, yrr, ythetatheta, yphiphi};
-}
-
-inline
-std::array<dual, 4> polar_to_cartesian_dual(dual t, dual r, dual theta, dual phi)
-{
-    dual x = r * sin(theta) * cos(phi);
-    dual y = r * sin(theta) * sin(phi);
-    dual z = r * cos(theta);
-
-    return {t, x, y, z};
-}
-
-inline
-std::array<dual, 4> cartesian_to_polar_dual(dual t, dual x, dual y, dual z)
-{
-    dual r = sqrt(x * x + y * y + z * z);
-    dual theta = atan2(sqrt(x * x + y * y), z);
-    dual phi = atan2(y, x);
-
-    return {t, r, theta, phi};
-}
-
-inline
-dual alcubierre_distance(dual t, dual r, dual theta, dual phi)
-{
-    std::array<dual, 4> cart = polar_to_cartesian_dual(t, r, theta, phi);
-
-    dual dxs_t = 2;
-
-    dual x_pos = cart[1] - dxs_t * t;
-
-    return fast_length(x_pos, cart[2], cart[3]);
-}
-
-inline
-std::array<dual, 4> lemaitre_to_polar(dual T, dual p, dual theta, dual phi)
-{
-    dual rs = 1;
-
-    dual r = pow((3/2.f) * (p - T), 2.f/3.f) * pow(rs, 1/3.f);
-
-    ///T is incorrect here, but i can't find the correct version, and we need T anyway for polar to lemaitre
-    ///because... i can't find the correct equations. Ah well
-    return {T, r, theta, phi};
-}
-
-inline
-std::array<dual, 4> polar_to_lemaitre(dual T, dual r, dual theta, dual phi)
-{
-    dual rs = 1;
-
-    dual p = (pow((r / pow(rs, 1/3.f)), 3/2.f) * 2/3.f) + T;
-
-    return {T, p, theta, phi};
-}
-
-inline
-std::array<dual, 4> cylindrical_to_polar(dual t, dual p, dual phi, dual z)
-{
-    dual rr = sqrt(p * p + z * z);
-    dual rtheta = atan2(p, z);
-    //dual rtheta = atan(p / z);
-    dual rphi = phi;
-
-    return {t, rr, rtheta, rphi};
-}
-
-inline
-std::array<dual, 4> polar_to_cylindrical(dual t, dual r, dual theta, dual phi)
-{
-    dual rp = r * sin(theta);
-    dual rphi = phi;
-    dual rz = r * cos(theta);
-
-    return {t, rp, rphi, rz};
-}
-
-inline
-std::array<dual, 4> rotated_cylindrical_to_polar(dual t, dual p, dual phi, dual x)
-{
-    std::array<dual, 4> as_polar = cylindrical_to_polar(t, p, phi, x);
-
-    std::array<dual, 4> as_cart = polar_to_cartesian_dual(as_polar[0], as_polar[1], as_polar[2], as_polar[3]);
-
-    quaternion_base<dual> dual_quat;
-    dual_quat.load_from_axis_angle({1, 0, 0, -M_PI/2});
-
-    auto rotated = rot_quat({as_cart[1], as_cart[2], as_cart[3]}, dual_quat);
-
-    return cartesian_to_polar_dual(t, rotated.x(), rotated.y(), rotated.z());
-}
-
-inline
-std::array<dual, 4> polar_to_cylindrical_rotated(dual t, dual r, dual theta, dual phi)
-{
-    quaternion_base<dual> dual_quat;
-    dual_quat.load_from_axis_angle({1, 0, 0, M_PI/2});
-
-    std::array<dual, 4> as_cart = polar_to_cartesian_dual(t, r, theta, phi);
-
-    auto rotated = rot_quat({as_cart[1], as_cart[2], as_cart[3]}, dual_quat);
-
-    std::array<dual, 4> as_polar = cartesian_to_polar_dual(t, rotated.x(), rotated.y(), rotated.z());
-
-    return polar_to_cylindrical(as_polar[0], as_polar[1], as_polar[2], as_polar[3]);
-}
-
-inline
-std::array<dual, 4> polar_to_polar(dual t, dual r, dual theta, dual phi)
-{
-    return {t, r, theta, phi};
-}
-
-inline
-std::array<dual, 4> rational_to_polar(dual t, dual r, dual X, dual phi)
-{
-    return {t, r, acos(X), phi};
-}
-
-inline
-std::array<dual, 4> polar_to_rational(dual t, dual r, dual theta, dual phi)
-{
-    return {t, r, cos(theta), phi};
-}
-
-inline
-std::array<dual, 4> oblate_to_polar(dual t, dual r, dual theta, dual phi)
-{
-    dual a = 2;
-
-    dual cx = sqrt(r * r + a * a) * sin(theta) * cos(phi);
-    dual cy = sqrt(r * r + a * a) * sin(theta) * sin(phi);
-    dual cz = r * cos(theta);
-
-    return cartesian_to_polar_dual(t, cx, cy, cz);
-}
-
-inline
-std::array<dual, 4> polar_to_oblate(dual t, dual in_r, dual in_theta, dual in_phi)
-{
-    dual a = 2;
-
-    std::array<dual, 4> as_cart = polar_to_cartesian_dual(t, in_r, in_theta, in_phi);
-
-    dual x = as_cart[1];
-    dual y = as_cart[2];
-    dual z = as_cart[3];
-
-    dual tphi = in_phi;
-    dual secp = sec(tphi);
-
-    dual tr = sqrt(-a*a - pow(secp, 2) * -sqrt(a*a*a*a * pow(cos(tphi), 4) - 2*a*a*x*x*pow(cos(tphi), 2) + 2*a*a*z*z*pow(cos(tphi),4) + x*x*x*x + 2*x*x*z*z*pow(cos(tphi), 2) + z*z*z*z*pow(cos(tphi), 4)) + x*x*pow(secp, 2) + z*z) / sqrt(2);
-
-    dual ttheta = asin(x * sec(tphi) / sqrt(a * a + tr * tr));
-
-    return {t, tr, ttheta, tphi};
-}
-
-inline
-std::array<dual, 4> polar_to_tortoise(dual t, dual r, dual theta, dual phi)
-{
-    dual rs = 1;
-
-    dual tr = r + rs * log(fabs(r / rs - 1));
-
-    return {t, tr, theta, phi};
-}
-
-inline
-std::array<dual, 4> tortoise_to_polar(dual t, dual tort, dual theta, dual phi)
-{
-    dual rs = 1;
-    ///r* = r + rs * ln(fabs(r/rs - 1))
-
-    ///where m = rs
-    ///W = lambert_w0
-    ///k = r*
-    ///x = r
-    ///https://www.wolframalpha.com/input/?i=e%5Ek+%3D+e%5E%28x+%2B+m+*+ln%28abs%28x%2Fm+-+1%29%29%29
-    dual r = rs * (lambert_w0(pow(exp(tort - rs), 1/rs)) + 1);
-
-    return {t, r, theta, phi};
-}
-
-inline
-std::array<dual, 4> polar_to_outgoing_eddington_finkelstein(dual t, dual r, dual theta, dual phi)
-{
-    dual rstar = polar_to_tortoise(t, r, theta, phi)[1];
-
-    dual u = t - rstar;
-
-    return {u, r, theta, phi};
-}
-
-inline
-std::array<dual, 4> outgoing_eddington_finkelstein_to_polar(dual u, dual r, dual theta, dual phi)
-{
-    ///u = t - r*
-    ///t = u + r*
-
-    ///ignore t component, its unused in tortoise
-    ///the reason to recalculate is to avoid calculating lambert_w0, which is very imprecise
-    dual rstar = polar_to_tortoise(0.f, r, theta, phi)[1];
-
-    dual t = u + rstar;
-
-    return {t, r, theta, phi};
-}
-
-inline
-std::array<dual, 4> book_metric(dual t, dual r, dual theta, dual phi)
-{
-    dual l = 1;
-
-    dual dt = exp(-2 * l / r);
-    dual dr = -exp(2 * l / r);
-
-    dual dtheta = -r * r;
-    dual dphi = -r * r * sin(theta) * sin(theta);
-
-    return {-dt, -dr, -dtheta, -dphi};
-}
-
-///https://en.wikipedia.org/wiki/BKL_singularity#Kasner_solution
-///https://en.wikipedia.org/wiki/Kasner_metric
-inline
-std::array<dual, 4> kasner_metric(dual t, dual x, dual y, dual z)
-{
-    int u = 2;
-
-    auto p_1 = [](float u)
-    {
-        return -u / (1 + u + u * u);
-    };
-
-    auto p_2 = [](float u)
-    {
-        return (1 + u) / (1 + u + u*u);
-    };
-
-    auto p_3 = [](float u)
-    {
-        return (u * (1 + u)) / (1 + u + u*u);
-    };
-
-    dual dt = -1;
-    dual dx = pow(t, 2 * p_1(u));
-    dual dy = pow(t, 2 * p_2(u));
-    dual dz = pow(t, 2 * p_3(u));
-
-    return {dt, dx, dy, dz};
-}
-
-inline
-dual at_origin(dual t, dual r, dual theta, dual phi)
-{
-    return r;
-}
-
-/*inline
-std::array<dual, 4> test_metric(dual t, dual p, dual theta, dual phi)
-{
-    dual c = make_constant("c");
-    dual n = make_constant("1");
-
-    dual dt = -make_constant("1");
-    dual dr = make_constant("1");
-    dual dtheta = p * p;
-    dual dphi = p * p * sin(theta) * sin(theta);
-
-    return {dt, dr, dtheta, dphi};
-}*/
-
 #define GENERIC_METRIC
 
 vec4f interpolate_geodesic(const std::vector<cl_float4>& geodesic, float coordinate_time)
@@ -1434,6 +156,7 @@ vec4f interpolate_geodesic(const std::vector<cl_float4>& geodesic, float coordin
             float r1 = cur.y();
             float r2 = next.y();
 
+            ///this might be why things bug out, the division here could easily be singular
             float dx = (coordinate_time - cur.x()) / (next.x() - cur.x());
 
             vec3f next_cart = cartesian_to_polar(mix(as_cart1, as_cart2, dx));
@@ -1544,7 +267,8 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
                                                cl::buffer& count_in, cl::buffer& count_out,
                                                cl::buffer& count_finished,
                                                int num_rays,
-                                               bool use_device_side_enqueue)
+                                               bool use_device_side_enqueue,
+                                               cl::buffer& dynamic_config)
 {
     if(use_device_side_enqueue)
     {
@@ -1558,6 +282,7 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
         run_args.push_back(count_out);
         run_args.push_back(count_finished);
         run_args.push_back(fallback);
+        run_args.push_back(dynamic_config);
 
         cqueue.exec("relauncher_generic", run_args, {1}, {1});
     }
@@ -1574,6 +299,7 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
         run_args.push_back(count_in);
         run_args.push_back(count_out);
         run_args.push_back(count_finished);
+        run_args.push_back(dynamic_config);
 
         cqueue.exec("do_generic_rays", run_args, {num_rays}, {256});
     }
@@ -1584,17 +310,210 @@ int calculate_ray_count(int width, int height)
     return (height - 1) * width + width - 1;
 }
 
+struct graphics_settings
+{
+    int width = 1920;
+    int height = 1080;
+    bool fullscreen = false;
+
+    int supersample_factor = 2;
+    bool supersample = false;
+
+    bool vsync_enabled = false;
+
+    ///Returns true if we need to refresh our opencl context
+    bool display()
+    {
+        ImGui::InputInt("Width", &width);
+        ImGui::InputInt("Height", &height);
+
+        ImGui::Checkbox("Fullscreen", &fullscreen);
+
+        ImGui::Checkbox("Supersample", &supersample);
+        ImGui::InputInt("Supersample Factor", &supersample_factor);
+
+        ImGui::Checkbox("Vsync", &vsync_enabled);
+
+        ImGui::NewLine();
+
+        return ImGui::Button("Apply");
+    }
+};
+
+struct main_menu
+{
+    enum windows
+    {
+        MAIN,
+        SETTINGS,
+        QUIT
+    };
+
+    graphics_settings sett;
+
+    int state = MAIN;
+    bool should_open = false;
+    bool is_open = true;
+    bool dirty_settings = false;
+    bool should_quit = false;
+    bool already_started = false;
+
+    void display_main_menu()
+    {
+        std::string start_string = already_started ? "Continue" : "Start";
+
+        if(ImGui::Button(start_string.c_str()))
+        {
+            already_started = true;
+
+            close();
+        }
+
+        if(ImGui::Button("Settings"))
+        {
+            state = SETTINGS;
+        }
+
+        if(ImGui::Button("Quit"))
+        {
+            state = QUIT;
+        }
+    }
+
+    void display_settings_menu()
+    {
+        dirty_settings |= sett.display();
+
+        if(ImGui::Button("Back"))
+        {
+            state = MAIN;
+        }
+    }
+
+    void display_quit_menu()
+    {
+        ImGui::Text("Are you sure?");
+
+        ImGui::SameLine();
+
+        if(ImGui::Button("Yes"))
+        {
+            should_quit = true;
+        }
+
+        ImGui::SameLine();
+
+        if(ImGui::Button("No"))
+        {
+            state = MAIN;
+        }
+    }
+
+    void close()
+    {
+        ImGui::CloseCurrentPopup();
+        is_open = false;
+    }
+
+    void open()
+    {
+        should_open = true;
+    }
+
+    void poll_open()
+    {
+        if(should_open)
+        {
+            //ImGui::OpenPopup("Main Menu");
+            is_open = true;
+        }
+
+        should_open = false;
+    }
+
+    void display()
+    {
+        ImGui::Begin("Main Menu", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
+
+        //if(ImGui::BeginPopupModal("Main Menu", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse))
+        {
+            int current_state = state;
+
+            if(current_state == MAIN)
+            {
+                display_main_menu();
+            }
+
+            if(current_state == SETTINGS)
+            {
+                display_settings_menu();
+            }
+
+            if(current_state == QUIT)
+            {
+                display_quit_menu();
+            }
+
+            if(ImGui::IsKeyPressed(GLFW_KEY_ESCAPE))
+            {
+                if(current_state == MAIN)
+                {
+                    close();
+                }
+
+                state = MAIN;
+            }
+
+            ImVec2 viewport_size = ImGui::GetMainViewport()->Size;
+            ImVec2 viewport_pos = ImGui::GetMainViewport()->Pos;
+
+            ImVec2 window_size = ImGui::GetWindowSize();
+
+            ImGui::SetWindowPos({viewport_pos.x + viewport_size.x/2 - window_size.x/2, viewport_pos.y + viewport_size.y/2 - window_size.y/2});
+
+            ImGui::End();
+
+            //ImGui::EndPopup();
+        }
+    }
+};
+
+std::vector<const char*> get_imgui_view(const std::vector<std::string>& in)
+{
+    std::vector<const char*> ret;
+
+    for(const std::string& s : in)
+    {
+        ret.push_back(s.c_str());
+    }
+
+    return ret;
+}
+
 ///i need the ability to have dynamic parameters
 int main()
 {
+    bool has_new_content = false;
+
+    steam_info steam;
+
+    ugc_view workshop;
+    workshop.only_get_subscribed();
+
+    steam_callback_executor exec;
+
+    workshop.fetch(steam, exec, [&](){has_new_content = true;});
+
     //dual_types::test_operation();
 
     render_settings sett;
-    sett.width = 1422/1;
-    sett.height = 800/1;
+    sett.width = 1920;
+    sett.height = 1080;
     sett.opencl = true;
     sett.no_double_buffer = true;
     sett.is_srgb = true;
+    sett.no_decoration = true;
+    sett.viewports = true;
 
     render_window win(sett, "Geodesics");
 
@@ -1614,242 +533,53 @@ int main()
 
     opencl_context& clctx = *win.clctx;
 
-    #ifdef GENERIC_METRIC
+    std::filesystem::path scripts_dir{"./scripts"};
 
-    auto schwarzs_polar = new metrics::metric<schwarzschild_blackhole, polar_to_polar, polar_to_polar, at_origin>();
-    schwarzs_polar->name = "schwarzschild";
-    schwarzs_polar->singular = true;
-    schwarzs_polar->adaptive_precision = false;
+    std::vector<std::string> scripts;
 
-    auto schwarzs_polar_accurate = new metrics::metric<schwarzschild_blackhole, polar_to_polar, polar_to_polar, at_origin>;
-    schwarzs_polar_accurate->name = "schwarzschild_accurate";
-    schwarzs_polar_accurate->adaptive_precision = true;
-    schwarzs_polar_accurate->detect_singularities = true;
+    for(const auto& entry : std::filesystem::directory_iterator{scripts_dir})
+    {
+        std::string name = entry.path().string();
 
-    auto schwarzs_lemaitre = new metrics::metric<schwarzschild_blackhole_lemaitre, lemaitre_to_polar, polar_to_lemaitre, at_origin>;
-    schwarzs_lemaitre->name = "schwarzs_lemaitre";
-    //schwarzs_lemaitre->singular = true;
-    //schwarzs_lemaitre->traversible_event_horizon = true;
-    //schwarzs_lemaitre->adaptive_precision = true;
-    schwarzs_lemaitre->adaptive_precision = true;
-    schwarzs_lemaitre->singular = true;
-    schwarzs_lemaitre->singular_terminator = 0.5;
-    schwarzs_lemaitre->traversable_event_horizon = true;
-    schwarzs_lemaitre->follow_geodesics_forward = true;
-    //schwarzs_lemaitre->system = metrics::coordinate_system::OTHER;
-    //schwarzs_lemaitre->detect_singularities = true;
+        if(name.ends_with(".js"))
+        {
+            scripts.push_back(name);
+        }
+    }
 
-    auto schwarzschild_ef_outgoing = new metrics::metric<schwarzschild_eddington_finkelstein_outgoing, outgoing_eddington_finkelstein_to_polar, polar_to_outgoing_eddington_finkelstein, at_origin>;
-    schwarzschild_ef_outgoing->name = "schwarzs_ef_out";
-    schwarzschild_ef_outgoing->adaptive_precision = true;
-    schwarzschild_ef_outgoing->singular = true;
-    schwarzschild_ef_outgoing->singular_terminator = 0.5;
-    schwarzschild_ef_outgoing->traversable_event_horizon = true;
+    content_manager all_content;
 
-    auto simple_wormhole = new metrics::metric<traversible_wormhole, polar_to_polar, polar_to_polar, at_origin>;
-    simple_wormhole->name = "wormhole";
-    simple_wormhole->adaptive_precision = false;
-
-    auto configurable_wormhole_obj = new metrics::metric<configurable_wormhole, polar_to_polar, polar_to_polar, at_origin>;
-    configurable_wormhole_obj->name = "configurable_wormhole";
-    configurable_wormhole_obj->adaptive_precision = true;
-
-    auto cosmic_string_obj = new metrics::metric<cosmic_string, polar_to_polar, polar_to_polar, at_origin>;
-    cosmic_string_obj->name = "cosmic_string";
-    cosmic_string_obj->adaptive_precision = true;
-    cosmic_string_obj->detect_singularities = true;
-
-    ///todo: i forgot what this is and what parameters it might need
-    auto ernst_metric_obj = new metrics::metric<ernst_metric, polar_to_polar, polar_to_polar, at_origin>;
-    ernst_metric_obj->name = "ernst";
-    ernst_metric_obj->adaptive_precision = true;
-    ernst_metric_obj->detect_singularities = true;
-
-    auto janis_newman_winicour_obj = new metrics::metric<janis_newman_winicour, polar_to_polar, polar_to_polar, at_origin>;
-    janis_newman_winicour_obj->name = "janis_newman_winicour";
-    janis_newman_winicour_obj->detect_singularities = false;
-
-    auto ellis_drainhole_obj = new metrics::metric<ellis_drainhole, polar_to_polar, polar_to_polar, at_origin>;
-    ellis_drainhole_obj->name = "ellis_drainhole";
-    ellis_drainhole_obj->adaptive_precision = false;
-
-    ///kerr family
-    auto kerr_obj = new metrics::metric<kerr_metric, polar_to_polar, polar_to_polar, at_origin>;
-    kerr_obj->name = "kerr_boyer";
-    kerr_obj->adaptive_precision = true;
-    kerr_obj->detect_singularities = true;
-    kerr_obj->use_prepass = true;
-
-    auto kerr_value_obj = new metrics::metric<kerr_operation, polar_to_polar, polar_to_polar, at_origin>;
-    kerr_value_obj->name = "kerr_value";
-    kerr_value_obj->adaptive_precision = true;
-    kerr_value_obj->detect_singularities = true;
-    kerr_value_obj->use_prepass = true;
-
-    auto kerr_newman_obj = new metrics::metric<kerr_newman, polar_to_polar, polar_to_polar, at_origin>;
-    kerr_newman_obj->name = "kerrnewman_boyer";
-    kerr_newman_obj->adaptive_precision = true;
-    kerr_newman_obj->detect_singularities = true;
-    kerr_newman_obj->use_prepass = true;
-
-    auto kerr_schild_obj = new metrics::metric<kerr_schild_metric, cartesian_to_polar_dual, polar_to_cartesian_dual, at_origin>;
-    kerr_schild_obj->name = "kerr_schild";
-    kerr_schild_obj->adaptive_precision = true;
-    kerr_schild_obj->detect_singularities = true;
-    kerr_schild_obj->system = metrics::coordinate_system::CARTESIAN;
-
-    auto kerr_rational_polynomial_obj = new metrics::metric<kerr_rational_polynomial, rational_to_polar, polar_to_rational, at_origin>;
-    kerr_rational_polynomial_obj->name = "kerr_rational_poly";
-    kerr_rational_polynomial_obj->adaptive_precision = true;
-    kerr_rational_polynomial_obj->detect_singularities = true;
-
-    auto de_sitter_obj = new metrics::metric<de_sitter, polar_to_polar, polar_to_polar, at_origin>;
-    de_sitter_obj->name = "desitter";
-    de_sitter_obj->adaptive_precision = false;
-
-    /*metrics::metric<minkowski_space, cartesian_to_polar_dual, polar_to_cartesian_dual, at_origin> minkowski_space_obj;
-    minkowski_space_obj->name = "minkowski";
-    minkowski_space_obj->adaptive_precision = false;
-    minkowski_space_obj->system = metrics::coordinate_system::CARTESIAN;*/
-
-    auto minkowski_polar_obj = new metrics::metric<minkowski_polar, polar_to_polar, polar_to_polar, at_origin>;
-    minkowski_polar_obj->name = "minkowski_polar";
-    minkowski_polar_obj->adaptive_precision = false;
-
-    /*metrics::metric<minkowski_cylindrical, cylindrical_to_polar, polar_to_cylindrical, at_origin> minkowski_cylindrical_obj;
-    minkowski_cylindrical_obj->name = "minkowski_cylindrical";
-    minkowski_cylindrical_obj->adaptive_precision = false;
-    minkowski_cylindrical_obj->system = metrics::coordinate_system::OTHER;*/
-
-    auto alcubierre_metric_obj = new metrics::metric<alcubierre_metric, cartesian_to_polar_dual, polar_to_cartesian_dual, alcubierre_distance>;
-    alcubierre_metric_obj->name = "alcubierre";
-    alcubierre_metric_obj->system = metrics::coordinate_system::CARTESIAN;
-
-    auto symmetric_warp_obj = new metrics::metric<symmetric_warp_drive, polar_to_polar, polar_to_polar, at_origin>;
-    symmetric_warp_obj->name = "symmetric_warp";
-    symmetric_warp_obj->detect_singularities = true;
-    symmetric_warp_obj->singular = true;
-    symmetric_warp_obj->singular_terminator = 1.001f;
-    //symmetric_warp_obj->adaptive_precision = false;
-
-    auto krasnikov_tube_obj = new metrics::metric<krasnikov_tube_metric, cylindrical_to_polar, polar_to_cylindrical, at_origin>;
-    krasnikov_tube_obj->name = "krasnikov_tube";
-    krasnikov_tube_obj->adaptive_precision = true;
-    krasnikov_tube_obj->system = metrics::coordinate_system::OTHER;
-
-    auto krasnikov_tube_cart_obj = new metrics::metric<krasnikov_tube_metric_cart, cartesian_to_polar_dual, polar_to_cartesian_dual, at_origin>;
-    krasnikov_tube_cart_obj->name = "krasnikov_tube_cart";
-    krasnikov_tube_cart_obj->adaptive_precision = true;
-    krasnikov_tube_cart_obj->system = metrics::coordinate_system::CARTESIAN;
-
-    auto double_kerr_alt_obj = new metrics::metric<double_kerr_alt, cylindrical_to_polar, polar_to_cylindrical, at_origin>;
-    double_kerr_alt_obj->name = "double_kerr_alt";
-    double_kerr_alt_obj->adaptive_precision = true;
-    double_kerr_alt_obj->detect_singularities = true;
-    double_kerr_alt_obj->system = metrics::coordinate_system::CYLINDRICAL;
-
-    auto double_kerr_obj = new metrics::metric<double_kerr, cylindrical_to_polar, polar_to_cylindrical, at_origin>;
-    double_kerr_obj->name = "double_kerr";
-    double_kerr_obj->adaptive_precision = true;
-    double_kerr_obj->detect_singularities = true;
-    double_kerr_obj->system = metrics::coordinate_system::CYLINDRICAL;
-
-    auto unequal_double_kerr_obj = new metrics::metric<unequal_double_kerr, cylindrical_to_polar, polar_to_cylindrical, at_origin>;
-    unequal_double_kerr_obj->name = "unequal_double_kerr";
-    unequal_double_kerr_obj->adaptive_precision = true;
-    unequal_double_kerr_obj->detect_singularities = true;
-    unequal_double_kerr_obj->system = metrics::coordinate_system::CYLINDRICAL;
-    //unequal_double_kerr_obj->use_prepass = true;
-
-    auto double_schwarzschild_obj = new metrics::metric<double_schwarzschild, cylindrical_to_polar, polar_to_cylindrical, at_origin>;
-    double_schwarzschild_obj->name = "double_schwarzschild";
-    double_schwarzschild_obj->adaptive_precision = true;
-    double_schwarzschild_obj->detect_singularities = true;
-    double_schwarzschild_obj->system = metrics::coordinate_system::CYLINDRICAL;
-
-    auto book_metric_obj = new metrics::metric<book_metric, polar_to_polar, polar_to_polar, at_origin>;
-    book_metric_obj->name = "book_metric";
-    book_metric_obj->adaptive_precision = true;
-    book_metric_obj->detect_singularities = false;
-    book_metric_obj->use_prepass = true;
-    book_metric_obj->system = metrics::coordinate_system::X_Y_THETA_PHI;
-
-    auto kasner_metric_obj = new metrics::metric<kasner_metric, cartesian_to_polar_dual, polar_to_cartesian_dual, at_origin>;
-    kasner_metric_obj->name = "kasner";
-    kasner_metric_obj->adaptive_precision = true;
-    kasner_metric_obj->detect_singularities = true;
-    kasner_metric_obj->system = metrics::coordinate_system::CARTESIAN;
-
-    auto spinning_cosmic_string_obj = new metrics::metric<spinning_cosmic_string, cylindrical_to_polar, polar_to_cylindrical, at_origin>;
-    spinning_cosmic_string_obj->name = "spinning_string";
-    spinning_cosmic_string_obj->adaptive_precision = true;
-    spinning_cosmic_string_obj->detect_singularities = false;
-    spinning_cosmic_string_obj->system = metrics::coordinate_system::CYLINDRICAL;
-
-    std::vector<metrics::metric_base*> all_metrics;
-
-    all_metrics.push_back(schwarzs_polar);
-    all_metrics.push_back(schwarzs_polar_accurate);
-    all_metrics.push_back(schwarzs_lemaitre);
-    all_metrics.push_back(schwarzschild_ef_outgoing);
-    all_metrics.push_back(simple_wormhole);
-    all_metrics.push_back(configurable_wormhole_obj);
-    all_metrics.push_back(cosmic_string_obj);
-    all_metrics.push_back(ernst_metric_obj);
-    all_metrics.push_back(janis_newman_winicour_obj);
-    all_metrics.push_back(ellis_drainhole_obj);
-    all_metrics.push_back(kerr_obj);
-    all_metrics.push_back(kerr_value_obj);
-    all_metrics.push_back(kerr_newman_obj);
-    all_metrics.push_back(kerr_schild_obj);
-    all_metrics.push_back(kerr_rational_polynomial_obj);
-    all_metrics.push_back(de_sitter_obj);
-    all_metrics.push_back(minkowski_polar_obj);
-    all_metrics.push_back(alcubierre_metric_obj);
-    all_metrics.push_back(symmetric_warp_obj);
-    all_metrics.push_back(krasnikov_tube_obj);
-    all_metrics.push_back(krasnikov_tube_cart_obj);
-    all_metrics.push_back(double_kerr_alt_obj);
-    all_metrics.push_back(double_kerr_obj);
-    all_metrics.push_back(unequal_double_kerr_obj);
-    all_metrics.push_back(double_schwarzschild_obj);
-    all_metrics.push_back(book_metric_obj);
-    all_metrics.push_back(kasner_metric_obj);
-    all_metrics.push_back(spinning_cosmic_string_obj);
+    all_content.add_content_folder("./scripts");
 
     metrics::config cfg;
     ///necessary for double schwarzs
-    cfg.universe_size = 2000000;
+    cfg.universe_size = 20;
     cfg.use_device_side_enqueue = false;
     //cfg.error_override = 100.f;
     //cfg.error_override = 0.000001f;
     //cfg.error_override = 0.000001f;
     //cfg.error_override = 0.00001f;
     //cfg.redshift = true;
-    #endif // GENERIC_METRIC
 
     //printf("WLs %f %f %f\n", chromaticity::srgb_to_wavelength({1, 0, 0}), chromaticity::srgb_to_wavelength({0, 1, 0}), chromaticity::srgb_to_wavelength({0, 0, 1}));
 
     int supersample_mult = 2;
+    int last_supersample_mult = supersample_mult;
 
-    int supersample_width = sett.width * supersample_mult;
-    int supersample_height = sett.height * supersample_mult;
+    int start_width = sett.width;
+    int start_height = sett.height;
 
     texture_settings tsett;
-    tsett.width = supersample_width;
-    tsett.height = supersample_height;
+    tsett.width = start_width;
+    tsett.height = start_height;
     tsett.is_srgb = false;
     tsett.generate_mipmaps = false;
 
-    std::array<texture, 2> tex;
-    tex[0].load_from_memory(tsett, nullptr);
-    tex[1].load_from_memory(tsett, nullptr);
+    texture tex;
+    tex.load_from_memory(tsett, nullptr);
 
-    std::array<cl::gl_rendertexture, 2> rtex{clctx.ctx, clctx.ctx};
-    rtex[0].create_from_texture(tex[0].handle);
-    rtex[1].create_from_texture(tex[1].handle);
-
-    int which_buffer = 0;
+    cl::gl_rendertexture rtex{clctx.ctx};
+    rtex.create_from_texture(tex.handle);
 
     cl::image_with_mipmaps background_mipped = load_mipped_image("background.png", clctx);
     cl::image_with_mipmaps background_mipped2 = load_mipped_image("background2.png", clctx);
@@ -1877,31 +607,27 @@ int main()
 
     sf::Clock clk;
 
-    int ray_count = supersample_width * supersample_height;
+    int ray_count = start_width * start_height;
 
     printf("Pre buffer declarations\n");
 
     cl::buffer schwarzs_1(clctx.ctx);
     cl::buffer schwarzs_scratch(clctx.ctx);
     cl::buffer schwarzs_prepass(clctx.ctx);
-    #ifndef GENERIC_METRIC
-    cl::buffer kruskal_1(clctx.ctx);
-    cl::buffer kruskal_2(clctx.ctx);
-    #endif // GENERIC_METRIC
     cl::buffer finished_1(clctx.ctx);
 
     cl::buffer schwarzs_count_1(clctx.ctx);
     cl::buffer schwarzs_count_scratch(clctx.ctx);
     cl::buffer schwarzs_count_prepass(clctx.ctx);
-    cl::buffer kruskal_count_1(clctx.ctx);
-    cl::buffer kruskal_count_2(clctx.ctx);
     cl::buffer finished_count_1(clctx.ctx);
 
     cl::buffer termination_buffer(clctx.ctx);
 
+    cl::buffer dynamic_config(clctx.ctx);
+
     printf("Post buffer declarations\n");
 
-    termination_buffer.alloc(supersample_width * supersample_height * sizeof(cl_int));
+    termination_buffer.alloc(start_width * start_height * sizeof(cl_int));
 
     printf("Allocated termination buffer\n");
 
@@ -1918,33 +644,27 @@ int main()
 
     printf("Pre texture coordinates\n");
 
-    cl::buffer texture_coordinates[2] = {clctx.ctx, clctx.ctx};
+    cl::buffer texture_coordinates{clctx.ctx};
 
-    for(int i=0; i < 2; i++)
-    {
-        texture_coordinates[i].alloc(supersample_width * supersample_height * sizeof(float) * 2);
-        texture_coordinates[i].set_to_zero(clctx.cqueue);
-    }
+    texture_coordinates.alloc(start_width * start_height * sizeof(float) * 2);
+    texture_coordinates.set_to_zero(clctx.cqueue);
 
     printf("Post texture coordinates\n");
 
     schwarzs_1.alloc(sizeof(lightray) * ray_count);
     schwarzs_scratch.alloc(sizeof(lightray) * ray_count);
     schwarzs_prepass.alloc(sizeof(lightray) * ray_count);
-    #ifndef GENERIC_METRIC
-    kruskal_1.alloc(sizeof(lightray) * ray_count);
-    kruskal_2.alloc(sizeof(lightray) * ray_count);
-    #endif // GENERIC_METRIC
     finished_1.alloc(sizeof(lightray) * ray_count);
 
     schwarzs_count_1.alloc(sizeof(int));
     schwarzs_count_scratch.alloc(sizeof(int));
     schwarzs_count_prepass.alloc(sizeof(int));
-    kruskal_count_1.alloc(sizeof(int));
-    kruskal_count_2.alloc(sizeof(int));
     finished_count_1.alloc(sizeof(int));
 
     printf("Alloc rays and counts\n");
+
+    std::optional<cl::program> substituted_program_opt;
+    std::optional<cl::program> dynamic_program_opt;
 
     cl_sampler_properties sampler_props[] = {
     CL_SAMPLER_NORMALIZED_COORDS, CL_TRUE,
@@ -1964,6 +684,7 @@ int main()
 
     std::cout << "Supports shared events? " << cl::supports_extension(clctx.ctx, "cl_khr_gl_event") << std::endl;
 
+    bool last_supersample = false;
     bool supersample = false;
     bool should_take_screenshot = false;
 
@@ -1983,551 +704,770 @@ int main()
 
     printf("Pre main\n");
 
-    while(!win.should_close())
+    ///quite hacky
+    metrics::metric* current_metric = nullptr;
+
+    steady_timer workshop_poll;
+
+    bool open_main_menu_trigger = true;
+    main_menu menu;
+
+    fullscreen_window_manager fullscreen;
+
+    ImGuiStyle& style = ImGui::GetStyle();
+
+    style.FrameRounding = 0;
+    style.WindowRounding = 0;
+    style.ChildRounding = 0;
+    style.ChildBorderSize = 0;
+    style.FrameBorderSize = 0;
+    //style.PopupBorderSize = 0;
+    style.WindowBorderSize = 1;
+
+    while(!win.should_close() && !menu.should_quit && fullscreen.open)
     {
+        if(menu.dirty_settings)
+        {
+            vec2i dim = {menu.sett.width, menu.sett.height};
+
+            if(dim != win.get_window_size())
+            {
+                win.resize(dim);
+            }
+
+            supersample = menu.sett.supersample;
+            supersample_mult = menu.sett.supersample_factor;
+
+            if(win.backend->is_vsync() != menu.sett.vsync_enabled)
+            {
+                win.backend->set_vsync(menu.sett.vsync_enabled);
+            }
+
+            menu.dirty_settings = false;
+        }
+
+        if(!menu.is_open)
+        {
+            vec2i real_dim = win.get_window_size();
+
+            menu.sett.supersample = supersample;
+            menu.sett.supersample_factor = supersample_mult;
+
+            menu.sett.vsync_enabled = win.backend->is_vsync();
+
+            menu.sett.width = real_dim.x();
+            menu.sett.height = real_dim.y();
+        }
+
+        exec.poll();
+
+        if(workshop_poll.get_elapsed_time_s() > 20)
+        {
+            workshop.fetch(steam, exec, [&](){has_new_content = true;});
+
+            workshop_poll.restart();
+        }
+
+        if(has_new_content)
+        {
+            for(const ugc_details& det : workshop.items)
+            {
+                std::string path = det.absolute_content_path;
+
+                if(path == "")
+                    continue;
+
+                std::cout << "Added content " << path << std::endl;
+
+                all_content.add_content_folder(path);
+            }
+
+            has_new_content = false;
+        }
+
         win.poll();
 
-        glFinish();
-
-        auto buffer_size = rtex[which_buffer].size<2>();
-
-        bool taking_screenshot = should_take_screenshot;
-        should_take_screenshot = false;
-
-        bool should_snapshot_geodesic = false;
-
-        if((vec2i){buffer_size.x() / supersample_mult, buffer_size.y() / supersample_mult} != win.get_window_size() || taking_screenshot)
+        if(open_main_menu_trigger)
         {
-            if(last_event.has_value())
-                last_event.value().block();
+            menu.open();
 
-            last_event = std::nullopt;
+            open_main_menu_trigger = false;
+        }
 
-            if(!taking_screenshot)
+        menu.poll_open();
+
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0,0,0,0));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
+
+        fullscreen.start(win);
+
+        bool should_recompile = false;
+
+        std::vector<std::string> metric_names;
+        std::vector<content*> parent_directories;
+
+        for(content& c : all_content.content_directories)
+        {
+            for(int idx = 0; idx < (int)c.metrics.size(); idx++)
             {
-                supersample_width = win.get_window_size().x() * supersample_mult;
-                supersample_height = win.get_window_size().y() * supersample_mult;
-            }
-            else
-            {
-                supersample_width = screenshot_w * supersample_mult;
-                supersample_height = screenshot_h * supersample_mult;
-            }
+                std::string friendly_name = c.get_config_of_filename(c.metrics[idx])->name;
 
-            ray_count = supersample_width * supersample_height;
-
-            texture_settings new_sett;
-            new_sett.width = supersample_width;
-            new_sett.height = supersample_height;
-            new_sett.is_srgb = false;
-            new_sett.generate_mipmaps = false;
-
-            tex[0].load_from_memory(new_sett, nullptr);
-            tex[1].load_from_memory(new_sett, nullptr);
-
-            rtex[0].create_from_texture(tex[0].handle);
-            rtex[1].create_from_texture(tex[1].handle);
-
-            termination_buffer.alloc(supersample_width * supersample_height * sizeof(cl_int));
-            termination_buffer.set_to_zero(clctx.cqueue);
-
-            schwarzs_1.alloc(sizeof(lightray) * ray_count);
-            schwarzs_scratch.alloc(sizeof(lightray) * ray_count);
-            schwarzs_prepass.alloc(sizeof(lightray) * ray_count);
-            #ifndef GENERIC_METRIC
-            kruskal_1.alloc(sizeof(lightray) * ray_count);
-            kruskal_2.alloc(sizeof(lightray) * ray_count);
-            #endif // GENERIC_METRIC
-            finished_1.alloc(sizeof(lightray) * ray_count);
-
-            for(int i=0; i < 2; i++)
-            {
-                texture_coordinates[i].alloc(supersample_width * supersample_height * sizeof(float) * 2);
-                texture_coordinates[i].set_to_zero(clctx.cqueue);
+                metric_names.push_back(friendly_name);
+                parent_directories.push_back(&c);
             }
         }
 
-        rtex[which_buffer].acquire(clctx.cqueue);
-
-        float speed = 0.001;
-
-        if(!ImGui::GetIO().WantCaptureKeyboard)
+        if(ImGui::BeginMenuBar())
         {
-            if(ImGui::IsKeyDown(GLFW_KEY_LEFT_SHIFT))
-                speed = 0.1;
+            std::vector<const char*> items = get_imgui_view(metric_names);
 
-            if(ImGui::IsKeyDown(GLFW_KEY_LEFT_CONTROL))
-                speed = 0.00001;
+            ///steam fps padder
+            ImGui::Indent();
+            ImGui::Indent();
 
-            if(ImGui::IsKeyDown(GLFW_KEY_LEFT_ALT))
-                speed /= 1000;
+            ImGui::Text("Metric: ");
 
-            if(ImGui::IsKeyDown(GLFW_KEY_Z))
-                speed *= 100;
+            //should_recompile |= ImGui::ListBox("##Metrics", &selected_idx, &items[0], items.size());
+            should_recompile |= ImGui::Combo("##Metrics", &selected_idx, &items[0], items.size());
 
-            if(ImGui::IsKeyDown(GLFW_KEY_X))
-                speed *= 100;
-
-            if(ImGui::IsKeyPressed(GLFW_KEY_B))
-            {
-                camera = {0, 0, 0, -100};
-            }
-
-            if(ImGui::IsKeyPressed(GLFW_KEY_N))
-            {
-                camera = {0, 0, 0, -1.16};
-            }
-
-            if(ImGui::IsKeyPressed(GLFW_KEY_M))
-            {
-                camera = {0, 0, 0, 1.16};
-            }
-
-            if(ImGui::IsKeyPressed(GLFW_KEY_J))
-            {
-                camera = {0, -1.16, 0, 0};
-            }
-
-            if(ImGui::IsKeyPressed(GLFW_KEY_K))
-            {
-                camera = {0, 1.16, 0, 0};
-            }
-
-            if(ImGui::IsKeyPressed(GLFW_KEY_V))
-            {
-                camera = {0, 0, 0, 1.03};
-            }
-
-            if(ImGui::IsKeyPressed(GLFW_KEY_C))
-            {
-                camera = {0, 0, 0, 0};
-            }
-
-            if(ImGui::IsKeyPressed(GLFW_KEY_R))
-            {
-                camera = {0, 0, 22, 0};
-            }
-
-            if(ImGui::IsKeyDown(GLFW_KEY_RIGHT))
-            {
-                mat3f m = mat3f().ZRot(M_PI/128);
-
-                quat q;
-                q.load_from_matrix(m);
-
-                camera_quat = q * camera_quat;
-            }
-
-            if(ImGui::IsKeyDown(GLFW_KEY_LEFT))
-            {
-                mat3f m = mat3f().ZRot(-M_PI/128);
-
-                quat q;
-                q.load_from_matrix(m);
-
-                camera_quat = q * camera_quat;
-            }
-
-            if(ImGui::IsKeyPressed(GLFW_KEY_1))
-            {
-                flip_sign = !flip_sign;
-            }
-
-            vec3f up = {0, 0, -1};
-            vec3f right = rot_quat({1, 0, 0}, camera_quat);
-            vec3f forward_axis = rot_quat({0, 0, 1}, camera_quat);
-
-            if(ImGui::IsKeyDown(GLFW_KEY_DOWN))
-            {
-                quat q;
-                q.load_from_axis_angle({right.x(), right.y(), right.z(), M_PI/128});
-
-                camera_quat = q * camera_quat;
-            }
-
-            if(ImGui::IsKeyDown(GLFW_KEY_UP))
-            {
-                quat q;
-                q.load_from_axis_angle({right.x(), right.y(), right.z(), -M_PI/128});
-
-                camera_quat = q * camera_quat;
-            }
-
-            vec3f offset = {0,0,0};
-
-            offset += forward_axis * ((ImGui::IsKeyDown(GLFW_KEY_W) - ImGui::IsKeyDown(GLFW_KEY_S)) * speed);
-            offset += right * (ImGui::IsKeyDown(GLFW_KEY_D) - ImGui::IsKeyDown(GLFW_KEY_A)) * speed;
-            offset += up * (ImGui::IsKeyDown(GLFW_KEY_E) - ImGui::IsKeyDown(GLFW_KEY_Q)) * speed;
-
-            camera.y() += offset.x();
-            camera.z() += offset.y();
-            camera.w() += offset.z();
+            ImGui::EndMenuBar();
         }
 
-        vec4f scamera = cartesian_to_schwarz(camera);
+        fullscreen.stop();
 
-        if(flip_sign)
-            scamera.y() = -scamera.y();
+        ImGui::PopStyleVar(1);
+        ImGui::PopStyleColor(1);
 
-        float time = clk.restart().asMicroseconds() / 1000.;
-
-        if(camera_on_geodesic)
+        if(ImGui::IsKeyDown(GLFW_KEY_LEFT_ALT) && ImGui::IsKeyPressed(GLFW_KEY_ENTER))
         {
-            scamera = interpolate_geodesic(current_geodesic_path, current_geodesic_time);
-            base_angle = get_geodesic_intersection(current_geodesic_path);
+            win.backend->set_is_maximised(!win.backend->is_maximised());
         }
 
-        if(!taking_screenshot)
+        if(menu.is_open)
         {
-            ImGui::Begin("DBG", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-
-            ImGui::DragFloat3("Polar Pos", &scamera.v[1]);
-            ImGui::DragFloat3("Cart Pos", &camera.v[1]);
-
-            ImGui::DragFloat("Time", &time);
-
-            ImGui::Checkbox("Supersample", &supersample);
-
-            ImGui::SliderFloat("CTime", &camera.v[0], 0.f, 100.f);
-
-            ImGui::Checkbox("Time Progresses", &time_progresses);
-
-            if(time_progresses)
-                camera.v[0] += time / 1000.f;
-
-            if(ImGui::Button("Screenshot"))
-                should_take_screenshot = true;
-
-            ImGui::DragFloat("Geodesic Camera Time", &current_geodesic_time, 0.1, -100.f, 100.f);
-            //ImGui::SliderFloat("Geodesic Camera Time", &current_geodesic_time, -100.f, 100.f);
-
-            ImGui::Checkbox("Use Camera Geodesic", &camera_on_geodesic);
-
-            ImGui::Checkbox("Camera Time Progresses", &camera_time_progresses);
-
-            if(camera_time_progresses)
-                current_geodesic_time += time / 1000.f;
-
-            if(ImGui::Button("Snapshot Camera Geodesic"))
+            menu.display();
+        }
+        else
+        {
+            if(ImGui::IsKeyPressed(GLFW_KEY_ESCAPE))
             {
-                should_snapshot_geodesic = true;
+                menu.open();
             }
 
-            ImGui::Checkbox("Camera Snapshot Geodesic goes forward", &camera_geodesics_go_foward);
+            auto buffer_size = rtex.size<2>();
 
-            ImGui::Separator();
+            bool taking_screenshot = should_take_screenshot;
+            should_take_screenshot = false;
 
-            ImGui::Text("Compile Options");
+            bool should_snapshot_geodesic = false;
 
-            ImGui::Checkbox("Redshift", &cfg.redshift);
+            vec<2, size_t> super_adjusted_width = supersample ? (buffer_size / supersample_mult) : buffer_size;
 
-            ImGui::InputFloat("Error Tolerance", &selected_error, 0.0000001f, 0.00001f, "%.8f");
-
-            std::vector<const char*> items;
-
-            for(auto& i : all_metrics)
+            if((vec2i){super_adjusted_width.x(), super_adjusted_width.y()} != win.get_window_size() || taking_screenshot || last_supersample != supersample || last_supersample_mult != supersample_mult || menu.dirty_settings)
             {
-                items.push_back(i->name.c_str());
-            }
+                if(last_event.has_value())
+                    last_event.value().block();
 
-            ImGui::ListBox("Metrics", &selected_idx, &items[0], items.size());
+                last_event = std::nullopt;
 
-            if(ImGui::Button("Recompile") || current_idx == -1)
-            {
-                if(selected_idx == -1)
-                    selected_idx = 0;
+                int width = 16;
+                int height = 16;
 
-                if(selected_idx != current_idx)
-                    selected_error = all_metrics[selected_idx]->max_acceleration_change;
-
-                cfg.error_override = selected_error;
-
-                current_idx = selected_idx;
-
-                if(clctx.ctx.programs.size() > 0)
-                    clctx.ctx.deregister_program(0);
-
-                std::string argument_string = "-O3 -cl-std=CL2.0 " + all_metrics[selected_idx]->build(cfg);
-
-                if(cfg.use_device_side_enqueue)
+                if(!taking_screenshot)
                 {
-                    argument_string += " -DDEVICE_SIDE_ENQUEUE";
-                }
+                    width = win.get_window_size().x();
+                    height = win.get_window_size().y();
 
-                if(sett.is_srgb)
-                {
-                    argument_string += " -DLINEAR_FRAMEBUFFER";
-                }
-
-                cl::program prog(clctx.ctx, "cl.cl");
-
-                prog.build(clctx.ctx, argument_string);
-
-                clctx.ctx.register_program(prog);
-
-                termination_buffer.set_to_zero(clctx.cqueue);
-            }
-
-            ImGui::End();
-        }
-
-        auto& current_metric = all_metrics[selected_idx];
-
-        int width = win.get_window_size().x();
-        int height = win.get_window_size().y();
-
-        if(supersample)
-        {
-            width *= supersample_mult;
-            height *= supersample_mult;
-        }
-
-        if(taking_screenshot)
-        {
-            width = rtex[which_buffer].size<2>().x();
-            height = rtex[which_buffer].size<2>().y();
-        }
-
-        cl::args clr;
-        clr.push_back(rtex[which_buffer]);
-
-        clctx.cqueue.exec("clear", clr, {width, height}, {16, 16});
-
-        #if 0
-        cl::args args;
-        args.push_back(rtex[0]);
-        args.push_back(ds);
-        args.push_back(camera);
-        args.push_back(camera_quat);
-        args.push_back(clbackground);
-
-        clctx.cqueue.exec("do_raytracing_multicoordinate", args, {win.get_window_size().x(), win.get_window_size().y()}, {16, 16});
-
-        rtex[0].unacquire(clctx.cqueue);
-
-        glFinish();
-        clctx.cqueue.block();
-        glFinish();
-        #endif // OLD_AND_GOOD
-
-        #if 1
-        int fallback = 0;
-
-        cl::event next;
-
-        {
-            #ifndef GENERIC_METRIC
-            cl::args init_args;
-            init_args.push_back(camera);
-            init_args.push_back(camera_quat);
-            init_args.push_back(schwarzs_1);
-            init_args.push_back(kruskal_1); ///temp
-            init_args.push_back(schwarzs_count_1);
-            init_args.push_back(kruskal_count_1); ///temp
-            init_args.push_back(width);
-            init_args.push_back(height);
-
-            clctx.cqueue.exec("init_rays", init_args, {width, height}, {16, 16});
-
-            cl::args run_args;
-            run_args.push_back(schwarzs_1);
-            run_args.push_back(schwarzs_scratch);
-            run_args.push_back(kruskal_1);
-            run_args.push_back(kruskal_2);
-            run_args.push_back(finished_1);
-            run_args.push_back(schwarzs_count_1);
-            run_args.push_back(schwarzs_count_scratch);
-            run_args.push_back(kruskal_count_1);
-            run_args.push_back(kruskal_count_2);
-            run_args.push_back(finished_count_1);
-            run_args.push_back(width);
-            run_args.push_back(height);
-            run_args.push_back(fallback);
-
-            clctx.cqueue.exec("relauncher", run_args, {1}, {1});
-            #else
-
-            int isnap = should_snapshot_geodesic;
-
-            if(should_snapshot_geodesic)
-            {
-                if(camera_geodesics_go_foward)
-                {
-                    isnap = 1;
+                    if(supersample)
+                    {
+                        width *= supersample_mult;
+                        height *= supersample_mult;
+                    }
                 }
                 else
                 {
-                    isnap = 0;
+                    width = screenshot_w * supersample_mult;
+                    height = screenshot_h * supersample_mult;
                 }
+
+                width = max(width, 16 * supersample_mult);
+                height = max(height, 16 * supersample_mult);
+
+                ray_count = width * height;
+
+                texture_settings new_sett;
+                new_sett.width = width;
+                new_sett.height = height;
+                new_sett.is_srgb = false;
+                new_sett.generate_mipmaps = false;
+
+                tex.load_from_memory(new_sett, nullptr);
+                rtex.create_from_texture(tex.handle);
+
+                termination_buffer.alloc(width * height * sizeof(cl_int));
+                termination_buffer.set_to_zero(clctx.cqueue);
+
+                schwarzs_1.alloc(sizeof(lightray) * ray_count);
+                schwarzs_scratch.alloc(sizeof(lightray) * ray_count);
+                schwarzs_prepass.alloc(sizeof(lightray) * ray_count);
+                finished_1.alloc(sizeof(lightray) * ray_count);
+
+                texture_coordinates.alloc(width * height * sizeof(float) * 2);
+                texture_coordinates.set_to_zero(clctx.cqueue);
+
+                last_supersample = supersample;
+                last_supersample_mult = supersample_mult;
             }
 
-            cl_int prepass_width = width/16;
-            cl_int prepass_height = height/16;
+            rtex.acquire(clctx.cqueue);
 
-            if(current_metric->use_prepass)
+            float speed = 0.001;
+
+            if(!ImGui::GetIO().WantCaptureKeyboard)
             {
-                cl::args clear_args;
-                clear_args.push_back(termination_buffer);
-                clear_args.push_back(prepass_width);
-                clear_args.push_back(prepass_height);
+                if(ImGui::IsKeyDown(GLFW_KEY_LEFT_SHIFT))
+                    speed = 0.1;
 
-                clctx.cqueue.exec("clear_termination_buffer", clear_args, {prepass_width*prepass_height}, {256});
+                if(ImGui::IsKeyDown(GLFW_KEY_LEFT_CONTROL))
+                    speed = 0.00001;
 
-                cl::args init_args_prepass;
+                if(ImGui::IsKeyDown(GLFW_KEY_LEFT_ALT))
+                    speed /= 1000;
 
-                init_args_prepass.push_back(scamera);
-                init_args_prepass.push_back(camera_quat);
-                init_args_prepass.push_back(schwarzs_prepass);
-                init_args_prepass.push_back(schwarzs_count_prepass);
-                init_args_prepass.push_back(prepass_width);
-                init_args_prepass.push_back(prepass_height);
-                init_args_prepass.push_back(termination_buffer);
-                init_args_prepass.push_back(prepass_width);
-                init_args_prepass.push_back(prepass_height);
-                init_args_prepass.push_back(isnap);
-                init_args_prepass.push_back(base_angle);
+                if(ImGui::IsKeyDown(GLFW_KEY_Z))
+                    speed *= 100;
 
-                clctx.cqueue.exec("init_rays_generic", init_args_prepass, {prepass_width*prepass_height}, {256});
+                if(ImGui::IsKeyDown(GLFW_KEY_X))
+                    speed *= 100;
 
-                int rays_num = calculate_ray_count(prepass_width, prepass_height);
-
-                execute_kernel(clctx.cqueue, schwarzs_prepass, schwarzs_scratch, finished_1, schwarzs_count_prepass, schwarzs_count_scratch, finished_count_1, rays_num, cfg.use_device_side_enqueue);
-
-                cl::args singular_args;
-                singular_args.push_back(finished_1);
-                singular_args.push_back(finished_count_1);
-                singular_args.push_back(termination_buffer);
-                singular_args.push_back(prepass_width);
-                singular_args.push_back(prepass_height);
-
-                clctx.cqueue.exec("calculate_singularities", singular_args, {prepass_width*prepass_height}, {256});
-            }
-
-            cl::args init_args;
-            init_args.push_back(scamera);
-            init_args.push_back(camera_quat);
-            init_args.push_back(schwarzs_1);
-            init_args.push_back(schwarzs_count_1);
-            init_args.push_back(width);
-            init_args.push_back(height);
-            init_args.push_back(termination_buffer);
-            init_args.push_back(prepass_width);
-            init_args.push_back(prepass_height);
-            init_args.push_back(isnap);
-            init_args.push_back(base_angle);
-
-            clctx.cqueue.exec("init_rays_generic", init_args, {width*height}, {16*16});
-
-            if(should_snapshot_geodesic)
-            {
-                int idx = (height/2) * width + width/2;
-
-                geodesic_trace_buffer.set_to_zero(clctx.cqueue);
-
-                cl::args snapshot_args;
-                snapshot_args.push_back(schwarzs_1);
-                snapshot_args.push_back(geodesic_trace_buffer);
-                snapshot_args.push_back(schwarzs_count_1);
-                snapshot_args.push_back(idx);
-                snapshot_args.push_back(width);
-                snapshot_args.push_back(height);
-                snapshot_args.push_back(scamera);
-                snapshot_args.push_back(camera_quat);
-                snapshot_args.push_back(base_angle);
-
-                clctx.cqueue.exec("get_geodesic_path", snapshot_args, {1}, {1});
-
-                current_geodesic_path = geodesic_trace_buffer.read<cl_float4>(clctx.cqueue);
-            }
-
-            int rays_num = calculate_ray_count(width, height);
-
-            execute_kernel(clctx.cqueue, schwarzs_1, schwarzs_scratch, finished_1, schwarzs_count_1, schwarzs_count_scratch, finished_count_1, rays_num, cfg.use_device_side_enqueue);
-
-            #endif // GENERIC_METRIC
-
-            cl::args texture_args;
-            texture_args.push_back(finished_1);
-            texture_args.push_back(finished_count_1);
-            texture_args.push_back(texture_coordinates[which_buffer]);
-            texture_args.push_back(width);
-            texture_args.push_back(height);
-            texture_args.push_back(scamera);
-            texture_args.push_back(camera_quat);
-            texture_args.push_back(base_angle);
-
-            clctx.cqueue.exec("calculate_texture_coordinates", texture_args, {width * height}, {256});
-
-            cl::args render_args;
-            render_args.push_back(finished_1);
-            render_args.push_back(finished_count_1);
-            render_args.push_back(rtex[which_buffer]);
-            render_args.push_back(background_mipped);
-            render_args.push_back(background_mipped2);
-            render_args.push_back(width);
-            render_args.push_back(height);
-            render_args.push_back(texture_coordinates[which_buffer]);
-            render_args.push_back(sam);
-
-            next = clctx.cqueue.exec("render", render_args, {width * height}, {256});
-        }
-
-        clctx.cqueue.flush();
-
-        rtex[which_buffer].unacquire(clctx.cqueue);
-
-        if(taking_screenshot)
-        {
-            printf("Taking screenie\n");
-
-            clctx.cqueue.block();
-
-            printf("Blocked\n");
-
-            std::cout << "WIDTH " << (screenshot_w * supersample_mult) << " HEIGHT "<< (screenshot_h * supersample_mult) << std::endl;
-
-            std::vector<vec4f> pixels = tex[which_buffer].read(0);
-
-            std::cout << "pixels size " << pixels.size() << std::endl;
-
-            assert(pixels.size() == (screenshot_w * supersample_mult * screenshot_h * supersample_mult));
-
-            sf::Image img;
-            img.create(screenshot_w * supersample_mult, screenshot_h * supersample_mult);
-
-            for(int y=0; y < screenshot_h * supersample_mult; y++)
-            {
-                for(int x=0; x < screenshot_w * supersample_mult; x++)
+                if(ImGui::IsKeyPressed(GLFW_KEY_B))
                 {
-                    vec4f current_pixel = pixels[y * (screenshot_w * supersample_mult) + x];
-
-                    current_pixel = clamp(current_pixel, 0.f, 1.f);
-                    current_pixel = lin_to_srgb(current_pixel);
-                    current_pixel = clamp(current_pixel, 0.f, 1.f);
-
-                    img.setPixel(x, y, sf::Color(current_pixel.x() * 255.f, current_pixel.y() * 255.f, current_pixel.z() * 255.f, current_pixel.w() * 255.f));
+                    camera = {0, 0, 0, -100};
                 }
+
+                if(ImGui::IsKeyPressed(GLFW_KEY_N))
+                {
+                    camera = {0, 0, 0, -1.16};
+                }
+
+                if(ImGui::IsKeyPressed(GLFW_KEY_M))
+                {
+                    camera = {0, 0, 0, 1.16};
+                }
+
+                if(ImGui::IsKeyPressed(GLFW_KEY_J))
+                {
+                    camera = {0, -1.16, 0, 0};
+                }
+
+                if(ImGui::IsKeyPressed(GLFW_KEY_K))
+                {
+                    camera = {0, 1.16, 0, 0};
+                }
+
+                if(ImGui::IsKeyPressed(GLFW_KEY_V))
+                {
+                    camera = {0, 0, 0, 1.03};
+                }
+
+                if(ImGui::IsKeyPressed(GLFW_KEY_C))
+                {
+                    camera = {0, 0, 0, 0};
+                }
+
+                if(ImGui::IsKeyPressed(GLFW_KEY_R))
+                {
+                    camera = {0, 0, 22, 0};
+                }
+
+                if(ImGui::IsKeyDown(GLFW_KEY_RIGHT))
+                {
+                    mat3f m = mat3f().ZRot(M_PI/128);
+
+                    quat q;
+                    q.load_from_matrix(m);
+
+                    camera_quat = q * camera_quat;
+                }
+
+                if(ImGui::IsKeyDown(GLFW_KEY_LEFT))
+                {
+                    mat3f m = mat3f().ZRot(-M_PI/128);
+
+                    quat q;
+                    q.load_from_matrix(m);
+
+                    camera_quat = q * camera_quat;
+                }
+
+                if(ImGui::IsKeyPressed(GLFW_KEY_1))
+                {
+                    flip_sign = !flip_sign;
+                }
+
+                vec3f up = {0, 0, -1};
+                vec3f right = rot_quat({1, 0, 0}, camera_quat);
+                vec3f forward_axis = rot_quat({0, 0, 1}, camera_quat);
+
+                if(ImGui::IsKeyDown(GLFW_KEY_DOWN))
+                {
+                    quat q;
+                    q.load_from_axis_angle({right.x(), right.y(), right.z(), M_PI/128});
+
+                    camera_quat = q * camera_quat;
+                }
+
+                if(ImGui::IsKeyDown(GLFW_KEY_UP))
+                {
+                    quat q;
+                    q.load_from_axis_angle({right.x(), right.y(), right.z(), -M_PI/128});
+
+                    camera_quat = q * camera_quat;
+                }
+
+                vec3f offset = {0,0,0};
+
+                offset += forward_axis * ((ImGui::IsKeyDown(GLFW_KEY_W) - ImGui::IsKeyDown(GLFW_KEY_S)) * speed);
+                offset += right * (ImGui::IsKeyDown(GLFW_KEY_D) - ImGui::IsKeyDown(GLFW_KEY_A)) * speed;
+                offset += up * (ImGui::IsKeyDown(GLFW_KEY_E) - ImGui::IsKeyDown(GLFW_KEY_Q)) * speed;
+
+                camera.y() += offset.x();
+                camera.z() += offset.y();
+                camera.w() += offset.z();
             }
 
-            std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
-            auto duration = now.time_since_epoch();
-            auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+            vec4f scamera = cartesian_to_schwarz(camera);
 
-            std::string fname = "./screenshots/" + current_metric->name + "_" + std::to_string(millis) + ".png";
+            if(flip_sign)
+                scamera.y() = -scamera.y();
 
-            img.saveToFile(fname);
+            float time = clk.restart().asMicroseconds() / 1000.;
+
+            if(camera_on_geodesic)
+            {
+                scamera = interpolate_geodesic(current_geodesic_path, current_geodesic_time);
+                base_angle = get_geodesic_intersection(current_geodesic_path);
+            }
+
+            if(!taking_screenshot)
+            {
+                std::vector<const char*> items = get_imgui_view(metric_names);
+
+                assert(items.size() > 0);
+
+                ImGui::Begin("DBG", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+
+                bool should_soft_recompile = false;
+
+                if(ImGui::TreeNode("General"))
+                {
+                    ImGui::DragFloat3("Polar Pos", &scamera.v[1]);
+                    ImGui::DragFloat3("Cart Pos", &camera.v[1]);
+                    ImGui::SliderFloat("Camera Time", &camera.v[0], 0.f, 100.f);
+
+                    ImGui::DragFloat("Frametime", &time);
+
+                    ImGui::Checkbox("Time Progresses", &time_progresses);
+
+                    if(time_progresses)
+                        camera.v[0] += time / 1000.f;
+
+                    if(ImGui::Button("Screenshot"))
+                        should_take_screenshot = true;
+
+                    ImGui::TreePop();
+                }
+
+                if(ImGui::TreeNode("Metric Settings"))
+                {
+                    ImGui::Text("Dynamic Options");
+
+                    ImGui::Indent();
+
+                    if(current_metric)
+                    {
+                        if(current_metric->sand.cfg.display())
+                        {
+                            int dyn_config_bytes = current_metric->sand.cfg.current_values.size() * sizeof(cl_float);
+
+                            if(dyn_config_bytes < 4)
+                                dyn_config_bytes = 4;
+
+                            dynamic_config.alloc(dyn_config_bytes);
+
+                            std::vector<float> vars = current_metric->sand.cfg.current_values;
+
+                            if(vars.size() == 0)
+                                vars.resize(1);
+
+                            dynamic_config.write(clctx.cqueue, vars);
+                            should_soft_recompile = true;
+                        }
+                    }
+
+                    ImGui::Unindent();
+
+                    ImGui::Text("Compile Options");
+
+                    ImGui::Indent();
+
+                    ImGui::Checkbox("Redshift", &cfg.redshift);
+
+                    ImGui::InputFloat("Error Tolerance", &selected_error, 0.0000001f, 0.00001f, "%.8f");
+
+                    ImGui::DragFloat("Universe Size", &cfg.universe_size, 1, 1, 0, "%.1f");;
+
+                    ImGui::DragFloat("Precision Radius", &cfg.max_precision_radius, 1, 0.0001f, cfg.universe_size, "%.1f");
+
+                    if(ImGui::IsItemHovered())
+                    {
+                        ImGui::SetTooltip("Radius at which lightrays raise their precision checking unconditionally");
+                    }
+
+                    should_recompile |= ImGui::Button("Update");
+
+                    ImGui::Unindent();
+
+                    ImGui::TreePop();
+                }
+
+                if(ImGui::TreeNode("Paths"))
+                {
+                    ImGui::DragFloat("Geodesic Camera Time", &current_geodesic_time, 0.1, -100.f, 100.f);
+
+                    ImGui::Checkbox("Use Camera Geodesic", &camera_on_geodesic);
+
+                    ImGui::Checkbox("Camera Time Progresses", &camera_time_progresses);
+
+                    if(camera_time_progresses)
+                        current_geodesic_time += time / 1000.f;
+
+                    if(ImGui::Button("Snapshot Camera Geodesic"))
+                    {
+                        should_snapshot_geodesic = true;
+                    }
+
+                    ImGui::Checkbox("Camera Snapshot Geodesic goes forward", &camera_geodesics_go_foward);
+
+                    ImGui::TreePop();
+                }
+
+                ImGui::SetNextItemOpen(true, ImGuiCond_Once);
+
+                if(should_recompile || current_idx == -1 || should_soft_recompile)
+                {
+                    bool should_hard_recompile = should_recompile || current_idx == -1;
+
+                    if(selected_idx == -1)
+                        selected_idx = 0;
+
+                    if(selected_idx != current_idx)
+                    {
+                        metrics::metric* next = parent_directories[selected_idx]->lazy_fetch(all_content, items[selected_idx]);
+
+                        if(next == nullptr)
+                        {
+                            std::cout << "Broken metric " << metric_names[selected_idx] << std::endl;
+                        }
+                        else
+                        {
+                            current_metric = next;
+                        }
+
+                        assert(current_metric);
+
+                        selected_error = current_metric->metric_cfg.max_acceleration_change;
+
+                        std::cout << "ALLOCATING DYNCONFIG " << current_metric->sand.cfg.default_values.size() << std::endl;
+
+                        int dyn_config_bytes = current_metric->sand.cfg.default_values.size() * sizeof(cl_float);
+
+                        if(dyn_config_bytes < 4)
+                            dyn_config_bytes = 4;
+
+                        dynamic_config.alloc(dyn_config_bytes);
+
+                        std::vector<float> vars = current_metric->sand.cfg.default_values;
+
+                        if(vars.size() == 0)
+                            vars.resize(1);
+
+                        dynamic_config.write(clctx.cqueue, vars);
+                    }
+
+                    cfg.error_override = selected_error;
+                    current_idx = selected_idx;
+                    std::string argument_string_prefix = "-O3 -cl-std=CL2.0 -cl-fast-relaxed-math ";
+
+                    if(cfg.use_device_side_enqueue)
+                    {
+                        argument_string_prefix += "-DDEVICE_SIDE_ENQUEUE ";
+                    }
+
+                    if(sett.is_srgb)
+                    {
+                        argument_string_prefix += "-DLINEAR_FRAMEBUFFER ";
+                    }
+
+                    if(should_hard_recompile)
+                    {
+                        if(clctx.ctx.programs.size() > 0)
+                            clctx.ctx.deregister_program(0);
+
+                        std::string dynamic_argument_string = argument_string_prefix + build_argument_string(*current_metric, current_metric->desc.abstract, cfg, {});
+
+                        file::write("./argument_string.txt", dynamic_argument_string, file::mode::TEXT);
+
+                        dynamic_program_opt = std::nullopt;
+                        dynamic_program_opt.emplace(clctx.ctx, "cl.cl");
+                        dynamic_program_opt->build(clctx.ctx, dynamic_argument_string);
+
+                        clctx.ctx.register_program(*dynamic_program_opt);
+                    }
+
+                    if(should_soft_recompile || should_hard_recompile)
+                    {
+                        if(clctx.ctx.programs.size() > 0)
+                            clctx.ctx.deregister_program(0);
+
+                        ///Reregister the dynamic program again, static is invalid
+                        clctx.ctx.register_program(*dynamic_program_opt);
+
+                        auto substitution_map = current_metric->sand.cfg.as_substitution_map();
+
+                        metrics::metric_impl<std::string> substituted_impl = metrics::build_concrete(substitution_map, current_metric->desc.raw);
+
+                        std::string substituted_argument_string = argument_string_prefix + build_argument_string(*current_metric, substituted_impl, cfg, substitution_map);
+
+                        std::cout << "DYNARGS " << substituted_argument_string << std::endl;
+
+                        if(substituted_program_opt.has_value())
+                        {
+                            substituted_program_opt->cancel();
+                            substituted_program_opt = std::nullopt;
+                        }
+
+                        substituted_program_opt.emplace(clctx.ctx, "cl.cl");
+                        substituted_program_opt->build(clctx.ctx, substituted_argument_string);
+                    }
+
+                    ///Is this necessary?
+                    termination_buffer.set_to_zero(clctx.cqueue);
+                }
+
+                if(substituted_program_opt.has_value())
+                {
+                    cl::program& pending = substituted_program_opt.value();
+
+                    if(pending.is_built())
+                    {
+                        printf("Swapped\n");
+
+                        if(clctx.ctx.programs.size() > 0)
+                            clctx.ctx.deregister_program(0);
+
+                        clctx.ctx.register_program(pending);
+
+                        substituted_program_opt = std::nullopt;
+                    }
+                }
+
+                ImGui::End();
+            }
+
+            int width = rtex.size<2>().x();
+            int height = rtex.size<2>().y();
+
+            cl::args clr;
+            clr.push_back(rtex);
+
+            clctx.cqueue.exec("clear", clr, {width, height}, {16, 16});
+
+            int fallback = 0;
+
+            cl::event next;
+
+            {
+                int isnap = should_snapshot_geodesic;
+
+                if(should_snapshot_geodesic)
+                {
+                    if(camera_geodesics_go_foward)
+                    {
+                        isnap = 1;
+                    }
+                    else
+                    {
+                        isnap = 0;
+                    }
+                }
+
+                cl_int prepass_width = width/16;
+                cl_int prepass_height = height/16;
+
+                if(current_metric->metric_cfg.use_prepass)
+                {
+                    cl::args clear_args;
+                    clear_args.push_back(termination_buffer);
+                    clear_args.push_back(prepass_width);
+                    clear_args.push_back(prepass_height);
+
+                    clctx.cqueue.exec("clear_termination_buffer", clear_args, {prepass_width*prepass_height}, {256});
+
+                    cl::args init_args_prepass;
+
+                    init_args_prepass.push_back(scamera);
+                    init_args_prepass.push_back(camera_quat);
+                    init_args_prepass.push_back(schwarzs_prepass);
+                    init_args_prepass.push_back(schwarzs_count_prepass);
+                    init_args_prepass.push_back(prepass_width);
+                    init_args_prepass.push_back(prepass_height);
+                    init_args_prepass.push_back(termination_buffer);
+                    init_args_prepass.push_back(prepass_width);
+                    init_args_prepass.push_back(prepass_height);
+                    init_args_prepass.push_back(isnap);
+                    init_args_prepass.push_back(base_angle);
+                    init_args_prepass.push_back(dynamic_config);
+
+                    clctx.cqueue.exec("init_rays_generic", init_args_prepass, {prepass_width*prepass_height}, {256});
+
+                    int rays_num = calculate_ray_count(prepass_width, prepass_height);
+
+                    execute_kernel(clctx.cqueue, schwarzs_prepass, schwarzs_scratch, finished_1, schwarzs_count_prepass, schwarzs_count_scratch, finished_count_1, rays_num, cfg.use_device_side_enqueue, dynamic_config);
+
+                    cl::args singular_args;
+                    singular_args.push_back(finished_1);
+                    singular_args.push_back(finished_count_1);
+                    singular_args.push_back(termination_buffer);
+                    singular_args.push_back(prepass_width);
+                    singular_args.push_back(prepass_height);
+
+                    clctx.cqueue.exec("calculate_singularities", singular_args, {prepass_width*prepass_height}, {256});
+                }
+
+                cl::args init_args;
+                init_args.push_back(scamera);
+                init_args.push_back(camera_quat);
+                init_args.push_back(schwarzs_1);
+                init_args.push_back(schwarzs_count_1);
+                init_args.push_back(width);
+                init_args.push_back(height);
+                init_args.push_back(termination_buffer);
+                init_args.push_back(prepass_width);
+                init_args.push_back(prepass_height);
+                init_args.push_back(isnap);
+                init_args.push_back(base_angle);
+                init_args.push_back(dynamic_config);
+
+                clctx.cqueue.exec("init_rays_generic", init_args, {width*height}, {16*16});
+
+                if(should_snapshot_geodesic)
+                {
+                    int idx = (height/2) * width + width/2;
+
+                    geodesic_trace_buffer.set_to_zero(clctx.cqueue);
+
+                    cl::args snapshot_args;
+                    snapshot_args.push_back(schwarzs_1);
+                    snapshot_args.push_back(geodesic_trace_buffer);
+                    snapshot_args.push_back(schwarzs_count_1);
+                    snapshot_args.push_back(idx);
+                    snapshot_args.push_back(width);
+                    snapshot_args.push_back(height);
+                    snapshot_args.push_back(scamera);
+                    snapshot_args.push_back(camera_quat);
+                    snapshot_args.push_back(base_angle);
+                    snapshot_args.push_back(dynamic_config);
+
+                    clctx.cqueue.exec("get_geodesic_path", snapshot_args, {1}, {1});
+
+                    current_geodesic_path = geodesic_trace_buffer.read<cl_float4>(clctx.cqueue);
+                }
+
+                int rays_num = calculate_ray_count(width, height);
+
+                execute_kernel(clctx.cqueue, schwarzs_1, schwarzs_scratch, finished_1, schwarzs_count_1, schwarzs_count_scratch, finished_count_1, rays_num, cfg.use_device_side_enqueue, dynamic_config);
+
+
+                cl::args texture_args;
+                texture_args.push_back(finished_1);
+                texture_args.push_back(finished_count_1);
+                texture_args.push_back(texture_coordinates);
+                texture_args.push_back(width);
+                texture_args.push_back(height);
+                texture_args.push_back(scamera);
+                texture_args.push_back(camera_quat);
+                texture_args.push_back(base_angle);
+
+                clctx.cqueue.exec("calculate_texture_coordinates", texture_args, {width * height}, {256});
+
+                cl::args render_args;
+                render_args.push_back(finished_1);
+                render_args.push_back(finished_count_1);
+                render_args.push_back(rtex);
+                render_args.push_back(background_mipped);
+                render_args.push_back(background_mipped2);
+                render_args.push_back(width);
+                render_args.push_back(height);
+                render_args.push_back(texture_coordinates);
+                render_args.push_back(sam);
+
+                next = clctx.cqueue.exec("render", render_args, {width * height}, {256});
+            }
+
+            rtex.unacquire(clctx.cqueue);
+
+            if(taking_screenshot)
+            {
+                printf("Taking screenie\n");
+
+                clctx.cqueue.block();
+
+                printf("Blocked\n");
+
+                std::cout << "WIDTH " << (screenshot_w * supersample_mult) << " HEIGHT "<< (screenshot_h * supersample_mult) << std::endl;
+
+                std::vector<vec4f> pixels = tex.read(0);
+
+                std::cout << "pixels size " << pixels.size() << std::endl;
+
+                assert(pixels.size() == (screenshot_w * supersample_mult * screenshot_h * supersample_mult));
+
+                sf::Image img;
+                img.create(screenshot_w * supersample_mult, screenshot_h * supersample_mult);
+
+                for(int y=0; y < screenshot_h * supersample_mult; y++)
+                {
+                    for(int x=0; x < screenshot_w * supersample_mult; x++)
+                    {
+                        vec4f current_pixel = pixels[y * (screenshot_w * supersample_mult) + x];
+
+                        current_pixel = clamp(current_pixel, 0.f, 1.f);
+                        current_pixel = lin_to_srgb(current_pixel);
+                        current_pixel = clamp(current_pixel, 0.f, 1.f);
+
+                        img.setPixel(x, y, sf::Color(current_pixel.x() * 255.f, current_pixel.y() * 255.f, current_pixel.z() * 255.f, current_pixel.w() * 255.f));
+                    }
+                }
+
+                std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
+                auto duration = now.time_since_epoch();
+                auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+
+                std::string fname = "./screenshots/" + current_metric->metric_cfg.name + "_" + std::to_string(millis) + ".png";
+
+                img.saveToFile(fname);
+            }
+
+
+            if(last_event.has_value())
+                last_event.value().block();
+
+            last_event = next;
         }
 
-        which_buffer = (which_buffer + 1) % 2;
-
-        if(last_event.has_value())
-            last_event.value().block();
-
-        last_event = next;
-        #endif
-
         {
-            ImDrawList* lst = ImGui::GetBackgroundDrawList();
+            ImDrawList* lst = ImGui::GetBackgroundDrawList(ImGui::GetMainViewport());
 
             ImVec2 screen_pos = ImGui::GetMainViewport()->Pos;
 
@@ -2543,10 +1483,7 @@ int main()
                 br.y += screen_pos.y;
             }
 
-            if(!supersample)
-                lst->AddImage((void*)rtex[which_buffer].texture_id, tl, br, ImVec2(0, 0), ImVec2(1.f/supersample_mult, 1.f/supersample_mult));
-            else
-                lst->AddImage((void*)rtex[which_buffer].texture_id, tl, br, ImVec2(0, 0), ImVec2(1, 1));
+            lst->AddImage((void*)rtex.texture_id, tl, br, ImVec2(0, 0), ImVec2(1, 1));
         }
 
         win.display();

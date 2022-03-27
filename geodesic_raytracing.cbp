@@ -53,8 +53,11 @@
 			<Add option="-DGRAPHITE2_STATIC" />
 			<Add option="-DCL_TARGET_OPENCL_VERSION=220" />
 			<Add option="-DIMGUI_ENABLE_FREETYPE" />
+			<Add option='-DCONFIG_VERSION=&quot;&quot;' />
+			<Add option="-DCONFIG_BIGNUM" />
 			<Add directory="deps" />
 			<Add directory="deps/imgui" />
+			<Add directory="deps/steamworks_sdk_153a/sdk/public" />
 		</Compiler>
 		<Linker>
 			<Add option="-lmingw32" />
@@ -97,11 +100,15 @@
 			<Add option="-lopencl" />
 			<Add option="-limm32" />
 			<Add option="-ldwrite" />
+			<Add library="deps/steamworks_sdk_153a/sdk/redistributable_bin/win64/libsteam_api64.a" />
+			<Add directory="deps/steamworks_sdk_153a/sdk/public/steam/lib/win64" />
 		</Linker>
 		<Unit filename="chromaticity.hpp" />
 		<Unit filename="cl.cl">
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>
+		<Unit filename="content_manager.cpp" />
+		<Unit filename="content_manager.hpp" />
 		<Unit filename="deps/imgui/backends/imgui_impl_glfw.cpp" />
 		<Unit filename="deps/imgui/backends/imgui_impl_opengl3.cpp" />
 		<Unit filename="deps/imgui/imgui.cpp" />
@@ -109,6 +116,23 @@
 		<Unit filename="deps/imgui/imgui_tables.cpp" />
 		<Unit filename="deps/imgui/imgui_widgets.cpp" />
 		<Unit filename="deps/imgui/misc/freetype/imgui_freetype.cpp" />
+		<Unit filename="deps/quickjs/cutils.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="deps/quickjs/libbf.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="deps/quickjs/libregexp.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="deps/quickjs/libunicode.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="deps/quickjs/quickjs.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="deps/quickjs_cpp/quickjs_cpp.cpp" />
+		<Unit filename="deps/quickjs_cpp/quickjs_cpp.hpp" />
 		<Unit filename="deps/toolkit/base_serialisables.cpp" />
 		<Unit filename="deps/toolkit/base_serialisables.hpp" />
 		<Unit filename="deps/toolkit/clipboard.cpp" />
@@ -129,9 +153,93 @@
 		<Unit filename="deps/vec/vec.hpp" />
 		<Unit filename="dual.hpp" />
 		<Unit filename="dual_value.hpp" />
+		<Unit filename="equation_context.hpp" />
+		<Unit filename="fullscreen_window_manager.cpp" />
+		<Unit filename="fullscreen_window_manager.hpp" />
+		<Unit filename="js_interop.cpp" />
+		<Unit filename="js_interop.hpp" />
 		<Unit filename="main.cpp" />
 		<Unit filename="metric.hpp" />
+		<Unit filename="number.js">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
 		<Unit filename="numerical.hpp" />
+		<Unit filename="scripts/alcubierre.js">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="scripts/alcubierre.json">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="scripts/cartesian_base.json" />
+		<Unit filename="scripts/configurable_wormhole.js" />
+		<Unit filename="scripts/configurable_wormhole.json" />
+		<Unit filename="scripts/coordinates/cartesian_to_polar.js" />
+		<Unit filename="scripts/coordinates/polar_to_cartesian.js">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="scripts/coordinates/polar_to_polar.js" />
+		<Unit filename="scripts/coordinates/polar_to_rational.js" />
+		<Unit filename="scripts/coordinates/rational_to_polar.js" />
+		<Unit filename="scripts/cosmic_string.js" />
+		<Unit filename="scripts/cosmic_string.json" />
+		<Unit filename="scripts/de_sitter.js">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="scripts/de_sitter.json" />
+		<Unit filename="scripts/ellis_drainhole.js">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="scripts/ellis_drainhole.json">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="scripts/ernst.js" />
+		<Unit filename="scripts/ernst.json" />
+		<Unit filename="scripts/janis_newman_winicour.js" />
+		<Unit filename="scripts/janis_newman_winicour.json" />
+		<Unit filename="scripts/kerr_boyer.js">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="scripts/kerr_boyer.json">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="scripts/kerr_newman_boyer.js">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="scripts/kerr_newman_boyer.json">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="scripts/kerr_rational_polynomial.js">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="scripts/kerr_rational_polynomial.json">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="scripts/kerr_schild.js">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="scripts/kerr_schild.json">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="scripts/minkowski.js">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="scripts/minkowski.json">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="scripts/origins/alcubierre_origin.js">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="scripts/polar_base.json" />
+		<Unit filename="scripts/schwarzschild.js" />
+		<Unit filename="scripts/schwarzschild.json" />
+		<Unit filename="scripts/schwarzschild_accurate.js" />
+		<Unit filename="scripts/schwarzschild_accurate.json" />
+		<Unit filename="scripts/wormhole.js" />
+		<Unit filename="scripts/wormhole.json" />
+		<Unit filename="steam.cpp" />
+		<Unit filename="steam.hpp" />
+		<Unit filename="workshop/steam_ugc_manager.cpp" />
+		<Unit filename="workshop/steam_ugc_manager.hpp" />
 		<Extensions>
 			<lib_finder disable_auto="1" />
 		</Extensions>

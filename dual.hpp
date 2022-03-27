@@ -684,6 +684,27 @@ namespace dual_types
 
     template<typename T>
     inline
+    T operator>(const dual_types::dual_v<T>& d1, const dual_types::dual_v<T>& d2)
+    {
+        return d1.real > d2.real;
+    }
+
+    template<typename T>
+    inline
+    T operator>=(const dual_types::dual_v<T>& d1, const dual_types::dual_v<T>& d2)
+    {
+        return d1.real >= d2.real;
+    }
+
+    template<typename T>
+    inline
+    T operator==(const dual_types::dual_v<T>& d1, const dual_types::dual_v<T>& d2)
+    {
+        return d1.real == d2.real;
+    }
+
+    template<typename T>
+    inline
     auto max(const dual_types::dual_v<T>& d1, const dual_types::dual_v<T>& d2)
     {
         return dual_if(d1 < d2, [&](){return d2;}, [&](){return d1;});
@@ -729,7 +750,6 @@ auto get_function_args_array(R(T...))
     return std::array{T()...};
 }
 
-
 template<typename R, typename... T>
 constexpr
 bool is_dual_impl(R(T...))
@@ -744,126 +764,6 @@ bool is_dual()
     constexpr std::decay_t<F> f = std::decay_t<F>();
 
     return is_dual_impl(f);
-}
-
-template<typename Func, typename... T>
-inline
-std::pair<std::vector<std::string>, std::vector<std::string>> evaluate_metric2D(Func&& f, T... raw_variables)
-{
-    std::array<std::string, sizeof...(T)> variable_names{raw_variables...};
-
-    std::vector<std::string> raw_eq;
-    std::vector<std::string> raw_derivatives;
-
-    for(int i=0; i < (int)variable_names.size(); i++)
-    {
-        auto variables = get_function_args_array(f);
-
-        if constexpr(is_dual<Func>())
-        {
-            for(int j=0; j < (int)variable_names.size(); j++)
-            {
-                if(i == j)
-                {
-                    variables[j].make_variable(variable_names[j]);
-                }
-                else
-                {
-                    variables[j].make_constant(variable_names[j]);
-                }
-            }
-
-            std::array eqs = array_apply(std::forward<Func>(f), variables);
-
-            if(i == 0)
-            {
-                for(auto& kk : eqs)
-                {
-                    raw_eq.push_back(type_to_string(kk.real));
-                }
-            }
-
-            for(auto& kk : eqs)
-            {
-                raw_derivatives.push_back(type_to_string(kk.dual));
-            }
-        }
-        else
-        {
-            for(int j=0; j < (int)variable_names.size(); j++)
-            {
-                variables[j].make_value(variable_names[j]);
-            }
-
-            std::array eqs = array_apply(std::forward<Func>(f), variables);
-
-            if(i == 0)
-            {
-                for(auto& kk : eqs)
-                {
-                    raw_eq.push_back(type_to_string(kk));
-                }
-            }
-
-            for(auto& kk : eqs)
-            {
-                auto differentiated = kk.differentiate(variable_names[i]);
-
-                raw_derivatives.push_back(type_to_string(differentiated));
-            }
-        }
-    }
-
-    return {raw_eq, raw_derivatives};
-}
-
-template<typename Func, typename... T>
-inline
-std::pair<std::vector<std::string>, std::vector<std::string>> total_diff(Func&& f, T... raw_variables)
-{
-    std::array<std::string, sizeof...(T)> variable_names{raw_variables...};
-
-    auto [full_eqs, partial_differentials] = evaluate_metric2D(f, raw_variables...);
-
-    constexpr int N = sizeof...(T);
-
-    std::vector<std::string> total_differentials;
-
-    for(int i=0; i < N; i++)
-    {
-        std::string accum;
-
-        for(int j=0; j < N; j++)
-        {
-            accum += "(" + partial_differentials[j * N + i] + ")*d" + variable_names[j];
-
-            if(j != N-1)
-                accum += "+";
-        }
-
-        total_differentials.push_back(accum);
-    }
-
-    return {full_eqs, total_differentials};
-}
-
-template<typename Func, typename... T>
-inline
-std::string get_function(Func&& f, T... raw_variables)
-{
-    constexpr int N = sizeof...(T);
-    std::array<std::string, N> variable_names{raw_variables...};
-
-    auto variables = get_function_args_array(f);
-
-    for(int i=0; i < N; i++)
-    {
-        variables[i].make_variable(variable_names[i]);
-    }
-
-    auto result = array_apply(std::forward<Func>(f), variables);
-
-    return type_to_string(result.real);
 }
 
 #endif // DUAL_HPP_INCLUDED

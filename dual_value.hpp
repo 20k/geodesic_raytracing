@@ -4,6 +4,9 @@
 #include "dual.hpp"
 #include <set>
 #include <optional>
+#include <cmath>
+#include <map>
+#include <assert.h>
 
 namespace dual_types
 {
@@ -39,7 +42,7 @@ namespace dual_types
         }
 
         if(in == "nan")
-            throw std::runtime_error("Nan");
+            throw std::runtime_error("Nan in get_value");
 
         std::string cstr(in);
 
@@ -1209,6 +1212,12 @@ namespace dual_types
     BINARY(max, MAX);
     BINARY(min, MIN);
     UNARY(lambert_w0, LAMBERT_W0);
+
+    inline
+    value conjugate(const value& d1)
+    {
+        return d1;
+    }
 
     inline
     complex<value> psqrt(const complex<value>& d1)

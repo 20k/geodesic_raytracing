@@ -1,0 +1,7 @@
+{
+	"name": "schwarzschild",
+	"adaptive_precision": false,
+	"singular": true,
+	"detect_singularities": false,
+	"inherit_settings": "polar_base"
+}
