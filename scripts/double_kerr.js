@@ -14,6 +14,8 @@ function double_kerr(t, p, phi, z)
 
     var d = 2 * M * a * (R * R - 4 * M * M + 4 * a * a) / (R * R + 2 * M * R + 4 * a * a);
 
+	$pin(d);
+
     var sigma_sq = M * M - a * a + (4 * M * M * a * a * (R * R - 4 * M * M + 4 * a * a)) / CMath.pow(R * R + 2 * M * R + 4 * a * a, 2);
 
 	$pin(sigma_sq);
