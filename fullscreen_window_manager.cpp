@@ -43,7 +43,7 @@ fullscreen_window_manager::fullscreen_window_manager()
 
 void fullscreen_window_manager::start(render_window& win)
 {
-    int flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoResize;
+    int flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize;
 
     if(win.backend->is_maximised())
     {
@@ -79,23 +79,13 @@ void fullscreen_window_manager::start(render_window& win)
     if(ImGui::IsItemHovered() &&
        ImGui::IsMouseDragging(0) && !title_dragging && !resize_dragging)
     {
-        if(!title_dragging)
-        {
-            title_dragging = true;
+        title_dragging = true;
 
-            vec2i save_position = win.get_window_position();
+        vec2i save_position = win.get_window_position();
 
-            title_start_pos_absolute = {save_position.x(), save_position.y()};
-            title_start_mouse_pos_absolute = absolute_mouse_position(win);
-        }
+        title_start_pos_absolute = {save_position.x(), save_position.y()};
+        title_start_mouse_pos_absolute = absolute_mouse_position(win);
     }
-
-    #ifndef __EMSCRIPTEN__
-    if(ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0))
-    {
-        win.backend->set_is_maximised(!win.backend->is_maximised());
-    }
-    #endif // __EMSCRIPTEN__
 
     if(title_dragging)
     {
@@ -107,6 +97,14 @@ void fullscreen_window_manager::start(render_window& win)
 
         win.backend->set_window_position({real_pos.x(), real_pos.y()});
     }
+
+    #ifndef __EMSCRIPTEN__
+    if(ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0))
+    {
+        win.backend->set_is_maximised(!win.backend->is_maximised());
+        title_dragging = false;
+    }
+    #endif // __EMSCRIPTEN__
 
     if(!win.backend->is_maximised())
     {
