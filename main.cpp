@@ -1245,8 +1245,6 @@ int main()
 
                         std::string substituted_argument_string = argument_string_prefix + build_argument_string(*current_metric, substituted_impl, cfg, substitution_map);
 
-                        std::cout << "DYNARGS " << substituted_argument_string << std::endl;
-
                         if(substituted_program_opt.has_value())
                         {
                             substituted_program_opt->cancel();
