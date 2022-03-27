@@ -1149,7 +1149,7 @@ int main()
 
                 if(ImGui::TreeNode("Paths"))
                 {
-                    ImGui::DragFloat("Geodesic Camera Time", &current_geodesic_time, 0.1, -100.f, 100.f);
+                    ImGui::DragFloat("Geodesic Camera Time", &current_geodesic_time, 0.1, 0.f, 0.f);
 
                     ImGui::Checkbox("Use Camera Geodesic", &camera_on_geodesic);
 
