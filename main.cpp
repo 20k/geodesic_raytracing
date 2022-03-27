@@ -314,6 +314,10 @@ struct graphics_settings
 {
     int width = 1920;
     int height = 1080;
+
+    int screenshot_width = 1920;
+    int screenshot_height = 1080;
+
     bool fullscreen = false;
 
     int supersample_factor = 2;
@@ -333,6 +337,9 @@ struct graphics_settings
         ImGui::InputInt("Supersample Factor", &supersample_factor);
 
         ImGui::Checkbox("Vsync", &vsync_enabled);
+
+        ImGui::InputInt("Screenshot Width", &screenshot_width);
+        ImGui::InputInt("Screenshot Height", &screenshot_height);
 
         ImGui::NewLine();
 
@@ -743,6 +750,9 @@ int main()
                 win.backend->set_vsync(menu.sett.vsync_enabled);
             }
 
+            screenshot_w = menu.sett.screenshot_width;
+            screenshot_h = menu.sett.screenshot_height;
+
             menu.dirty_settings = false;
         }
 
@@ -757,6 +767,9 @@ int main()
 
             menu.sett.width = real_dim.x();
             menu.sett.height = real_dim.y();
+
+            menu.sett.screenshot_width = screenshot_w;
+            menu.sett.screenshot_height = screenshot_h;
         }
 
         exec.poll();
