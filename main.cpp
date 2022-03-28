@@ -137,13 +137,10 @@ struct lightray
 
 vec4f interpolate_geodesic(const std::vector<cl_float4>& geodesic, float coordinate_time)
 {
-    for(int i=0; i < (int)geodesic.size() - 2; i++)
+    for(int i=0; i < (int)geodesic.size() - 1; i++)
     {
         vec4f cur = {geodesic[i].s[0], geodesic[i].s[1], geodesic[i].s[2], geodesic[i].s[3]};
         vec4f next = {geodesic[i + 1].s[0], geodesic[i + 1].s[1], geodesic[i + 1].s[2], geodesic[i + 1].s[3]};
-
-        if(geodesic[i + 2].s[0] == 0 && geodesic[i + 1].s[0] == 0)
-            break;
 
         if(next.x() < cur.x())
             std::swap(next, cur);
@@ -171,7 +168,14 @@ vec4f interpolate_geodesic(const std::vector<cl_float4>& geodesic, float coordin
     if(geodesic.size() == 0)
         return {0,0,0,0};
 
-    return {geodesic[0].s[0], geodesic[0].s[1], geodesic[0].s[2], geodesic[0].s[3]};
+    cl_float4 selected_geodesic = {0,0,0,0};
+
+    if(coordinate_time >= geodesic.back().s[0])
+        selected_geodesic = geodesic.back();
+    else
+        selected_geodesic = geodesic.front();
+
+    return {selected_geodesic.s[0], selected_geodesic.s[1], selected_geodesic.s[2], selected_geodesic.s[3]};
 }
 
 vec2f get_geodesic_intersection(const metrics::metric& met, const std::vector<cl_float4>& geodesic)
