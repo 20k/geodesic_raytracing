@@ -1097,6 +1097,10 @@ int main()
                     base_angle = get_geodesic_intersection(*current_metric, current_geodesic_path);
                 }
             }
+            else
+            {
+                base_angle = {M_PI/2, 0.f};
+            }
 
             if(!taking_screenshot)
             {
