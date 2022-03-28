@@ -2192,7 +2192,7 @@ __kernel
 void get_geodesic_path(__global struct lightray* generic_rays_in,
                        __global float4* positions_out,
                        __global int* generic_count_in, int geodesic_start, int width, int height,
-                       float4 polar_camera_pos, float4 camera_quat, float2 base_angle, dynamic_config_space struct dynamic_config* cfg)
+                       float4 polar_camera_pos, float4 camera_quat, float2 base_angle, dynamic_config_space struct dynamic_config* cfg, __global int* count_out)
 {
     int id = geodesic_start;
 
@@ -2228,8 +2228,12 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
 
     float next_ds = 0.00001;
 
+    #ifdef ADAPTIVE_PRECISION
+    (void)acceleration_to_precision(acceleration, &next_ds);
+    #endif // ADAPTIVE_PRECISION
+
     float subambient_precision = 0.5;
-    float ambient_precision = 0.002;
+    float ambient_precision = 0.2;
 
     float rs = 1;
 
@@ -2246,7 +2250,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         acceleration.z = 0;
         #endif // IS_CONSTANT_THETA
 
-        float new_max = 10 * rs;
+        float new_max = MAX_PRECISION_RADIUS * rs;
         float new_min = 3 * rs;
 
         float4 polar_position = generic_to_spherical(position, cfg);
@@ -2255,11 +2259,15 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         polar_position.z = M_PIf/2;
         #endif // IS_CONSTANT_THETA
 
-        //float r_value = polar_position.y;
-
         float r_value = get_distance_to_object(polar_position, cfg);
 
         float ds = linear_val(fabs(r_value), new_min, new_max, ambient_precision, subambient_precision);
+
+        #ifndef RK4_GENERIC
+        #ifdef ADAPTIVE_PRECISION
+        ds = next_ds;
+        #endif // ADAPTIVE_PRECISION
+        #endif // RK4_GENERIC
 
         if(fabs(r_value) < new_max)
         {
@@ -2276,6 +2284,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         if(fabs(polar_position.y) < rs*SINGULAR_TERMINATOR || fabs(polar_position.y) >= UNIVERSE_SIZE)
         #endif // SINGULAR
         {
+            *count_out = bufc;
             return;
         }
 
@@ -2314,9 +2323,12 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
 
         if(any(isnan(position)) || any(isnan(velocity)) || any(isnan(acceleration)))
         {
+            *count_out = bufc;
             return;
         }
     }
+
+    *count_out = bufc;
 }
 
 #ifdef DEVICE_SIDE_ENQUEUE

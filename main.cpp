@@ -174,17 +174,11 @@ vec4f interpolate_geodesic(const std::vector<cl_float4>& geodesic, float coordin
     return {geodesic[0].s[0], geodesic[0].s[1], geodesic[0].s[2], geodesic[0].s[3]};
 }
 
-///this only works for polar metrics, which is why it breaks for krasnikov tubes
+///ok the trace thing only returns polar, todo: fixme
 vec2f get_geodesic_intersection(const metrics::metric& met, const std::vector<cl_float4>& geodesic)
 {
-    if(!met.metric_cfg.strictly_polar)
-        return {M_PI/2,0};
-
     for(int i=0; i < (int)geodesic.size() - 2; i++)
     {
-        if(geodesic[i + 2].s[0] == 0 && geodesic[i + 1].s[0] == 0)
-            break;
-
         vec4f cur = {geodesic[i].s[0], geodesic[i].s[1], geodesic[i].s[2], geodesic[i].s[3]};
         vec4f next = {geodesic[i + 1].s[0], geodesic[i + 1].s[1], geodesic[i + 1].s[2], geodesic[i + 1].s[3]};
 
@@ -203,7 +197,7 @@ vec2f get_geodesic_intersection(const metrics::metric& met, const std::vector<cl
         }
     }
 
-    return {0, 0};
+    return {M_PI/2, 0};
 }
 
 cl::image_with_mipmaps load_mipped_image(const std::string& fname, opencl_context& clctx)
@@ -656,6 +650,9 @@ int main()
     termination_buffer.set_to_zero(clctx.cqueue);
 
     printf("Zero termination buffer\n");
+
+    cl::buffer geodesic_count_buffer(clctx.ctx);
+    geodesic_count_buffer.alloc(sizeof(cl_int));
 
     cl::buffer geodesic_trace_buffer(clctx.ctx);
     geodesic_trace_buffer.alloc(64000 * sizeof(cl_float4));
@@ -1419,6 +1416,7 @@ int main()
                     int idx = (height/2) * width + width/2;
 
                     geodesic_trace_buffer.set_to_zero(clctx.cqueue);
+                    geodesic_count_buffer.set_to_zero(clctx.cqueue);
 
                     cl::args snapshot_args;
                     snapshot_args.push_back(schwarzs_1);
@@ -1431,10 +1429,16 @@ int main()
                     snapshot_args.push_back(camera_quat);
                     snapshot_args.push_back(base_angle);
                     snapshot_args.push_back(dynamic_config);
+                    snapshot_args.push_back(geodesic_count_buffer);
 
                     clctx.cqueue.exec("get_geodesic_path", snapshot_args, {1}, {1});
 
                     current_geodesic_path = geodesic_trace_buffer.read<cl_float4>(clctx.cqueue);
+                    int count = geodesic_count_buffer.read<cl_int>(clctx.cqueue)[0];
+
+                    printf("Found geodesic count %i\n", count);
+
+                    current_geodesic_path.resize(count);
                 }
 
                 int rays_num = calculate_ray_count(width, height);

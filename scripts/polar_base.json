@@ -11,6 +11,5 @@
 	"max_acceleration_change": 0.0001,
 	"to_polar": "polar_to_polar",
 	"from_polar": "polar_to_polar",
-	"origin_distance": "at_origin",
-	"strictly_polar": true
+	"origin_distance": "at_origin"
 }
