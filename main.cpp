@@ -174,6 +174,7 @@ vec4f interpolate_geodesic(const std::vector<cl_float4>& geodesic, float coordin
     return {geodesic[0].s[0], geodesic[0].s[1], geodesic[0].s[2], geodesic[0].s[3]};
 }
 
+///this only works for polar metrics, which is why it breaks for krasnikov tubes
 vec2f get_geodesic_intersection(const std::vector<cl_float4>& geodesic)
 {
     for(int i=0; i < (int)geodesic.size() - 2; i++)
