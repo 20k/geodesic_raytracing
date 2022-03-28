@@ -324,6 +324,7 @@ struct graphics_settings
     bool supersample = false;
 
     bool vsync_enabled = false;
+    bool time_adjusted_controls = true;
 
     ///Returns true if we need to refresh our opencl context
     bool display()
@@ -340,6 +341,13 @@ struct graphics_settings
 
         ImGui::InputInt("Screenshot Width", &screenshot_width);
         ImGui::InputInt("Screenshot Height", &screenshot_height);
+
+        ImGui::Checkbox("Time adjusted controls", &time_adjusted_controls);
+
+        if(ImGui::IsItemHovered())
+        {
+            ImGui::SetTooltip("Setting this to true means that camera moves at a constant amount per second\nSetting this to false means that the camera moves at a constant speed per frame");
+        }
 
         ImGui::NewLine();
 
@@ -697,6 +705,7 @@ int main()
     bool last_supersample = false;
     bool supersample = false;
     bool should_take_screenshot = false;
+    bool time_adjusted_controls = true;
 
     int screenshot_w = 1920;
     int screenshot_h = 1080;
@@ -718,6 +727,7 @@ int main()
     metrics::metric* current_metric = nullptr;
 
     steady_timer workshop_poll;
+    steady_timer frametime_timer;
 
     bool open_main_menu_trigger = true;
     main_menu menu;
@@ -756,9 +766,12 @@ int main()
             screenshot_w = menu.sett.screenshot_width;
             screenshot_h = menu.sett.screenshot_height;
 
+            time_adjusted_controls = menu.sett.time_adjusted_controls;
+
             menu.dirty_settings = false;
         }
 
+        ///it isn't possible for a lot of these settings to be modified, this whole system is a mess
         if(!menu.is_open)
         {
             vec2i real_dim = win.get_window_size();
@@ -773,6 +786,8 @@ int main()
 
             menu.sett.screenshot_width = screenshot_w;
             menu.sett.screenshot_height = screenshot_h;
+
+            menu.sett.time_adjusted_controls = time_adjusted_controls;
         }
 
         exec.poll();
@@ -799,6 +814,16 @@ int main()
             }
 
             has_new_content = false;
+        }
+
+        float frametime_s = frametime_timer.restart();
+
+        float controls_multiplier = 1.f;
+
+        if(time_adjusted_controls)
+        {
+            ///16.f simulates the only camera speed at 16ms/frame
+            controls_multiplier = (1000/16.f) * clamp(frametime_s, 0.f, 100.f);
         }
 
         win.poll();
@@ -998,7 +1023,7 @@ int main()
 
                 if(ImGui::IsKeyDown(GLFW_KEY_RIGHT))
                 {
-                    mat3f m = mat3f().ZRot(M_PI/128);
+                    mat3f m = mat3f().ZRot(controls_multiplier * M_PI/128);
 
                     quat q;
                     q.load_from_matrix(m);
@@ -1008,7 +1033,7 @@ int main()
 
                 if(ImGui::IsKeyDown(GLFW_KEY_LEFT))
                 {
-                    mat3f m = mat3f().ZRot(-M_PI/128);
+                    mat3f m = mat3f().ZRot(controls_multiplier * -M_PI/128);
 
                     quat q;
                     q.load_from_matrix(m);
@@ -1028,7 +1053,7 @@ int main()
                 if(ImGui::IsKeyDown(GLFW_KEY_DOWN))
                 {
                     quat q;
-                    q.load_from_axis_angle({right.x(), right.y(), right.z(), M_PI/128});
+                    q.load_from_axis_angle({right.x(), right.y(), right.z(), controls_multiplier * M_PI/128});
 
                     camera_quat = q * camera_quat;
                 }
@@ -1036,16 +1061,16 @@ int main()
                 if(ImGui::IsKeyDown(GLFW_KEY_UP))
                 {
                     quat q;
-                    q.load_from_axis_angle({right.x(), right.y(), right.z(), -M_PI/128});
+                    q.load_from_axis_angle({right.x(), right.y(), right.z(), controls_multiplier * -M_PI/128});
 
                     camera_quat = q * camera_quat;
                 }
 
                 vec3f offset = {0,0,0};
 
-                offset += forward_axis * ((ImGui::IsKeyDown(GLFW_KEY_W) - ImGui::IsKeyDown(GLFW_KEY_S)) * speed);
-                offset += right * (ImGui::IsKeyDown(GLFW_KEY_D) - ImGui::IsKeyDown(GLFW_KEY_A)) * speed;
-                offset += up * (ImGui::IsKeyDown(GLFW_KEY_E) - ImGui::IsKeyDown(GLFW_KEY_Q)) * speed;
+                offset += controls_multiplier * forward_axis * ((ImGui::IsKeyDown(GLFW_KEY_W) - ImGui::IsKeyDown(GLFW_KEY_S)) * speed);
+                offset += controls_multiplier * right * (ImGui::IsKeyDown(GLFW_KEY_D) - ImGui::IsKeyDown(GLFW_KEY_A)) * speed;
+                offset += controls_multiplier * up * (ImGui::IsKeyDown(GLFW_KEY_E) - ImGui::IsKeyDown(GLFW_KEY_Q)) * speed;
 
                 camera.y() += offset.x();
                 camera.z() += offset.y();
