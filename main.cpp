@@ -174,7 +174,6 @@ vec4f interpolate_geodesic(const std::vector<cl_float4>& geodesic, float coordin
     return {geodesic[0].s[0], geodesic[0].s[1], geodesic[0].s[2], geodesic[0].s[3]};
 }
 
-///ok the trace thing only returns polar, todo: fixme
 vec2f get_geodesic_intersection(const metrics::metric& met, const std::vector<cl_float4>& geodesic)
 {
     for(int i=0; i < (int)geodesic.size() - 2; i++)
