@@ -129,6 +129,7 @@ namespace metrics
         float cylindrical_terminator = 0.005;
 
         coordinate_system system = coordinate_system::X_Y_THETA_PHI;
+        bool strictly_polar = false; ///t, r, theta, phi
 
         std::string to_polar;
         std::string from_polar;
@@ -180,6 +181,9 @@ namespace metrics
                     else
                         system = coordinate_system::OTHER;
                 }
+
+                else if(key == "strictly_polar")
+                    strictly_polar = value;
 
                 else if(key == "to_polar")
                     to_polar = value;

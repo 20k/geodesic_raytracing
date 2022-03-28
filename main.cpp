@@ -175,8 +175,11 @@ vec4f interpolate_geodesic(const std::vector<cl_float4>& geodesic, float coordin
 }
 
 ///this only works for polar metrics, which is why it breaks for krasnikov tubes
-vec2f get_geodesic_intersection(const std::vector<cl_float4>& geodesic)
+vec2f get_geodesic_intersection(const metrics::metric& met, const std::vector<cl_float4>& geodesic)
 {
+    if(!met.metric_cfg.strictly_polar)
+        return {M_PI/2,0};
+
     for(int i=0; i < (int)geodesic.size() - 2; i++)
     {
         if(geodesic[i + 2].s[0] == 0 && geodesic[i + 1].s[0] == 0)
@@ -1088,7 +1091,11 @@ int main()
             if(camera_on_geodesic)
             {
                 scamera = interpolate_geodesic(current_geodesic_path, current_geodesic_time);
-                base_angle = get_geodesic_intersection(current_geodesic_path);
+
+                if(current_metric)
+                {
+                    base_angle = get_geodesic_intersection(*current_metric, current_geodesic_path);
+                }
             }
 
             if(!taking_screenshot)
