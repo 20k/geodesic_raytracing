@@ -736,6 +736,8 @@ int main()
     bool open_main_menu_trigger = true;
     main_menu menu;
 
+    bool hide_ui = false;
+
     fullscreen_window_manager fullscreen;
 
     ImGuiStyle& style = ImGui::GetStyle();
@@ -862,20 +864,23 @@ int main()
             }
         }
 
-        if(ImGui::BeginMenuBar())
+        if(!hide_ui)
         {
-            std::vector<const char*> items = get_imgui_view(metric_names);
+            if(ImGui::BeginMenuBar())
+            {
+                std::vector<const char*> items = get_imgui_view(metric_names);
 
-            ///steam fps padder
-            ImGui::Indent();
-            ImGui::Indent();
+                ///steam fps padder
+                ImGui::Indent();
+                ImGui::Indent();
 
-            ImGui::Text("Metric: ");
+                ImGui::Text("Metric: ");
 
-            //should_recompile |= ImGui::ListBox("##Metrics", &selected_idx, &items[0], items.size());
-            should_recompile |= ImGui::Combo("##Metrics", &selected_idx, &items[0], items.size());
+                //should_recompile |= ImGui::ListBox("##Metrics", &selected_idx, &items[0], items.size());
+                should_recompile |= ImGui::Combo("##Metrics", &selected_idx, &items[0], items.size());
 
-            ImGui::EndMenuBar();
+                ImGui::EndMenuBar();
+            }
         }
 
         fullscreen.stop();
@@ -888,8 +893,14 @@ int main()
             win.backend->set_is_maximised(!win.backend->is_maximised());
         }
 
+        if(ImGui::IsKeyPressed(GLFW_KEY_F1))
+        {
+            hide_ui = !hide_ui;
+        }
+
         if(menu.is_open)
         {
+            hide_ui = false;
             menu.display();
         }
         else
@@ -1102,7 +1113,7 @@ int main()
                 base_angle = {M_PI/2, 0.f};
             }
 
-            if(!taking_screenshot)
+            if(!taking_screenshot && !hide_ui)
             {
                 std::vector<const char*> items = get_imgui_view(metric_names);
 
@@ -1530,7 +1541,9 @@ int main()
         }
 
         {
-            ImDrawList* lst = ImGui::GetBackgroundDrawList(ImGui::GetMainViewport());
+            ImDrawList* lst = hide_ui ?
+                              ImGui::GetForegroundDrawList(ImGui::GetMainViewport()) :
+                              ImGui::GetBackgroundDrawList(ImGui::GetMainViewport());
 
             ImVec2 screen_pos = ImGui::GetMainViewport()->Pos;
 
