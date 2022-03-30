@@ -2,6 +2,7 @@
 #include <toolkit/fs_helpers.hpp>
 #include "metric.hpp"
 #include "js_interop.hpp"
+#include <algorithm>
 
 metrics::metric_config load_config(content_manager& all_content, std::filesystem::path filename, bool inherit);
 
@@ -134,6 +135,13 @@ metrics::metric* metric_cache::lazy_fetch(content_manager& manage, content& c, c
     return met;
 }
 
+std::vector<std::string> load_sorting_file(std::filesystem::path filename)
+{
+    nlohmann::json js = nlohmann::json::parse(file::read(filename.string(), file::mode::TEXT));
+
+    return js.get<std::vector<std::string>>();
+}
+
 std::vector<std::filesystem::path> get_files_with_extension(std::filesystem::path folder, const std::string& ext)
 {
     std::vector<std::filesystem::path> ret;
@@ -167,6 +175,44 @@ void content::load(content_manager& all_content, std::filesystem::path path)
     configs = get_files_with_extension(path, ".json");
     coordinates = get_files_with_extension(coordinate.string(), ".js");
     origins = get_files_with_extension(origin.string(), ".js");
+
+    std::optional<std::filesystem::path> sorting;
+
+    for(int i=0; i < (int)configs.size(); i++)
+    {
+        if(configs[i].filename() == "sorting.json")
+        {
+            sorting = configs[i];
+            configs.erase(configs.begin() + i);
+            break;
+        }
+    }
+
+    if(sorting.has_value())
+    {
+        filename_sorting = load_sorting_file(sorting.value());
+
+        std::set<std::string> metric_names(filename_sorting.begin(), filename_sorting.end());
+
+        std::vector<std::filesystem::path> unsorted_elements = metrics;
+
+        std::erase_if(unsorted_elements,
+                      [&metric_names](const std::filesystem::path& in)
+                      {
+                          return metric_names.find(in.filename().string()) != metric_names.end();
+                      });
+
+        std::vector<std::filesystem::path> reconstructed_metrics;
+
+        for(const std::string& name : filename_sorting)
+        {
+            reconstructed_metrics.push_back(std::filesystem::absolute("./" + name));
+        }
+
+        reconstructed_metrics.insert(reconstructed_metrics.end(), unsorted_elements.begin(), unsorted_elements.end());
+
+        metrics = std::move(reconstructed_metrics);
+    }
 
     for(const std::filesystem::path& cfg_name : configs)
     {

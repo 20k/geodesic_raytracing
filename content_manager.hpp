@@ -22,6 +22,8 @@ struct content
 {
     std::filesystem::path folder;
 
+    std::vector<std::string> filename_sorting;
+
     std::vector<std::filesystem::path> metrics;
     std::vector<std::filesystem::path> configs;
     std::vector<metrics::metric_config> base_configs;
