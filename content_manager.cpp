@@ -188,30 +188,37 @@ void content::load(content_manager& all_content, std::filesystem::path path)
         }
     }
 
-    if(sorting.has_value())
+    try
     {
-        filename_sorting = load_sorting_file(sorting.value());
-
-        std::set<std::string> metric_names(filename_sorting.begin(), filename_sorting.end());
-
-        std::vector<std::filesystem::path> unsorted_elements = metrics;
-
-        std::erase_if(unsorted_elements,
-                      [&metric_names](const std::filesystem::path& in)
-                      {
-                          return metric_names.find(in.filename().string()) != metric_names.end();
-                      });
-
-        std::vector<std::filesystem::path> reconstructed_metrics;
-
-        for(const std::string& name : filename_sorting)
+        if(sorting.has_value())
         {
-            reconstructed_metrics.push_back(std::filesystem::absolute("./" + name));
+            filename_sorting = load_sorting_file(sorting.value());
+
+            std::set<std::string> metric_names(filename_sorting.begin(), filename_sorting.end());
+
+            std::vector<std::filesystem::path> unsorted_elements = metrics;
+
+            std::erase_if(unsorted_elements,
+                          [&metric_names](const std::filesystem::path& in)
+                          {
+                              return metric_names.find(in.filename().string()) != metric_names.end();
+                          });
+
+            std::vector<std::filesystem::path> reconstructed_metrics;
+
+            for(const std::string& name : filename_sorting)
+            {
+                reconstructed_metrics.push_back(std::filesystem::absolute(path / name));
+            }
+
+            reconstructed_metrics.insert(reconstructed_metrics.end(), unsorted_elements.begin(), unsorted_elements.end());
+
+            metrics = std::move(reconstructed_metrics);
         }
-
-        reconstructed_metrics.insert(reconstructed_metrics.end(), unsorted_elements.begin(), unsorted_elements.end());
-
-        metrics = std::move(reconstructed_metrics);
+    }
+    catch(std::exception& e)
+    {
+        std::cout << "Error loading sorting file " << e.what() << std::endl;
     }
 
     for(const std::filesystem::path& cfg_name : configs)
