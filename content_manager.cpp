@@ -188,6 +188,8 @@ void content::load(content_manager& all_content, std::filesystem::path path)
         }
     }
 
+    ///this section handles the sorting file. It sorts specified metrics according to the input sorting.json
+    ///unspecified metrics are sent to the end of the list
     try
     {
         if(sorting.has_value())
@@ -196,13 +198,20 @@ void content::load(content_manager& all_content, std::filesystem::path path)
 
             std::set<std::string> metric_names(filename_sorting.begin(), filename_sorting.end());
 
+            std::set<std::string> touched_metric_names;
+
             std::vector<std::filesystem::path> unsorted_elements = metrics;
 
             std::erase_if(unsorted_elements,
-                          [&metric_names](const std::filesystem::path& in)
-                          {
-                              return metric_names.find(in.filename().string()) != metric_names.end();
-                          });
+            [&metric_names, &touched_metric_names](const std::filesystem::path& in)
+            {
+                std::string filename = in.filename().string();
+
+                ///kind of crappy
+                touched_metric_names.insert(filename);
+
+                return metric_names.find(filename) != metric_names.end();
+            });
 
             std::vector<std::filesystem::path> reconstructed_metrics;
 
@@ -214,6 +223,14 @@ void content::load(content_manager& all_content, std::filesystem::path path)
             reconstructed_metrics.insert(reconstructed_metrics.end(), unsorted_elements.begin(), unsorted_elements.end());
 
             metrics = std::move(reconstructed_metrics);
+
+            for(const std::string& s : metric_names)
+            {
+                if(!touched_metric_names.contains(s))
+                {
+                    std::cout << "Warning: Specific sorted metric name " << s << " is unused" << std::endl;
+                }
+            }
         }
     }
     catch(std::exception& e)
