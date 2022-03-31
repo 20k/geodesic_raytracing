@@ -164,6 +164,8 @@
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>
 		<Unit filename="numerical.hpp" />
+		<Unit filename="raw_input.cpp" />
+		<Unit filename="raw_input.hpp" />
 		<Unit filename="scripts/alcubierre.js">
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>

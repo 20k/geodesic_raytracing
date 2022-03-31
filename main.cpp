@@ -20,7 +20,7 @@
 #include "content_manager.hpp"
 #include "equation_context.hpp"
 #include "fullscreen_window_manager.hpp"
-#include <toolkit/render_window_glfw.hpp>
+#include "raw_input.hpp"
 //#include "dual_complex.hpp"
 
 /**
@@ -507,32 +507,6 @@ std::vector<const char*> get_imgui_view(const std::vector<std::string>& in)
     return ret;
 }
 
-struct raw_input
-{
-    bool is_enabled = false;
-
-    void set_enabled(render_window& win, bool enabled)
-    {
-        if(is_enabled == enabled)
-            return;
-
-        GLFWwindow* window = ((glfw_backend*)win.backend)->ctx.window;
-
-        is_enabled = enabled;
-
-        if(enabled)
-        {
-            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-            glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
-        }
-        else
-        {
-            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-            glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_FALSE);
-        }
-    }
-};
-
 ///i need the ability to have dynamic parameters
 int main()
 {
@@ -863,12 +837,8 @@ int main()
 
         win.poll();
 
-        {
-            if(ImGui::IsKeyPressed(GLFW_KEY_TAB))
-                raw_input_manager.set_enabled(win, !raw_input_manager.is_enabled);
-
-            raw_input_manager.tick(win);
-        }
+        if(ImGui::IsKeyPressed(GLFW_KEY_TAB))
+            raw_input_manager.set_enabled(win, !raw_input_manager.is_enabled);
 
         if(open_main_menu_trigger)
         {
