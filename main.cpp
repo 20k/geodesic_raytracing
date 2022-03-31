@@ -885,6 +885,15 @@ int main()
                 //should_recompile |= ImGui::ListBox("##Metrics", &selected_idx, &items[0], items.size());
                 should_recompile |= ImGui::Combo("##Metrics", &selected_idx, &items[0], items.size());
 
+                ImGui::Text("Mouselook:");
+
+                if(raw_input_manager.is_enabled)
+                    ImGui::Text("Y");
+                else
+                    ImGui::Text("N");
+
+                ImGui::Text("(Tab to toggle)");
+
                 ImGui::EndMenuBar();
             }
         }
