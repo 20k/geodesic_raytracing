@@ -354,7 +354,7 @@ struct graphics_settings
             ImGui::SetTooltip("Setting this to true means that camera moves at a constant amount per second\nSetting this to false means that the camera moves at a constant speed per frame");
         }
 
-        ImGui::SliderFloat("Mouse Sensitivity", &mouse_sensitivity, 0.f, 20.f);
+        ImGui::SliderFloat("Mouse Sensitivity", &mouse_sensitivity, 0.f, 5.f);
 
         ImGui::NewLine();
 
