@@ -3,10 +3,12 @@
 
 struct metric_manager
 {
-    int current_idx = 1;
+    int current_idx = -1;
+    int selected_idx = -1;
+    metrics::metric* current_metric = nullptr;
 
-    void check_recompile(bool should_recompile, int& selected_idx, bool should_soft_recompile,
-                         const std::vector<content*>& parent_directories, content_manager& all_content, std::vector<std::string>& metric_names, metrics::metric*& current_metric, float& selected_error,
+    void check_recompile(bool should_recompile, bool should_soft_recompile,
+                         const std::vector<content*>& parent_directories, content_manager& all_content, std::vector<std::string>& metric_names, float& selected_error,
                          cl::buffer& dynamic_config, cl::command_queue& cqueue, metrics::config& cfg, render_settings& sett, cl::context& context, std::optional<cl::program>& substituted_program_opt, std::optional<cl::program>& dynamic_program_opt, cl::buffer& termination_buffer)
     {
         if(!(should_recompile || current_idx == -1 || should_soft_recompile))
@@ -53,7 +55,7 @@ struct metric_manager
 
         cfg.error_override = selected_error;
         current_idx = selected_idx;
-        std::string argument_string_prefix = "0-O3 -cl-std=CL2.0 -cl-fast-relaxed-math ";
+        std::string argument_string_prefix = "-O3 -cl-std=CL2.0 -cl-fast-relaxed-math ";
 
         if(cfg.use_device_side_enqueue)
         {
@@ -67,6 +69,8 @@ struct metric_manager
 
         if(should_hard_recompile)
         {
+            printf("Building\n");
+
             if(context.programs.size() > 0)
                 context.deregister_program(0);
 

@@ -723,13 +723,9 @@ int main()
     bool camera_geodesics_go_foward = true;
     vec2f base_angle = {M_PI/2, 0};
 
-    int selected_idx = -1;
     float selected_error = 0;
 
     printf("Pre main\n");
-
-    ///quite hacky
-    metrics::metric* current_metric = nullptr;
 
     steady_timer workshop_poll;
     steady_timer frametime_timer;
@@ -885,7 +881,7 @@ int main()
                 ImGui::Text("Metric: ");
 
                 //should_recompile |= ImGui::ListBox("##Metrics", &selected_idx, &items[0], items.size());
-                should_recompile |= ImGui::Combo("##Metrics", &selected_idx, &items[0], items.size());
+                should_recompile |= ImGui::Combo("##Metrics", &metric_manage.selected_idx, &items[0], items.size());
 
                 ImGui::Text("Mouselook:");
 
@@ -1120,9 +1116,9 @@ int main()
             {
                 scamera = interpolate_geodesic(current_geodesic_path, current_geodesic_time);
 
-                if(current_metric)
+                if(metric_manage.current_metric)
                 {
-                    base_angle = get_geodesic_intersection(*current_metric, current_geodesic_path);
+                    base_angle = get_geodesic_intersection(*metric_manage.current_metric, current_geodesic_path);
                 }
             }
             else
@@ -1161,18 +1157,18 @@ int main()
 
                     ImGui::Indent();
 
-                    if(current_metric)
+                    if(metric_manage.current_metric)
                     {
-                        if(current_metric->sand.cfg.display())
+                        if(metric_manage.current_metric->sand.cfg.display())
                         {
-                            int dyn_config_bytes = current_metric->sand.cfg.current_values.size() * sizeof(cl_float);
+                            int dyn_config_bytes = metric_manage.current_metric->sand.cfg.current_values.size() * sizeof(cl_float);
 
                             if(dyn_config_bytes < 4)
                                 dyn_config_bytes = 4;
 
                             dynamic_config.alloc(dyn_config_bytes);
 
-                            std::vector<float> vars = current_metric->sand.cfg.current_values;
+                            std::vector<float> vars = metric_manage.current_metric->sand.cfg.current_values;
 
                             if(vars.size() == 0)
                                 vars.resize(1);
@@ -1229,8 +1225,8 @@ int main()
                     ImGui::TreePop();
                 }
 
-                metric_manage.check_recompile(should_recompile, selected_idx, should_soft_recompile, parent_directories,
-                                              all_content, metric_names, current_metric, selected_error, dynamic_config, clctx.cqueue, cfg,
+                metric_manage.check_recompile(should_recompile, should_soft_recompile, parent_directories,
+                                              all_content, metric_names, selected_error, dynamic_config, clctx.cqueue, cfg,
                                               sett, clctx.ctx, substituted_program_opt, dynamic_program_opt, termination_buffer);
 
                 ImGui::End();
@@ -1283,7 +1279,7 @@ int main()
                 cl_int prepass_width = width/16;
                 cl_int prepass_height = height/16;
 
-                if(current_metric->metric_cfg.use_prepass)
+                if(metric_manage.current_metric->metric_cfg.use_prepass)
                 {
                     cl::args clear_args;
                     clear_args.push_back(termination_buffer);
@@ -1439,7 +1435,7 @@ int main()
                 auto duration = now.time_since_epoch();
                 auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
 
-                std::string fname = "./screenshots/" + current_metric->metric_cfg.name + "_" + std::to_string(millis) + ".png";
+                std::string fname = "./screenshots/" + metric_manage.current_metric->metric_cfg.name + "_" + std::to_string(millis) + ".png";
 
                 img.saveToFile(fname);
             }
