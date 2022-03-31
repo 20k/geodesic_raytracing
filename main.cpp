@@ -1231,8 +1231,6 @@ int main()
                     ImGui::TreePop();
                 }
 
-                ImGui::SetNextItemOpen(true, ImGuiCond_Once);
-
                 if(should_recompile || current_idx == -1 || should_soft_recompile)
                 {
                     bool should_hard_recompile = should_recompile || current_idx == -1;
