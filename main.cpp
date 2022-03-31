@@ -376,6 +376,11 @@ struct main_menu
     bool should_quit = false;
     bool already_started = false;
 
+    bool is_first_time_main_menu_open()
+    {
+        return is_open && !already_started;
+    }
+
     void display_main_menu()
     {
         std::string start_string = already_started ? "Continue" : "Start";
@@ -429,7 +434,6 @@ struct main_menu
 
     void close()
     {
-        ImGui::CloseCurrentPopup();
         is_open = false;
     }
 
@@ -911,10 +915,11 @@ int main()
             hide_ui = false;
             menu.display();
         }
-        else
+
         {
-            if(ImGui::IsKeyPressed(GLFW_KEY_ESCAPE))
+            if(menu.is_open && ImGui::IsKeyPressed(GLFW_KEY_ESCAPE))
             {
+                raw_input_manager.set_enabled(win, false);
                 menu.open();
             }
 
@@ -987,7 +992,7 @@ int main()
 
             float speed = 0.001;
 
-            if(!ImGui::GetIO().WantCaptureKeyboard)
+            if(!menu.is_open && !ImGui::GetIO().WantCaptureKeyboard)
             {
                 if(ImGui::IsKeyDown(GLFW_KEY_LEFT_SHIFT))
                     speed = 0.1;
@@ -1121,11 +1126,11 @@ int main()
                 base_angle = {M_PI/2, 0.f};
             }
 
-            if(!taking_screenshot && !hide_ui)
+            bool should_soft_recompile = false;
+
+            if(!taking_screenshot && !hide_ui && !menu.is_first_time_main_menu_open())
             {
                 ImGui::Begin("DBG", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-
-                bool should_soft_recompile = false;
 
                 if(ImGui::TreeNode("General"))
                 {
@@ -1220,12 +1225,12 @@ int main()
                     ImGui::TreePop();
                 }
 
-                metric_manage.check_recompile(should_recompile, should_soft_recompile, parent_directories,
-                                              all_content, metric_names, dynamic_config, clctx.cqueue, cfg,
-                                              sett, clctx.ctx, termination_buffer);
-
                 ImGui::End();
             }
+
+            metric_manage.check_recompile(should_recompile, should_soft_recompile, parent_directories,
+                                          all_content, metric_names, dynamic_config, clctx.cqueue, cfg,
+                                          sett, clctx.ctx, termination_buffer);
 
             metric_manage.check_substitution(clctx.ctx);
 
