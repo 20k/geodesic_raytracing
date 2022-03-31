@@ -329,6 +329,8 @@ struct graphics_settings
     bool vsync_enabled = false;
     bool time_adjusted_controls = true;
 
+    float mouse_sensitivity = 1;
+
     ///Returns true if we need to refresh our opencl context
     bool display()
     {
@@ -351,6 +353,8 @@ struct graphics_settings
         {
             ImGui::SetTooltip("Setting this to true means that camera moves at a constant amount per second\nSetting this to false means that the camera moves at a constant speed per frame");
         }
+
+        ImGui::DragFloat("Mouse Sensitivity", &mouse_sensitivity, 0.001, 0.f, 100.f);
 
         ImGui::NewLine();
 
@@ -713,6 +717,7 @@ int main()
     bool supersample = false;
     bool should_take_screenshot = false;
     bool time_adjusted_controls = true;
+    float mouse_sensitivity = 1;
 
     int screenshot_w = 1920;
     int screenshot_h = 1080;
@@ -774,6 +779,8 @@ int main()
 
             time_adjusted_controls = menu.sett.time_adjusted_controls;
 
+            mouse_sensitivity = menu.sett.mouse_sensitivity;
+
             menu.dirty_settings = false;
         }
 
@@ -794,6 +801,8 @@ int main()
             menu.sett.screenshot_height = screenshot_h;
 
             menu.sett.time_adjusted_controls = time_adjusted_controls;
+
+            menu.sett.mouse_sensitivity = mouse_sensitivity;
         }
 
         exec.poll();
@@ -1069,7 +1078,7 @@ int main()
 
                 if(delta.x() != 0.f)
                 {
-                    mat3f m = mat3f().ZRot(delta.x() * M_PI/128);
+                    mat3f m = mat3f().ZRot(mouse_sensitivity * delta.x() * M_PI/128);
 
                     quat q;
                     q.load_from_matrix(m);
@@ -1089,7 +1098,7 @@ int main()
                 if(delta.y() != 0.f)
                 {
                     quat q;
-                    q.load_from_axis_angle({right.x(), right.y(), right.z(), delta.y() * M_PI/128});
+                    q.load_from_axis_angle({right.x(), right.y(), right.z(), mouse_sensitivity * delta.y() * M_PI/128});
 
                     camera_quat = q * camera_quat;
                 }
