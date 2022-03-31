@@ -1231,8 +1231,17 @@ int main()
                     ImGui::TreePop();
                 }
 
-                if(should_recompile || current_idx == -1 || should_soft_recompile)
+                cl::command_queue& cqueue = clctx.cqueue;
+                cl::context& context = clctx.ctx;
+
+                auto check_recompile = [should_recompile, &current_idx, &selected_idx, should_soft_recompile,
+                                        &parent_directories, &all_content, &items, &metric_names, &current_metric, &selected_error,
+                                        &dynamic_config, &cqueue, &cfg, &sett, &context,
+                                        &substituted_program_opt, &dynamic_program_opt, &termination_buffer]()
                 {
+                    if(!(should_recompile || current_idx == -1 || should_soft_recompile))
+                        return;
+
                     bool should_hard_recompile = should_recompile || current_idx == -1;
 
                     if(selected_idx == -1)
@@ -1269,7 +1278,7 @@ int main()
                         if(vars.size() == 0)
                             vars.resize(1);
 
-                        dynamic_config.write(clctx.cqueue, vars);
+                        dynamic_config.write(cqueue, vars);
                     }
 
                     cfg.error_override = selected_error;
@@ -1288,8 +1297,8 @@ int main()
 
                     if(should_hard_recompile)
                     {
-                        if(clctx.ctx.programs.size() > 0)
-                            clctx.ctx.deregister_program(0);
+                        if(context.programs.size() > 0)
+                            context.deregister_program(0);
 
                         std::string dynamic_argument_string = argument_string_prefix + build_argument_string(*current_metric, current_metric->desc.abstract, cfg, {});
 
@@ -1302,19 +1311,19 @@ int main()
                         }
 
                         dynamic_program_opt = std::nullopt;
-                        dynamic_program_opt.emplace(clctx.ctx, "cl.cl");
-                        dynamic_program_opt->build(clctx.ctx, dynamic_argument_string);
+                        dynamic_program_opt.emplace(context, "cl.cl");
+                        dynamic_program_opt->build(context, dynamic_argument_string);
 
-                        clctx.ctx.register_program(*dynamic_program_opt);
+                        context.register_program(*dynamic_program_opt);
                     }
 
                     if(should_soft_recompile || should_hard_recompile)
                     {
-                        if(clctx.ctx.programs.size() > 0)
-                            clctx.ctx.deregister_program(0);
+                        if(context.programs.size() > 0)
+                            context.deregister_program(0);
 
                         ///Reregister the dynamic program again, static is invalid
-                        clctx.ctx.register_program(*dynamic_program_opt);
+                        context.register_program(*dynamic_program_opt);
 
                         auto substitution_map = current_metric->sand.cfg.as_substitution_map();
 
@@ -1328,32 +1337,34 @@ int main()
                             substituted_program_opt = std::nullopt;
                         }
 
-                        substituted_program_opt.emplace(clctx.ctx, "cl.cl");
-                        substituted_program_opt->build(clctx.ctx, substituted_argument_string);
+                        substituted_program_opt.emplace(context, "cl.cl");
+                        substituted_program_opt->build(context, substituted_argument_string);
                     }
 
                     ///Is this necessary?
-                    termination_buffer.set_to_zero(clctx.cqueue);
-                }
+                    termination_buffer.set_to_zero(cqueue);
+                };
 
-                if(substituted_program_opt.has_value())
-                {
-                    cl::program& pending = substituted_program_opt.value();
-
-                    if(pending.is_built())
-                    {
-                        printf("Swapped\n");
-
-                        if(clctx.ctx.programs.size() > 0)
-                            clctx.ctx.deregister_program(0);
-
-                        clctx.ctx.register_program(pending);
-
-                        substituted_program_opt = std::nullopt;
-                    }
-                }
+                check_recompile();
 
                 ImGui::End();
+            }
+
+            if(substituted_program_opt.has_value())
+            {
+                cl::program& pending = substituted_program_opt.value();
+
+                if(pending.is_built())
+                {
+                    printf("Swapped\n");
+
+                    if(clctx.ctx.programs.size() > 0)
+                        clctx.ctx.deregister_program(0);
+
+                    clctx.ctx.register_program(pending);
+
+                    substituted_program_opt = std::nullopt;
+                }
             }
 
             int width = rtex.size<2>().x();
