@@ -20,6 +20,7 @@
 #include "content_manager.hpp"
 #include "equation_context.hpp"
 #include "fullscreen_window_manager.hpp"
+#include <toolkit/render_window_glfw.hpp>
 //#include "dual_complex.hpp"
 
 /**
@@ -506,6 +507,32 @@ std::vector<const char*> get_imgui_view(const std::vector<std::string>& in)
     return ret;
 }
 
+struct raw_input
+{
+    bool is_enabled = false;
+
+    void set_enabled(render_window& win, bool enabled)
+    {
+        if(is_enabled == enabled)
+            return;
+
+        GLFWwindow* window = ((glfw_backend*)win.backend)->ctx.window;
+
+        is_enabled = enabled;
+
+        if(enabled)
+        {
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+            glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+        }
+        else
+        {
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+            glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_FALSE);
+        }
+    }
+};
+
 ///i need the ability to have dynamic parameters
 int main()
 {
@@ -750,6 +777,8 @@ int main()
     //style.PopupBorderSize = 0;
     style.WindowBorderSize = 1;
 
+    raw_input raw_input_manager;
+
     while(!win.should_close() && !menu.should_quit && fullscreen.open)
     {
         if(menu.dirty_settings)
@@ -833,6 +862,13 @@ int main()
         }
 
         win.poll();
+
+        {
+            if(ImGui::IsKeyPressed(GLFW_KEY_TAB))
+                raw_input_manager.set_enabled(win, !raw_input_manager.is_enabled);
+
+            raw_input_manager.tick(win);
+        }
 
         if(open_main_menu_trigger)
         {
@@ -1036,19 +1072,27 @@ int main()
                     camera = {0, 0, 22, 0};
                 }
 
-                if(ImGui::IsKeyDown(GLFW_KEY_RIGHT))
+                vec2f delta;
+
+                if(!raw_input_manager.is_enabled)
                 {
-                    mat3f m = mat3f().ZRot(controls_multiplier * M_PI/128);
+                    delta.x() = (float)ImGui::IsKeyDown(GLFW_KEY_RIGHT) - (float)ImGui::IsKeyDown(GLFW_KEY_LEFT);
+                    delta.y() = (float)ImGui::IsKeyDown(GLFW_KEY_DOWN) - (float)ImGui::IsKeyDown(GLFW_KEY_UP);
+                }
+                else
+                {
+                    delta = {ImGui::GetIO().MouseDelta.x, ImGui::GetIO().MouseDelta.y};
 
-                    quat q;
-                    q.load_from_matrix(m);
+                    delta.y() = -delta.y();
 
-                    camera_quat = q * camera_quat;
+                    float mouse_sensitivity_mult = 0.1;
+
+                    delta *= mouse_sensitivity_mult;
                 }
 
-                if(ImGui::IsKeyDown(GLFW_KEY_LEFT))
+                if(delta.x() != 0.f)
                 {
-                    mat3f m = mat3f().ZRot(controls_multiplier * -M_PI/128);
+                    mat3f m = mat3f().ZRot(delta.x() * controls_multiplier * M_PI/128);
 
                     quat q;
                     q.load_from_matrix(m);
@@ -1065,18 +1109,10 @@ int main()
                 vec3f right = rot_quat({1, 0, 0}, camera_quat);
                 vec3f forward_axis = rot_quat({0, 0, 1}, camera_quat);
 
-                if(ImGui::IsKeyDown(GLFW_KEY_DOWN))
+                if(delta.y() != 0.f)
                 {
                     quat q;
-                    q.load_from_axis_angle({right.x(), right.y(), right.z(), controls_multiplier * M_PI/128});
-
-                    camera_quat = q * camera_quat;
-                }
-
-                if(ImGui::IsKeyDown(GLFW_KEY_UP))
-                {
-                    quat q;
-                    q.load_from_axis_angle({right.x(), right.y(), right.z(), controls_multiplier * -M_PI/128});
+                    q.load_from_axis_angle({right.x(), right.y(), right.z(), delta.y() * controls_multiplier * M_PI/128});
 
                     camera_quat = q * camera_quat;
                 }
