@@ -910,6 +910,12 @@ int main()
             hide_ui = !hide_ui;
         }
 
+        if(!menu.is_open && ImGui::IsKeyPressed(GLFW_KEY_ESCAPE))
+        {
+            raw_input_manager.set_enabled(win, false);
+            menu.open();
+        }
+
         if(menu.is_open)
         {
             hide_ui = false;
@@ -917,12 +923,6 @@ int main()
         }
 
         {
-            if(menu.is_open && ImGui::IsKeyPressed(GLFW_KEY_ESCAPE))
-            {
-                raw_input_manager.set_enabled(win, false);
-                menu.open();
-            }
-
             auto buffer_size = rtex.size<2>();
 
             bool taking_screenshot = should_take_screenshot;
@@ -1062,14 +1062,14 @@ int main()
 
                     delta.y() = -delta.y();
 
-                    float mouse_sensitivity_mult = 0.1;
+                    float mouse_sensitivity_mult = 0.05;
 
                     delta *= mouse_sensitivity_mult;
                 }
 
                 if(delta.x() != 0.f)
                 {
-                    mat3f m = mat3f().ZRot(delta.x() * controls_multiplier * M_PI/128);
+                    mat3f m = mat3f().ZRot(delta.x() * M_PI/128);
 
                     quat q;
                     q.load_from_matrix(m);
@@ -1089,7 +1089,7 @@ int main()
                 if(delta.y() != 0.f)
                 {
                     quat q;
-                    q.load_from_axis_angle({right.x(), right.y(), right.z(), delta.y() * controls_multiplier * M_PI/128});
+                    q.load_from_axis_angle({right.x(), right.y(), right.z(), delta.y() * M_PI/128});
 
                     camera_quat = q * camera_quat;
                 }
