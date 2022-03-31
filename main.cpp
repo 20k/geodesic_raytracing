@@ -687,9 +687,6 @@ int main()
 
     printf("Alloc rays and counts\n");
 
-    std::optional<cl::program> substituted_program_opt;
-    std::optional<cl::program> dynamic_program_opt;
-
     cl_sampler_properties sampler_props[] = {
     CL_SAMPLER_NORMALIZED_COORDS, CL_TRUE,
     CL_SAMPLER_ADDRESSING_MODE, CL_ADDRESS_REPEAT,
@@ -1227,27 +1224,12 @@ int main()
 
                 metric_manage.check_recompile(should_recompile, should_soft_recompile, parent_directories,
                                               all_content, metric_names, selected_error, dynamic_config, clctx.cqueue, cfg,
-                                              sett, clctx.ctx, substituted_program_opt, dynamic_program_opt, termination_buffer);
+                                              sett, clctx.ctx, termination_buffer);
 
                 ImGui::End();
             }
 
-            if(substituted_program_opt.has_value())
-            {
-                cl::program& pending = substituted_program_opt.value();
-
-                if(pending.is_built())
-                {
-                    printf("Swapped\n");
-
-                    if(clctx.ctx.programs.size() > 0)
-                        clctx.ctx.deregister_program(0);
-
-                    clctx.ctx.register_program(pending);
-
-                    substituted_program_opt = std::nullopt;
-                }
-            }
+            metric_manage.check_substitution(clctx.ctx);
 
             int width = rtex.size<2>().x();
             int height = rtex.size<2>().y();

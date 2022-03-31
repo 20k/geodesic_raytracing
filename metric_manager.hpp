@@ -7,9 +7,12 @@ struct metric_manager
     int selected_idx = -1;
     metrics::metric* current_metric = nullptr;
 
+    std::optional<cl::program> substituted_program_opt;
+    std::optional<cl::program> dynamic_program_opt;
+
     void check_recompile(bool should_recompile, bool should_soft_recompile,
                          const std::vector<content*>& parent_directories, content_manager& all_content, std::vector<std::string>& metric_names, float& selected_error,
-                         cl::buffer& dynamic_config, cl::command_queue& cqueue, metrics::config& cfg, render_settings& sett, cl::context& context, std::optional<cl::program>& substituted_program_opt, std::optional<cl::program>& dynamic_program_opt, cl::buffer& termination_buffer)
+                         cl::buffer& dynamic_config, cl::command_queue& cqueue, metrics::config& cfg, render_settings& sett, cl::context& context, cl::buffer& termination_buffer)
     {
         if(!(should_recompile || current_idx == -1 || should_soft_recompile))
             return;
@@ -117,6 +120,26 @@ struct metric_manager
 
         ///Is this necessary?
         termination_buffer.set_to_zero(cqueue);
+    }
+
+    void check_substitution(cl::context& ctx)
+    {
+        if(substituted_program_opt.has_value())
+        {
+            cl::program& pending = substituted_program_opt.value();
+
+            if(pending.is_built())
+            {
+                printf("Swapped\n");
+
+                if(ctx.programs.size() > 0)
+                    ctx.deregister_program(0);
+
+                ctx.register_program(pending);
+
+                substituted_program_opt = std::nullopt;
+            }
+        }
     }
 };
 
