@@ -330,6 +330,7 @@ struct graphics_settings
     bool time_adjusted_controls = true;
 
     float mouse_sensitivity = 1;
+    float keyboard_sensitivity = 1;
 
     ///Returns true if we need to refresh our opencl context
     bool display()
@@ -355,6 +356,7 @@ struct graphics_settings
         }
 
         ImGui::SliderFloat("Mouse Sensitivity", &mouse_sensitivity, 0.f, 5.f);
+        ImGui::SliderFloat("Keyboard Sensitivity", &keyboard_sensitivity, 0.f, 5.f);
 
         ImGui::NewLine();
 
@@ -718,6 +720,7 @@ int main()
     bool should_take_screenshot = false;
     bool time_adjusted_controls = true;
     float mouse_sensitivity = 1;
+    float keyboard_sensitivity = 1;
 
     int screenshot_w = 1920;
     int screenshot_h = 1080;
@@ -780,6 +783,7 @@ int main()
             time_adjusted_controls = menu.sett.time_adjusted_controls;
 
             mouse_sensitivity = menu.sett.mouse_sensitivity;
+            keyboard_sensitivity = menu.sett.keyboard_sensitivity;
 
             menu.dirty_settings = false;
         }
@@ -803,6 +807,7 @@ int main()
             menu.sett.time_adjusted_controls = time_adjusted_controls;
 
             menu.sett.mouse_sensitivity = mouse_sensitivity;
+            menu.sett.keyboard_sensitivity = keyboard_sensitivity;
         }
 
         exec.poll();
@@ -1103,9 +1108,9 @@ int main()
 
                 vec3f offset = {0,0,0};
 
-                offset += controls_multiplier * forward_axis * ((ImGui::IsKeyDown(GLFW_KEY_W) - ImGui::IsKeyDown(GLFW_KEY_S)) * speed);
-                offset += controls_multiplier * right * (ImGui::IsKeyDown(GLFW_KEY_D) - ImGui::IsKeyDown(GLFW_KEY_A)) * speed;
-                offset += controls_multiplier * up * (ImGui::IsKeyDown(GLFW_KEY_E) - ImGui::IsKeyDown(GLFW_KEY_Q)) * speed;
+                offset += keyboard_sensitivity * controls_multiplier * forward_axis * ((ImGui::IsKeyDown(GLFW_KEY_W) - ImGui::IsKeyDown(GLFW_KEY_S)) * speed);
+                offset += keyboard_sensitivity * controls_multiplier * right * (ImGui::IsKeyDown(GLFW_KEY_D) - ImGui::IsKeyDown(GLFW_KEY_A)) * speed;
+                offset += keyboard_sensitivity * controls_multiplier * up * (ImGui::IsKeyDown(GLFW_KEY_E) - ImGui::IsKeyDown(GLFW_KEY_Q)) * speed;
 
                 camera.y() += offset.x();
                 camera.z() += offset.y();
