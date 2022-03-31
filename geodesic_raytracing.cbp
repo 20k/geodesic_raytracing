@@ -160,6 +160,7 @@
 		<Unit filename="js_interop.hpp" />
 		<Unit filename="main.cpp" />
 		<Unit filename="metric.hpp" />
+		<Unit filename="metric_manager.hpp" />
 		<Unit filename="number.js">
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>
