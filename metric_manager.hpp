@@ -11,7 +11,7 @@ struct metric_manager
     std::optional<cl::program> dynamic_program_opt;
 
     void check_recompile(bool should_recompile, bool should_soft_recompile,
-                         const std::vector<content*>& parent_directories, content_manager& all_content, std::vector<std::string>& metric_names, float& selected_error,
+                         const std::vector<content*>& parent_directories, content_manager& all_content, std::vector<std::string>& metric_names,
                          cl::buffer& dynamic_config, cl::command_queue& cqueue, metrics::config& cfg, render_settings& sett, cl::context& context, cl::buffer& termination_buffer)
     {
         if(!(should_recompile || current_idx == -1 || should_soft_recompile))
@@ -37,7 +37,7 @@ struct metric_manager
 
             assert(current_metric);
 
-            selected_error = current_metric->metric_cfg.max_acceleration_change;
+            cfg.error_override = current_metric->metric_cfg.max_acceleration_change;
 
             std::cout << "ALLOCATING DYNCONFIG " << current_metric->sand.cfg.default_values.size() << std::endl;
 
@@ -56,7 +56,6 @@ struct metric_manager
             dynamic_config.write(cqueue, vars);
         }
 
-        cfg.error_override = selected_error;
         current_idx = selected_idx;
         std::string argument_string_prefix = "-O3 -cl-std=CL2.0 -cl-fast-relaxed-math ";
 

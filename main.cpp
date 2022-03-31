@@ -720,8 +720,6 @@ int main()
     bool camera_geodesics_go_foward = true;
     vec2f base_angle = {M_PI/2, 0};
 
-    float selected_error = 0;
-
     printf("Pre main\n");
 
     steady_timer workshop_poll;
@@ -1183,7 +1181,7 @@ int main()
 
                     ImGui::Checkbox("Redshift", &cfg.redshift);
 
-                    ImGui::InputFloat("Error Tolerance", &selected_error, 0.0000001f, 0.00001f, "%.8f");
+                    ImGui::InputFloat("Error Tolerance", &cfg.error_override, 0.0000001f, 0.00001f, "%.8f");
 
                     ImGui::DragFloat("Universe Size", &cfg.universe_size, 1, 1, 0, "%.1f");;
 
@@ -1223,7 +1221,7 @@ int main()
                 }
 
                 metric_manage.check_recompile(should_recompile, should_soft_recompile, parent_directories,
-                                              all_content, metric_names, selected_error, dynamic_config, clctx.cqueue, cfg,
+                                              all_content, metric_names, dynamic_config, clctx.cqueue, cfg,
                                               sett, clctx.ctx, termination_buffer);
 
                 ImGui::End();

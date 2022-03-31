@@ -379,7 +379,7 @@ namespace metrics
     {
         float universe_size = 200000;
         integration_type type = integration_type::VERLET;
-        std::optional<float> error_override = std::nullopt;
+        float error_override = 0;
         bool redshift = false;
         bool use_device_side_enqueue = true;
         float max_precision_radius = 10;
@@ -507,10 +507,10 @@ namespace metrics
         {
             argument_string += " -DADAPTIVE_PRECISION";
 
-            if(!cfg.error_override)
+            if(cfg.error_override == 0)
                 argument_string += " -DMAX_ACCELERATION_CHANGE=" + dual_types::to_string_s(in.metric_cfg.max_acceleration_change);
             else
-                argument_string += " -DMAX_ACCELERATION_CHANGE=" + dual_types::to_string_s(cfg.error_override.value());
+                argument_string += " -DMAX_ACCELERATION_CHANGE=" + dual_types::to_string_s(cfg.error_override);
 
             if(in.metric_cfg.detect_singularities)
             {
