@@ -354,7 +354,7 @@ struct graphics_settings
             ImGui::SetTooltip("Setting this to true means that camera moves at a constant amount per second\nSetting this to false means that the camera moves at a constant speed per frame");
         }
 
-        ImGui::DragFloat("Mouse Sensitivity", &mouse_sensitivity, 0.001, 0.f, 100.f);
+        ImGui::SliderFloat("Mouse Sensitivity", &mouse_sensitivity, 0.f, 20.f);
 
         ImGui::NewLine();
 
@@ -1078,10 +1078,8 @@ int main()
 
                 if(delta.x() != 0.f)
                 {
-                    mat3f m = mat3f().ZRot(mouse_sensitivity * delta.x() * M_PI/128);
-
                     quat q;
-                    q.load_from_matrix(m);
+                    q.load_from_axis_angle({0, 0, -1, mouse_sensitivity * delta.x() * M_PI/128});
 
                     camera_quat = q * camera_quat;
                 }
