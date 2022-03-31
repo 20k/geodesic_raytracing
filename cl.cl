@@ -237,7 +237,7 @@ float3 rejection(float3 my_vector, float3 basis)
     return normalize(my_vector - dot(my_vector, basis) * basis);
 }
 
-float3 srgb_to_lin(float3 C_srgb)
+/*float3 srgb_to_lin(float3 C_srgb)
 {
     return  0.012522878f * C_srgb +
             0.682171111f * C_srgb * C_srgb +
@@ -252,6 +252,32 @@ float3 lin_to_srgb(float3 val)
     float3 sRGB = 0.585122381f * S1 + 0.783140355f * S2 - 0.368262736f * S3;
 
     return sRGB;
+}*/
+
+float lin_to_srgb_single(float in)
+{
+    if(in <= 0.0031308f)
+        return in * 12.92f;
+    else
+        return 1.055f * pow(in, 1.0f / 2.4f) - 0.055f;
+}
+
+float3 lin_to_srgb(float3 in)
+{
+    return (float3)(lin_to_srgb_single(in.x), lin_to_srgb_single(in.y), lin_to_srgb_single(in.z));
+}
+
+float srgb_to_lin_single(float in)
+{
+    if(in < 0.04045f)
+        return in / 12.92f;
+    else
+        return pow((in + 0.055f) / 1.055f, 2.4f);
+}
+
+float3 srgb_to_lin(float3 in)
+{
+    return (float3)(srgb_to_lin_single(in.x), srgb_to_lin_single(in.y), srgb_to_lin_single(in.z));
 }
 
 float lambert_w0_newton(float x)
@@ -2975,12 +3001,18 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
         lin_result = redshift(lin_result, z_shift);
     }
 
+    #ifndef LINEAR_FRAMEBUFFER
     end_result.xyz = lin_to_srgb(lin_result);
+    #else
+    end_result.xyz = lin_result;
+    #endif // LINEAR_FRAMEBUFFER
 
     #endif // REDSHIFT
 
     #ifdef LINEAR_FRAMEBUFFER
+    #ifndef REDSHIFT //redshift already handles this for roundtrip accuracy reasons
     end_result.xyz = srgb_to_lin(end_result.xyz);
+    #endif // REDSHIFT
     #endif // LINEAR_FRAMEBUFFER
 
     write_imagef(out, (int2){sx, sy}, end_result);
