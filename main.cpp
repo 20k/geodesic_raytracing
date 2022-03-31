@@ -999,18 +999,18 @@ int main()
 
             rtex.acquire(clctx.cqueue);
 
-            float speed = 0.001;
+            float speed = 0.1;
 
             if(!menu.is_open && !ImGui::GetIO().WantCaptureKeyboard)
             {
                 if(ImGui::IsKeyDown(GLFW_KEY_LEFT_SHIFT))
-                    speed = 0.1;
+                    speed *= 10;
 
                 if(ImGui::IsKeyDown(GLFW_KEY_LEFT_CONTROL))
                     speed = 0.00001;
 
                 if(ImGui::IsKeyDown(GLFW_KEY_LEFT_ALT))
-                    speed /= 1000;
+                    speed /= 100;
 
                 if(ImGui::IsKeyDown(GLFW_KEY_Z))
                     speed *= 100;
