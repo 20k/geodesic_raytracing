@@ -46,6 +46,7 @@
 			<Add option="-std=c++20" />
 			<Add option="-fexceptions" />
 			<Add option="`pkg-config --cflags freetype2`" />
+			<Add option="-Wall" />
 			<Add option="-DIMGUI_IMPL_OPENGL_LOADER_GLEW" />
 			<Add option="-DSUBPIXEL_FONT_RENDERING" />
 			<Add option="-DSFML_STATIC" />

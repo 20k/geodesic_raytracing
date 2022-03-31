@@ -594,8 +594,7 @@ int main()
 
     //printf("WLs %f %f %f\n", chromaticity::srgb_to_wavelength({1, 0, 0}), chromaticity::srgb_to_wavelength({0, 1, 0}), chromaticity::srgb_to_wavelength({0, 0, 1}));
 
-    int supersample_mult = 2;
-    int last_supersample_mult = supersample_mult;
+    int last_supersample_mult = 2;
 
     int start_width = sett.width;
     int start_height = sett.height;
@@ -716,14 +715,8 @@ int main()
     std::cout << "Supports shared events? " << cl::supports_extension(clctx.ctx, "cl_khr_gl_event") << std::endl;
 
     bool last_supersample = false;
-    bool supersample = false;
     bool should_take_screenshot = false;
-    bool time_adjusted_controls = true;
-    float mouse_sensitivity = 1;
-    float keyboard_sensitivity = 1;
 
-    int screenshot_w = 1920;
-    int screenshot_h = 1080;
     bool time_progresses = false;
     bool flip_sign = false;
     float current_geodesic_time = 0;
@@ -758,32 +751,27 @@ int main()
 
     metric_manager metric_manage;
 
+    graphics_settings current_settings;
+
+    current_settings.width = win.get_window_size().x();
+    current_settings.height = win.get_window_size().y();
+    current_settings.vsync_enabled = win.backend->is_vsync();
+
     while(!win.should_close() && !menu.should_quit && fullscreen.open)
     {
         if(menu.dirty_settings)
         {
-            vec2i dim = {menu.sett.width, menu.sett.height};
+            current_settings = menu.sett;
 
-            if(dim != win.get_window_size())
+            if((vec2i){current_settings.width, current_settings.height} != win.get_window_size())
             {
-                win.resize(dim);
+                win.resize({current_settings.width, current_settings.height});
             }
 
-            supersample = menu.sett.supersample;
-            supersample_mult = menu.sett.supersample_factor;
-
-            if(win.backend->is_vsync() != menu.sett.vsync_enabled)
+            if(win.backend->is_vsync() != current_settings.vsync_enabled)
             {
-                win.backend->set_vsync(menu.sett.vsync_enabled);
+                win.backend->set_vsync(current_settings.vsync_enabled);
             }
-
-            screenshot_w = menu.sett.screenshot_width;
-            screenshot_h = menu.sett.screenshot_height;
-
-            time_adjusted_controls = menu.sett.time_adjusted_controls;
-
-            mouse_sensitivity = menu.sett.mouse_sensitivity;
-            keyboard_sensitivity = menu.sett.keyboard_sensitivity;
 
             menu.dirty_settings = false;
         }
@@ -793,21 +781,11 @@ int main()
         {
             vec2i real_dim = win.get_window_size();
 
-            menu.sett.supersample = supersample;
-            menu.sett.supersample_factor = supersample_mult;
-
-            menu.sett.vsync_enabled = win.backend->is_vsync();
+            menu.sett = current_settings;
 
             menu.sett.width = real_dim.x();
             menu.sett.height = real_dim.y();
-
-            menu.sett.screenshot_width = screenshot_w;
-            menu.sett.screenshot_height = screenshot_h;
-
-            menu.sett.time_adjusted_controls = time_adjusted_controls;
-
-            menu.sett.mouse_sensitivity = mouse_sensitivity;
-            menu.sett.keyboard_sensitivity = keyboard_sensitivity;
+            menu.sett.vsync_enabled = win.backend->is_vsync();
         }
 
         exec.poll();
@@ -840,7 +818,7 @@ int main()
 
         float controls_multiplier = 1.f;
 
-        if(time_adjusted_controls)
+        if(current_settings.time_adjusted_controls)
         {
             ///16.f simulates the only camera speed at 16ms/frame
             controls_multiplier = (1000/16.f) * clamp(frametime_s, 0.f, 100.f);
@@ -944,9 +922,9 @@ int main()
 
             bool should_snapshot_geodesic = false;
 
-            vec<2, size_t> super_adjusted_width = supersample ? (buffer_size / supersample_mult) : buffer_size;
+            vec<2, size_t> super_adjusted_width = current_settings.supersample ? (buffer_size / current_settings.supersample_factor) : buffer_size;
 
-            if((vec2i){super_adjusted_width.x(), super_adjusted_width.y()} != win.get_window_size() || taking_screenshot || last_supersample != supersample || last_supersample_mult != supersample_mult || menu.dirty_settings)
+            if((vec2i){super_adjusted_width.x(), super_adjusted_width.y()} != win.get_window_size() || taking_screenshot || last_supersample != current_settings.supersample || last_supersample_mult != current_settings.supersample_factor || menu.dirty_settings)
             {
                 if(last_event.has_value())
                     last_event.value().block();
@@ -961,20 +939,20 @@ int main()
                     width = win.get_window_size().x();
                     height = win.get_window_size().y();
 
-                    if(supersample)
+                    if(current_settings.supersample)
                     {
-                        width *= supersample_mult;
-                        height *= supersample_mult;
+                        width *= current_settings.supersample_factor;
+                        height *= current_settings.supersample_factor;
                     }
                 }
                 else
                 {
-                    width = screenshot_w * supersample_mult;
-                    height = screenshot_h * supersample_mult;
+                    width = current_settings.screenshot_width * current_settings.supersample_factor;
+                    height = current_settings.screenshot_height * current_settings.supersample_factor;
                 }
 
-                width = max(width, 16 * supersample_mult);
-                height = max(height, 16 * supersample_mult);
+                width = max(width, 16 * current_settings.supersample_factor);
+                height = max(height, 16 * current_settings.supersample_factor);
 
                 ray_count = width * height;
 
@@ -998,8 +976,8 @@ int main()
                 texture_coordinates.alloc(width * height * sizeof(float) * 2);
                 texture_coordinates.set_to_zero(clctx.cqueue);
 
-                last_supersample = supersample;
-                last_supersample_mult = supersample_mult;
+                last_supersample = current_settings.supersample;
+                last_supersample_mult = current_settings.supersample_factor;
             }
 
             rtex.acquire(clctx.cqueue);
@@ -1084,7 +1062,7 @@ int main()
                 if(delta.x() != 0.f)
                 {
                     quat q;
-                    q.load_from_axis_angle({0, 0, -1, mouse_sensitivity * delta.x() * M_PI/128});
+                    q.load_from_axis_angle({0, 0, -1, current_settings.mouse_sensitivity * delta.x() * M_PI/128});
 
                     camera_quat = q * camera_quat;
                 }
@@ -1101,16 +1079,16 @@ int main()
                 if(delta.y() != 0.f)
                 {
                     quat q;
-                    q.load_from_axis_angle({right.x(), right.y(), right.z(), mouse_sensitivity * delta.y() * M_PI/128});
+                    q.load_from_axis_angle({right.x(), right.y(), right.z(), current_settings.mouse_sensitivity * delta.y() * M_PI/128});
 
                     camera_quat = q * camera_quat;
                 }
 
                 vec3f offset = {0,0,0};
 
-                offset += keyboard_sensitivity * controls_multiplier * forward_axis * ((ImGui::IsKeyDown(GLFW_KEY_W) - ImGui::IsKeyDown(GLFW_KEY_S)) * speed);
-                offset += keyboard_sensitivity * controls_multiplier * right * (ImGui::IsKeyDown(GLFW_KEY_D) - ImGui::IsKeyDown(GLFW_KEY_A)) * speed;
-                offset += keyboard_sensitivity * controls_multiplier * up * (ImGui::IsKeyDown(GLFW_KEY_E) - ImGui::IsKeyDown(GLFW_KEY_Q)) * speed;
+                offset += current_settings.keyboard_sensitivity * controls_multiplier * forward_axis * ((ImGui::IsKeyDown(GLFW_KEY_W) - ImGui::IsKeyDown(GLFW_KEY_S)) * speed);
+                offset += current_settings.keyboard_sensitivity * controls_multiplier * right * (ImGui::IsKeyDown(GLFW_KEY_D) - ImGui::IsKeyDown(GLFW_KEY_A)) * speed;
+                offset += current_settings.keyboard_sensitivity * controls_multiplier * up * (ImGui::IsKeyDown(GLFW_KEY_E) - ImGui::IsKeyDown(GLFW_KEY_Q)) * speed;
 
                 camera.y() += offset.x();
                 camera.z() += offset.y();
@@ -1253,8 +1231,6 @@ int main()
             clr.push_back(rtex);
 
             clctx.cqueue.exec("clear", clr, {width, height}, {16, 16});
-
-            int fallback = 0;
 
             cl::event next;
 
@@ -1401,24 +1377,27 @@ int main()
 
                 clctx.cqueue.block();
 
+                int high_width = current_settings.screenshot_width * current_settings.supersample_factor;
+                int high_height = current_settings.screenshot_height * current_settings.supersample_factor;
+
                 printf("Blocked\n");
 
-                std::cout << "WIDTH " << (screenshot_w * supersample_mult) << " HEIGHT "<< (screenshot_h * supersample_mult) << std::endl;
+                std::cout << "WIDTH " << high_width << " HEIGHT "<< high_height << std::endl;
 
                 std::vector<vec4f> pixels = tex.read(0);
 
                 std::cout << "pixels size " << pixels.size() << std::endl;
 
-                assert(pixels.size() == (screenshot_w * supersample_mult * screenshot_h * supersample_mult));
+                assert(pixels.size() == (high_width * high_height));
 
                 sf::Image img;
-                img.create(screenshot_w * supersample_mult, screenshot_h * supersample_mult);
+                img.create(current_settings.screenshot_width, current_settings.screenshot_height * current_settings.supersample_factor);
 
-                for(int y=0; y < screenshot_h * supersample_mult; y++)
+                for(int y=0; y < high_height; y++)
                 {
-                    for(int x=0; x < screenshot_w * supersample_mult; x++)
+                    for(int x=0; x < high_width; x++)
                     {
-                        vec4f current_pixel = pixels[y * (screenshot_w * supersample_mult) + x];
+                        vec4f current_pixel = pixels[y * high_width + x];
 
                         current_pixel = clamp(current_pixel, 0.f, 1.f);
                         current_pixel = lin_to_srgb(current_pixel);
