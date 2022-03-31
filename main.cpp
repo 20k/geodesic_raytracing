@@ -1130,10 +1130,6 @@ int main()
 
             if(!taking_screenshot && !hide_ui)
             {
-                std::vector<const char*> items = get_imgui_view(metric_names);
-
-                assert(items.size() > 0);
-
                 ImGui::Begin("DBG", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 
                 bool should_soft_recompile = false;
@@ -1235,7 +1231,7 @@ int main()
                 cl::context& context = clctx.ctx;
 
                 auto check_recompile = [should_recompile, &current_idx, &selected_idx, should_soft_recompile,
-                                        &parent_directories, &all_content, &items, &metric_names, &current_metric, &selected_error,
+                                        &parent_directories, &all_content, &metric_names, &current_metric, &selected_error,
                                         &dynamic_config, &cqueue, &cfg, &sett, &context,
                                         &substituted_program_opt, &dynamic_program_opt, &termination_buffer]()
                 {
@@ -1249,7 +1245,7 @@ int main()
 
                     if(selected_idx != current_idx)
                     {
-                        metrics::metric* next = parent_directories[selected_idx]->lazy_fetch(all_content, items[selected_idx]);
+                        metrics::metric* next = parent_directories[selected_idx]->lazy_fetch(all_content, metric_names[selected_idx]);
 
                         if(next == nullptr)
                         {
