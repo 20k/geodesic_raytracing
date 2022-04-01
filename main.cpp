@@ -438,6 +438,21 @@ struct main_menu
 
     void display(render_window& win, input_manager& input)
     {
+        if(state == SETTINGS)
+        {
+            vec2i dim = win.get_window_size();
+
+            vec2i menu_size = dim/2;
+
+            vec2i menu_tl = (dim / 2) - menu_size/2;
+
+            ImGui::SetNextWindowSize(ImVec2(dim.x()/2, dim.y()/2), ImGuiCond_Always);
+
+            ImVec2 tl = ImGui::GetMainViewport()->Pos;
+
+            ImGui::SetNextWindowPos(ImVec2(tl.x + menu_tl.x(), tl.y + menu_tl.y()), ImGuiCond_Always);
+        }
+
         ImGui::Begin("Main Menu", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
 
         //if(ImGui::BeginPopupModal("Main Menu", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse))
