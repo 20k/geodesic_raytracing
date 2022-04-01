@@ -373,7 +373,7 @@ struct main_menu
                 ImGui::EndTabItem();
             }
 
-            if(ImGui::BeginTabItem("Controls"))
+            if(ImGui::BeginTabItem("Keybinds"))
             {
                 input.display_key_rebindings(win);
 
