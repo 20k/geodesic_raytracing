@@ -24,6 +24,7 @@
 #include "metric_manager.hpp"
 #include "graphics_settings.hpp"
 #include <networking/serialisable.hpp>
+#include "input_manager.hpp"
 //#include "dual_complex.hpp"
 
 /**
@@ -739,6 +740,7 @@ int main()
     style.WindowBorderSize = 1;
 
     raw_input raw_input_manager;
+    input_manager input;
 
     metric_manager metric_manage;
 
@@ -823,7 +825,7 @@ int main()
 
         win.poll();
 
-        if(ImGui::IsKeyPressed(GLFW_KEY_TAB))
+        if(input.is_key_pressed("toggle_mouse"))
             raw_input_manager.set_enabled(win, !raw_input_manager.is_enabled);
 
         if(open_main_menu_trigger)
@@ -894,7 +896,7 @@ int main()
             win.backend->set_is_maximised(!win.backend->is_maximised());
         }
 
-        if(ImGui::IsKeyPressed(GLFW_KEY_F1))
+        if(input.is_key_pressed("hide_ui"))
         {
             hide_ui = !hide_ui;
         }
@@ -983,64 +985,34 @@ int main()
 
             if(!menu.is_open && !ImGui::GetIO().WantCaptureKeyboard)
             {
-                if(ImGui::IsKeyDown(GLFW_KEY_LEFT_SHIFT))
+                if(input.is_key_down("speed_10x"))
                     speed *= 10;
 
-                if(ImGui::IsKeyDown(GLFW_KEY_LEFT_CONTROL))
+                if(input.is_key_down("speed_superslow"))
                     speed = 0.00001;
 
-                if(ImGui::IsKeyDown(GLFW_KEY_LEFT_ALT))
+                if(input.is_key_down("speed_100th"))
                     speed /= 100;
 
-                if(ImGui::IsKeyDown(GLFW_KEY_X))
+                if(input.is_key_down("speed_100x"))
                     speed *= 100;
 
-                if(ImGui::IsKeyPressed(GLFW_KEY_B))
-                {
-                    camera = {0, 0, 0, -100};
-                }
-
-                if(ImGui::IsKeyPressed(GLFW_KEY_N))
+                if(input.is_key_down("camera_reset"))
                 {
                     camera = {0, 0, 0, -4};
                 }
 
-                if(ImGui::IsKeyPressed(GLFW_KEY_M))
-                {
-                    camera = {0, 0, 0, 1.16};
-                }
-
-                if(ImGui::IsKeyPressed(GLFW_KEY_J))
-                {
-                    camera = {0, -1.16, 0, 0};
-                }
-
-                if(ImGui::IsKeyPressed(GLFW_KEY_K))
-                {
-                    camera = {0, 1.16, 0, 0};
-                }
-
-                if(ImGui::IsKeyPressed(GLFW_KEY_V))
-                {
-                    camera = {0, 0, 0, 1.03};
-                }
-
-                if(ImGui::IsKeyPressed(GLFW_KEY_C))
+                if(input.is_key_down("camera_centre"))
                 {
                     camera = {0, 0, 0, 0};
-                }
-
-                if(ImGui::IsKeyPressed(GLFW_KEY_R))
-                {
-                    camera = {0, 0, 22, 0};
                 }
 
                 vec2f delta;
 
                 if(!raw_input_manager.is_enabled)
                 {
-                    delta.x() = (float)ImGui::IsKeyDown(GLFW_KEY_RIGHT) - (float)ImGui::IsKeyDown(GLFW_KEY_LEFT);
-                    delta.y() = (float)ImGui::IsKeyDown(GLFW_KEY_DOWN) - (float)ImGui::IsKeyDown(GLFW_KEY_UP);
+                    delta.x() = (float)input.is_key_down("camera_turn_right") - (float)input.is_key_down("camera_turn_left");
+                    delta.y() = (float)input.is_key_down("camera_turn_up") - (float)input.is_key_down("camera_turn_down");
                 }
                 else
                 {
@@ -1061,7 +1033,7 @@ int main()
                     camera_quat = q * camera_quat;
                 }
 
-                if(ImGui::IsKeyPressed(GLFW_KEY_1))
+                if(input.is_key_down("toggle_wormhole_space"))
                 {
                     flip_sign = !flip_sign;
                 }
@@ -1080,9 +1052,9 @@ int main()
 
                 vec3f offset = {0,0,0};
 
-                offset += current_settings.keyboard_sensitivity * controls_multiplier * forward_axis * ((ImGui::IsKeyDown(GLFW_KEY_W) - ImGui::IsKeyDown(GLFW_KEY_S)) * speed);
-                offset += current_settings.keyboard_sensitivity * controls_multiplier * right * (ImGui::IsKeyDown(GLFW_KEY_D) - ImGui::IsKeyDown(GLFW_KEY_A)) * speed;
-                offset += current_settings.keyboard_sensitivity * controls_multiplier * up * (ImGui::IsKeyDown(GLFW_KEY_E) - ImGui::IsKeyDown(GLFW_KEY_Q)) * speed;
+                offset += current_settings.keyboard_sensitivity * controls_multiplier * forward_axis * ((input.is_key_down("forward") - input.is_key_down("back")) * speed);
+                offset += current_settings.keyboard_sensitivity * controls_multiplier * right * (input.is_key_down("right") - input.is_key_down("left")) * speed;
+                offset += current_settings.keyboard_sensitivity * controls_multiplier * up * (input.is_key_down("down") - input.is_key_down("up")) * speed;
 
                 camera.y() += offset.x();
                 camera.z() += offset.y();
