@@ -1127,8 +1127,11 @@ int main()
             {
                 ImGui::Begin("DBG", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 
-                if(ImGui::TreeNode("General"))
+                ImGui::Text("General");
+
                 {
+                    ImGui::Indent();
+
                     ImGui::DragFloat3("Polar Pos", &scamera.v[1]);
                     ImGui::DragFloat3("Cart Pos", &camera.v[1]);
                     ImGui::SliderFloat("Camera Time", &camera.v[0], 0.f, 100.f);
@@ -1143,11 +1146,14 @@ int main()
                     if(ImGui::Button("Screenshot"))
                         should_take_screenshot = true;
 
-                    ImGui::TreePop();
+                    ImGui::Unindent();
                 }
 
-                if(ImGui::TreeNode("Metric Settings"))
+                ImGui::Text("Metric Settings");
+
                 {
+                    ImGui::Indent();
+
                     ImGui::Text("Dynamic Options");
 
                     ImGui::Indent();
@@ -1196,11 +1202,14 @@ int main()
 
                     ImGui::Unindent();
 
-                    ImGui::TreePop();
+                    ImGui::Unindent();
                 }
 
-                if(ImGui::TreeNode("Paths"))
+                ImGui::Text("Paths");
+
                 {
+                    ImGui::Indent();
+
                     ImGui::DragFloat("Geodesic Camera Time", &current_geodesic_time, 0.1, 0.f, 0.f);
 
                     ImGui::Checkbox("Use Camera Geodesic", &camera_on_geodesic);
@@ -1217,7 +1226,7 @@ int main()
 
                     ImGui::Checkbox("Camera Snapshot Geodesic goes forward", &camera_geodesics_go_foward);
 
-                    ImGui::TreePop();
+                    ImGui::Unindent();
                 }
 
                 ImGui::End();
