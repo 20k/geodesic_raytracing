@@ -1,7 +1,11 @@
 #include "input_manager.hpp"
+#include <toolkit/render_window.hpp>
 #include <GLFW/glfw3.h>
 #include <imgui/imgui.h>
 #include <stdexcept>
+#include <nlohmann/json.hpp>
+#include <toolkit/fs_helpers.hpp>
+#include <iostream>
 
 input_manager::input_manager()
 {
@@ -29,6 +33,79 @@ input_manager::input_manager()
     };
 
     for(auto [k, v] : linear_keys)
+    {
+        rebind(k, v);
+    }
+
+    if(file::exists("input.json"))
+    {
+        try
+        {
+            nlohmann::json js = nlohmann::json::parse(file::read("input.json", file::mode::BINARY));
+
+            std::map<std::string, int, std::less<>> extras = js.get<std::map<std::string, int, std::less<>>>();
+
+            for(auto& [k, v] : extras)
+            {
+                rebind(k, v);
+            }
+        }
+        catch(std::exception& ex)
+        {
+            std::cout << "Failed to load input.json " << ex.what() << std::endl;
+        }
+    }
+}
+
+void input_manager::display_key_rebindings(render_window& win)
+{
+    std::vector<std::pair<std::string, int>> to_rebind;
+
+    for(auto& [purpose, key] : glfw_key_map)
+    {
+        std::string name = win.backend->get_key_name(key);
+        std::string dummy_buf = "0";
+
+        std::string c_key_name;
+
+        if(name.size() == 0)
+        {
+            c_key_name = std::to_string(key);
+        }
+        else
+        {
+            c_key_name = name;
+        }
+
+        ImGui::Text(purpose.c_str());
+
+        ImGui::SameLine();
+
+        ImGui::InputText((c_key_name + "##purpose" + purpose).c_str(), &dummy_buf[0], 1, ImGuiInputTextFlags_EnterReturnsTrue);
+
+        if(ImGui::IsItemActive())
+        {
+            int key_count = sizeof(ImGui::GetIO().KeysDown) / sizeof(ImGui::GetIO().KeysDown[0]);
+
+            int which_key = -1;
+
+            for(int i=0; i < key_count; i++)
+            {
+                if(ImGui::IsKeyDown(i))
+                {
+                    which_key = i;
+                    break;
+                }
+            }
+
+            if(which_key != -1)
+            {
+                to_rebind.push_back({purpose, which_key});
+            }
+        }
+    }
+
+    for(const auto& [k, v] : to_rebind)
     {
         rebind(k, v);
     }

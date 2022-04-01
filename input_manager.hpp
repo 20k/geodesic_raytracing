@@ -7,12 +7,16 @@
 #include <utility>
 #include <map>
 
+struct render_window;
+
 struct input_manager
 {
     std::vector<std::pair<std::string, int>> linear_keys;
     std::map<std::string, int, std::less<>> glfw_key_map;
 
     input_manager();
+
+    void display_key_rebindings(render_window& win);
 
     bool is_key_down(std::string_view view);
     bool is_key_pressed(std::string_view view);

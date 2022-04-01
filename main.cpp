@@ -362,9 +362,11 @@ struct main_menu
         }
     }
 
-    void display_settings_menu()
+    void display_settings_menu(render_window& win, input_manager& input)
     {
         dirty_settings |= sett.display();
+
+        input.display_key_rebindings(win);
 
         if(ImGui::Button("Back"))
         {
@@ -412,7 +414,7 @@ struct main_menu
         should_open = false;
     }
 
-    void display()
+    void display(render_window& win, input_manager& input)
     {
         ImGui::Begin("Main Menu", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
 
@@ -427,7 +429,7 @@ struct main_menu
 
             if(current_state == SETTINGS)
             {
-                display_settings_menu();
+                display_settings_menu(win, input);
             }
 
             if(current_state == QUIT)
@@ -910,7 +912,7 @@ int main()
         if(menu.is_open)
         {
             hide_ui = false;
-            menu.display();
+            menu.display(win, input);
         }
 
         {
