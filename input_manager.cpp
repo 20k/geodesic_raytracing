@@ -57,17 +57,6 @@ input_manager::input_manager()
     }
 }
 
-int get_default_key(input_manager& input, std::string_view view)
-{
-    for(auto& i : input.linear_keys)
-    {
-        if(i.first == view)
-            return i.second;
-    }
-
-    return -1;
-}
-
 void input_manager::display_key_rebindings(render_window& win)
 {
     std::vector<std::pair<std::string, int>> to_rebind;
@@ -79,7 +68,7 @@ void input_manager::display_key_rebindings(render_window& win)
         max_length = std::max(max_length, (int)purpose.size());
     }
 
-    for(auto& [purpose, _] : linear_keys)
+    for(auto& [purpose, default_key] : linear_keys)
     {
         int key = glfw_key_map[purpose];
 
@@ -135,13 +124,20 @@ void input_manager::display_key_rebindings(render_window& win)
 
         if(ImGui::Button(("Reset##" + purpose).c_str()))
         {
-            to_rebind.push_back({purpose, get_default_key(*this, purpose)});
+            to_rebind.push_back({purpose, default_key});
         }
     }
 
     for(const auto& [k, v] : to_rebind)
     {
         rebind(k, v);
+    }
+
+    if(to_rebind.size() > 0)
+    {
+        nlohmann::json js = glfw_key_map;
+
+        file::write("input.json", js.dump(), file::mode::BINARY);
     }
 }
 
