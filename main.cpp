@@ -364,9 +364,24 @@ struct main_menu
 
     void display_settings_menu(render_window& win, input_manager& input)
     {
-        dirty_settings |= sett.display();
+        if(ImGui::BeginTabBar("Tab Bar"))
+        {
+            if(ImGui::BeginTabItem("Video"))
+            {
+                dirty_settings |= sett.display();
 
-        input.display_key_rebindings(win);
+                ImGui::EndTabItem();
+            }
+
+            if(ImGui::BeginTabItem("Controls"))
+            {
+                input.display_key_rebindings(win);
+
+                ImGui::EndTabItem();
+            }
+
+            ImGui::EndTabBar();
+        }
 
         if(ImGui::Button("Back"))
         {

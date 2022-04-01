@@ -137,7 +137,7 @@ void input_manager::display_key_rebindings(render_window& win)
     {
         nlohmann::json js = glfw_key_map;
 
-        file::write("input.json", js.dump(), file::mode::BINARY);
+        file::write_atomic("input.json", js.dump(), file::mode::BINARY);
     }
 }
 
