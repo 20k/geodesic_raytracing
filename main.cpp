@@ -23,6 +23,7 @@
 #include "raw_input.hpp"
 #include "metric_manager.hpp"
 #include "graphics_settings.hpp"
+#include <networking/serialisable.hpp>
 //#include "dual_complex.hpp"
 
 /**
@@ -485,6 +486,26 @@ int main()
 
     //dual_types::test_operation();
 
+    graphics_settings current_settings;
+
+    bool loaded_settings = false;
+
+    if(file::exists("settings.json"))
+    {
+        try
+        {
+            nlohmann::json js = nlohmann::json::parse(file::read("settings.json", file::mode::BINARY));
+
+            deserialise<graphics_settings>(js, current_settings, serialise_mode::DISK);
+
+            loaded_settings = true;
+        }
+        catch(std::exception& ex)
+        {
+            std::cout << "Failed to load settings.json " << ex.what() << std::endl;
+        }
+    }
+
     render_settings sett;
     sett.width = 800;
     sett.height = 600;
@@ -494,10 +515,29 @@ int main()
     sett.no_decoration = true;
     sett.viewports = false;
 
+    if(loaded_settings)
+    {
+        sett.width = current_settings.width;
+        sett.height = current_settings.height;
+    }
+
     render_window win(sett, "Geodesics");
 
-    win.backend->set_is_maximised(true);
-    win.backend->clear_demaximise_cache();
+    if(loaded_settings)
+    {
+        win.set_vsync(current_settings.vsync_enabled);
+        win.backend->set_is_maximised(current_settings.fullscreen);
+
+        if(current_settings.fullscreen)
+        {
+            win.backend->clear_demaximise_cache();
+        }
+    }
+    else
+    {
+        win.backend->set_is_maximised(true);
+        win.backend->clear_demaximise_cache();
+    }
 
     assert(win.clctx);
 
@@ -702,11 +742,10 @@ int main()
 
     metric_manager metric_manage;
 
-    graphics_settings current_settings;
-
     current_settings.width = win.get_window_size().x();
     current_settings.height = win.get_window_size().y();
     current_settings.vsync_enabled = win.backend->is_vsync();
+    current_settings.fullscreen = win.backend->is_maximised();
 
     while(!win.should_close() && !menu.should_quit && fullscreen.open)
     {
@@ -724,11 +763,15 @@ int main()
                 win.backend->set_vsync(current_settings.vsync_enabled);
             }
 
-            menu.dirty_settings = false;
+            if(win.backend->is_maximised() != current_settings.fullscreen)
+            {
+                win.backend->set_is_maximised(current_settings.fullscreen);
+            }
+
+            file::write_atomic("./settings.json", serialise(current_settings, serialise_mode::DISK).dump(), file::mode::BINARY);
         }
 
-        ///it isn't possible for a lot of these settings to be modified, this whole system is a mess
-        if(!menu.is_open)
+        if(!menu.is_open || menu.dirty_settings)
         {
             vec2i real_dim = win.get_window_size();
 
@@ -737,7 +780,10 @@ int main()
             menu.sett.width = real_dim.x();
             menu.sett.height = real_dim.y();
             menu.sett.vsync_enabled = win.backend->is_vsync();
+            menu.sett.fullscreen = win.backend->is_maximised();
         }
+
+        menu.dirty_settings = false;
 
         exec.poll();
 

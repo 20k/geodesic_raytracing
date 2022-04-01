@@ -12,7 +12,7 @@ struct graphics_settings : serialisable, free_function
     int screenshot_width = 1920;
     int screenshot_height = 1080;
 
-    bool fullscreen = false;
+    bool fullscreen = true;
 
     int supersample_factor = 2;
     bool supersample = false;

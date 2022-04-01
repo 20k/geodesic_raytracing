@@ -24,10 +24,10 @@ bool graphics_settings::display()
 
     ImGui::Checkbox("Fullscreen", &fullscreen);
 
+    ImGui::Checkbox("Vsync", &vsync_enabled);
+
     ImGui::Checkbox("Supersample", &supersample);
     ImGui::InputInt("Supersample Factor", &supersample_factor);
-
-    ImGui::Checkbox("Vsync", &vsync_enabled);
 
     ImGui::InputInt("Screenshot Width", &screenshot_width);
     ImGui::InputInt("Screenshot Height", &screenshot_height);
