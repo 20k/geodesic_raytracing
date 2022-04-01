@@ -57,6 +57,17 @@ input_manager::input_manager()
     }
 }
 
+int get_default_key(input_manager& input, std::string_view view)
+{
+    for(auto& i : input.linear_keys)
+    {
+        if(i.first == view)
+            return i.second;
+    }
+
+    return -1;
+}
+
 void input_manager::display_key_rebindings(render_window& win)
 {
     std::vector<std::pair<std::string, int>> to_rebind;
@@ -118,6 +129,13 @@ void input_manager::display_key_rebindings(render_window& win)
             {
                 to_rebind.push_back({purpose, which_key});
             }
+        }
+
+        ImGui::SameLine();
+
+        if(ImGui::Button(("Reset##" + purpose).c_str()))
+        {
+            to_rebind.push_back({purpose, get_default_key(*this, purpose)});
         }
     }
 
