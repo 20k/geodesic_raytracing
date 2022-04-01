@@ -24,7 +24,8 @@ struct graphics_settings : serialisable, free_function
     float keyboard_sensitivity = 1;
 
     ///Returns true if we need to refresh our opencl context
-    bool display();
+    bool display_video_settings();
+    bool display_control_settings();
 };
 
 DECLARE_SERIALISE_FUNCTION(graphics_settings);

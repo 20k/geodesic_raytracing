@@ -368,7 +368,14 @@ struct main_menu
         {
             if(ImGui::BeginTabItem("Video"))
             {
-                dirty_settings |= sett.display();
+                dirty_settings |= sett.display_video_settings();
+
+                ImGui::EndTabItem();
+            }
+
+            if(ImGui::BeginTabItem("Controls"))
+            {
+                dirty_settings |= sett.display_control_settings();
 
                 ImGui::EndTabItem();
             }

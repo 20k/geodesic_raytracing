@@ -17,7 +17,7 @@ DEFINE_SERIALISE_FUNCTION(graphics_settings)
     DO_FSERIALISE(keyboard_sensitivity);
 }
 
-bool graphics_settings::display()
+bool graphics_settings::display_video_settings()
 {
     ImGui::InputInt("Width", &width);
     ImGui::InputInt("Height", &height);
@@ -32,6 +32,13 @@ bool graphics_settings::display()
     ImGui::InputInt("Screenshot Width", &screenshot_width);
     ImGui::InputInt("Screenshot Height", &screenshot_height);
 
+    ImGui::NewLine();
+
+    return ImGui::Button("Apply");
+}
+
+bool graphics_settings::display_control_settings()
+{
     ImGui::Checkbox("Time adjusted controls", &time_adjusted_controls);
 
     if(ImGui::IsItemHovered())
