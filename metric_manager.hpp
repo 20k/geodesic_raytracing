@@ -7,8 +7,10 @@ struct metric_manager
     int selected_idx = -1;
     metrics::metric* current_metric = nullptr;
 
+    bool using_swapped = false;
     std::optional<cl::program> substituted_program_opt;
     std::optional<cl::program> dynamic_program_opt;
+    std::optional<cl::program> pending_dynamic_program_opt;
 
     void check_recompile(bool should_recompile, bool should_soft_recompile,
                          const std::vector<content*>& parent_directories, content_manager& all_content, std::vector<std::string>& metric_names,
@@ -22,8 +24,12 @@ struct metric_manager
         if(selected_idx == -1)
             selected_idx = 0;
 
+        bool should_block = false;
+
         if(selected_idx != current_idx)
         {
+            should_block = true;
+
             metrics::metric* next = parent_directories[selected_idx]->lazy_fetch(all_content, metric_names[selected_idx]);
 
             if(next == nullptr)
@@ -71,11 +77,9 @@ struct metric_manager
 
         if(should_hard_recompile)
         {
+            using_swapped = false;
+
             printf("Building\n");
-
-            if(context.programs.size() > 0)
-                context.deregister_program(0);
-
             std::string dynamic_argument_string = argument_string_prefix + build_argument_string(*current_metric, current_metric->desc.abstract, cfg, {});
 
             file::write("./argument_string.txt", dynamic_argument_string, file::mode::TEXT);
@@ -87,19 +91,38 @@ struct metric_manager
             }
 
             dynamic_program_opt = std::nullopt;
-            dynamic_program_opt.emplace(context, "cl.cl");
-            dynamic_program_opt->build(context, dynamic_argument_string);
+            substituted_program_opt = std::nullopt;
 
-            context.register_program(*dynamic_program_opt);
+            cl::program pending(context, "cl.cl");
+            pending.build(context, dynamic_argument_string);
+
+            if(should_block)
+            {
+                dynamic_program_opt = pending;
+
+                if(context.programs.size() > 0)
+                    context.deregister_program(0);
+
+                context.register_program(*dynamic_program_opt);
+            }
+            else
+            {
+                pending_dynamic_program_opt = pending;
+            }
         }
 
         if(should_soft_recompile || should_hard_recompile)
         {
-            if(context.programs.size() > 0)
-                context.deregister_program(0);
+            if(using_swapped)
+            {
+                if(context.programs.size() > 0)
+                    context.deregister_program(0);
 
-            ///Reregister the dynamic program again, static is invalid
-            context.register_program(*dynamic_program_opt);
+                ///Reregister the dynamic program again, static is invalid
+                context.register_program(*dynamic_program_opt);
+            }
+
+            using_swapped = false;
 
             auto substitution_map = current_metric->sand.cfg.as_substitution_map();
 
@@ -123,6 +146,22 @@ struct metric_manager
 
     void check_substitution(cl::context& ctx)
     {
+        if(pending_dynamic_program_opt.has_value())
+        {
+            cl::program& pending = pending_dynamic_program_opt.value();
+
+            if(pending.is_built() && !using_swapped)
+            {
+                if(ctx.programs.size() > 0)
+                    ctx.deregister_program(0);
+
+                ctx.register_program(pending);
+
+                dynamic_program_opt = pending_dynamic_program_opt;
+                pending_dynamic_program_opt = std::nullopt;
+            }
+        }
+
         if(substituted_program_opt.has_value())
         {
             cl::program& pending = substituted_program_opt.value();
@@ -137,6 +176,7 @@ struct metric_manager
                 ctx.register_program(pending);
 
                 substituted_program_opt = std::nullopt;
+                using_swapped = true;
             }
         }
     }
