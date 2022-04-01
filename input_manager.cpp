@@ -61,8 +61,17 @@ void input_manager::display_key_rebindings(render_window& win)
 {
     std::vector<std::pair<std::string, int>> to_rebind;
 
+    int max_length = 0;
+
     for(auto& [purpose, key] : glfw_key_map)
     {
+        max_length = std::max(max_length, (int)purpose.size());
+    }
+
+    for(auto& [purpose, _] : linear_keys)
+    {
+        int key = glfw_key_map[purpose];
+
         std::string name = win.backend->get_key_name(key);
         std::string dummy_buf = "0";
 
@@ -77,11 +86,18 @@ void input_manager::display_key_rebindings(render_window& win)
             c_key_name = name;
         }
 
-        ImGui::Text(purpose.c_str());
+        std::string resized_purpose = purpose;
+
+        for(int i=resized_purpose.size(); i < max_length; i++)
+        {
+            resized_purpose.push_back(' ');
+        }
+
+        ImGui::Text(resized_purpose.c_str());
 
         ImGui::SameLine();
 
-        ImGui::InputText((c_key_name + "##purpose" + purpose).c_str(), &dummy_buf[0], 1, ImGuiInputTextFlags_EnterReturnsTrue);
+        ImGui::InputText(("##purpose" + purpose).c_str(), &c_key_name[0], c_key_name.size(), ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_ReadOnly);
 
         if(ImGui::IsItemActive())
         {
