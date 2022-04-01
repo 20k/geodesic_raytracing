@@ -46,7 +46,6 @@
 			<Add option="-std=c++20" />
 			<Add option="-fexceptions" />
 			<Add option="`pkg-config --cflags freetype2`" />
-			<Add option="-Wall" />
 			<Add option="-DIMGUI_IMPL_OPENGL_LOADER_GLEW" />
 			<Add option="-DSUBPIXEL_FONT_RENDERING" />
 			<Add option="-DSFML_STATIC" />
@@ -56,6 +55,7 @@
 			<Add option="-DIMGUI_ENABLE_FREETYPE" />
 			<Add option='-DCONFIG_VERSION=&quot;&quot;' />
 			<Add option="-DCONFIG_BIGNUM" />
+			<Add option="-DNO_SERIALISE_RATELIMIT" />
 			<Add directory="deps" />
 			<Add directory="deps/imgui" />
 			<Add directory="deps/steamworks_sdk_153a/sdk/public" />
@@ -157,6 +157,8 @@
 		<Unit filename="equation_context.hpp" />
 		<Unit filename="fullscreen_window_manager.cpp" />
 		<Unit filename="fullscreen_window_manager.hpp" />
+		<Unit filename="graphics_settings.cpp" />
+		<Unit filename="graphics_settings.hpp" />
 		<Unit filename="js_interop.cpp" />
 		<Unit filename="js_interop.hpp" />
 		<Unit filename="main.cpp" />

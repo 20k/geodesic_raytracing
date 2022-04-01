@@ -22,6 +22,7 @@
 #include "fullscreen_window_manager.hpp"
 #include "raw_input.hpp"
 #include "metric_manager.hpp"
+#include "graphics_settings.hpp"
 //#include "dual_complex.hpp"
 
 /**
@@ -313,56 +314,6 @@ int calculate_ray_count(int width, int height)
     return (height - 1) * width + width - 1;
 }
 
-struct graphics_settings
-{
-    int width = 1920;
-    int height = 1080;
-
-    int screenshot_width = 1920;
-    int screenshot_height = 1080;
-
-    bool fullscreen = false;
-
-    int supersample_factor = 2;
-    bool supersample = false;
-
-    bool vsync_enabled = false;
-    bool time_adjusted_controls = true;
-
-    float mouse_sensitivity = 1;
-    float keyboard_sensitivity = 1;
-
-    ///Returns true if we need to refresh our opencl context
-    bool display()
-    {
-        ImGui::InputInt("Width", &width);
-        ImGui::InputInt("Height", &height);
-
-        ImGui::Checkbox("Fullscreen", &fullscreen);
-
-        ImGui::Checkbox("Supersample", &supersample);
-        ImGui::InputInt("Supersample Factor", &supersample_factor);
-
-        ImGui::Checkbox("Vsync", &vsync_enabled);
-
-        ImGui::InputInt("Screenshot Width", &screenshot_width);
-        ImGui::InputInt("Screenshot Height", &screenshot_height);
-
-        ImGui::Checkbox("Time adjusted controls", &time_adjusted_controls);
-
-        if(ImGui::IsItemHovered())
-        {
-            ImGui::SetTooltip("Setting this to true means that camera moves at a constant amount per second\nSetting this to false means that the camera moves at a constant speed per frame");
-        }
-
-        ImGui::SliderFloat("Mouse Sensitivity", &mouse_sensitivity, 0.f, 5.f);
-        ImGui::SliderFloat("Keyboard Sensitivity", &keyboard_sensitivity, 0.f, 5.f);
-
-        ImGui::NewLine();
-
-        return ImGui::Button("Apply");
-    }
-};
 
 struct main_menu
 {
