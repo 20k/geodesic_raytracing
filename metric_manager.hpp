@@ -90,8 +90,13 @@ struct metric_manager
                 substituted_program_opt = std::nullopt;
             }
 
+            if(pending_dynamic_program_opt.has_value())
+            {
+                pending_dynamic_program_opt->cancel();
+                pending_dynamic_program_opt = std::nullopt;
+            }
+
             dynamic_program_opt = std::nullopt;
-            substituted_program_opt = std::nullopt;
 
             cl::program pending(context, "cl.cl");
             pending.build(context, dynamic_argument_string);
