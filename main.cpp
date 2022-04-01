@@ -1072,7 +1072,7 @@ int main()
                     camera_quat = q * camera_quat;
                 }
 
-                if(input.is_key_down("toggle_wormhole_space"))
+                if(input.is_key_pressed("toggle_wormhole_space"))
                 {
                     flip_sign = !flip_sign;
                 }
