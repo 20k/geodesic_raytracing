@@ -992,9 +992,6 @@ int main()
                 if(ImGui::IsKeyDown(GLFW_KEY_LEFT_ALT))
                     speed /= 100;
 
-                if(ImGui::IsKeyDown(GLFW_KEY_Z))
-                    speed *= 100;
-
                 if(ImGui::IsKeyDown(GLFW_KEY_X))
                     speed *= 100;
 
@@ -1005,7 +1002,7 @@ int main()
 
                 if(ImGui::IsKeyPressed(GLFW_KEY_N))
                 {
-                    camera = {0, 0, 0, -1.16};
+                    camera = {0, 0, 0, -4};
                 }
 
                 if(ImGui::IsKeyPressed(GLFW_KEY_M))

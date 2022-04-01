@@ -159,6 +159,8 @@
 		<Unit filename="fullscreen_window_manager.hpp" />
 		<Unit filename="graphics_settings.cpp" />
 		<Unit filename="graphics_settings.hpp" />
+		<Unit filename="input_manager.cpp" />
+		<Unit filename="input_manager.hpp" />
 		<Unit filename="js_interop.cpp" />
 		<Unit filename="js_interop.hpp" />
 		<Unit filename="main.cpp" />
