@@ -1,4 +1,4 @@
 {
-	"name": "schwarzschild_accurate",
+	"name": "schwarzschild",
 	"inherit_settings": "polar_base"
 }
