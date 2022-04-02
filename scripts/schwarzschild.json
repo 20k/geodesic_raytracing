@@ -1,5 +1,5 @@
 {
-	"name": "schwarzschild",
+	"name": "schwarzschild_fast",
 	"adaptive_precision": false,
 	"singular": true,
 	"detect_singularities": false,

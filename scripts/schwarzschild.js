@@ -1,8 +1,6 @@
 function metric(t, r, theta, phi)
 {
-	$cfg.rs.$default = 1;
-	
-    var rs = $cfg.rs;
+    var rs = 1;
     var c = 1;
 
     var dt = -(1 - rs / r) * c * c;

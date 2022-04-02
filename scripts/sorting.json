@@ -1,5 +1,5 @@
 [
-"schwarzschild.js",
+"schwarzschild_accurate.js",
 "kerr_boyer.js",
 "kerr_newman_boyer.js",
 "kerr_rational_polynomial.js",
@@ -18,7 +18,7 @@
 "double_unequal_kerr.js",
 "ernst.js",
 "janis_newman_winicour.js",
-"schwarzschild_accurate.js",
+"schwarzschild.js",
 "minkowski.js",
 "symmetric_warp_drive.js"
 ]
