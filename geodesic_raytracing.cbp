@@ -244,8 +244,6 @@
 		<Unit filename="scripts/schwarzschild_accurate.json" />
 		<Unit filename="scripts/wormhole.js" />
 		<Unit filename="scripts/wormhole.json" />
-		<Unit filename="steam.cpp" />
-		<Unit filename="steam.hpp" />
 		<Unit filename="workshop/steam_ugc_manager.cpp" />
 		<Unit filename="workshop/steam_ugc_manager.hpp" />
 		<Extensions>

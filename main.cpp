@@ -15,7 +15,6 @@
 #include "js_interop.hpp"
 #include <toolkit/fs_helpers.hpp>
 #include <filesystem>
-#include "steam.hpp"
 #include "workshop/steam_ugc_manager.hpp"
 #include "content_manager.hpp"
 #include "equation_context.hpp"
