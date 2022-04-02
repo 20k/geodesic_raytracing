@@ -4,5 +4,6 @@
 	"detect_singularities": true,
 	"use_prepass": false,
 	"max_acceleration_change": 0.000001,
-	"inherit_settings": "polar_base"
+	"inherit_settings": "polar_base",
+	"description": "A charged, spinning black hole\nThis metric is a good one for observing naked singularities, set the charge and spin up until the event horizon disappears"
 }

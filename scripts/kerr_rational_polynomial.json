@@ -11,5 +11,6 @@
 	"max_acceleration_change": 0.000001,
 	"to_polar": "rational_to_polar",
 	"from_polar": "polar_to_rational",
-	"origin_distance": "at_origin"
+	"origin_distance": "at_origin",
+	"description": "The kerr metric in rational polynomial form\nThis may be faster than standard kerr"
 }

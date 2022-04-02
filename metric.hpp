@@ -114,6 +114,7 @@ namespace metrics
     struct metric_config
     {
         std::string name;
+        std::string description;
         bool use_prepass = false;
         float max_acceleration_change = 0.0000001f;
 
@@ -142,6 +143,9 @@ namespace metrics
             {
                 if(key == "name")
                     name = value;
+
+                else if(key == "description")
+                    description = value;
 
                 else if(key == "use_prepass")
                     use_prepass = value;

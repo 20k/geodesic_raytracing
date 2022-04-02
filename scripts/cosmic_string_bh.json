@@ -3,5 +3,6 @@
 	"adaptive_precision": true,
 	"detect_singularities": true,
 	"max_acceleration_change": 0.000001,
-	"inherit_settings": "polar_base"
+	"inherit_settings": "polar_base",
+	"description": "A cosmic string embedded in a black hole"
 }

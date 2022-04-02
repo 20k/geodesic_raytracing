@@ -12,5 +12,6 @@
 	"max_acceleration_change": 0.000001,
 	"to_polar": "cylindrical_to_polar",
 	"from_polar": "polar_to_cylindrical",
-	"origin_distance": "at_origin"
+	"origin_distance": "at_origin",
+	"description": "The original krasnikov tube metric in cylindrical coordinates\nDue to the cylindrical coordinate singularity, this renders very poorly compared to the cartesian version, though they are functionally equivalent" 
 }

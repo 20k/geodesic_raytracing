@@ -3,5 +3,6 @@
 	"adaptive_precision": true,
 	"detect_singularities": false,
 	"max_acceleration_change": 0.000001,
-	"inherit_settings": "polar_base"
+	"inherit_settings": "polar_base",
+	"description": "Kip Thorne's configurable wormhole\nThis is the basis for the wormhole used in Interstellar\nUse the geodesic path tracer to fly through it to the other side"
 }

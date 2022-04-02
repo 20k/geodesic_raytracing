@@ -263,7 +263,7 @@ std::optional<std::filesystem::path> content::lookup_path_to_metric_file(const s
     return std::nullopt;
 }
 
-metrics::metric_config* content::get_config_of_filename(std::filesystem::path filename)
+std::optional<metrics::metric_config*> content::get_config_of_filename(std::filesystem::path filename)
 {
     assert(filename.extension().string() == ".js");
 
@@ -277,7 +277,7 @@ metrics::metric_config* content::get_config_of_filename(std::filesystem::path fi
         }
     }
 
-    throw std::runtime_error("No config for filename " + filename.string());
+    return std::nullopt;
 }
 
 metrics::metric* content::lazy_fetch(content_manager& manage, const std::string& friendly_name)

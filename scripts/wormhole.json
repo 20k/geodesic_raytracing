@@ -2,5 +2,6 @@
 	"name":"wormhole",
 	"adaptive_precision": false,
 	"detect_singularities": false,
-	"inherit_settings": "polar_base"
+	"inherit_settings": "polar_base",
+	"description": "The morris-thorne wormhole, one of the simplest traversable wormholes\nUse the geodesic path tracer to fly through the centre"
 }

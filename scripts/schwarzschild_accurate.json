@@ -1,4 +1,5 @@
 {
 	"name": "schwarzschild",
-	"inherit_settings": "polar_base"
+	"inherit_settings": "polar_base",
+	"description": "An uncharged, non spinning black hole\nNote that the event horizon is not traversible in the schwarzschild coordinate system, as this is an infinitely far away observer's perspective that can never see an object crossing the event horizon"
 }
