@@ -1125,108 +1125,104 @@ int main()
 
             if(!taking_screenshot && !hide_ui && !menu.is_first_time_main_menu_open())
             {
-                ImGui::Begin("DBG", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+                ImGui::Begin("Settings and Information", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 
-                ImGui::Text("General");
-
+                if(ImGui::BeginTabBar("Tabbity tab tabs"))
                 {
-                    ImGui::Indent();
-
-                    ImGui::DragFloat3("Polar Pos", &scamera.v[1]);
-                    ImGui::DragFloat3("Cart Pos", &camera.v[1]);
-                    ImGui::SliderFloat("Camera Time", &camera.v[0], 0.f, 100.f);
-
-                    ImGui::DragFloat("Frametime", &time);
-
-                    ImGui::Checkbox("Time Progresses", &time_progresses);
-
-                    if(time_progresses)
-                        camera.v[0] += time / 1000.f;
-
-                    if(ImGui::Button("Screenshot"))
-                        should_take_screenshot = true;
-
-                    ImGui::Unindent();
-                }
-
-                ImGui::Text("Metric Settings");
-
-                {
-                    ImGui::Indent();
-
-                    ImGui::Text("Dynamic Options");
-
-                    ImGui::Indent();
-
-                    if(metric_manage.current_metric)
+                    if(ImGui::BeginTabItem("General"))
                     {
-                        if(metric_manage.current_metric->sand.cfg.display())
+                        ImGui::DragFloat3("Polar Pos", &scamera.v[1]);
+                        ImGui::DragFloat3("Cart Pos", &camera.v[1]);
+                        ImGui::SliderFloat("Camera Time", &camera.v[0], 0.f, 100.f);
+
+                        ImGui::DragFloat("Frametime", &time);
+
+                        ImGui::Checkbox("Time Progresses", &time_progresses);
+
+                        if(time_progresses)
+                            camera.v[0] += time / 1000.f;
+
+                        if(ImGui::Button("Screenshot"))
+                            should_take_screenshot = true;
+
+                        ImGui::EndTabItem();
+                    }
+
+                    if(ImGui::BeginTabItem("Metric Settings"))
+                    {
+                        ImGui::Text("Dynamic Options");
+
+                        ImGui::Indent();
+
+                        if(metric_manage.current_metric)
                         {
-                            int dyn_config_bytes = metric_manage.current_metric->sand.cfg.current_values.size() * sizeof(cl_float);
+                            if(metric_manage.current_metric->sand.cfg.display())
+                            {
+                                int dyn_config_bytes = metric_manage.current_metric->sand.cfg.current_values.size() * sizeof(cl_float);
 
-                            if(dyn_config_bytes < 4)
-                                dyn_config_bytes = 4;
+                                if(dyn_config_bytes < 4)
+                                    dyn_config_bytes = 4;
 
-                            dynamic_config.alloc(dyn_config_bytes);
+                                dynamic_config.alloc(dyn_config_bytes);
 
-                            std::vector<float> vars = metric_manage.current_metric->sand.cfg.current_values;
+                                std::vector<float> vars = metric_manage.current_metric->sand.cfg.current_values;
 
-                            if(vars.size() == 0)
-                                vars.resize(1);
+                                if(vars.size() == 0)
+                                    vars.resize(1);
 
-                            dynamic_config.write(clctx.cqueue, vars);
-                            should_soft_recompile = true;
+                                dynamic_config.write(clctx.cqueue, vars);
+                                should_soft_recompile = true;
+                            }
                         }
+
+                        ImGui::Unindent();
+
+                        ImGui::Text("Compile Options");
+
+                        ImGui::Indent();
+
+                        ImGui::Checkbox("Redshift", &cfg.redshift);
+
+                        ImGui::InputFloat("Error Tolerance", &cfg.error_override, 0.0000001f, 0.00001f, "%.8f");
+
+                        ImGui::DragFloat("Universe Size", &cfg.universe_size, 1, 1, 0, "%.1f");;
+
+                        ImGui::DragFloat("Precision Radius", &cfg.max_precision_radius, 1, 0.0001f, cfg.universe_size, "%.1f");
+
+                        if(ImGui::IsItemHovered())
+                        {
+                            ImGui::SetTooltip("Radius at which lightrays raise their precision checking unconditionally");
+                        }
+
+                        should_recompile |= ImGui::Button("Update");
+
+                        ImGui::Unindent();
+
+                        ImGui::EndTabItem();
                     }
 
-                    ImGui::Unindent();
-
-                    ImGui::Text("Compile Options");
-
-                    ImGui::Indent();
-
-                    ImGui::Checkbox("Redshift", &cfg.redshift);
-
-                    ImGui::InputFloat("Error Tolerance", &cfg.error_override, 0.0000001f, 0.00001f, "%.8f");
-
-                    ImGui::DragFloat("Universe Size", &cfg.universe_size, 1, 1, 0, "%.1f");;
-
-                    ImGui::DragFloat("Precision Radius", &cfg.max_precision_radius, 1, 0.0001f, cfg.universe_size, "%.1f");
-
-                    if(ImGui::IsItemHovered())
+                    if(ImGui::BeginTabItem("Paths"))
                     {
-                        ImGui::SetTooltip("Radius at which lightrays raise their precision checking unconditionally");
+                        ImGui::DragFloat("Geodesic Camera Time", &current_geodesic_time, 0.1, 0.f, 0.f);
+
+                        ImGui::Checkbox("Use Camera Geodesic", &camera_on_geodesic);
+
+                        ImGui::Checkbox("Camera Time Progresses", &camera_time_progresses);
+
+                        if(camera_time_progresses)
+                            current_geodesic_time += time / 1000.f;
+
+                        if(ImGui::Button("Snapshot Camera Geodesic"))
+                        {
+                            should_snapshot_geodesic = true;
+                        }
+
+                        ImGui::Checkbox("Camera Snapshot Geodesic goes forward", &camera_geodesics_go_foward);
+
+                        ImGui::EndTabItem();
                     }
 
-                    should_recompile |= ImGui::Button("Update");
-
-                    ImGui::Unindent();
-
-                    ImGui::Unindent();
-                }
-
-                ImGui::Text("Paths");
-
-                {
-                    ImGui::Indent();
-
-                    ImGui::DragFloat("Geodesic Camera Time", &current_geodesic_time, 0.1, 0.f, 0.f);
-
-                    ImGui::Checkbox("Use Camera Geodesic", &camera_on_geodesic);
-
-                    ImGui::Checkbox("Camera Time Progresses", &camera_time_progresses);
-
-                    if(camera_time_progresses)
-                        current_geodesic_time += time / 1000.f;
-
-                    if(ImGui::Button("Snapshot Camera Geodesic"))
-                    {
-                        should_snapshot_geodesic = true;
-                    }
-
-                    ImGui::Checkbox("Camera Snapshot Geodesic goes forward", &camera_geodesics_go_foward);
-
-                    ImGui::Unindent();
+                    ImGui::EndTabBar();
                 }
 
                 ImGui::End();
