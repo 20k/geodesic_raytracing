@@ -1434,7 +1434,7 @@ int main()
                 assert(pixels.size() == (high_width * high_height));
 
                 sf::Image img;
-                img.create(current_settings.screenshot_width, current_settings.screenshot_height * current_settings.supersample_factor);
+                img.create(high_width, high_height);
 
                 for(int y=0; y < high_height; y++)
                 {
@@ -1457,6 +1457,28 @@ int main()
                 std::string fname = "./screenshots/" + metric_manage.current_metric->metric_cfg.name + "_" + std::to_string(millis) + ".png";
 
                 img.saveToFile(fname);
+
+                bool add_to_steam_library = current_settings.use_steam_screenshots;
+
+                if(steam.is_enabled() && add_to_steam_library)
+                {
+                    std::vector<vec<3, char>> as_rgb;
+                    as_rgb.resize(high_width * high_height);
+
+                    for(int y=0; y < high_height; y++)
+                    {
+                        for(int x=0; x < high_width; x++)
+                        {
+                            sf::Color c = img.getPixel(x, y);
+
+                            as_rgb[y * high_width + x] = {c.r, c.g, c.b};
+                        }
+                    }
+
+                    ISteamScreenshots* iss = SteamAPI_SteamScreenshots();
+
+                    SteamAPI_ISteamScreenshots_WriteScreenshot(iss, as_rgb.data(), sizeof(vec<3, char>) * as_rgb.size(), high_width, high_height);
+               }
             }
 
             if(last_event.has_value())

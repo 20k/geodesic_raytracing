@@ -145,12 +145,17 @@ struct steam_info
     uint32_t account_id = 0;
     uint64_t steam_id = 0;
 
+    ///placeholder functionality
+    bool enabled = false;
+
     steam_info()
     {
         printf("Initialising steam api\n");
 
         if(!SteamAPI_Init())
             throw std::runtime_error("Could not init api");
+
+        enabled = true;
 
         ISteamUtils* util = SteamAPI_SteamUtils();
         ISteamUser* usr = SteamAPI_SteamUser();
@@ -173,6 +178,11 @@ struct steam_info
     steam_info(steam_info&&) = delete;
     steam_info& operator=(const steam_info&) = delete;
     steam_info& operator=(steam_info&&) = delete;
+
+    bool is_enabled()
+    {
+        return enabled;
+    }
 };
 
 struct ugc_view

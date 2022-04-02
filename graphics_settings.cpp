@@ -15,6 +15,7 @@ DEFINE_SERIALISE_FUNCTION(graphics_settings)
     DO_FSERIALISE(time_adjusted_controls);
     DO_FSERIALISE(mouse_sensitivity);
     DO_FSERIALISE(keyboard_sensitivity);
+    DO_FSERIALISE(use_steam_screenshots);
 }
 
 bool graphics_settings::display_video_settings()
@@ -31,6 +32,8 @@ bool graphics_settings::display_video_settings()
 
     ImGui::InputInt("Screenshot Width", &screenshot_width);
     ImGui::InputInt("Screenshot Height", &screenshot_height);
+
+    ImGui::Checkbox("Save screenshots to steam", &use_steam_screenshots);
 
     ImGui::NewLine();
 

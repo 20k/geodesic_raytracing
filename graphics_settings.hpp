@@ -23,6 +23,8 @@ struct graphics_settings : serialisable, free_function
     float mouse_sensitivity = 1;
     float keyboard_sensitivity = 1;
 
+    bool use_steam_screenshots = true;
+
     ///Returns true if we need to refresh our opencl context
     bool display_video_settings();
     bool display_control_settings();
