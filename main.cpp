@@ -1394,6 +1394,7 @@ int main()
                 texture_args.push_back(scamera);
                 texture_args.push_back(camera_quat);
                 texture_args.push_back(base_angle);
+                texture_args.push_back(dynamic_config);
 
                 clctx.cqueue.exec("calculate_texture_coordinates", texture_args, {width * height}, {256});
 
@@ -1407,6 +1408,7 @@ int main()
                 render_args.push_back(height);
                 render_args.push_back(texture_coordinates);
                 render_args.push_back(sam);
+                render_args.push_back(dynamic_config);
 
                 next = clctx.cqueue.exec("render", render_args, {width * height}, {256});
             }

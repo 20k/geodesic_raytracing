@@ -2125,13 +2125,11 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
         {
             int out_id = atomic_inc(finished_count_out);
 
-            float4 polar_velocity = generic_velocity_to_spherical_velocity(position, velocity, cfg);
-
             struct lightray out_ray;
             out_ray.sx = sx;
             out_ray.sy = sy;
-            out_ray.position = polar_position;
-            out_ray.velocity = polar_velocity;
+            out_ray.position = position;
+            out_ray.velocity = velocity;
             out_ray.acceleration = 0;
             out_ray.ku_uobsu = ray->ku_uobsu;
             out_ray.early_terminate = 0;
@@ -2430,7 +2428,7 @@ void calculate_singularities(__global struct lightray* finished_rays, __global i
 #endif // GENERIC_METRIC
 
 __kernel
-void calculate_texture_coordinates(__global struct lightray* finished_rays, __global int* finished_count_in, __global float2* texture_coordinates, int width, int height, float4 polar_camera_pos, float4 camera_quat, float2 base_angle)
+void calculate_texture_coordinates(__global struct lightray* finished_rays, __global int* finished_count_in, __global float2* texture_coordinates, int width, int height, float4 polar_camera_pos, float4 camera_quat, float2 base_angle, dynamic_config_space struct dynamic_config* cfg)
 {
     int id = get_global_id(0);
 
@@ -2443,8 +2441,8 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
     int sx = ray->sx;
     int sy = ray->sy;
 
-    float4 position = ray->position;
-    float4 velocity = ray->velocity;
+    float4 position = generic_to_spherical(ray->position, cfg);
+    float4 velocity = generic_velocity_to_spherical_velocity(ray->position, ray->velocity, cfg);
 
     #ifdef IS_CONSTANT_THETA
     position.z = M_PIf/2;
@@ -2594,7 +2592,7 @@ float4 read_mipmap(image2d_t mipmap1, image2d_t mipmap2, float position_y, sampl
 __kernel
 void render(__global struct lightray* finished_rays, __global int* finished_count_in, __write_only image2d_t out,
             __read_only image2d_t mip_background, __read_only image2d_t mip_background2,
-            int width, int height, __global float2* texture_coordinates, sampler_t sam)
+            int width, int height, __global float2* texture_coordinates, sampler_t sam, dynamic_config_space struct dynamic_config* cfg)
 {
     int id = get_global_id(0);
 
@@ -2612,8 +2610,8 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
     if(sx < 0 || sy < 0)
         return;
 
-    float4 position = ray->position;
-    float4 velocity = ray->velocity;
+    float4 position = generic_to_spherical(ray->position, cfg);
+    float4 velocity = generic_velocity_to_spherical_velocity(ray->position, ray->velocity, cfg);
 
     #ifdef IS_CONSTANT_THETA
     position.z = M_PIf/2;
