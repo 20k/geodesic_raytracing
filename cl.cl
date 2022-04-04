@@ -2090,8 +2090,6 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
         polar_position.z = M_PIf/2;
         #endif // IS_CONSTANT_THETA
 
-        //float r_value = polar_position.y;
-
         float r_value = get_distance_to_object(polar_position, cfg);
 
         float ds = linear_val(fabs(r_value), new_min, new_max, ambient_precision, subambient_precision);
@@ -2189,14 +2187,6 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
         {
             return;
         }
-
-        /*if(sx == 700 && sy == 400)
-        {
-            float g_metric_big[16] = {};
-            calculate_metric_generic_big(position, g_metric_big);
-            printf("DS %f\n", dot_product_big(velocity, velocity, g_metric_big));
-        }*/
-
     }
 
     int out_id = atomic_inc(generic_count_out);
