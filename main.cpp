@@ -309,9 +309,9 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
         run_args.push_back(next_work_buffer);
         run_args.push_back(dynamic_config);
 
-        int wgs = 16;
+        int wgs = 512;
 
-        cqueue.exec("do_generic_rays_persistent", run_args, {wgs * 256}, {256});
+        cqueue.exec("do_generic_rays_persistent", run_args, {wgs * 32}, {32});
         //cqueue.exec("do_generic_rays", run_args, {num_rays}, {256});
     }
 }
