@@ -2013,7 +2013,7 @@ __kernel
 void do_generic_rays (__global struct lightray* restrict generic_rays_in, __global struct lightray* restrict generic_rays_out,
                       __global struct lightray* restrict finished_rays,
                       __global int* restrict generic_count_in, __global int* restrict generic_count_out,
-                      __global int* restrict finished_count_out, dynamic_config_space struct dynamic_config* cfg)
+                      __global int* restrict finished_count_out, __global int* next_work_id, dynamic_config_space struct dynamic_config* cfg)
 {
     int id = get_global_id(0);
 
@@ -2203,6 +2203,214 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
     generic_rays_out[out_id] = out_ray;
 }
 
+__kernel
+void do_generic_rays_persistent (__global struct lightray* restrict generic_rays_in, __global struct lightray* restrict generic_rays_out,
+                                 __global struct lightray* restrict finished_rays,
+                                 __global int* restrict generic_count_in, __global int* restrict generic_count_out,
+                                 __global int* restrict finished_count_out, __global int* next_work_id, dynamic_config_space struct dynamic_config* cfg)
+{
+    int global_id = get_global_id(0);
+    int local_id = get_local_id(0);
+
+    int current_ray_ticks = 0;
+    bool needs_new_work = true;
+
+    float4 position;
+    float4 velocity;
+    float4 acceleration;
+    float ku_uobsu;
+    int sx, sy;
+
+    float next_ds = 0.00001;
+
+    float uniform_coordinate_precision_divisor = max(max(W_V1, W_V2), max(W_V3, W_V4));
+
+    int loop_limit = 64000;
+
+    float rs = 1;
+
+    float new_max = MAX_PRECISION_RADIUS * rs;
+    float new_min = 3 * rs;
+
+    float subambient_precision = 0.5;
+    float ambient_precision = 0.2;
+
+    while(1)
+    {
+        current_ray_ticks++;
+
+        if(current_ray_ticks > loop_limit)
+            needs_new_work = true;
+
+        if(needs_new_work)
+        {
+            current_ray_ticks = 0;
+            needs_new_work = false;
+
+            int id = atomic_add(next_work_id, 1);
+
+            if(id >= *generic_count_in)
+                return;
+
+            __global struct lightray* ray = &generic_rays_in[id];
+
+            if(ray->early_terminate)
+            {
+                needs_new_work = true;
+                continue;
+            }
+
+            position = ray->position;
+            velocity = ray->velocity;
+            acceleration = ray->acceleration;
+
+            sx = ray->sx;
+            sy = ray->sy;
+
+            ku_uobsu = ray->ku_uobsu;
+
+            #ifndef GENERIC_BIG_METRIC
+            {
+                float g_metric[4] = {0};
+                calculate_metric_generic(position, g_metric, cfg);
+
+                velocity = fix_light_velocity2(velocity, g_metric);
+            }
+            #endif // GENERIC_BIG_METRIC
+
+            #ifdef IS_CONSTANT_THETA
+            position.z = M_PIf/2;
+            velocity.z = 0;
+            acceleration.z = 0;
+            #endif // IS_CONSTANT_THETA
+
+            next_ds = 0.00001;
+
+            #ifdef ADAPTIVE_PRECISION
+            (void)acceleration_to_precision(acceleration, &next_ds);
+            #endif // ADAPTIVE_PRECISION
+        }
+
+        #ifdef IS_CONSTANT_THETA
+        position.z = M_PIf/2;
+        velocity.z = 0;
+        acceleration.z = 0;
+        #endif // IS_CONSTANT_THETA
+
+        float4 polar_position = generic_to_spherical(position, cfg);
+
+        #ifdef IS_CONSTANT_THETA
+        polar_position.z = M_PIf/2;
+        #endif // IS_CONSTANT_THETA
+
+        float r_value = get_distance_to_object(polar_position, cfg);
+
+        float ds = linear_val(fabs(r_value), new_min, new_max, ambient_precision, subambient_precision);
+
+        #ifndef RK4_GENERIC
+        #ifdef ADAPTIVE_PRECISION
+        ds = next_ds;
+        #endif // ADAPTIVE_PRECISION
+        #endif // RK4_GENERIC
+
+        if(fabs(r_value) < new_max)
+        {
+            ds = min(ds, ambient_precision);
+        }
+        else
+        {
+            ds = 0.1f * pow((fabs(r_value) - new_max), 1) + ambient_precision;
+            //ds = (0.1 * pow((fabs(r_value) - new_max), 2) / (uniform_coordinate_precision_divisor * uniform_coordinate_precision_divisor)) + subambient_precision;
+        }
+
+        bool should_terminate = fabs(polar_position.y) >= UNIVERSE_SIZE;
+
+        #ifdef SINGULAR
+        should_terminate |= fabs(polar_position.y) < rs*SINGULAR_TERMINATOR;
+        #endif // SINGULAR
+
+        #ifdef HAS_CYLINDRICAL_SINGULARITY
+        if(position.y < CYLINDRICAL_TERMINATOR)
+        {
+            needs_new_work = true;
+            continue;
+        }
+        #endif // CYLINDRICAL_SINGULARITY
+
+        if(should_terminate)
+        {
+            int out_id = atomic_inc(finished_count_out);
+
+            float4 polar_velocity = generic_velocity_to_spherical_velocity(position, velocity, cfg);
+
+            struct lightray out_ray;
+            out_ray.sx = sx;
+            out_ray.sy = sy;
+            out_ray.position = polar_position;
+            out_ray.velocity = polar_velocity;
+            out_ray.acceleration = 0;
+            out_ray.ku_uobsu = ku_uobsu;
+            out_ray.early_terminate = 0;
+
+            finished_rays[out_id] = out_ray;
+
+            needs_new_work = true;
+            continue;
+        }
+
+        #ifdef EULER_INTEGRATION_GENERIC
+
+        float4 next_position;
+        float4 next_velocity;
+
+        step_euler(position, velocity, ds, &next_position, &next_velocity, cfg);
+
+        position = next_position;
+        velocity = next_velocity;
+
+        #endif // EULER_INTEGRATsION
+
+        #ifdef VERLET_INTEGRATION_GENERIC
+
+        float4 next_position, next_velocity, next_acceleration;
+
+        step_verlet(position, velocity, acceleration, ds, &next_position, &next_velocity, &next_acceleration, cfg);
+
+        #ifdef ADAPTIVE_PRECISION
+
+        if(fabs(r_value) < new_max)
+        {
+            int res = calculate_ds_error(ds, next_acceleration, acceleration, &next_ds);
+
+            if(res == DS_RETURN)
+            {
+                needs_new_work = true;
+                continue;
+            }
+
+            if(res == DS_SKIP)
+                continue;
+        }
+
+        #endif // ADAPTIVE_PRECISION
+
+        position = next_position;
+        //velocity = fix_light_velocity2(next_velocity, g_metric);
+        velocity = next_velocity;
+        acceleration = next_acceleration;
+        #endif // VERLET_INTEGRATION
+
+        #ifdef RK4_GENERIC
+        rk4_generic_big(&position, &velocity, &ds);
+        #endif // RK4_GENERIC
+
+        if(any(isnan(position)) || any(isnan(velocity)) || any(isnan(acceleration)))
+        {
+            needs_new_work = true;
+            continue;
+        }
+    }
+}
 
 __kernel
 void get_geodesic_path(__global struct lightray* generic_rays_in,
@@ -2353,6 +2561,7 @@ void relauncher_generic(__global struct lightray* generic_rays_in, __global stru
                         __global struct lightray* finished_rays,
                         __global int* restrict generic_count_in, __global int* restrict generic_count_out,
                         __global int* finished_count_out,
+                        __global int* next_work_buffer,
                         int fallback,
                         dynamic_config_space struct dynamic_config* cfg)
 {
@@ -2385,7 +2594,7 @@ void relauncher_generic(__global struct lightray* generic_rays_in, __global stru
                         do_generic_rays (generic_rays_in, generic_rays_out,
                                          finished_rays,
                                          generic_count_in, generic_count_out,
-                                         finished_count_out, cfg);
+                                         finished_count_out, next_work_buffer, cfg);
                    });
 
     enqueue_kernel(get_default_queue(), CLK_ENQUEUE_FLAGS_WAIT_KERNEL,
@@ -2395,7 +2604,7 @@ void relauncher_generic(__global struct lightray* generic_rays_in, __global stru
                         relauncher_generic(generic_rays_out, generic_rays_in,
                                            finished_rays,
                                            generic_count_out, generic_count_in,
-                                           finished_count_out, fallback + 1, cfg);
+                                           finished_count_out, next_work_buffer, fallback + 1, cfg);
                    });
 
     release_event(f3);

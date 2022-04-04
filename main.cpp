@@ -271,6 +271,7 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
                                                cl::buffer& rays_finished,
                                                cl::buffer& count_in, cl::buffer& count_out,
                                                cl::buffer& count_finished,
+                                               cl::buffer& next_work_buffer,
                                                int num_rays,
                                                bool use_device_side_enqueue,
                                                cl::buffer& dynamic_config)
@@ -296,6 +297,7 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
         count_in.write_async(cqueue, (const char*)&num_rays, sizeof(int));
         count_out.set_to_zero(cqueue);
         count_finished.set_to_zero(cqueue);
+        next_work_buffer.set_to_zero(cqueue);
 
         cl::args run_args;
         run_args.push_back(rays_in);
@@ -304,9 +306,13 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
         run_args.push_back(count_in);
         run_args.push_back(count_out);
         run_args.push_back(count_finished);
+        run_args.push_back(next_work_buffer);
         run_args.push_back(dynamic_config);
 
-        cqueue.exec("do_generic_rays", run_args, {num_rays}, {256});
+        int wgs = 16;
+
+        cqueue.exec("do_generic_rays_persistent", run_args, {wgs * 256}, {256});
+        //cqueue.exec("do_generic_rays", run_args, {num_rays}, {256});
     }
 }
 
@@ -668,6 +674,7 @@ int main()
     cl::buffer schwarzs_count_scratch(clctx.ctx);
     cl::buffer schwarzs_count_prepass(clctx.ctx);
     cl::buffer finished_count_1(clctx.ctx);
+    cl::buffer next_work_buffer(clctx.ctx);
 
     cl::buffer termination_buffer(clctx.ctx);
 
@@ -690,6 +697,8 @@ int main()
     geodesic_trace_buffer.alloc(64000 * sizeof(cl_float4));
 
     printf("Alloc trace buffer\n");
+
+    next_work_buffer.alloc(sizeof(cl_int));
 
     std::vector<cl_float4> current_geodesic_path;
 
@@ -1322,7 +1331,7 @@ int main()
 
                     int rays_num = calculate_ray_count(prepass_width, prepass_height);
 
-                    execute_kernel(clctx.cqueue, schwarzs_prepass, schwarzs_scratch, finished_1, schwarzs_count_prepass, schwarzs_count_scratch, finished_count_1, rays_num, cfg.use_device_side_enqueue, dynamic_config);
+                    execute_kernel(clctx.cqueue, schwarzs_prepass, schwarzs_scratch, finished_1, schwarzs_count_prepass, schwarzs_count_scratch, finished_count_1, next_work_buffer, rays_num, cfg.use_device_side_enqueue, dynamic_config);
 
                     cl::args singular_args;
                     singular_args.push_back(finished_1);
@@ -1382,7 +1391,7 @@ int main()
 
                 int rays_num = calculate_ray_count(width, height);
 
-                execute_kernel(clctx.cqueue, schwarzs_1, schwarzs_scratch, finished_1, schwarzs_count_1, schwarzs_count_scratch, finished_count_1, rays_num, cfg.use_device_side_enqueue, dynamic_config);
+                execute_kernel(clctx.cqueue, schwarzs_1, schwarzs_scratch, finished_1, schwarzs_count_1, schwarzs_count_scratch, finished_count_1, next_work_buffer, rays_num, cfg.use_device_side_enqueue, dynamic_config);
 
 
                 cl::args texture_args;
