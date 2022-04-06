@@ -9,8 +9,8 @@ struct metric_manager
 
     bool using_swapped = false;
     std::optional<cl::program> substituted_program_opt;
-    std::optional<cl::program> dynamic_program_opt;
     std::optional<cl::program> pending_dynamic_program_opt;
+    bool has_built = false;
 
     void check_recompile(bool should_recompile, bool should_soft_recompile,
                          const std::vector<content*>& parent_directories, content_manager& all_content, std::vector<std::string>& metric_names,
@@ -96,23 +96,24 @@ struct metric_manager
                 pending_dynamic_program_opt = std::nullopt;
             }
 
-            dynamic_program_opt = std::nullopt;
+            pending_dynamic_program_opt = std::nullopt;
 
             cl::program pending(context, "cl.cl");
             pending.build(context, dynamic_argument_string);
 
+            pending_dynamic_program_opt = pending;
+
             if(should_block)
             {
-                dynamic_program_opt = pending;
-
                 if(context.programs.size() > 0)
                     context.deregister_program(0);
 
-                context.register_program(*dynamic_program_opt);
+                context.register_program(*pending_dynamic_program_opt);
+                has_built = true;
             }
             else
             {
-                pending_dynamic_program_opt = pending;
+                has_built = false;
             }
         }
 
@@ -120,11 +121,13 @@ struct metric_manager
         {
             if(using_swapped)
             {
+                assert(pending_dynamic_program_opt.has_value());
+
                 if(context.programs.size() > 0)
                     context.deregister_program(0);
 
                 ///Reregister the dynamic program again, static is invalid
-                context.register_program(*dynamic_program_opt);
+                context.register_program(*pending_dynamic_program_opt);
             }
 
             using_swapped = false;
@@ -155,15 +158,13 @@ struct metric_manager
         {
             cl::program& pending = pending_dynamic_program_opt.value();
 
-            if(pending.is_built() && !using_swapped)
+            if(pending.is_built() && !using_swapped && !has_built)
             {
                 if(ctx.programs.size() > 0)
                     ctx.deregister_program(0);
 
                 ctx.register_program(pending);
-
-                dynamic_program_opt = pending_dynamic_program_opt;
-                pending_dynamic_program_opt = std::nullopt;
+                has_built = true;
             }
         }
 
