@@ -6,5 +6,5 @@
 	"singular_terminator": 1.001,
 	"max_acceleration_change": 0.000001,
 	"inherit_settings": "polar_base",
-	"description": "A time dependent metric that demonstrates warp-ing without needing negative energy"
+	"description": "A time dependent metric that demonstrates warp-ing without needing negative energy\nSet the universe size to 100, precision radius to 100, and camera time to ~100"
 }
