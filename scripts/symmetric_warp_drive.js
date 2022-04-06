@@ -23,6 +23,7 @@ function symmetric_warp_drive(t, r, theta, phi)
     var littlea = rk * theta * CMath.pow(a0, -1);
     var littleb = rk * theta - CMath.sqrt(gamma_0);
 
+	///this is only correct for radial geodesics unfortunately
     var Urt = (littlea * CMath.pow(a20 + t/theta, 3/2) - littleb) / (littlea * a0*a0*a0 - littleb);
 
     var yrr = Urt * yrr0;
