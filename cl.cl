@@ -132,6 +132,35 @@ float3 spherical_velocity_to_cartesian_velocity(float3 p, float3 dp)
     return (float3){v1, v2, v3};
 }
 
+///https://www.ccs.neu.edu/home/fell/CS4300/Lectures/Ray-TracingFormulas.pdf
+float3 fix_ray_position_cart(float3 cartesian_pos, float3 cartesian_velocity, float sphere_radius)
+{
+    cartesian_velocity = fast_normalize(cartesian_velocity);
+
+    float3 C = (float3){0,0,0};
+
+    float a = 1;
+    float b = 2 * dot(cartesian_velocity, (cartesian_pos - C));
+    float c = dot(C, C) + dot(cartesian_pos, cartesian_pos) - 2 * (dot(cartesian_pos, C)) - sphere_radius * sphere_radius;
+
+    float discrim = b*b - 4 * a * c;
+
+    if(discrim < 0)
+        return cartesian_pos;
+
+    float t0 = (-b - native_sqrt(discrim)) / (2 * a);
+    float t1 = (-b + native_sqrt(discrim)) / (2 * a);
+
+    float my_t = 0;
+
+    if(fabs(t0) < fabs(t1))
+        my_t = t0;
+    else
+        my_t = t1;
+
+    return cartesian_pos + my_t * cartesian_velocity;
+}
+
 float3 fix_ray_position(float3 polar_pos, float3 polar_velocity, float sphere_radius, bool outwards_facing)
 {
     float position_sign = sign(polar_pos.x);
@@ -145,36 +174,7 @@ float3 fix_ray_position(float3 polar_pos, float3 polar_velocity, float sphere_ra
 
     float3 cartesian_pos = polar_to_cartesian(cpolar_pos);
 
-    float3 C = (float3){0,0,0};
-
-    float3 L = C - cartesian_pos;
-    float tca = dot(L, cartesian_velocity);
-
-    float d2 = dot(L, L) - tca * tca;
-
-    if(d2 > sphere_radius * sphere_radius)
-        return polar_pos;
-
-    float thc = native_sqrt(sphere_radius * sphere_radius - d2);
-
-    float t0 = tca - thc;
-    float t1 = tca + thc;
-
-    float my_t = 0;
-
-    if(t0 > 0 && t1 > 0)
-        return polar_pos;
-
-    if(t0 < 0 && t1 < 0)
-        my_t = max(t0, t1);
-
-    if(t0 < 0 && t1 > 0)
-        my_t = t0;
-
-    if(t0 > 0 && t1 < 0)
-        my_t = t1;
-
-    float3 new_cart = cartesian_pos + my_t * cartesian_velocity;
+    float3 new_cart = fix_ray_position_cart(cartesian_pos, cartesian_velocity, sphere_radius);
 
     float3 new_polar = cartesian_to_polar(new_cart);
 
