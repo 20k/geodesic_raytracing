@@ -973,6 +973,22 @@ namespace dual_types
             return ret;
         }
 
+        template<typename T>
+        void recurse_arguments(const T& in)
+        {
+            in(*this);
+
+            int start = 0;
+
+            if(type == ops::UNKNOWN_FUNCTION)
+                start = 1;
+
+            for(int i=start; i < (int)args.size(); i++)
+            {
+                recurse_arguments(args[i]);
+            }
+        }
+
         void substitute(const std::map<std::string, std::string>& variables)
         {
             if(type == ops::VALUE)
