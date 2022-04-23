@@ -1,12 +1,14 @@
 function ernst_metric(t, r, theta, phi)
 {
-    var B = 0.0000025;
+	$cfg.B.$default = 0.0000025;
+	$cfg.rs.$default = 1;
+	
+    var B = $cfg.B;
+	var rs = $cfg.rs;
 
     var lambda = 1 + B * B * r * r * CMath.sin(theta) * CMath.sin(theta);
 
     var lambda_sq = lambda * lambda;
-
-    var rs = 1;
 
     var c = 1;
     var dt = -lambda_sq * (1 - rs/r);

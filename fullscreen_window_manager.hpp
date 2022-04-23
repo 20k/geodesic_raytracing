@@ -9,8 +9,10 @@ struct fullscreen_window_manager
 {
     bool title_dragging = false;
     bool resize_dragging = false;
-    vec2f title_start_pos;
+    vec2f title_start_pos_absolute;
+    vec2f title_start_mouse_pos_absolute;
     vec2f resize_start_pos;
+    vec2f resize_start_mouse_pos_absolute;
     bool open = true;
 
     fullscreen_window_manager();

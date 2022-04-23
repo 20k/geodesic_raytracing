@@ -2,6 +2,7 @@
 #include <toolkit/fs_helpers.hpp>
 #include "metric.hpp"
 #include "js_interop.hpp"
+#include <algorithm>
 
 metrics::metric_config load_config(content_manager& all_content, std::filesystem::path filename, bool inherit);
 
@@ -134,6 +135,13 @@ metrics::metric* metric_cache::lazy_fetch(content_manager& manage, content& c, c
     return met;
 }
 
+std::vector<std::string> load_sorting_file(std::filesystem::path filename)
+{
+    nlohmann::json js = nlohmann::json::parse(file::read(filename.string(), file::mode::TEXT));
+
+    return js.get<std::vector<std::string>>();
+}
+
 std::vector<std::filesystem::path> get_files_with_extension(std::filesystem::path folder, const std::string& ext)
 {
     std::vector<std::filesystem::path> ret;
@@ -168,6 +176,68 @@ void content::load(content_manager& all_content, std::filesystem::path path)
     coordinates = get_files_with_extension(coordinate.string(), ".js");
     origins = get_files_with_extension(origin.string(), ".js");
 
+    std::optional<std::filesystem::path> sorting;
+
+    for(int i=0; i < (int)configs.size(); i++)
+    {
+        if(configs[i].filename() == "sorting.json")
+        {
+            sorting = configs[i];
+            configs.erase(configs.begin() + i);
+            break;
+        }
+    }
+
+    ///this section handles the sorting file. It sorts specified metrics according to the input sorting.json
+    ///unspecified metrics are sent to the end of the list
+    try
+    {
+        if(sorting.has_value())
+        {
+            filename_sorting = load_sorting_file(sorting.value());
+
+            std::set<std::string> metric_names(filename_sorting.begin(), filename_sorting.end());
+
+            std::set<std::string> touched_metric_names;
+
+            std::vector<std::filesystem::path> unsorted_elements = metrics;
+
+            std::erase_if(unsorted_elements,
+            [&metric_names, &touched_metric_names](const std::filesystem::path& in)
+            {
+                std::string filename = in.filename().string();
+
+                ///kind of crappy
+                touched_metric_names.insert(filename);
+
+                return metric_names.find(filename) != metric_names.end();
+            });
+
+            std::vector<std::filesystem::path> reconstructed_metrics;
+
+            for(const std::string& name : filename_sorting)
+            {
+                reconstructed_metrics.push_back(std::filesystem::absolute(path / name));
+            }
+
+            reconstructed_metrics.insert(reconstructed_metrics.end(), unsorted_elements.begin(), unsorted_elements.end());
+
+            metrics = std::move(reconstructed_metrics);
+
+            for(const std::string& s : metric_names)
+            {
+                if(!touched_metric_names.contains(s))
+                {
+                    std::cout << "Warning: Specific sorted metric name " << s << " is unused" << std::endl;
+                }
+            }
+        }
+    }
+    catch(std::exception& e)
+    {
+        std::cout << "Error loading sorting file " << e.what() << std::endl;
+    }
+
     for(const std::filesystem::path& cfg_name : configs)
     {
         metrics::metric_config cfg = load_config(all_content, cfg_name, false);
@@ -193,7 +263,7 @@ std::optional<std::filesystem::path> content::lookup_path_to_metric_file(const s
     return std::nullopt;
 }
 
-metrics::metric_config* content::get_config_of_filename(std::filesystem::path filename)
+std::optional<metrics::metric_config*> content::get_config_of_filename(std::filesystem::path filename)
 {
     assert(filename.extension().string() == ".js");
 
@@ -207,7 +277,7 @@ metrics::metric_config* content::get_config_of_filename(std::filesystem::path fi
         }
     }
 
-    throw std::runtime_error("No config for filename " + filename.string());
+    return std::nullopt;
 }
 
 metrics::metric* content::lazy_fetch(content_manager& manage, const std::string& friendly_name)

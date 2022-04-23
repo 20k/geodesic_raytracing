@@ -2,5 +2,6 @@
 	"name": "de_sitter",
 	"adaptive_precision": false,
 	"detect_singularities": false,
-	"inherit_settings": "polar_base"
+	"inherit_settings": "polar_base",
+	"description": "This is a model of an expanding universe with a positive cosmological constant"
 }

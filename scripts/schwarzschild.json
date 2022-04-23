@@ -1,7 +1,8 @@
 {
-	"name": "schwarzschild",
+	"name": "schwarzschild_fast",
 	"adaptive_precision": false,
 	"singular": true,
 	"detect_singularities": false,
-	"inherit_settings": "polar_base"
+	"inherit_settings": "polar_base",
+	"description": "An uncharged, non spinning black hole\nThis metric is specifically optimised for the rs=1 case"
 }

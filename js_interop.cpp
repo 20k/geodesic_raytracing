@@ -72,7 +72,42 @@ bool config_variables::display()
 
     for(int i=0; i < (int)names.size(); i++)
     {
-        any_modified |= ImGui::DragFloat((names[i] + "##df").c_str(), &current_values[i], 0.1f);
+        std::string as_high_precision = to_high_precision_string(current_values[i]);
+
+        bool after_dot = false;
+        bool in_leading_zeroes = true;
+
+        int leading_zeroes = 0;
+        int trailing_sig_figs = 0;
+
+        for(int idx = 0; idx < (int)as_high_precision.size(); idx++)
+        {
+            if(as_high_precision[idx] == '.')
+            {
+                after_dot = true;
+                continue;
+            }
+
+            if(!after_dot)
+                continue;
+
+            if(as_high_precision[idx] == '0' && in_leading_zeroes)
+                leading_zeroes++;
+
+            if(as_high_precision[idx] != '0')
+                in_leading_zeroes = false;
+
+            if(!in_leading_zeroes)
+                trailing_sig_figs++;
+        }
+
+        int values_to_display = 4;
+
+        int format_width = leading_zeroes + values_to_display;
+
+        std::string format_str = "%." + std::to_string(format_width) + "f";
+
+        any_modified |= ImGui::DragFloat((names[i] + "##df").c_str(), &current_values[i], 0.1f, 0.f, 0.f, format_str.c_str());
     }
 
     return any_modified;

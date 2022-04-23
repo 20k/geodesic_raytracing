@@ -4,5 +4,6 @@
 	"detect_singularities": true,
 	"use_prepass": true,
 	"max_acceleration_change": 0.000001,
-	"inherit_settings": "polar_base"
+	"inherit_settings": "polar_base",
+	"description": "An uncharged, spinning black hole"
 }

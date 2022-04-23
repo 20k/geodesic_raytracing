@@ -2,5 +2,6 @@
 	"name":"ellis_drainhole",
 	"adaptive_precision": false,
 	"detect_singularities": false,
-	"inherit_settings": "polar_base"
+	"inherit_settings": "polar_base",
+	"description": "The ellis drainhole is the earliest form of traversable wormhole\nThe geodesic path tracer is currently a little broken for flying through this, so consider using the configurable wormhole"
 }

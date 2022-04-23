@@ -3,5 +3,6 @@
 	"adaptive_precision": true,
 	"detect_singularities": true,
 	"max_acceleration_change": 0.000001,
-	"inherit_settings": "cylindrical_base"
+	"inherit_settings": "cylindrical_base",
+	"description": "Two Kerr black holes suspended away from each other by a cosmic string"
 }

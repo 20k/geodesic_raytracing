@@ -132,6 +132,35 @@ float3 spherical_velocity_to_cartesian_velocity(float3 p, float3 dp)
     return (float3){v1, v2, v3};
 }
 
+///https://www.ccs.neu.edu/home/fell/CS4300/Lectures/Ray-TracingFormulas.pdf
+float3 fix_ray_position_cart(float3 cartesian_pos, float3 cartesian_velocity, float sphere_radius)
+{
+    cartesian_velocity = fast_normalize(cartesian_velocity);
+
+    float3 C = (float3){0,0,0};
+
+    float a = 1;
+    float b = 2 * dot(cartesian_velocity, (cartesian_pos - C));
+    float c = dot(C, C) + dot(cartesian_pos, cartesian_pos) - 2 * (dot(cartesian_pos, C)) - sphere_radius * sphere_radius;
+
+    float discrim = b*b - 4 * a * c;
+
+    if(discrim < 0)
+        return cartesian_pos;
+
+    float t0 = (-b - native_sqrt(discrim)) / (2 * a);
+    float t1 = (-b + native_sqrt(discrim)) / (2 * a);
+
+    float my_t = 0;
+
+    if(fabs(t0) < fabs(t1))
+        my_t = t0;
+    else
+        my_t = t1;
+
+    return cartesian_pos + my_t * cartesian_velocity;
+}
+
 float3 fix_ray_position(float3 polar_pos, float3 polar_velocity, float sphere_radius, bool outwards_facing)
 {
     float position_sign = sign(polar_pos.x);
@@ -145,36 +174,7 @@ float3 fix_ray_position(float3 polar_pos, float3 polar_velocity, float sphere_ra
 
     float3 cartesian_pos = polar_to_cartesian(cpolar_pos);
 
-    float3 C = (float3){0,0,0};
-
-    float3 L = C - cartesian_pos;
-    float tca = dot(L, cartesian_velocity);
-
-    float d2 = dot(L, L) - tca * tca;
-
-    if(d2 > sphere_radius * sphere_radius)
-        return polar_pos;
-
-    float thc = native_sqrt(sphere_radius * sphere_radius - d2);
-
-    float t0 = tca - thc;
-    float t1 = tca + thc;
-
-    float my_t = 0;
-
-    if(t0 > 0 && t1 > 0)
-        return polar_pos;
-
-    if(t0 < 0 && t1 < 0)
-        my_t = max(t0, t1);
-
-    if(t0 < 0 && t1 > 0)
-        my_t = t0;
-
-    if(t0 > 0 && t1 < 0)
-        my_t = t1;
-
-    float3 new_cart = cartesian_pos + my_t * cartesian_velocity;
+    float3 new_cart = fix_ray_position_cart(cartesian_pos, cartesian_velocity, sphere_radius);
 
     float3 new_polar = cartesian_to_polar(new_cart);
 
@@ -237,7 +237,7 @@ float3 rejection(float3 my_vector, float3 basis)
     return normalize(my_vector - dot(my_vector, basis) * basis);
 }
 
-float3 srgb_to_lin(float3 C_srgb)
+/*float3 srgb_to_lin(float3 C_srgb)
 {
     return  0.012522878f * C_srgb +
             0.682171111f * C_srgb * C_srgb +
@@ -252,6 +252,32 @@ float3 lin_to_srgb(float3 val)
     float3 sRGB = 0.585122381f * S1 + 0.783140355f * S2 - 0.368262736f * S3;
 
     return sRGB;
+}*/
+
+float lin_to_srgb_single(float in)
+{
+    if(in <= 0.0031308f)
+        return in * 12.92f;
+    else
+        return 1.055f * pow(in, 1.0f / 2.4f) - 0.055f;
+}
+
+float3 lin_to_srgb(float3 in)
+{
+    return (float3)(lin_to_srgb_single(in.x), lin_to_srgb_single(in.y), lin_to_srgb_single(in.z));
+}
+
+float srgb_to_lin_single(float in)
+{
+    if(in < 0.04045f)
+        return in / 12.92f;
+    else
+        return pow((in + 0.055f) / 1.055f, 2.4f);
+}
+
+float3 srgb_to_lin(float3 in)
+{
+    return (float3)(srgb_to_lin_single(in.x), srgb_to_lin_single(in.y), srgb_to_lin_single(in.z));
 }
 
 float lambert_w0_newton(float x)
@@ -1009,6 +1035,9 @@ float4 calculate_acceleration_big(float4 lightray_velocity, float g_metric_big[1
     ///this doesn't seem to work all that well, especially not for eg kerr
     ///I think more in depth changes are needed, eg B.8 https://www.researchgate.net/figure/View-of-a-static-observer-located-at-x-0-y-4-in-the-positive-y-direction-for-t_fig2_225428633
     ///that said... while the paper says that numerical integration of the alcubierre edge is difficult due to an extremely low ds, I have had no problems with ds being too small
+    ///hmm, looking back that's the constraint equation
+    ///So, if we set up a ray with a velocity which is dPosition / dAffine, it cannot possibly be correct to simply
+    ///treat it as a velocity in coordinate time
     //#define TIME_IS_COORDINATE_TIME
     #ifdef TIME_IS_COORDINATE_TIME
     #pragma unroll
@@ -1835,6 +1864,7 @@ float4 rk4_f(float t, float4 position, float4 velocity)
 ///todo:
 ///it would be useful to be able to combine data from multiple ticks which are separated by some delta, but where I don't have control over that delta
 ///I wonder if a taylor series expansion of F(y + dt) might be helpful
+///this is actually regular velocity verlet with no modifications https://en.wikipedia.org/wiki/Verlet_integration#Velocity_Verlet
 void step_verlet(float4 position, float4 velocity, float4 acceleration, float ds, float4* position_out, float4* velocity_out, float4* acceleration_out, dynamic_config_space struct dynamic_config* cfg)
 {
     #ifndef GENERIC_BIG_METRIC
@@ -2033,6 +2063,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
     ///ambient precision however looks way too low at 0.01, testing up to 0.3 showed no noticable difference, needs more precise tests though
     ///only in the case without kruskals and event horizon crossings however, any precision > 0.01 is insufficient in that case
+    ///this super affects being able to render alcubierre at thin shells
     float subambient_precision = 0.5;
     float ambient_precision = 0.2;
 
@@ -2063,8 +2094,6 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
         #ifdef IS_CONSTANT_THETA
         polar_position.z = M_PIf/2;
         #endif // IS_CONSTANT_THETA
-
-        //float r_value = polar_position.y;
 
         float r_value = get_distance_to_object(polar_position, cfg);
 
@@ -2163,14 +2192,6 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
         {
             return;
         }
-
-        /*if(sx == 700 && sy == 400)
-        {
-            float g_metric_big[16] = {};
-            calculate_metric_generic_big(position, g_metric_big);
-            printf("DS %f\n", dot_product_big(velocity, velocity, g_metric_big));
-        }*/
-
     }
 
     int out_id = atomic_inc(generic_count_out);
@@ -2192,7 +2213,7 @@ __kernel
 void get_geodesic_path(__global struct lightray* generic_rays_in,
                        __global float4* positions_out,
                        __global int* generic_count_in, int geodesic_start, int width, int height,
-                       float4 polar_camera_pos, float4 camera_quat, float2 base_angle, dynamic_config_space struct dynamic_config* cfg)
+                       float4 polar_camera_pos, float4 camera_quat, float2 base_angle, dynamic_config_space struct dynamic_config* cfg, __global int* count_out)
 {
     int id = geodesic_start;
 
@@ -2228,8 +2249,12 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
 
     float next_ds = 0.00001;
 
+    #ifdef ADAPTIVE_PRECISION
+    (void)acceleration_to_precision(acceleration, &next_ds);
+    #endif // ADAPTIVE_PRECISION
+
     float subambient_precision = 0.5;
-    float ambient_precision = 0.002;
+    float ambient_precision = 0.2;
 
     float rs = 1;
 
@@ -2246,7 +2271,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         acceleration.z = 0;
         #endif // IS_CONSTANT_THETA
 
-        float new_max = 10 * rs;
+        float new_max = MAX_PRECISION_RADIUS * rs;
         float new_min = 3 * rs;
 
         float4 polar_position = generic_to_spherical(position, cfg);
@@ -2255,11 +2280,15 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         polar_position.z = M_PIf/2;
         #endif // IS_CONSTANT_THETA
 
-        //float r_value = polar_position.y;
-
         float r_value = get_distance_to_object(polar_position, cfg);
 
         float ds = linear_val(fabs(r_value), new_min, new_max, ambient_precision, subambient_precision);
+
+        #ifndef RK4_GENERIC
+        #ifdef ADAPTIVE_PRECISION
+        ds = next_ds;
+        #endif // ADAPTIVE_PRECISION
+        #endif // RK4_GENERIC
 
         if(fabs(r_value) < new_max)
         {
@@ -2276,6 +2305,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         if(fabs(polar_position.y) < rs*SINGULAR_TERMINATOR || fabs(polar_position.y) >= UNIVERSE_SIZE)
         #endif // SINGULAR
         {
+            *count_out = bufc;
             return;
         }
 
@@ -2314,9 +2344,12 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
 
         if(any(isnan(position)) || any(isnan(velocity)) || any(isnan(acceleration)))
         {
+            *count_out = bufc;
             return;
         }
     }
+
+    *count_out = bufc;
 }
 
 #ifdef DEVICE_SIDE_ENQUEUE
@@ -2963,12 +2996,18 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
         lin_result = redshift(lin_result, z_shift);
     }
 
+    #ifndef LINEAR_FRAMEBUFFER
     end_result.xyz = lin_to_srgb(lin_result);
+    #else
+    end_result.xyz = lin_result;
+    #endif // LINEAR_FRAMEBUFFER
 
     #endif // REDSHIFT
 
     #ifdef LINEAR_FRAMEBUFFER
+    #ifndef REDSHIFT //redshift already handles this for roundtrip accuracy reasons
     end_result.xyz = srgb_to_lin(end_result.xyz);
+    #endif // REDSHIFT
     #endif // LINEAR_FRAMEBUFFER
 
     write_imagef(out, (int2){sx, sy}, end_result);

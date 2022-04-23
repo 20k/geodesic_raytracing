@@ -15,11 +15,15 @@
 #include "js_interop.hpp"
 #include <toolkit/fs_helpers.hpp>
 #include <filesystem>
-#include "steam.hpp"
 #include "workshop/steam_ugc_manager.hpp"
 #include "content_manager.hpp"
 #include "equation_context.hpp"
 #include "fullscreen_window_manager.hpp"
+#include "raw_input.hpp"
+#include "metric_manager.hpp"
+#include "graphics_settings.hpp"
+#include <networking/serialisable.hpp>
+#include "input_manager.hpp"
 //#include "dual_complex.hpp"
 
 /**
@@ -137,13 +141,10 @@ struct lightray
 
 vec4f interpolate_geodesic(const std::vector<cl_float4>& geodesic, float coordinate_time)
 {
-    for(int i=0; i < (int)geodesic.size() - 2; i++)
+    for(int i=0; i < (int)geodesic.size() - 1; i++)
     {
         vec4f cur = {geodesic[i].s[0], geodesic[i].s[1], geodesic[i].s[2], geodesic[i].s[3]};
         vec4f next = {geodesic[i + 1].s[0], geodesic[i + 1].s[1], geodesic[i + 1].s[2], geodesic[i + 1].s[3]};
-
-        if(geodesic[i + 2].s[0] == 0 && geodesic[i + 1].s[0] == 0)
-            break;
 
         if(next.x() < cur.x())
             std::swap(next, cur);
@@ -171,16 +172,20 @@ vec4f interpolate_geodesic(const std::vector<cl_float4>& geodesic, float coordin
     if(geodesic.size() == 0)
         return {0,0,0,0};
 
-    return {geodesic[0].s[0], geodesic[0].s[1], geodesic[0].s[2], geodesic[0].s[3]};
+    cl_float4 selected_geodesic = {0,0,0,0};
+
+    if(coordinate_time >= geodesic.back().s[0])
+        selected_geodesic = geodesic.back();
+    else
+        selected_geodesic = geodesic.front();
+
+    return {selected_geodesic.s[0], selected_geodesic.s[1], selected_geodesic.s[2], selected_geodesic.s[3]};
 }
 
-vec2f get_geodesic_intersection(const std::vector<cl_float4>& geodesic)
+vec2f get_geodesic_intersection(const metrics::metric& met, const std::vector<cl_float4>& geodesic)
 {
     for(int i=0; i < (int)geodesic.size() - 2; i++)
     {
-        if(geodesic[i + 2].s[0] == 0 && geodesic[i + 1].s[0] == 0)
-            break;
-
         vec4f cur = {geodesic[i].s[0], geodesic[i].s[1], geodesic[i].s[2], geodesic[i].s[3]};
         vec4f next = {geodesic[i + 1].s[0], geodesic[i + 1].s[1], geodesic[i + 1].s[2], geodesic[i + 1].s[3]};
 
@@ -199,7 +204,7 @@ vec2f get_geodesic_intersection(const std::vector<cl_float4>& geodesic)
         }
     }
 
-    return {0, 0};
+    return {M_PI/2, 0};
 }
 
 cl::image_with_mipmaps load_mipped_image(const std::string& fname, opencl_context& clctx)
@@ -310,35 +315,6 @@ int calculate_ray_count(int width, int height)
     return (height - 1) * width + width - 1;
 }
 
-struct graphics_settings
-{
-    int width = 1920;
-    int height = 1080;
-    bool fullscreen = false;
-
-    int supersample_factor = 2;
-    bool supersample = false;
-
-    bool vsync_enabled = false;
-
-    ///Returns true if we need to refresh our opencl context
-    bool display()
-    {
-        ImGui::InputInt("Width", &width);
-        ImGui::InputInt("Height", &height);
-
-        ImGui::Checkbox("Fullscreen", &fullscreen);
-
-        ImGui::Checkbox("Supersample", &supersample);
-        ImGui::InputInt("Supersample Factor", &supersample_factor);
-
-        ImGui::Checkbox("Vsync", &vsync_enabled);
-
-        ImGui::NewLine();
-
-        return ImGui::Button("Apply");
-    }
-};
 
 struct main_menu
 {
@@ -357,6 +333,11 @@ struct main_menu
     bool dirty_settings = false;
     bool should_quit = false;
     bool already_started = false;
+
+    bool is_first_time_main_menu_open()
+    {
+        return is_open && !already_started;
+    }
 
     void display_main_menu()
     {
@@ -380,9 +361,33 @@ struct main_menu
         }
     }
 
-    void display_settings_menu()
+    void display_settings_menu(render_window& win, input_manager& input)
     {
-        dirty_settings |= sett.display();
+        if(ImGui::BeginTabBar("Tab Bar"))
+        {
+            if(ImGui::BeginTabItem("Video"))
+            {
+                dirty_settings |= sett.display_video_settings();
+
+                ImGui::EndTabItem();
+            }
+
+            if(ImGui::BeginTabItem("Controls"))
+            {
+                dirty_settings |= sett.display_control_settings();
+
+                ImGui::EndTabItem();
+            }
+
+            if(ImGui::BeginTabItem("Keybinds"))
+            {
+                input.display_key_rebindings(win);
+
+                ImGui::EndTabItem();
+            }
+
+            ImGui::EndTabBar();
+        }
 
         if(ImGui::Button("Back"))
         {
@@ -411,7 +416,6 @@ struct main_menu
 
     void close()
     {
-        ImGui::CloseCurrentPopup();
         is_open = false;
     }
 
@@ -431,8 +435,23 @@ struct main_menu
         should_open = false;
     }
 
-    void display()
+    void display(render_window& win, input_manager& input)
     {
+        if(state == SETTINGS)
+        {
+            vec2i dim = win.get_window_size();
+
+            vec2i menu_size = dim/2;
+
+            vec2i menu_tl = (dim / 2) - menu_size/2;
+
+            ImGui::SetNextWindowSize(ImVec2(dim.x()/2, dim.y()/2), ImGuiCond_Always);
+
+            ImVec2 tl = ImGui::GetMainViewport()->Pos;
+
+            ImGui::SetNextWindowPos(ImVec2(tl.x + menu_tl.x(), tl.y + menu_tl.y()), ImGuiCond_Always);
+        }
+
         ImGui::Begin("Main Menu", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
 
         //if(ImGui::BeginPopupModal("Main Menu", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse))
@@ -446,7 +465,7 @@ struct main_menu
 
             if(current_state == SETTINGS)
             {
-                display_settings_menu();
+                display_settings_menu(win, input);
             }
 
             if(current_state == QUIT)
@@ -478,18 +497,6 @@ struct main_menu
     }
 };
 
-std::vector<const char*> get_imgui_view(const std::vector<std::string>& in)
-{
-    std::vector<const char*> ret;
-
-    for(const std::string& s : in)
-    {
-        ret.push_back(s.c_str());
-    }
-
-    return ret;
-}
-
 ///i need the ability to have dynamic parameters
 int main()
 {
@@ -506,16 +513,58 @@ int main()
 
     //dual_types::test_operation();
 
+    graphics_settings current_settings;
+
+    bool loaded_settings = false;
+
+    if(file::exists("settings.json"))
+    {
+        try
+        {
+            nlohmann::json js = nlohmann::json::parse(file::read("settings.json", file::mode::BINARY));
+
+            deserialise<graphics_settings>(js, current_settings, serialise_mode::DISK);
+
+            loaded_settings = true;
+        }
+        catch(std::exception& ex)
+        {
+            std::cout << "Failed to load settings.json " << ex.what() << std::endl;
+        }
+    }
+
     render_settings sett;
-    sett.width = 1920;
-    sett.height = 1080;
+    sett.width = 800;
+    sett.height = 600;
     sett.opencl = true;
     sett.no_double_buffer = true;
     sett.is_srgb = true;
     sett.no_decoration = true;
-    sett.viewports = true;
+    sett.viewports = false;
+
+    if(loaded_settings)
+    {
+        sett.width = current_settings.width;
+        sett.height = current_settings.height;
+    }
 
     render_window win(sett, "Geodesics");
+
+    if(loaded_settings)
+    {
+        win.set_vsync(current_settings.vsync_enabled);
+        win.backend->set_is_maximised(current_settings.fullscreen);
+
+        if(current_settings.fullscreen)
+        {
+            win.backend->clear_demaximise_cache();
+        }
+    }
+    else
+    {
+        win.backend->set_is_maximised(true);
+        win.backend->clear_demaximise_cache();
+    }
 
     assert(win.clctx);
 
@@ -563,8 +612,7 @@ int main()
 
     //printf("WLs %f %f %f\n", chromaticity::srgb_to_wavelength({1, 0, 0}), chromaticity::srgb_to_wavelength({0, 1, 0}), chromaticity::srgb_to_wavelength({0, 0, 1}));
 
-    int supersample_mult = 2;
-    int last_supersample_mult = supersample_mult;
+    int last_supersample_mult = 2;
 
     int start_width = sett.width;
     int start_height = sett.height;
@@ -635,6 +683,9 @@ int main()
 
     printf("Zero termination buffer\n");
 
+    cl::buffer geodesic_count_buffer(clctx.ctx);
+    geodesic_count_buffer.alloc(sizeof(cl_int));
+
     cl::buffer geodesic_trace_buffer(clctx.ctx);
     geodesic_trace_buffer.alloc(64000 * sizeof(cl_float4));
 
@@ -663,9 +714,6 @@ int main()
 
     printf("Alloc rays and counts\n");
 
-    std::optional<cl::program> substituted_program_opt;
-    std::optional<cl::program> dynamic_program_opt;
-
     cl_sampler_properties sampler_props[] = {
     CL_SAMPLER_NORMALIZED_COORDS, CL_TRUE,
     CL_SAMPLER_ADDRESSING_MODE, CL_ADDRESS_REPEAT,
@@ -685,11 +733,8 @@ int main()
     std::cout << "Supports shared events? " << cl::supports_extension(clctx.ctx, "cl_khr_gl_event") << std::endl;
 
     bool last_supersample = false;
-    bool supersample = false;
     bool should_take_screenshot = false;
 
-    int screenshot_w = 1920;
-    int screenshot_h = 1080;
     bool time_progresses = false;
     bool flip_sign = false;
     float current_geodesic_time = 0;
@@ -698,19 +743,15 @@ int main()
     bool camera_geodesics_go_foward = true;
     vec2f base_angle = {M_PI/2, 0};
 
-    int current_idx = -1;
-    int selected_idx = -1;
-    float selected_error = 0;
-
     printf("Pre main\n");
 
-    ///quite hacky
-    metrics::metric* current_metric = nullptr;
-
     steady_timer workshop_poll;
+    steady_timer frametime_timer;
 
     bool open_main_menu_trigger = true;
     main_menu menu;
+
+    bool hide_ui = false;
 
     fullscreen_window_manager fullscreen;
 
@@ -724,40 +765,53 @@ int main()
     //style.PopupBorderSize = 0;
     style.WindowBorderSize = 1;
 
+    raw_input raw_input_manager;
+    input_manager input;
+
+    metric_manager metric_manage;
+
+    current_settings.width = win.get_window_size().x();
+    current_settings.height = win.get_window_size().y();
+    current_settings.vsync_enabled = win.backend->is_vsync();
+    current_settings.fullscreen = win.backend->is_maximised();
+
     while(!win.should_close() && !menu.should_quit && fullscreen.open)
     {
         if(menu.dirty_settings)
         {
-            vec2i dim = {menu.sett.width, menu.sett.height};
+            current_settings = menu.sett;
 
-            if(dim != win.get_window_size())
+            if((vec2i){current_settings.width, current_settings.height} != win.get_window_size())
             {
-                win.resize(dim);
+                win.resize({current_settings.width, current_settings.height});
             }
 
-            supersample = menu.sett.supersample;
-            supersample_mult = menu.sett.supersample_factor;
-
-            if(win.backend->is_vsync() != menu.sett.vsync_enabled)
+            if(win.backend->is_vsync() != current_settings.vsync_enabled)
             {
-                win.backend->set_vsync(menu.sett.vsync_enabled);
+                win.backend->set_vsync(current_settings.vsync_enabled);
             }
 
-            menu.dirty_settings = false;
+            if(win.backend->is_maximised() != current_settings.fullscreen)
+            {
+                win.backend->set_is_maximised(current_settings.fullscreen);
+            }
+
+            file::write_atomic("./settings.json", serialise(current_settings, serialise_mode::DISK).dump(), file::mode::BINARY);
         }
 
-        if(!menu.is_open)
+        if(!menu.is_open || menu.dirty_settings)
         {
             vec2i real_dim = win.get_window_size();
 
-            menu.sett.supersample = supersample;
-            menu.sett.supersample_factor = supersample_mult;
-
-            menu.sett.vsync_enabled = win.backend->is_vsync();
+            menu.sett = current_settings;
 
             menu.sett.width = real_dim.x();
             menu.sett.height = real_dim.y();
+            menu.sett.vsync_enabled = win.backend->is_vsync();
+            menu.sett.fullscreen = win.backend->is_maximised();
         }
+
+        menu.dirty_settings = false;
 
         exec.poll();
 
@@ -785,7 +839,20 @@ int main()
             has_new_content = false;
         }
 
+        float frametime_s = frametime_timer.restart();
+
+        float controls_multiplier = 1.f;
+
+        if(current_settings.time_adjusted_controls)
+        {
+            ///16.f simulates the only camera speed at 16ms/frame
+            controls_multiplier = (1000/16.f) * clamp(frametime_s, 0.f, 100.f);
+        }
+
         win.poll();
+
+        if(input.is_key_pressed("toggle_mouse"))
+            raw_input_manager.set_enabled(win, !raw_input_manager.is_enabled);
 
         if(open_main_menu_trigger)
         {
@@ -810,27 +877,84 @@ int main()
         {
             for(int idx = 0; idx < (int)c.metrics.size(); idx++)
             {
-                std::string friendly_name = c.get_config_of_filename(c.metrics[idx])->name;
+                std::string friendly_name = "Error looking up metric config";
+
+                std::optional<metrics::metric_config*> config_opt = c.get_config_of_filename(c.metrics[idx]);
+
+                if(config_opt.has_value())
+                    friendly_name = config_opt.value()->name;
 
                 metric_names.push_back(friendly_name);
                 parent_directories.push_back(&c);
             }
         }
 
-        if(ImGui::BeginMenuBar())
+        if(!hide_ui)
         {
-            std::vector<const char*> items = get_imgui_view(metric_names);
+            if(ImGui::BeginMenuBar())
+            {
+                ///steam fps padder
+                ImGui::Indent();
+                ImGui::Indent();
 
-            ///steam fps padder
-            ImGui::Indent();
-            ImGui::Indent();
+                ImGui::Text("Metric: ");
 
-            ImGui::Text("Metric: ");
+                bool valid_selected_idx = metric_manage.selected_idx >= 0 && metric_manage.selected_idx < metric_names.size();
 
-            //should_recompile |= ImGui::ListBox("##Metrics", &selected_idx, &items[0], items.size());
-            should_recompile |= ImGui::Combo("##Metrics", &selected_idx, &items[0], items.size());
+                std::string preview = "None";
 
-            ImGui::EndMenuBar();
+                if(valid_selected_idx)
+                    preview = metric_names[metric_manage.selected_idx];
+
+                if(ImGui::BeginCombo("Metrics Box", preview.c_str()))
+                {
+                    for(int selected = 0; selected < (int)metric_names.size(); selected++)
+                    {
+                        std::string name = metric_names[selected];
+
+                        if(ImGui::Selectable(name.c_str(), selected == metric_manage.selected_idx))
+                        {
+                            metric_manage.selected_idx = selected;
+                            should_recompile = true;
+                        }
+
+                        if(ImGui::IsItemHovered())
+                        {
+                            std::string name = metric_names[selected];
+
+                            content* c = parent_directories[selected];
+
+                            auto path_opt = c->lookup_path_to_metric_file(name);
+
+                            if(path_opt.has_value())
+                            {
+                                std::optional<metrics::metric_config*> config_opt = c->get_config_of_filename(path_opt.value());
+
+                                if(config_opt.has_value())
+                                {
+                                    metrics::metric_config* cfg = config_opt.value();
+
+                                    ImGui::SetTooltip("%s", cfg->description.c_str());
+                                }
+                            }
+                        }
+
+                    }
+
+                    ImGui::EndCombo();
+                }
+
+                ImGui::Text("Mouselook:");
+
+                if(raw_input_manager.is_enabled)
+                    ImGui::Text("Y");
+                else
+                    ImGui::Text("N");
+
+                ImGui::Text("(Tab to toggle)");
+
+                ImGui::EndMenuBar();
+            }
         }
 
         fullscreen.stop();
@@ -843,17 +967,24 @@ int main()
             win.backend->set_is_maximised(!win.backend->is_maximised());
         }
 
+        if(input.is_key_pressed("hide_ui"))
+        {
+            hide_ui = !hide_ui;
+        }
+
+        if(!menu.is_open && ImGui::IsKeyPressed(GLFW_KEY_ESCAPE))
+        {
+            raw_input_manager.set_enabled(win, false);
+            menu.open();
+        }
+
         if(menu.is_open)
         {
-            menu.display();
+            hide_ui = false;
+            menu.display(win, input);
         }
-        else
-        {
-            if(ImGui::IsKeyPressed(GLFW_KEY_ESCAPE))
-            {
-                menu.open();
-            }
 
+        {
             auto buffer_size = rtex.size<2>();
 
             bool taking_screenshot = should_take_screenshot;
@@ -861,9 +992,9 @@ int main()
 
             bool should_snapshot_geodesic = false;
 
-            vec<2, size_t> super_adjusted_width = supersample ? (buffer_size / supersample_mult) : buffer_size;
+            vec<2, size_t> super_adjusted_width = current_settings.supersample ? (buffer_size / current_settings.supersample_factor) : buffer_size;
 
-            if((vec2i){super_adjusted_width.x(), super_adjusted_width.y()} != win.get_window_size() || taking_screenshot || last_supersample != supersample || last_supersample_mult != supersample_mult || menu.dirty_settings)
+            if((vec2i){super_adjusted_width.x(), super_adjusted_width.y()} != win.get_window_size() || taking_screenshot || last_supersample != current_settings.supersample || last_supersample_mult != current_settings.supersample_factor || menu.dirty_settings)
             {
                 if(last_event.has_value())
                     last_event.value().block();
@@ -878,20 +1009,20 @@ int main()
                     width = win.get_window_size().x();
                     height = win.get_window_size().y();
 
-                    if(supersample)
+                    if(current_settings.supersample)
                     {
-                        width *= supersample_mult;
-                        height *= supersample_mult;
+                        width *= current_settings.supersample_factor;
+                        height *= current_settings.supersample_factor;
                     }
                 }
                 else
                 {
-                    width = screenshot_w * supersample_mult;
-                    height = screenshot_h * supersample_mult;
+                    width = current_settings.screenshot_width * current_settings.supersample_factor;
+                    height = current_settings.screenshot_height * current_settings.supersample_factor;
                 }
 
-                width = max(width, 16 * supersample_mult);
-                height = max(height, 16 * supersample_mult);
+                width = max(width, 16 * current_settings.supersample_factor);
+                height = max(height, 16 * current_settings.supersample_factor);
 
                 ray_count = width * height;
 
@@ -915,92 +1046,65 @@ int main()
                 texture_coordinates.alloc(width * height * sizeof(float) * 2);
                 texture_coordinates.set_to_zero(clctx.cqueue);
 
-                last_supersample = supersample;
-                last_supersample_mult = supersample_mult;
+                last_supersample = current_settings.supersample;
+                last_supersample_mult = current_settings.supersample_factor;
             }
 
             rtex.acquire(clctx.cqueue);
 
-            float speed = 0.001;
+            float speed = 0.1;
 
-            if(!ImGui::GetIO().WantCaptureKeyboard)
+            if(!menu.is_open && !ImGui::GetIO().WantCaptureKeyboard)
             {
-                if(ImGui::IsKeyDown(GLFW_KEY_LEFT_SHIFT))
-                    speed = 0.1;
+                if(input.is_key_down("speed_10x"))
+                    speed *= 10;
 
-                if(ImGui::IsKeyDown(GLFW_KEY_LEFT_CONTROL))
+                if(input.is_key_down("speed_superslow"))
                     speed = 0.00001;
 
-                if(ImGui::IsKeyDown(GLFW_KEY_LEFT_ALT))
-                    speed /= 1000;
+                if(input.is_key_down("speed_100th"))
+                    speed /= 100;
 
-                if(ImGui::IsKeyDown(GLFW_KEY_Z))
+                if(input.is_key_down("speed_100x"))
                     speed *= 100;
 
-                if(ImGui::IsKeyDown(GLFW_KEY_X))
-                    speed *= 100;
-
-                if(ImGui::IsKeyPressed(GLFW_KEY_B))
+                if(input.is_key_down("camera_reset"))
                 {
-                    camera = {0, 0, 0, -100};
+                    camera = {0, 0, 0, -4};
                 }
 
-                if(ImGui::IsKeyPressed(GLFW_KEY_N))
-                {
-                    camera = {0, 0, 0, -1.16};
-                }
-
-                if(ImGui::IsKeyPressed(GLFW_KEY_M))
-                {
-                    camera = {0, 0, 0, 1.16};
-                }
-
-                if(ImGui::IsKeyPressed(GLFW_KEY_J))
-                {
-                    camera = {0, -1.16, 0, 0};
-                }
-
-                if(ImGui::IsKeyPressed(GLFW_KEY_K))
-                {
-                    camera = {0, 1.16, 0, 0};
-                }
-
-                if(ImGui::IsKeyPressed(GLFW_KEY_V))
-                {
-                    camera = {0, 0, 0, 1.03};
-                }
-
-                if(ImGui::IsKeyPressed(GLFW_KEY_C))
+                if(input.is_key_down("camera_centre"))
                 {
                     camera = {0, 0, 0, 0};
                 }
 
-                if(ImGui::IsKeyPressed(GLFW_KEY_R))
+                vec2f delta;
+
+                if(!raw_input_manager.is_enabled)
                 {
-                    camera = {0, 0, 22, 0};
+                    delta.x() = (float)input.is_key_down("camera_turn_right") - (float)input.is_key_down("camera_turn_left");
+                    delta.y() = (float)input.is_key_down("camera_turn_up") - (float)input.is_key_down("camera_turn_down");
+                }
+                else
+                {
+                    delta = {ImGui::GetIO().MouseDelta.x, ImGui::GetIO().MouseDelta.y};
+
+                    delta.y() = -delta.y();
+
+                    float mouse_sensitivity_mult = 0.05;
+
+                    delta *= mouse_sensitivity_mult;
                 }
 
-                if(ImGui::IsKeyDown(GLFW_KEY_RIGHT))
+                if(delta.x() != 0.f)
                 {
-                    mat3f m = mat3f().ZRot(M_PI/128);
-
                     quat q;
-                    q.load_from_matrix(m);
+                    q.load_from_axis_angle({0, 0, -1, current_settings.mouse_sensitivity * delta.x() * M_PI/128});
 
                     camera_quat = q * camera_quat;
                 }
 
-                if(ImGui::IsKeyDown(GLFW_KEY_LEFT))
-                {
-                    mat3f m = mat3f().ZRot(-M_PI/128);
-
-                    quat q;
-                    q.load_from_matrix(m);
-
-                    camera_quat = q * camera_quat;
-                }
-
-                if(ImGui::IsKeyPressed(GLFW_KEY_1))
+                if(input.is_key_pressed("toggle_wormhole_space"))
                 {
                     flip_sign = !flip_sign;
                 }
@@ -1009,27 +1113,19 @@ int main()
                 vec3f right = rot_quat({1, 0, 0}, camera_quat);
                 vec3f forward_axis = rot_quat({0, 0, 1}, camera_quat);
 
-                if(ImGui::IsKeyDown(GLFW_KEY_DOWN))
+                if(delta.y() != 0.f)
                 {
                     quat q;
-                    q.load_from_axis_angle({right.x(), right.y(), right.z(), M_PI/128});
-
-                    camera_quat = q * camera_quat;
-                }
-
-                if(ImGui::IsKeyDown(GLFW_KEY_UP))
-                {
-                    quat q;
-                    q.load_from_axis_angle({right.x(), right.y(), right.z(), -M_PI/128});
+                    q.load_from_axis_angle({right.x(), right.y(), right.z(), current_settings.mouse_sensitivity * delta.y() * M_PI/128});
 
                     camera_quat = q * camera_quat;
                 }
 
                 vec3f offset = {0,0,0};
 
-                offset += forward_axis * ((ImGui::IsKeyDown(GLFW_KEY_W) - ImGui::IsKeyDown(GLFW_KEY_S)) * speed);
-                offset += right * (ImGui::IsKeyDown(GLFW_KEY_D) - ImGui::IsKeyDown(GLFW_KEY_A)) * speed;
-                offset += up * (ImGui::IsKeyDown(GLFW_KEY_E) - ImGui::IsKeyDown(GLFW_KEY_Q)) * speed;
+                offset += current_settings.keyboard_sensitivity * controls_multiplier * forward_axis * ((input.is_key_down("forward") - input.is_key_down("back")) * speed);
+                offset += current_settings.keyboard_sensitivity * controls_multiplier * right * (input.is_key_down("right") - input.is_key_down("left")) * speed;
+                offset += current_settings.keyboard_sensitivity * controls_multiplier * up * (input.is_key_down("down") - input.is_key_down("up")) * speed;
 
                 camera.y() += offset.x();
                 camera.z() += offset.y();
@@ -1046,234 +1142,129 @@ int main()
             if(camera_on_geodesic)
             {
                 scamera = interpolate_geodesic(current_geodesic_path, current_geodesic_time);
-                base_angle = get_geodesic_intersection(current_geodesic_path);
+
+                if(metric_manage.current_metric)
+                {
+                    base_angle = get_geodesic_intersection(*metric_manage.current_metric, current_geodesic_path);
+                }
+            }
+            else
+            {
+                base_angle = {M_PI/2, 0.f};
             }
 
-            if(!taking_screenshot)
+            bool should_soft_recompile = false;
+
+            if(!taking_screenshot && !hide_ui && !menu.is_first_time_main_menu_open())
             {
-                std::vector<const char*> items = get_imgui_view(metric_names);
+                ImGui::Begin("Settings and Information", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 
-                assert(items.size() > 0);
-
-                ImGui::Begin("DBG", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-
-                bool should_soft_recompile = false;
-
-                if(ImGui::TreeNode("General"))
+                if(ImGui::BeginTabBar("Tabbity tab tabs"))
                 {
-                    ImGui::DragFloat3("Polar Pos", &scamera.v[1]);
-                    ImGui::DragFloat3("Cart Pos", &camera.v[1]);
-                    ImGui::SliderFloat("Camera Time", &camera.v[0], 0.f, 100.f);
-
-                    ImGui::DragFloat("Frametime", &time);
-
-                    ImGui::Checkbox("Time Progresses", &time_progresses);
-
-                    if(time_progresses)
-                        camera.v[0] += time / 1000.f;
-
-                    if(ImGui::Button("Screenshot"))
-                        should_take_screenshot = true;
-
-                    ImGui::TreePop();
-                }
-
-                if(ImGui::TreeNode("Metric Settings"))
-                {
-                    ImGui::Text("Dynamic Options");
-
-                    ImGui::Indent();
-
-                    if(current_metric)
+                    if(ImGui::BeginTabItem("General"))
                     {
-                        if(current_metric->sand.cfg.display())
-                        {
-                            int dyn_config_bytes = current_metric->sand.cfg.current_values.size() * sizeof(cl_float);
+                        ImGui::DragFloat3("Polar Pos", &scamera.v[1]);
+                        ImGui::DragFloat3("Cart Pos", &camera.v[1]);
+                        ImGui::SliderFloat("Camera Time", &camera.v[0], 0.f, 100.f);
 
-                            if(dyn_config_bytes < 4)
-                                dyn_config_bytes = 4;
+                        ImGui::DragFloat("Frametime", &time);
 
-                            dynamic_config.alloc(dyn_config_bytes);
+                        ImGui::Checkbox("Time Progresses", &time_progresses);
 
-                            std::vector<float> vars = current_metric->sand.cfg.current_values;
+                        if(time_progresses)
+                            camera.v[0] += time / 1000.f;
 
-                            if(vars.size() == 0)
-                                vars.resize(1);
+                        if(ImGui::Button("Screenshot"))
+                            should_take_screenshot = true;
 
-                            dynamic_config.write(clctx.cqueue, vars);
-                            should_soft_recompile = true;
-                        }
+                        ImGui::EndTabItem();
                     }
 
-                    ImGui::Unindent();
-
-                    ImGui::Text("Compile Options");
-
-                    ImGui::Indent();
-
-                    ImGui::Checkbox("Redshift", &cfg.redshift);
-
-                    ImGui::InputFloat("Error Tolerance", &selected_error, 0.0000001f, 0.00001f, "%.8f");
-
-                    ImGui::DragFloat("Universe Size", &cfg.universe_size, 1, 1, 0, "%.1f");;
-
-                    ImGui::DragFloat("Precision Radius", &cfg.max_precision_radius, 1, 0.0001f, cfg.universe_size, "%.1f");
-
-                    if(ImGui::IsItemHovered())
+                    if(ImGui::BeginTabItem("Metric Settings"))
                     {
-                        ImGui::SetTooltip("Radius at which lightrays raise their precision checking unconditionally");
-                    }
+                        ImGui::Text("Dynamic Options");
 
-                    should_recompile |= ImGui::Button("Update");
+                        ImGui::Indent();
 
-                    ImGui::Unindent();
-
-                    ImGui::TreePop();
-                }
-
-                if(ImGui::TreeNode("Paths"))
-                {
-                    ImGui::DragFloat("Geodesic Camera Time", &current_geodesic_time, 0.1, -100.f, 100.f);
-
-                    ImGui::Checkbox("Use Camera Geodesic", &camera_on_geodesic);
-
-                    ImGui::Checkbox("Camera Time Progresses", &camera_time_progresses);
-
-                    if(camera_time_progresses)
-                        current_geodesic_time += time / 1000.f;
-
-                    if(ImGui::Button("Snapshot Camera Geodesic"))
-                    {
-                        should_snapshot_geodesic = true;
-                    }
-
-                    ImGui::Checkbox("Camera Snapshot Geodesic goes forward", &camera_geodesics_go_foward);
-
-                    ImGui::TreePop();
-                }
-
-                ImGui::SetNextItemOpen(true, ImGuiCond_Once);
-
-                if(should_recompile || current_idx == -1 || should_soft_recompile)
-                {
-                    bool should_hard_recompile = should_recompile || current_idx == -1;
-
-                    if(selected_idx == -1)
-                        selected_idx = 0;
-
-                    if(selected_idx != current_idx)
-                    {
-                        metrics::metric* next = parent_directories[selected_idx]->lazy_fetch(all_content, items[selected_idx]);
-
-                        if(next == nullptr)
+                        if(metric_manage.current_metric)
                         {
-                            std::cout << "Broken metric " << metric_names[selected_idx] << std::endl;
-                        }
-                        else
-                        {
-                            current_metric = next;
+                            if(metric_manage.current_metric->sand.cfg.display())
+                            {
+                                int dyn_config_bytes = metric_manage.current_metric->sand.cfg.current_values.size() * sizeof(cl_float);
+
+                                if(dyn_config_bytes < 4)
+                                    dyn_config_bytes = 4;
+
+                                dynamic_config.alloc(dyn_config_bytes);
+
+                                std::vector<float> vars = metric_manage.current_metric->sand.cfg.current_values;
+
+                                if(vars.size() == 0)
+                                    vars.resize(1);
+
+                                dynamic_config.write(clctx.cqueue, vars);
+                                should_soft_recompile = true;
+                            }
                         }
 
-                        assert(current_metric);
+                        ImGui::Unindent();
 
-                        selected_error = current_metric->metric_cfg.max_acceleration_change;
+                        ImGui::Text("Compile Options");
 
-                        std::cout << "ALLOCATING DYNCONFIG " << current_metric->sand.cfg.default_values.size() << std::endl;
+                        ImGui::Indent();
 
-                        int dyn_config_bytes = current_metric->sand.cfg.default_values.size() * sizeof(cl_float);
+                        ImGui::Checkbox("Redshift", &cfg.redshift);
 
-                        if(dyn_config_bytes < 4)
-                            dyn_config_bytes = 4;
+                        ImGui::InputFloat("Error Tolerance", &cfg.error_override, 0.0000001f, 0.00001f, "%.8f");
 
-                        dynamic_config.alloc(dyn_config_bytes);
+                        ImGui::DragFloat("Universe Size", &cfg.universe_size, 1, 1, 0, "%.1f");;
 
-                        std::vector<float> vars = current_metric->sand.cfg.default_values;
+                        ImGui::DragFloat("Precision Radius", &cfg.max_precision_radius, 1, 0.0001f, cfg.universe_size, "%.1f");
 
-                        if(vars.size() == 0)
-                            vars.resize(1);
-
-                        dynamic_config.write(clctx.cqueue, vars);
-                    }
-
-                    cfg.error_override = selected_error;
-                    current_idx = selected_idx;
-                    std::string argument_string_prefix = "-O3 -cl-std=CL2.0 -cl-fast-relaxed-math ";
-
-                    if(cfg.use_device_side_enqueue)
-                    {
-                        argument_string_prefix += "-DDEVICE_SIDE_ENQUEUE ";
-                    }
-
-                    if(sett.is_srgb)
-                    {
-                        argument_string_prefix += "-DLINEAR_FRAMEBUFFER ";
-                    }
-
-                    if(should_hard_recompile)
-                    {
-                        if(clctx.ctx.programs.size() > 0)
-                            clctx.ctx.deregister_program(0);
-
-                        std::string dynamic_argument_string = argument_string_prefix + build_argument_string(*current_metric, current_metric->desc.abstract, cfg, {});
-
-                        file::write("./argument_string.txt", dynamic_argument_string, file::mode::TEXT);
-
-                        dynamic_program_opt = std::nullopt;
-                        dynamic_program_opt.emplace(clctx.ctx, "cl.cl");
-                        dynamic_program_opt->build(clctx.ctx, dynamic_argument_string);
-
-                        clctx.ctx.register_program(*dynamic_program_opt);
-                    }
-
-                    if(should_soft_recompile || should_hard_recompile)
-                    {
-                        if(clctx.ctx.programs.size() > 0)
-                            clctx.ctx.deregister_program(0);
-
-                        ///Reregister the dynamic program again, static is invalid
-                        clctx.ctx.register_program(*dynamic_program_opt);
-
-                        auto substitution_map = current_metric->sand.cfg.as_substitution_map();
-
-                        metrics::metric_impl<std::string> substituted_impl = metrics::build_concrete(substitution_map, current_metric->desc.raw);
-
-                        std::string substituted_argument_string = argument_string_prefix + build_argument_string(*current_metric, substituted_impl, cfg, substitution_map);
-
-                        std::cout << "DYNARGS " << substituted_argument_string << std::endl;
-
-                        if(substituted_program_opt.has_value())
+                        if(ImGui::IsItemHovered())
                         {
-                            substituted_program_opt->cancel();
-                            substituted_program_opt = std::nullopt;
+                            ImGui::SetTooltip("Radius at which lightrays raise their precision checking unconditionally");
                         }
 
-                        substituted_program_opt.emplace(clctx.ctx, "cl.cl");
-                        substituted_program_opt->build(clctx.ctx, substituted_argument_string);
+                        should_recompile |= ImGui::Button("Update");
+
+                        ImGui::Unindent();
+
+                        ImGui::EndTabItem();
                     }
 
-                    ///Is this necessary?
-                    termination_buffer.set_to_zero(clctx.cqueue);
-                }
-
-                if(substituted_program_opt.has_value())
-                {
-                    cl::program& pending = substituted_program_opt.value();
-
-                    if(pending.is_built())
+                    if(ImGui::BeginTabItem("Paths"))
                     {
-                        printf("Swapped\n");
+                        ImGui::DragFloat("Geodesic Camera Time", &current_geodesic_time, 0.1, 0.f, 0.f);
 
-                        if(clctx.ctx.programs.size() > 0)
-                            clctx.ctx.deregister_program(0);
+                        ImGui::Checkbox("Use Camera Geodesic", &camera_on_geodesic);
 
-                        clctx.ctx.register_program(pending);
+                        ImGui::Checkbox("Camera Time Progresses", &camera_time_progresses);
 
-                        substituted_program_opt = std::nullopt;
+                        if(camera_time_progresses)
+                            current_geodesic_time += time / 1000.f;
+
+                        if(ImGui::Button("Snapshot Camera Geodesic"))
+                        {
+                            should_snapshot_geodesic = true;
+                        }
+
+                        ImGui::Checkbox("Camera Snapshot Geodesic goes forward", &camera_geodesics_go_foward);
+
+                        ImGui::EndTabItem();
                     }
+
+                    ImGui::EndTabBar();
                 }
 
                 ImGui::End();
             }
+
+            metric_manage.check_recompile(should_recompile, should_soft_recompile, parent_directories,
+                                          all_content, metric_names, dynamic_config, clctx.cqueue, cfg,
+                                          sett, clctx.ctx, termination_buffer);
+
+            metric_manage.check_substitution(clctx.ctx);
 
             int width = rtex.size<2>().x();
             int height = rtex.size<2>().y();
@@ -1282,8 +1273,6 @@ int main()
             clr.push_back(rtex);
 
             clctx.cqueue.exec("clear", clr, {width, height}, {16, 16});
-
-            int fallback = 0;
 
             cl::event next;
 
@@ -1305,7 +1294,7 @@ int main()
                 cl_int prepass_width = width/16;
                 cl_int prepass_height = height/16;
 
-                if(current_metric->metric_cfg.use_prepass)
+                if(metric_manage.current_metric->metric_cfg.use_prepass)
                 {
                     cl::args clear_args;
                     clear_args.push_back(termination_buffer);
@@ -1366,6 +1355,7 @@ int main()
                     int idx = (height/2) * width + width/2;
 
                     geodesic_trace_buffer.set_to_zero(clctx.cqueue);
+                    geodesic_count_buffer.set_to_zero(clctx.cqueue);
 
                     cl::args snapshot_args;
                     snapshot_args.push_back(schwarzs_1);
@@ -1378,10 +1368,16 @@ int main()
                     snapshot_args.push_back(camera_quat);
                     snapshot_args.push_back(base_angle);
                     snapshot_args.push_back(dynamic_config);
+                    snapshot_args.push_back(geodesic_count_buffer);
 
                     clctx.cqueue.exec("get_geodesic_path", snapshot_args, {1}, {1});
 
                     current_geodesic_path = geodesic_trace_buffer.read<cl_float4>(clctx.cqueue);
+                    int count = geodesic_count_buffer.read<cl_int>(clctx.cqueue)[0];
+
+                    printf("Found geodesic count %i\n", count);
+
+                    current_geodesic_path.resize(count);
                 }
 
                 int rays_num = calculate_ray_count(width, height);
@@ -1423,24 +1419,27 @@ int main()
 
                 clctx.cqueue.block();
 
+                int high_width = current_settings.screenshot_width * current_settings.supersample_factor;
+                int high_height = current_settings.screenshot_height * current_settings.supersample_factor;
+
                 printf("Blocked\n");
 
-                std::cout << "WIDTH " << (screenshot_w * supersample_mult) << " HEIGHT "<< (screenshot_h * supersample_mult) << std::endl;
+                std::cout << "WIDTH " << high_width << " HEIGHT "<< high_height << std::endl;
 
                 std::vector<vec4f> pixels = tex.read(0);
 
                 std::cout << "pixels size " << pixels.size() << std::endl;
 
-                assert(pixels.size() == (screenshot_w * supersample_mult * screenshot_h * supersample_mult));
+                assert(pixels.size() == (high_width * high_height));
 
                 sf::Image img;
-                img.create(screenshot_w * supersample_mult, screenshot_h * supersample_mult);
+                img.create(high_width, high_height);
 
-                for(int y=0; y < screenshot_h * supersample_mult; y++)
+                for(int y=0; y < high_height; y++)
                 {
-                    for(int x=0; x < screenshot_w * supersample_mult; x++)
+                    for(int x=0; x < high_width; x++)
                     {
-                        vec4f current_pixel = pixels[y * (screenshot_w * supersample_mult) + x];
+                        vec4f current_pixel = pixels[y * high_width + x];
 
                         current_pixel = clamp(current_pixel, 0.f, 1.f);
                         current_pixel = lin_to_srgb(current_pixel);
@@ -1454,11 +1453,32 @@ int main()
                 auto duration = now.time_since_epoch();
                 auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
 
-                std::string fname = "./screenshots/" + current_metric->metric_cfg.name + "_" + std::to_string(millis) + ".png";
+                std::string fname = "./screenshots/" + metric_manage.current_metric->metric_cfg.name + "_" + std::to_string(millis) + ".png";
 
                 img.saveToFile(fname);
-            }
 
+                bool add_to_steam_library = current_settings.use_steam_screenshots;
+
+                if(steam.is_enabled() && add_to_steam_library)
+                {
+                    std::vector<vec<3, char>> as_rgb;
+                    as_rgb.resize(high_width * high_height);
+
+                    for(int y=0; y < high_height; y++)
+                    {
+                        for(int x=0; x < high_width; x++)
+                        {
+                            sf::Color c = img.getPixel(x, y);
+
+                            as_rgb[y * high_width + x] = {c.r, c.g, c.b};
+                        }
+                    }
+
+                    ISteamScreenshots* iss = SteamAPI_SteamScreenshots();
+
+                    SteamAPI_ISteamScreenshots_WriteScreenshot(iss, as_rgb.data(), sizeof(vec<3, char>) * as_rgb.size(), high_width, high_height);
+               }
+            }
 
             if(last_event.has_value())
                 last_event.value().block();
@@ -1467,7 +1487,9 @@ int main()
         }
 
         {
-            ImDrawList* lst = ImGui::GetBackgroundDrawList(ImGui::GetMainViewport());
+            ImDrawList* lst = hide_ui ?
+                              ImGui::GetForegroundDrawList(ImGui::GetMainViewport()) :
+                              ImGui::GetBackgroundDrawList(ImGui::GetMainViewport());
 
             ImVec2 screen_pos = ImGui::GetMainViewport()->Pos;
 

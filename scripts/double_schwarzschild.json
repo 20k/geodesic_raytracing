@@ -5,5 +5,6 @@
 	"max_acceleration_change": 0.00001,
 	"inherit_settings": "cylindrical_base",
 	"has_cylindrical_singularity": true,
-	"cylindrical_terminator": 0.005
+	"cylindrical_terminator": 0.005,
+	"description": "Two schwarzschild black holes separated by a cosmic string\nNote: For the double black hole metrics, while space is noticably distorted by the cosmic string, the shape of the event horizons while the black holes are separated by some distance is accurate"
 }
