@@ -111,6 +111,7 @@ namespace dual_types
             MIN,
 
             LAMBERT_W0,
+            UNKNOWN_FUNCTION,
 
             VALUE,
             NONE,
@@ -185,6 +186,7 @@ namespace dual_types
         "max",
         "min",
         "lambert_w0",
+        "generated#function#failure",
         "ERROR"
         );
 
@@ -232,6 +234,8 @@ namespace dual_types
     }
 
     struct value;
+
+    std::string type_to_string(const value& op, bool is_int = false);
 
     value make_op_value(const std::string& str);
     template<Arithmetic T>
@@ -948,9 +952,14 @@ namespace dual_types
                 return;
             }
 
-            for(const auto& val : args)
+            int start = 0;
+
+            if(type == ops::UNKNOWN_FUNCTION)
+                start = 1;
+
+            for(int i=start; i < (int)args.size(); i++)
             {
-                val.get_all_variables_impl(v);
+                args[i].get_all_variables_impl(v);
             }
         }
 
@@ -1009,6 +1018,28 @@ namespace dual_types
     };
 
     inline
+    std::string get_function_name(const value& v)
+    {
+        assert(!v.is_constant());
+
+        if(v.type == ops::UNKNOWN_FUNCTION)
+            return type_to_string(v.args.at(0));
+        else
+            return std::string(get_description(v.type).sym);
+    }
+
+    inline
+    std::vector<value> get_function_args(const value& v)
+    {
+        assert(!v.is_constant());
+
+        if(v.type == ops::UNKNOWN_FUNCTION)
+            return std::vector<value>(v.args.begin() + 1, v.args.end());
+        else
+            return v.args;
+    }
+
+    inline
     bool equivalent(const value& d1, const value& d2)
     {
         if(d1.type != d2.type)
@@ -1046,7 +1077,7 @@ namespace dual_types
     }
 
     inline
-    std::string type_to_string(const value& op, bool is_int = false)
+    std::string type_to_string(const value& op, bool is_int)
     {
         if(op.type == ops::VALUE)
         {
@@ -1077,17 +1108,41 @@ namespace dual_types
            if(op.type == ops::UMINUS)
                 return "(-(" + type_to_string(op.args[0], is_int) + "))";
 
-            std::string build = std::string(desc.sym) + "(";
+            std::string build;
 
-            for(int i=0; i < (int)op.args.size() - 1; i++)
+            if(op.type == ops::UNKNOWN_FUNCTION)
             {
-                build += type_to_string(op.args[i], is_int) + ",";
+                assert(op.args[0].is_constant());
+
+                std::string name = type_to_string(op.args[0]);
+
+                build = name + "(";
+
+                ///starts at one, ignoring the first argument which is the function name
+                for(int i=1; i < (int)op.args.size() - 1; i++)
+                {
+                    build += type_to_string(op.args[i], is_int) + ",";
+                }
+
+                if(op.args.size() > 1)
+                    build += type_to_string(op.args.back(), is_int);
+
+                build += ")";
             }
+            else
+            {
+                build = std::string(desc.sym) + "(";
 
-            if(op.args.size() > 0)
-                build += type_to_string(op.args.back(), is_int);
+                for(int i=0; i < (int)op.args.size() - 1; i++)
+                {
+                    build += type_to_string(op.args[i], is_int) + ",";
+                }
 
-            build += ")";
+                if(op.args.size() > 0)
+                    build += type_to_string(op.args.back(), is_int);
+
+                build += ")";
+            }
 
             return build;
         }
@@ -1212,6 +1267,12 @@ namespace dual_types
     BINARY(max, MAX);
     BINARY(min, MIN);
     UNARY(lambert_w0, LAMBERT_W0);
+
+    template<typename... T>
+    value call(const value& name, T&&... args)
+    {
+        return make_op(ops::UNKNOWN_FUNCTION, name, std::forward<T>(args)...);
+    }
 
     inline
     value conjugate(const value& d1)
