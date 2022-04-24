@@ -923,10 +923,15 @@ namespace dual_types
                 return;
             }
 
-            for(auto& i : args)
+            int start = 0;
+
+            if(type == ops::UNKNOWN_FUNCTION)
+                start = 1;
+
+            for(int kk=start; kk < (int)args.size(); kk++)
             {
-                i.substitute_impl(sym, value);
-                i = i.flatten();
+                args[kk].substitute_impl(sym, value);
+                args[kk] = args[kk].flatten();
             }
 
             *this = flatten();
@@ -974,6 +979,22 @@ namespace dual_types
         }
 
         template<typename T>
+        void recurse_arguments(const T& in) const
+        {
+            in(*this);
+
+            int start = 0;
+
+            if(type == ops::UNKNOWN_FUNCTION)
+                start = 1;
+
+            for(int i=start; i < (int)args.size(); i++)
+            {
+                args[i].recurse_arguments(in);
+            }
+        }
+
+        template<typename T>
         void recurse_arguments(const T& in)
         {
             in(*this);
@@ -985,7 +1006,7 @@ namespace dual_types
 
             for(int i=start; i < (int)args.size(); i++)
             {
-                recurse_arguments(args[i]);
+                args[i].recurse_arguments(in);
             }
         }
 
@@ -1285,7 +1306,7 @@ namespace dual_types
     UNARY(lambert_w0, LAMBERT_W0);
 
     template<typename... T>
-    value call(const value& name, T&&... args)
+    value apply(const value& name, T&&... args)
     {
         return make_op(ops::UNKNOWN_FUNCTION, name, std::forward<T>(args)...);
     }
