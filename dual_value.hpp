@@ -1057,7 +1057,7 @@ namespace dual_types
     inline
     std::string get_function_name(const value& v)
     {
-        assert(!v.is_constant());
+        assert(!v.is_value());
 
         if(v.type == ops::UNKNOWN_FUNCTION)
             return type_to_string(v.args.at(0));
@@ -1068,7 +1068,7 @@ namespace dual_types
     inline
     std::vector<value> get_function_args(const value& v)
     {
-        assert(!v.is_constant());
+        assert(!v.is_value());
 
         if(v.type == ops::UNKNOWN_FUNCTION)
             return std::vector<value>(v.args.begin() + 1, v.args.end());
@@ -1149,7 +1149,7 @@ namespace dual_types
 
             if(op.type == ops::UNKNOWN_FUNCTION)
             {
-                assert(op.args[0].is_constant());
+                assert(op.args[0].is_value());
 
                 std::string name = type_to_string(op.args[0]);
 
