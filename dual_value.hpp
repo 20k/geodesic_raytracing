@@ -1305,6 +1305,12 @@ namespace dual_types
     BINARY(min, MIN);
     UNARY(lambert_w0, LAMBERT_W0);
 
+    inline
+    auto if_v(const value& condition, const value& if_true, const value& if_false)
+    {
+        return select(if_false, if_true, condition);
+    }
+
     template<typename... T>
     value apply(const value& name, T&&... args)
     {
