@@ -16,3 +16,6 @@
 [submodule "deps/tomlplusplus"]
 	path = deps/tomlplusplus
 	url = https://github.com/marzer/tomlplusplus
+[submodule "deps/imgui"]
+	path = deps/imgui
+	url = https://github.com/20k/imgui-fork
