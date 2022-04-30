@@ -71,6 +71,7 @@ namespace dual_types
             MULTIPLY,
             DIVIDE,
             MODULUS, ///c style %
+            AND,
 
             LESS,
             LESS_EQUAL,
@@ -132,7 +133,7 @@ namespace dual_types
 
         operation_desc ret;
 
-        if(type == PLUS || type == MINUS || type == MULTIPLY || type == MODULUS ||
+        if(type == PLUS || type == MINUS || type == MULTIPLY || type == MODULUS || type == AND ||
            type == LESS || type == LESS_EQUAL || type == GREATER || type == GREATER_EQUAL ||
            type == EQUAL)
         {
@@ -158,6 +159,7 @@ namespace dual_types
         "/",
         #endif // NATIVE_DIVIDE
         "%",
+        "&",
         "<",
         "<=",
         ">",
@@ -269,6 +271,8 @@ namespace dual_types
     value operator/(const value& d1, const value& d2);
 
     value operator%(const value& d1, const value& d2);
+
+    value operator&(const value& d1, const value& d2);
 
     bool equivalent(const value& d1, const value& d2);
 
@@ -667,6 +671,10 @@ namespace dual_types
                 //if(type == ops::MODULUS)
                 //    return make_op_value(get(0) % get(1));
 
+                ///can't propagate because we only do doubles oops
+                //if(type == ops::AND)
+                //    return make_op_value(get(0) & get(1));
+
                 if(type == ops::LESS)
                     return make_op_value(get(0) < get(1));
 
@@ -852,6 +860,10 @@ namespace dual_types
                 return args[0].dual(sym) / args[1].dual(sym);
             }
             /*if(type == MODULUS)
+            {
+
+            }*/
+            /*if(type == AND)
             {
 
             }*/
@@ -1274,6 +1286,12 @@ namespace dual_types
     value operator%(const value& d1, const value& d2)
     {
         return make_op(ops::MODULUS, d1, d2);
+    }
+
+    inline
+    value operator&(const value& d1, const value& d2)
+    {
+        return make_op(ops::AND, d1, d2);
     }
 
     #define UNARY(x, y) inline value x(const value& d1){return make_op(ops::y, d1);}
