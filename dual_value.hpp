@@ -1329,6 +1329,16 @@ namespace dual_types
         return select(if_false, if_true, condition);
     }
 
+    template<typename T>
+    inline
+    auto if_v(bool condition, const T& if_true, const T& if_false)
+    {
+        if(condition)
+            return if_true;
+        else
+            return if_false;
+    }
+
     template<typename... T>
     value apply(const value& name, T&&... args)
     {
