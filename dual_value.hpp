@@ -1326,6 +1326,16 @@ namespace dual_types
     inline
     auto if_v(const value& condition, const value& if_true, const value& if_false)
     {
+        if(condition.is_constant())
+        {
+            double val = condition.get_constant();
+
+            if(val == 0)
+                return if_false;
+            else
+                return if_true;
+        }
+
         return select(if_false, if_true, condition);
     }
 
