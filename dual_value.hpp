@@ -1353,7 +1353,7 @@ namespace dual_types
     inline
     T divide_with_limit(const T& top, const T& bottom, const U& limit)
     {
-        return dual_types::if_v(bottom >= 0.0001f, top / bottom, limit);
+        return dual_types::if_v(bottom >= 0.001f, top / bottom, limit);
     }
 
     template<typename... T>
