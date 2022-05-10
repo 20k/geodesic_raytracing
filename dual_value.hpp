@@ -1349,6 +1349,13 @@ namespace dual_types
             return if_false;
     }
 
+    template<typename T>
+    inline
+    T divide_with_limit(const T& top, const T& bottom, const T& limit)
+    {
+        return dual_types::if_v(bottom >= 0.0001f, top / bottom, limit);
+    }
+
     template<typename... T>
     value apply(const value& name, T&&... args)
     {
