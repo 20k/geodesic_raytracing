@@ -1323,6 +1323,13 @@ namespace dual_types
     BINARY(min, MIN);
     UNARY(lambert_w0, LAMBERT_W0);
 
+    template<typename T>
+    inline
+    T clamp(const T& val, const T& lower, const T& upper)
+    {
+        return min(max(val, lower), upper);
+    }
+
     inline
     auto if_v(const value& condition, const value& if_true, const value& if_false)
     {
