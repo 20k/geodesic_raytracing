@@ -568,6 +568,8 @@ int main()
 
     assert(win.clctx);
 
+    std::cout << "extensions " << cl::get_extensions(win.clctx->ctx) << std::endl;
+
     ImFontAtlas* atlas = ImGui::GetIO().Fonts;
     atlas->FontBuilderFlags = ImGuiFreeTypeBuilderFlags_LCD | ImGuiFreeTypeBuilderFlags_FILTER_DEFAULT | ImGuiFreeTypeBuilderFlags_LoadColor;
 
@@ -632,11 +634,13 @@ int main()
     cl::image_with_mipmaps background_mipped = load_mipped_image("background.png", clctx);
     cl::image_with_mipmaps background_mipped2 = load_mipped_image("background2.png", clctx);
 
+    #ifdef USE_DEVICE_SIDE_QUEUE
     printf("Pre dqueue\n");
 
     cl::device_command_queue dqueue(clctx.ctx);
 
     printf("Post dqueue\n");
+    #endif // USE_DEVICE_SIDE_QUEUE
 
     ///t, x, y, z
     //vec4f camera = {0, -2, -2, 0};
