@@ -6,6 +6,7 @@
 #include <iomanip>
 #include <vector>
 #include <type_traits>
+#include <array>
 
 namespace dual_types
 {
