@@ -71,6 +71,7 @@ namespace dual_types
             MULTIPLY,
             DIVIDE,
             MODULUS, ///c style %
+            AND,
 
             LESS,
             LESS_EQUAL,
@@ -132,7 +133,7 @@ namespace dual_types
 
         operation_desc ret;
 
-        if(type == PLUS || type == MINUS || type == MULTIPLY || type == MODULUS ||
+        if(type == PLUS || type == MINUS || type == MULTIPLY || type == MODULUS || type == AND ||
            type == LESS || type == LESS_EQUAL || type == GREATER || type == GREATER_EQUAL ||
            type == EQUAL)
         {
@@ -158,6 +159,7 @@ namespace dual_types
         "/",
         #endif // NATIVE_DIVIDE
         "%",
+        "&",
         "<",
         "<=",
         ">",
@@ -269,6 +271,8 @@ namespace dual_types
     value operator/(const value& d1, const value& d2);
 
     value operator%(const value& d1, const value& d2);
+
+    value operator&(const value& d1, const value& d2);
 
     bool equivalent(const value& d1, const value& d2);
 
@@ -667,6 +671,10 @@ namespace dual_types
                 //if(type == ops::MODULUS)
                 //    return make_op_value(get(0) % get(1));
 
+                ///can't propagate because we only do doubles oops
+                //if(type == ops::AND)
+                //    return make_op_value(get(0) & get(1));
+
                 if(type == ops::LESS)
                     return make_op_value(get(0) < get(1));
 
@@ -852,6 +860,10 @@ namespace dual_types
                 return args[0].dual(sym) / args[1].dual(sym);
             }
             /*if(type == MODULUS)
+            {
+
+            }*/
+            /*if(type == AND)
             {
 
             }*/
@@ -1276,6 +1288,12 @@ namespace dual_types
         return make_op(ops::MODULUS, d1, d2);
     }
 
+    inline
+    value operator&(const value& d1, const value& d2)
+    {
+        return make_op(ops::AND, d1, d2);
+    }
+
     #define UNARY(x, y) inline value x(const value& d1){return make_op(ops::y, d1);}
     #define BINARY(x, y) inline value x(const value& d1, const value& d2){return make_op(ops::y, d1, d2);}
     #define TRINARY(x, y) inline value x(const value& d1, const value& d2, const value& d3){return make_op(ops::y, d1, d2, d3);}
@@ -1304,6 +1322,46 @@ namespace dual_types
     BINARY(max, MAX);
     BINARY(min, MIN);
     UNARY(lambert_w0, LAMBERT_W0);
+
+    template<typename T>
+    inline
+    T clamp(const T& val, const T& lower, const T& upper)
+    {
+        return min(max(val, lower), upper);
+    }
+
+    inline
+    auto if_v(const value& condition, const value& if_true, const value& if_false)
+    {
+        if(condition.is_constant())
+        {
+            double val = condition.get_constant();
+
+            if(val == 0)
+                return if_false;
+            else
+                return if_true;
+        }
+
+        return select(if_false, if_true, condition);
+    }
+
+    template<typename T>
+    inline
+    auto if_v(bool condition, const T& if_true, const T& if_false)
+    {
+        if(condition)
+            return if_true;
+        else
+            return if_false;
+    }
+
+    template<typename T, typename U>
+    inline
+    T divide_with_limit(const T& top, const T& bottom, const U& limit, float tol = 0.001f)
+    {
+        return dual_types::if_v(bottom >= tol, top / bottom, limit);
+    }
 
     template<typename... T>
     value apply(const value& name, T&&... args)
