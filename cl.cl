@@ -2442,7 +2442,7 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
     if(id >= *finished_count_in)
         return;
 
-    struct lightray* ray = &finished_rays[id];
+    __global struct lightray* ray = &finished_rays[id];
 
     int pos = ray->sy * width + ray->sx;
     int sx = ray->sx;
@@ -2589,17 +2589,45 @@ float3 redshift(float3 v, float z)
     return result;
 }
 
-float4 read_mipmap(image2d_t mipmap1, image2d_t mipmap2, float position_y, sampler_t sam, float2 pos, float lod)
+///this function is drastically complicated by nvidias terrible opencl support
+///can't believe i fully have to implement trilinear filtering, mipmapping, and anisotropic texture filtering in raw opencl
+///such is the terrible state of support across amd and nvidia
+///amd doesn't correctly support shared opengl textures with mipmaps, and there's no anisotropic filtering i can see
+///and nvidia don't support mipmapped textxures at all, or clCreateSampler
+///what a mess!
+float4 read_mipmap(image2d_array_t mipmap1, image2d_array_t mipmap2, float position_y, float2 pos, float lod)
 {
-    return position_y >= 0 ? read_imagef(mipmap1, sam, pos, lod) : read_imagef(mipmap2, sam, pos, lod);
+    sampler_t sam = CLK_NORMALIZED_COORDS_TRUE | CLK_ADDRESS_REPEAT | CLK_FILTER_LINEAR;
+
+    pos = fmod(pos, 1.f);
+
+
+    float mip_lower = floor(lod);
+    float mip_upper = ceil(lod);
+
+    float lower_divisor = pow(2.f, mip_lower);
+    float upper_divisor = pow(2.f, mip_upper);
+
+    float2 lower_coord = pos / lower_divisor;
+    float2 upper_coord = pos / upper_divisor;
+
+    float4 full_lower_coord = (float4)(lower_coord.xy, mip_lower, 0.f);
+    float4 full_upper_coord = (float4)(upper_coord.xy, mip_upper, 0.f);
+
+    float lower_weight = 1 - (lod - mip_lower);
+
+    float4 v1 = mix(read_imagef(mipmap1, sam, full_lower_coord), read_imagef(mipmap1, sam, full_upper_coord), lower_weight);
+    float4 v2 = mix(read_imagef(mipmap2, sam, full_lower_coord), read_imagef(mipmap2, sam, full_upper_coord), lower_weight);
+
+    return position_y >= 0 ? v1 : v2;
 }
 
 #define MIPMAP_CONDITIONAL(x) ((position.y >= 0) ? x(mip_background) : x(mip_background2))
 
 __kernel
 void render(__global struct lightray* finished_rays, __global int* finished_count_in, __write_only image2d_t out,
-            __read_only image2d_t mip_background, __read_only image2d_t mip_background2,
-            int width, int height, __global float2* texture_coordinates, sampler_t sam)
+            __read_only image2d_array_t mip_background, __read_only image2d_array_t mip_background2,
+            int width, int height, __global float2* texture_coordinates)
 {
     int id = get_global_id(0);
 
@@ -2792,7 +2820,7 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
 
     float levelofdetail = log2(minorRadius);
 
-    int maxLod = MIPMAP_CONDITIONAL(get_image_num_mip_levels) - 1;
+    int maxLod = MIPMAP_CONDITIONAL(get_image_array_size) - 1;
 
     if(levelofdetail > maxLod)
     {
@@ -2807,7 +2835,7 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
         if(iProbes < 1)
             levelofdetail = maxLod;
 
-        end_result = read_mipmap(mip_background, mip_background2, position.y, sam, (float2){sxf, syf}, levelofdetail);
+        end_result = read_mipmap(mip_background, mip_background2, position.y, (float2){sxf, syf}, levelofdetail);
     }
     else
     {
@@ -2853,7 +2881,7 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
             float cu = centreu + (currentN / 2.f) * sU;
             float cv = centrev + (currentN / 2.f) * sV;
 
-            float4 fval = read_mipmap(mip_background, mip_background2, position.y, sam, (float2){cu, cv}, levelofdetail);
+            float4 fval = read_mipmap(mip_background, mip_background2, position.y, (float2){cu, cv}, levelofdetail);
 
             totalWeight += relativeWeight * fval;
             accumulatedProbes += relativeWeight;

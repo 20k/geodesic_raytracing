@@ -207,7 +207,7 @@ vec2f get_geodesic_intersection(const metrics::metric& met, const std::vector<cl
     return {M_PI/2, 0};
 }
 
-cl::image_with_mipmaps load_mipped_image(const std::string& fname, opencl_context& clctx)
+cl::image load_mipped_image(const std::string& fname, opencl_context& clctx)
 {
     sf::Image img;
     img.loadFromFile(fname);
@@ -235,34 +235,68 @@ cl::image_with_mipmaps load_mipped_image(const std::string& fname, opencl_contex
     texture opengl_tex;
     opengl_tex.load_from_memory(bsett, &as_uint8[0]);
 
-    #define MIP_LEVELS 20
+    #define MIP_LEVELS 10
 
     int max_mips = floor(log2(std::min(img.getSize().x, img.getSize().y))) + 1;
 
     max_mips = std::min(max_mips, MIP_LEVELS);
 
-    cl::image_with_mipmaps image_mipped(clctx.ctx);
-    image_mipped.alloc((vec2i){img.getSize().x, img.getSize().y}, max_mips, {CL_RGBA, CL_FLOAT});
+    cl::image image_mipped(clctx.ctx);
+    image_mipped.alloc((vec3i){img.getSize().x, img.getSize().y, max_mips}, {CL_RGBA, CL_FLOAT}, cl::image_flags::ARRAY);
 
+    ///and all of THIS is to work around a bug in AMDs drivers, where you cant write to a specific array level!
     int swidth = img.getSize().x;
     int sheight = img.getSize().y;
 
+    std::vector<std::vector<vec4f>> all_mip_levels;
+    all_mip_levels.reserve(max_mips);
+
     for(int i=0; i < max_mips; i++)
     {
-        printf("I is %i\n", i);
-
-        int cwidth = swidth;
-        int cheight = sheight;
-
-        swidth /= 2;
-        sheight /= 2;
-
-        std::vector<vec4f> converted = opengl_tex.read(i);
-
-        assert((int)converted.size() == (cwidth * cheight));
-
-        image_mipped.write(clctx.cqueue, (char*)&converted[0], vec<2, size_t>{0, 0}, vec<2, size_t>{cwidth, cheight}, i);
+        all_mip_levels.push_back(opengl_tex.read(i));
     }
+
+    std::vector<std::vector<vec4f>> uniformly_padded;
+
+    for(int i=0; i < max_mips; i++)
+    {
+        int cwidth = swidth / pow(2, i);
+        int cheight = sheight / pow(2, i);
+
+        assert(cwidth * cheight == all_mip_levels[i].size());
+
+        std::vector<vec4f> replacement;
+        replacement.resize(swidth * sheight);
+
+        for(int y = 0; y < sheight; y++)
+        {
+            for(int x=0; x < swidth; x++)
+            {
+                ///clamp to border
+                int lx = std::min(x, cwidth - 1);
+                int ly = std::min(y, cheight - 1);
+
+                replacement[y * swidth + x] = all_mip_levels[i][ly * cwidth + lx];
+            }
+        }
+
+        uniformly_padded.push_back(replacement);
+    }
+
+    std::vector<vec4f> as_uniform;
+
+    for(auto& i : uniformly_padded)
+    {
+        for(auto& j : i)
+        {
+            as_uniform.push_back(j);
+        }
+    }
+
+    vec<3, size_t> origin = {0, 0, 0};
+    vec<3, size_t> region = {swidth, sheight, max_mips};
+
+    image_mipped.write(clctx.cqueue, (char*)as_uniform.data(), origin, region);
 
     return image_mipped;
 }
@@ -631,8 +665,8 @@ int main()
     cl::gl_rendertexture rtex{clctx.ctx};
     rtex.create_from_texture(tex.handle);
 
-    cl::image_with_mipmaps background_mipped = load_mipped_image("background.png", clctx);
-    cl::image_with_mipmaps background_mipped2 = load_mipped_image("background2.png", clctx);
+    cl::image background_mipped = load_mipped_image("background.png", clctx);
+    cl::image background_mipped2 = load_mipped_image("background2.png", clctx);
 
     #ifdef USE_DEVICE_SIDE_QUEUE
     printf("Pre dqueue\n");
@@ -717,20 +751,6 @@ int main()
     finished_count_1.alloc(sizeof(int));
 
     printf("Alloc rays and counts\n");
-
-    cl_sampler_properties sampler_props[] = {
-    CL_SAMPLER_NORMALIZED_COORDS, CL_TRUE,
-    CL_SAMPLER_ADDRESSING_MODE, CL_ADDRESS_REPEAT,
-    CL_SAMPLER_FILTER_MODE, CL_FILTER_LINEAR,
-    CL_SAMPLER_MIP_FILTER_MODE_KHR, CL_FILTER_LINEAR,
-    //CL_SAMPLER_LOD_MIN_KHR, 0.0f,
-    //CL_SAMPLER_LOD_MAX_KHR, FLT_MAX,
-    0
-    };
-
-    cl_sampler sam = clCreateSamplerWithProperties(clctx.ctx.native_context.data, sampler_props, nullptr);
-
-    printf("Created sampler\n");
 
     std::optional<cl::event> last_event;
 
@@ -1410,7 +1430,6 @@ int main()
                 render_args.push_back(width);
                 render_args.push_back(height);
                 render_args.push_back(texture_coordinates);
-                render_args.push_back(sam);
 
                 next = clctx.cqueue.exec("render", render_args, {width * height}, {256});
             }
