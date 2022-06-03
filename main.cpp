@@ -875,6 +875,8 @@ int main()
 
         win.poll();
 
+        ImGui::PushAllowKeyboardFocus(false);
+
         if(input.is_key_pressed("toggle_mouse"))
             raw_input_manager.set_enabled(win, !raw_input_manager.is_enabled);
 
@@ -1530,6 +1532,8 @@ int main()
 
             lst->AddImage((void*)rtex.texture_id, tl, br, ImVec2(0, 0), ImVec2(1, 1));
         }
+
+        ImGui::PopAllowKeyboardFocus();
 
         win.display();
     }
