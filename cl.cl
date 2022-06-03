@@ -2597,11 +2597,13 @@ float3 redshift(float3 v, float z)
 ///what a mess!
 float4 read_mipmap(image2d_array_t mipmap1, image2d_array_t mipmap2, float position_y, float2 pos, float lod)
 {
+    lod = max(lod, 0.f);
+
     sampler_t sam = CLK_NORMALIZED_COORDS_TRUE | CLK_ADDRESS_REPEAT | CLK_FILTER_LINEAR;
 
     pos = fmod(pos, 1.f);
 
-    lod = 0;
+    //lod = 0;
 
     float mip_lower = floor(lod);
     float mip_upper = ceil(lod);
@@ -2615,7 +2617,7 @@ float4 read_mipmap(image2d_array_t mipmap1, image2d_array_t mipmap2, float posit
     float4 full_lower_coord = (float4)(lower_coord.xy, mip_lower, 0.f);
     float4 full_upper_coord = (float4)(upper_coord.xy, mip_upper, 0.f);
 
-    float lower_weight = 1 - (lod - mip_lower);
+    float lower_weight = (lod - mip_lower);
 
     float4 v1 = mix(read_imagef(mipmap1, sam, full_lower_coord), read_imagef(mipmap1, sam, full_upper_coord), lower_weight);
     float4 v2 = mix(read_imagef(mipmap2, sam, full_lower_coord), read_imagef(mipmap2, sam, full_upper_coord), lower_weight);
