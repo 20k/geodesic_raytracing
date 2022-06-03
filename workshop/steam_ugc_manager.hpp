@@ -153,7 +153,10 @@ struct steam_info
         printf("Initialising steam api\n");
 
         if(!SteamAPI_Init())
-            throw std::runtime_error("Could not init api");
+        {
+            printf("Could not initialise steam api\n");
+            return;
+        }
 
         enabled = true;
 
@@ -171,7 +174,8 @@ struct steam_info
     {
         printf("Destroying steam api\n");
 
-        SteamAPI_Shutdown();
+        if(enabled)
+            SteamAPI_Shutdown();
     }
 
     steam_info(const steam_info&) = delete;
@@ -196,6 +200,9 @@ struct ugc_view
     template<typename T>
     void fetch(const steam_info& info, steam_callback_executor& exec, T&& on_complete)
     {
+        if(!info.enabled)
+            return;
+
         ISteamUGC* ugc = SteamAPI_SteamUGC();
 
         UGCQueryHandle_t raw_ugc_handle = SteamAPI_ISteamUGC_CreateQueryUserUGCRequest(ugc, info.account_id, type, k_EUGCMatchingUGCType_All, k_EUserUGCListSortOrder_CreationOrderDesc, info.appid, info.appid, 1);
