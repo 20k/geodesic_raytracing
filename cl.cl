@@ -2601,6 +2601,7 @@ float4 read_mipmap(image2d_array_t mipmap1, image2d_array_t mipmap2, float posit
 
     pos = fmod(pos, 1.f);
 
+    lod = 0;
 
     float mip_lower = floor(lod);
     float mip_upper = ceil(lod);
