@@ -1,17 +1,3 @@
-/*__kernel
-void generate_mips(__global uchar4* in, int page_width, int page_height, int width, int height, int lower_level)
-{
-    int x = get_global_id(0);
-    int y = get_global_id(1);
-
-    if(x >= width || y >= height)
-        return;
-
-    uint4 avg = 0;
-
-    avg += in[lower_level * ]
-}*/
-
 #define M_PIf ((float)M_PI)
 
 float3 cartesian_to_polar(float3 in)
@@ -226,12 +212,6 @@ float3 unrotate_vector(float3 bx, float3 by, float3 bz, float3 v)
     return rotate_vector((float3){bx.x, by.x, bz.x}, (float3){bx.y, by.y, bz.y}, (float3){bx.z, by.z, bz.z}, v);
 }
 
-/*float4 unrotate_vector4(float4 bx, float4 by, float4 bz, float4 bw, float4 v)
-{
-
-}*/
-
-///normalize
 float3 rejection(float3 my_vector, float3 basis)
 {
     return normalize(my_vector - dot(my_vector, basis) * basis);

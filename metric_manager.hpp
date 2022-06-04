@@ -12,6 +12,7 @@ struct metric_manager
     std::optional<cl::program> pending_dynamic_program_opt;
     bool has_built = false;
 
+    ///this is a bit of a giant mess
     void check_recompile(bool should_recompile, bool should_soft_recompile,
                          const std::vector<content*>& parent_directories, content_manager& all_content, std::vector<std::string>& metric_names,
                          cl::buffer& dynamic_config, cl::command_queue& cqueue, metrics::config& cfg, render_settings& sett, cl::context& context, cl::buffer& termination_buffer)

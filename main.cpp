@@ -9,7 +9,6 @@
 #include "dual_value.hpp"
 #include "metric.hpp"
 #include "chromaticity.hpp"
-#include "numerical.hpp"
 #include <imgui/misc/freetype/imgui_freetype.h>
 #include <imgui/imgui_internal.h>
 #include "js_interop.hpp"

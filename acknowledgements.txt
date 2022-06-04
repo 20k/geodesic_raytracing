@@ -1,0 +1,7 @@
+The default background picture is provided by the ESA
+
+Acknowledgement: Gaia Data Processing and Analysis Consortium (DPAC); A. Moitinho / A. F. Silva / M. Barros / C. Barata, University of Lisbon, Portugal; H. Savietto, Fork Research, Portugal.
+
+Copyright: ESA/Gaia/DPAC, CC BY-SA 3.0 IGO
+
+https://sci.esa.int/web/gaia/-/60196-gaia-s-sky-in-colour-equirectangular-projection
