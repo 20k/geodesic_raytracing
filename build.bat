@@ -2,6 +2,7 @@ rm -rf ./build_public
 mkdir build_public
 
 cp number.js ./build_public
+cp acknowledgements.txt ./build_public
 cp C:/msys64/mingw64/bin/libOpenCL.dll ./build_public
 cp background.png ./build_public
 cp background2.png ./build_public
