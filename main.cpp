@@ -763,6 +763,7 @@ int main()
     float current_geodesic_time = 0;
     bool camera_on_geodesic = false;
     bool camera_time_progresses = false;
+    float camera_geodesic_time_progression_speed = 1.f;
     bool camera_geodesics_go_foward = true;
     vec2f base_angle = {M_PI/2, 0};
 
@@ -931,7 +932,7 @@ int main()
                 if(valid_selected_idx)
                     preview = metric_names[metric_manage.selected_idx];
 
-                if(ImGui::BeginCombo("Metrics Box", preview.c_str()))
+                if(ImGui::BeginCombo("##Metrics Box", preview.c_str()))
                 {
                     for(int selected = 0; selected < (int)metric_names.size(); selected++)
                     {
@@ -1196,9 +1197,6 @@ int main()
 
                         ImGui::Checkbox("Time Progresses", &time_progresses);
 
-                        if(time_progresses)
-                            camera.v[0] += time / 1000.f;
-
                         if(ImGui::Button("Screenshot"))
                             should_take_screenshot = true;
 
@@ -1264,10 +1262,9 @@ int main()
 
                         ImGui::Checkbox("Use Camera Geodesic", &camera_on_geodesic);
 
-                        ImGui::Checkbox("Camera Time Progresses", &camera_time_progresses);
+                        ImGui::Checkbox("Camera Time Progresses Along Geodesic", &camera_time_progresses);
 
-                        if(camera_time_progresses)
-                            current_geodesic_time += time / 1000.f;
+                        ImGui::SliderFloat("Camera Time Progression Speed", &camera_geodesic_time_progression_speed, 0.f, 4.f, "%.2f");
 
                         if(ImGui::Button("Snapshot Camera Geodesic"))
                         {
@@ -1284,6 +1281,12 @@ int main()
 
                 ImGui::End();
             }
+
+            if(time_progresses)
+                camera.v[0] += time / 1000.f;
+
+            if(camera_time_progresses)
+                current_geodesic_time += camera_geodesic_time_progression_speed * time / 1000.f;
 
             metric_manage.check_recompile(should_recompile, should_soft_recompile, parent_directories,
                                           all_content, metric_names, dynamic_config, clctx.cqueue, cfg,
