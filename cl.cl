@@ -626,6 +626,43 @@ void calculate_metric_generic_big(float4 spacetime_position, float g_metric_out[
 
 void calculate_partial_derivatives_generic_big(float4 spacetime_position, float g_metric_partials[], dynamic_config_space struct dynamic_config* cfg)
 {
+    //#define NUMERICAL_DIFFERENTIATION
+    #ifdef NUMERICAL_DIFFERENTIATION
+    float g_metric[16] = {0};
+
+    {
+         calculate_metric_generic_big(spacetime_position, g_metric, cfg);
+    }
+
+    #pragma unroll(4)
+    for(int d = 0; d < 4; d++)
+    {
+        float g_metric_m[16] = {0};
+
+        float eps = 1e-3f;
+
+        float4 evector = (float4)(0,0,0,0);
+
+        if(d == 0)
+            evector.x = eps;
+        if(d == 1)
+            evector.y = eps;
+        if(d == 2)
+            evector.z = eps;
+        if(d == 3)
+            evector.w = eps;
+
+        calculate_metric_generic_big(spacetime_position + evector, g_metric_m, cfg);
+
+        for(int k=0; k < 16; k++)
+        {
+            g_metric_partials[d * 16 + k] = (g_metric_m[k] - g_metric[k]) / eps;
+        }
+    }
+    #endif
+
+    #define ANALYTIC_DIFFERENTIATION
+    #ifdef ANALYTIC_DIFFERENTIATION
     float v1 = spacetime_position.x;
     float v2 = spacetime_position.y;
     float v3 = spacetime_position.z;
@@ -653,13 +690,6 @@ void calculate_partial_derivatives_generic_big(float4 spacetime_position, float 
     //g_metric_partials[0 * 16 + 14] = F15_P;
     g_metric_partials[0 * 16 + 15] = F16_P;
 
-    g_metric_partials[0 * 16 + 4] = g_metric_partials[0 * 16 + 1];
-    g_metric_partials[0 * 16 + 8] = g_metric_partials[0 * 16 + 2];
-    g_metric_partials[0 * 16 + 12] = g_metric_partials[0 * 16 + 3];
-    g_metric_partials[0 * 16 + 9] = g_metric_partials[0 * 16 + 6];
-    g_metric_partials[0 * 16 + 13] = g_metric_partials[0 * 16 + 7];
-    g_metric_partials[0 * 16 + 14] = g_metric_partials[0 * 16 + 11];
-
     g_metric_partials[1 * 16 + 0] = F17_P;
     g_metric_partials[1 * 16 + 1] = F18_P;
     g_metric_partials[1 * 16 + 2] = F19_P;
@@ -676,13 +706,6 @@ void calculate_partial_derivatives_generic_big(float4 spacetime_position, float 
     //g_metric_partials[1 * 16 + 13] = F30_P;
     //g_metric_partials[1 * 16 + 14] = F31_P;
     g_metric_partials[1 * 16 + 15] = F32_P;
-
-    g_metric_partials[1 * 16 + 4] = g_metric_partials[1 * 16 + 1];
-    g_metric_partials[1 * 16 + 8] = g_metric_partials[1 * 16 + 2];
-    g_metric_partials[1 * 16 + 12] = g_metric_partials[1 * 16 + 3];
-    g_metric_partials[1 * 16 + 9] = g_metric_partials[1 * 16 + 6];
-    g_metric_partials[1 * 16 + 13] = g_metric_partials[1 * 16 + 7];
-    g_metric_partials[1 * 16 + 14] = g_metric_partials[1 * 16 + 11];
 
     g_metric_partials[2 * 16 + 0] = F33_P;
     g_metric_partials[2 * 16 + 1] = F34_P;
@@ -701,13 +724,6 @@ void calculate_partial_derivatives_generic_big(float4 spacetime_position, float 
     //g_metric_partials[2 * 16 + 14] = F47_P;
     g_metric_partials[2 * 16 + 15] = F48_P;
 
-    g_metric_partials[2 * 16 + 4] = g_metric_partials[2 * 16 + 1];
-    g_metric_partials[2 * 16 + 8] = g_metric_partials[2 * 16 + 2];
-    g_metric_partials[2 * 16 + 12] = g_metric_partials[2 * 16 + 3];
-    g_metric_partials[2 * 16 + 9] = g_metric_partials[2 * 16 + 6];
-    g_metric_partials[2 * 16 + 13] = g_metric_partials[2 * 16 + 7];
-    g_metric_partials[2 * 16 + 14] = g_metric_partials[2 * 16 + 11];
-
     g_metric_partials[3 * 16 + 0] = F49_P;
     g_metric_partials[3 * 16 + 1] = F50_P;
     g_metric_partials[3 * 16 + 2] = F51_P;
@@ -724,6 +740,28 @@ void calculate_partial_derivatives_generic_big(float4 spacetime_position, float 
     //g_metric_partials[3 * 16 + 13] = F62_P;
     //g_metric_partials[3 * 16 + 14] = F63_P;
     g_metric_partials[3 * 16 + 15] = F64_P;
+    #endif
+
+    g_metric_partials[0 * 16 + 4] = g_metric_partials[0 * 16 + 1];
+    g_metric_partials[0 * 16 + 8] = g_metric_partials[0 * 16 + 2];
+    g_metric_partials[0 * 16 + 12] = g_metric_partials[0 * 16 + 3];
+    g_metric_partials[0 * 16 + 9] = g_metric_partials[0 * 16 + 6];
+    g_metric_partials[0 * 16 + 13] = g_metric_partials[0 * 16 + 7];
+    g_metric_partials[0 * 16 + 14] = g_metric_partials[0 * 16 + 11];
+
+    g_metric_partials[1 * 16 + 4] = g_metric_partials[1 * 16 + 1];
+    g_metric_partials[1 * 16 + 8] = g_metric_partials[1 * 16 + 2];
+    g_metric_partials[1 * 16 + 12] = g_metric_partials[1 * 16 + 3];
+    g_metric_partials[1 * 16 + 9] = g_metric_partials[1 * 16 + 6];
+    g_metric_partials[1 * 16 + 13] = g_metric_partials[1 * 16 + 7];
+    g_metric_partials[1 * 16 + 14] = g_metric_partials[1 * 16 + 11];
+
+    g_metric_partials[2 * 16 + 4] = g_metric_partials[2 * 16 + 1];
+    g_metric_partials[2 * 16 + 8] = g_metric_partials[2 * 16 + 2];
+    g_metric_partials[2 * 16 + 12] = g_metric_partials[2 * 16 + 3];
+    g_metric_partials[2 * 16 + 9] = g_metric_partials[2 * 16 + 6];
+    g_metric_partials[2 * 16 + 13] = g_metric_partials[2 * 16 + 7];
+    g_metric_partials[2 * 16 + 14] = g_metric_partials[2 * 16 + 11];
 
     g_metric_partials[3 * 16 + 4] = g_metric_partials[3 * 16 + 1];
     g_metric_partials[3 * 16 + 8] = g_metric_partials[3 * 16 + 2];
