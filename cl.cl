@@ -1455,6 +1455,9 @@ float3 calculate_pixel_direction(int cx, int cy, float width, float height, floa
 
 int should_early_terminate(int x, int y, int width, int height, __global int* termination_buffer)
 {
+    if(x < 0 || y < 0 || x > width-1 || y > height-1)
+        return false;
+
     x = clamp(x, 0, width-1);
     y = clamp(y, 0, height-1);
 
