@@ -345,9 +345,8 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
 
 int calculate_ray_count(int width, int height)
 {
-    return (height - 1) * width + width - 1;
+    return height * width;
 }
-
 
 struct main_menu
 {

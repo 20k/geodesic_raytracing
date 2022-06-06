@@ -1712,7 +1712,7 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat,
     #endif // USE_PREPASS
 
     if(id == 0)
-        *metric_ray_count = (height - 1) * width + width - 1;
+        *metric_ray_count = height * width;
 
     metric_rays[id] = ray;
 }
