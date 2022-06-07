@@ -1886,7 +1886,7 @@ float4 rk4_f(float t, float4 position, float4 velocity)
 ///it would be useful to be able to combine data from multiple ticks which are separated by some delta, but where I don't have control over that delta
 ///I wonder if a taylor series expansion of F(y + dt) might be helpful
 ///this is actually regular velocity verlet with no modifications https://en.wikipedia.org/wiki/Verlet_integration#Velocity_Verlet
-void step_verlet(float4 position, float4 velocity, float4 acceleration, float ds, float4* position_out, float4* velocity_out, float4* acceleration_out, dynamic_config_space struct dynamic_config* cfg)
+void step_verlet(float4 position, float4 velocity, float4 acceleration, float ds, float4* position_out, float4* velocity_out, float4* acceleration_out, float* g_00_out, dynamic_config_space struct dynamic_config* cfg)
 {
     #ifndef GENERIC_BIG_METRIC
     float g_metric[4] = {};
@@ -1904,6 +1904,11 @@ void step_verlet(float4 position, float4 velocity, float4 acceleration, float ds
     calculate_metric_generic(next_position, g_metric, cfg);
     calculate_partial_derivatives_generic(next_position, g_partials, cfg);
 
+    if(g_00_out)
+    {
+        *g_00_out = g_metric[0];
+    }
+
     ///1ms
     intermediate_next_velocity = fix_light_velocity2(intermediate_next_velocity, g_metric);
 
@@ -1911,6 +1916,11 @@ void step_verlet(float4 position, float4 velocity, float4 acceleration, float ds
     #else
     calculate_metric_generic_big(next_position, g_metric_big, cfg);
     calculate_partial_derivatives_generic_big(next_position, g_partials_big, cfg);
+
+    if(g_00_out)
+    {
+        *g_00_out = g_metric_big[0];
+    }
 
     //intermediate_next_velocity = fix_light_velocity_big(intermediate_next_velocity, g_metric_big);
     float4 next_acceleration = calculate_acceleration_big(intermediate_next_velocity, g_metric_big, g_partials_big);
@@ -1921,6 +1931,7 @@ void step_verlet(float4 position, float4 velocity, float4 acceleration, float ds
     *position_out = next_position;
     *velocity_out = next_velocity;
     *acceleration_out = next_acceleration;
+
 }
 
 void step_euler(float4 position, float4 velocity, float ds, float4* position_out, float4* velocity_out, dynamic_config_space struct dynamic_config* cfg)
@@ -2182,7 +2193,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
         float4 next_position, next_velocity, next_acceleration;
 
-        step_verlet(position, velocity, acceleration, ds, &next_position, &next_velocity, &next_acceleration, cfg);
+        step_verlet(position, velocity, acceleration, ds, &next_position, &next_velocity, &next_acceleration, 0, cfg);
 
         #ifdef ADAPTIVE_PRECISION
 
@@ -2332,7 +2343,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
 
         float4 next_position, next_velocity, next_acceleration;
 
-        step_verlet(position, velocity, acceleration, ds, &next_position, &next_velocity, &next_acceleration, cfg);
+        step_verlet(position, velocity, acceleration, ds, &next_position, &next_velocity, &next_acceleration, 0, cfg);
 
         #ifdef ADAPTIVE_PRECISION
 
