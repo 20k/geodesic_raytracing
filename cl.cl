@@ -2244,6 +2244,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 __kernel
 void get_geodesic_path(__global struct lightray* generic_rays_in,
                        __global float4* positions_out,
+                       __global float* dT_dt_out,
                        __global int* generic_count_in, int geodesic_start, int width, int height,
                        float4 polar_camera_pos, float4 camera_quat, float2 base_angle, dynamic_config_space struct dynamic_config* cfg, __global int* count_out)
 {
@@ -2342,8 +2343,12 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         }
 
         float4 next_position, next_velocity, next_acceleration;
+        float g00 = 0;
 
-        step_verlet(position, velocity, acceleration, ds, &next_position, &next_velocity, &next_acceleration, 0, cfg);
+        step_verlet(position, velocity, acceleration, ds, &next_position, &next_velocity, &next_acceleration, &g00, cfg);
+
+        ///https://en.wikipedia.org/wiki/Coordinate_time#Mathematics
+        float dT_dt = native_sqrt(fabs(g00));
 
         #ifdef ADAPTIVE_PRECISION
 
@@ -2372,6 +2377,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         #endif
 
         positions_out[bufc] = polar_out;
+        dT_dt_out[bufc] = dT_dt;
         bufc++;
 
         if(any(isnan(position)) || any(isnan(velocity)) || any(isnan(acceleration)))

@@ -138,7 +138,7 @@ struct lightray
 
 #define GENERIC_METRIC
 
-vec4f interpolate_geodesic(const std::vector<cl_float4>& geodesic, float coordinate_time)
+vec4f interpolate_geodesic(const std::vector<cl_float4>& geodesic, const std::vector<cl_float>& geodesic_dT_dt, float coordinate_time)
 {
     for(int i=0; i < (int)geodesic.size() - 1; i++)
     {
@@ -181,7 +181,7 @@ vec4f interpolate_geodesic(const std::vector<cl_float4>& geodesic, float coordin
     return {selected_geodesic.s[0], selected_geodesic.s[1], selected_geodesic.s[2], selected_geodesic.s[3]};
 }
 
-vec2f get_geodesic_intersection(const metrics::metric& met, const std::vector<cl_float4>& geodesic)
+vec2f get_geodesic_intersection(const metrics::metric& met, const std::vector<cl_float4>& geodesic, const std::vector<cl_float>& geodesic_dT_dt)
 {
     for(int i=0; i < (int)geodesic.size() - 2; i++)
     {
@@ -725,9 +725,13 @@ int main()
     cl::buffer geodesic_trace_buffer(clctx.ctx);
     geodesic_trace_buffer.alloc(64000 * sizeof(cl_float4));
 
+    cl::buffer geodesic_dT_dt_buffer(clctx.ctx);
+    geodesic_dT_dt_buffer.alloc(64000 * sizeof(cl_float));
+
     printf("Alloc trace buffer\n");
 
     std::vector<cl_float4> current_geodesic_path;
+    std::vector<cl_float> current_geodesic_dT_dt;
 
     printf("Pre texture coordinates\n");
 
@@ -1166,11 +1170,11 @@ int main()
 
             if(camera_on_geodesic)
             {
-                scamera = interpolate_geodesic(current_geodesic_path, current_geodesic_time);
+                scamera = interpolate_geodesic(current_geodesic_path, current_geodesic_dT_dt, current_geodesic_time);
 
                 if(metric_manage.current_metric)
                 {
-                    base_angle = get_geodesic_intersection(*metric_manage.current_metric, current_geodesic_path);
+                    base_angle = get_geodesic_intersection(*metric_manage.current_metric, current_geodesic_path, current_geodesic_dT_dt);
                 }
             }
             else
@@ -1382,11 +1386,13 @@ int main()
                     int idx = (height/2) * width + width/2;
 
                     geodesic_trace_buffer.set_to_zero(clctx.cqueue);
+                    geodesic_dT_dt_buffer.set_to_zero(clctx.cqueue);
                     geodesic_count_buffer.set_to_zero(clctx.cqueue);
 
                     cl::args snapshot_args;
                     snapshot_args.push_back(schwarzs_1);
                     snapshot_args.push_back(geodesic_trace_buffer);
+                    snapshot_args.push_back(geodesic_dT_dt_buffer);
                     snapshot_args.push_back(schwarzs_count_1);
                     snapshot_args.push_back(idx);
                     snapshot_args.push_back(width);
@@ -1400,11 +1406,13 @@ int main()
                     clctx.cqueue.exec("get_geodesic_path", snapshot_args, {1}, {1});
 
                     current_geodesic_path = geodesic_trace_buffer.read<cl_float4>(clctx.cqueue);
+                    current_geodesic_dT_dt = geodesic_dT_dt_buffer.read<cl_float>(clctx.cqueue);
                     int count = geodesic_count_buffer.read<cl_int>(clctx.cqueue)[0];
 
                     printf("Found geodesic count %i\n", count);
 
                     current_geodesic_path.resize(count);
+                    current_geodesic_dT_dt.resize(count);
                 }
 
                 int rays_num = calculate_ray_count(width, height);
