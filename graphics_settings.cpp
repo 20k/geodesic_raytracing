@@ -36,7 +36,7 @@ bool graphics_settings::display_video_settings()
 
     ImGui::Checkbox("Save screenshots to steam", &use_steam_screenshots);
 
-    ImGui::SliderInt("Anisotropic Filtering", &anisotropy, 1, 256);
+    ImGui::DragInt("Anisotropic Filtering", &anisotropy, 1, 1, 256);
 
     ImGui::NewLine();
 
