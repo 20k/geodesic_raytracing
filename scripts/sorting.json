@@ -19,7 +19,7 @@
 "janis_newman_winicour.js",
 "schwarzschild.js",
 "minkowski.js",
-"symmetric_warp_drive.js"
+"symmetric_warp_drive.js",
 "kerr_schild.js",
-"kerr_newman_schild.js",
+"kerr_newman_schild.js"
 ]
