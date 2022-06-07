@@ -1433,6 +1433,7 @@ int main()
                 render_args.push_back(width);
                 render_args.push_back(height);
                 render_args.push_back(texture_coordinates);
+                render_args.push_back(current_settings.anisotropy);
 
                 next = clctx.cqueue.exec("render", render_args, {width * height}, {256});
             }

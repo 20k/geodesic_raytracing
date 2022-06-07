@@ -2651,7 +2651,7 @@ float4 read_mipmap(image2d_array_t mipmap1, image2d_array_t mipmap2, float posit
 __kernel
 void render(__global struct lightray* finished_rays, __global int* finished_count_in, __write_only image2d_t out,
             __read_only image2d_array_t mip_background, __read_only image2d_array_t mip_background2,
-            int width, int height, __global float2* texture_coordinates)
+            int width, int height, __global float2* texture_coordinates, int maxProbes)
 {
     int id = get_global_id(0);
 
@@ -2834,8 +2834,6 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
 
     float fProbes = 2 * (majorRadius / minorRadius) - 1;
     int iProbes = floor(fProbes + 0.5f);
-
-    int maxProbes = 8;
 
     iProbes = min(iProbes, maxProbes);
 
