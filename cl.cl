@@ -378,6 +378,7 @@ float4 calculate_acceleration(float4 lightray_velocity, float g_metric[4], float
     lightray_velocity.z = 0;
     #endif // IS_CONSTANT_THETA
 
+    ///todo: manually enforce symmetry in the lower two indices for the compiler
     float christoff[64] = {0};
 
     ///diagonal of the metric, because it only has diagonals
@@ -1275,6 +1276,29 @@ float4 quat_multiply(float4 q1, float4 q2)
     ret.w = q1.w * q2.w - q1.x * q2.x - q1.y * q2.y - q1.z * q2.z;
 
     return ret;
+}
+
+///Parallel Transport and Geodesics ch9 226
+///all indices are upper
+void parallel_transport(float dVk_ds_out[4], float Vj[4], float christoff2[4*4*4], float curve_velocity[4])
+{
+    #pragma unroll
+    for(int k=0; k < 4; k++)
+    {
+        float sum = 0;
+
+        #pragma unroll
+        for(int i=0; i < 4; i++)
+        {
+            #pragma unroll
+            for(int j=0; j < 4; j++)
+            {
+                sum += Vj[j] * christoff2[k * 16 + i * 4 + j] * curve_velocity[i];
+            }
+        }
+
+        dVk_ds_out[k] = -sum;
+    }
 }
 
 float cos_mix(float x1, float x2, float f)
