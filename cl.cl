@@ -378,7 +378,6 @@ float4 calculate_acceleration(float4 lightray_velocity, float g_metric[4], float
     lightray_velocity.z = 0;
     #endif // IS_CONSTANT_THETA
 
-    ///todo: manually enforce symmetry in the lower two indices for the compiler
     float christoff[64] = {0};
 
     ///diagonal of the metric, because it only has diagonals
@@ -1278,29 +1277,6 @@ float4 quat_multiply(float4 q1, float4 q2)
     return ret;
 }
 
-///Parallel Transport and Geodesics ch9 226
-///all indices are upper
-void parallel_transport(float dVk_ds_out[4], float Vj[4], float christoff2[4*4*4], float curve_velocity[4])
-{
-    #pragma unroll
-    for(int k=0; k < 4; k++)
-    {
-        float sum = 0;
-
-        #pragma unroll
-        for(int i=0; i < 4; i++)
-        {
-            #pragma unroll
-            for(int j=0; j < 4; j++)
-            {
-                sum += Vj[j] * christoff2[k * 16 + i * 4 + j] * curve_velocity[i];
-            }
-        }
-
-        dVk_ds_out[k] = -sum;
-    }
-}
-
 float cos_mix(float x1, float x2, float f)
 {
     float f2 = (1 - native_cos(f * M_PIf))/2.f;
@@ -1489,6 +1465,14 @@ int should_early_terminate(int x, int y, int width, int height, __global int* te
 }
 
 __kernel
+void parallel_transport_camera(__global float4* polar_camera_in, __global float4* g_camera_quat_in,
+                               __global float4* polar_camera_out, __global float4* g_camera_quat_out,
+                               dynamic_config_space struct dynamic_config* cfg)
+{
+
+}
+
+__kernel
 void init_rays_generic(float4 polar_camera_in, float4 camera_quat,
                        __global struct lightray* metric_rays, __global int* metric_ray_count,
                        int width, int height,
@@ -1582,6 +1566,9 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat,
         printf("obphi %f %f %f %f\n", obphi.x, obphi.y, obphi.z, obphi.w);*/
     }
     #endif // 0
+
+    ///so, theoretically this works, but the issue is that eg kerr can't have a stationary observer
+    //bT = (float4)(1, 0, 0, 0);
 
     ///???
     float4 observer_velocity = bT;
