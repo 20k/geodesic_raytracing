@@ -671,6 +671,8 @@ int main()
     //cfg.error_override = 0.00001f;
     //cfg.redshift = true;
 
+    metrics::config current_cfg = cfg;
+
     //printf("WLs %f %f %f\n", chromaticity::srgb_to_wavelength({1, 0, 0}), chromaticity::srgb_to_wavelength({0, 1, 0}), chromaticity::srgb_to_wavelength({0, 0, 1}));
 
     int last_supersample_mult = 2;
@@ -1193,9 +1195,9 @@ int main()
             {
                 float rad = camera.length();
 
-                if(rad > cfg.universe_size * 0.99f)
+                if(rad > current_cfg.universe_size * 0.99f)
                 {
-                    camera = camera.norm() * cfg.universe_size * 0.99f;
+                    camera = camera.norm() * current_cfg.universe_size * 0.99f;
                 }
             }
             #endif // CLAMP_CAMERA
@@ -1322,6 +1324,11 @@ int main()
                 }
 
                 ImGui::End();
+            }
+
+            if(should_recompile)
+            {
+                current_cfg = cfg;
             }
 
             if(time_progresses)
