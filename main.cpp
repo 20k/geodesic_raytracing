@@ -1188,6 +1188,18 @@ int main()
                 camera.w() += offset.z();
             }
 
+            #define CLAMP_CAMERA
+            #ifdef CLAMP_CAMERA
+            {
+                float rad = camera.length();
+
+                if(rad > cfg.universe_size * 0.99f)
+                {
+                    camera = camera.norm() * cfg.universe_size * 0.99f;
+                }
+            }
+            #endif // CLAMP_CAMERA
+
             vec4f scamera = cartesian_to_schwarz(camera);
 
             if(flip_sign)
