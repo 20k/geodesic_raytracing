@@ -703,6 +703,7 @@ int main()
     printf("Post dqueue\n");
     #endif // USE_DEVICE_SIDE_QUEUE
 
+    /*
     ///t, x, y, z
     //vec4f camera = {0, -2, -2, 0};
     //vec4f camera = {0, -2, -8, 0};
@@ -714,7 +715,29 @@ int main()
     quat q;
     q.load_from_axis_angle({1, 0, 0, -M_PI/2});
 
-    camera_quat = q * camera_quat;
+    camera_quat = q * camera_quat;*/
+
+    ///in polar, were .x = t
+    cl::buffer g_camera_pos_cart(clctx.ctx);
+    cl::buffer g_camera_pos_polar(clctx.ctx);
+    cl::buffer g_camera_quat(clctx.ctx);
+
+    g_camera_pos_cart.alloc(sizeof(cl_float4));
+    g_camera_pos_polar.alloc(sizeof(cl_float4));
+    g_camera_quat.alloc(sizeof(cl_float4));
+
+    {
+        cl_float4 camera_start_pos = {0, 0, -4, 0};
+
+        quat camera_start_quat;
+        camera_start_quat.load_from_axis_angle({1, 0, 0, -M_PI/2});
+
+        g_camera_pos_cart.write(clctx.cqueue, std::span{&camera_start_pos, 1});
+
+        cl_float4 as_cl_camera_quat = {camera_start_quat.q.x(), camera_start_quat.q.y(), camera_start_quat.q.z(), camera_start_quat.q.w()};
+
+        g_camera_quat.write(clctx.cqueue, std::span{&as_cl_camera_quat, 1});
+    }
 
     //camera_quat.load_from_matrix(axis_angle_to_mat({0, 0, 0}, 0));
 
@@ -798,6 +821,7 @@ int main()
     float camera_geodesic_time_progression_speed = 1.f;
     bool camera_geodesics_go_foward = true;
     vec2f base_angle = {M_PI/2, 0};
+    float set_camera_time = 0;
 
     printf("Pre main\n");
 
@@ -830,6 +854,18 @@ int main()
     current_settings.height = win.get_window_size().y();
     current_settings.vsync_enabled = win.backend->is_vsync();
     current_settings.fullscreen = win.backend->is_maximised();
+
+    printf("Prog1\n");
+
+    cl::program util(clctx.ctx, "util.cl");
+    util.build(clctx.ctx, "-cl-std=CL1.2 -cl-fast-relaxed-math ");
+
+    cl::kernel handle_controls(util, "handle_controls");
+    cl::kernel camera_cart_to_polar(util, "camera_cart_to_polar");
+    cl::kernel advance_time(util, "advance_time");
+    cl::kernel set_time(util, "set_time");
+
+    printf("Prog2\n");
 
     while(!win.should_close() && !menu.should_quit && fullscreen.open)
     {
@@ -1128,12 +1164,14 @@ int main()
 
                 if(input.is_key_down("camera_reset"))
                 {
-                    camera = {0, 0, 0, -4};
+                    set_camera_time = 0;
+                    g_camera_pos_cart.write(clctx.cqueue, std::vector<cl_float4>{{0, 0, 0, -4}});
                 }
 
                 if(input.is_key_down("camera_centre"))
                 {
-                    camera = {0, 0, 0, 0};
+                    set_camera_time = 0;
+                    g_camera_pos_cart.write(clctx.cqueue, std::vector<cl_float4>{{0, 0, 0, 0}});
                 }
 
                 vec2f delta;
@@ -1154,7 +1192,29 @@ int main()
                     delta *= mouse_sensitivity_mult;
                 }
 
-                if(delta.x() != 0.f)
+                delta *= current_settings.mouse_sensitivity * M_PI/128;
+
+                vec3f translation_delta = {input.is_key_down("forward") - input.is_key_down("back"),
+                                           input.is_key_down("right") - input.is_key_down("left"),
+                                           input.is_key_down("down") - input.is_key_down("up")};
+
+                translation_delta *= current_settings.keyboard_sensitivity * controls_multiplier * speed;
+
+                cl_float2 cl_mouse = {delta.x(), delta.y()};
+                cl_float4 cl_translation = {translation_delta.x(), translation_delta.y(), translation_delta.z(), 0};
+
+                cl::args controls_args;
+                controls_args.push_back(g_camera_pos_cart);
+                controls_args.push_back(g_camera_quat);
+                controls_args.push_back(cl_mouse);
+                controls_args.push_back(cl_translation);
+                controls_args.push_back(current_cfg.universe_size);
+
+                handle_controls.set_args(controls_args);
+
+                clctx.cqueue.exec(handle_controls, {1}, {1});
+
+                /*if(delta.x() != 0.f)
                 {
                     quat q;
                     q.load_from_axis_angle({0, 0, -1, current_settings.mouse_sensitivity * delta.x() * M_PI/128});
@@ -1181,16 +1241,16 @@ int main()
 
                 vec3f offset = {0,0,0};
 
-                offset += current_settings.keyboard_sensitivity * controls_multiplier * forward_axis * ((input.is_key_down("forward") - input.is_key_down("back")) * speed);
-                offset += current_settings.keyboard_sensitivity * controls_multiplier * right * (input.is_key_down("right") - input.is_key_down("left")) * speed;
-                offset += current_settings.keyboard_sensitivity * controls_multiplier * up * (input.is_key_down("down") - input.is_key_down("up")) * speed;
+                offset += current_settings.keyboard_sensitivity * controls_multiplier * forward_axis * (() * speed);
+                offset += current_settings.keyboard_sensitivity * controls_multiplier * right * () * speed;
+                offset += current_settings.keyboard_sensitivity * controls_multiplier * up * () * speed;
 
                 camera.y() += offset.x();
                 camera.z() += offset.y();
-                camera.w() += offset.z();
+                camera.w() += offset.z();*/
             }
 
-            #define CLAMP_CAMERA
+            /*#define CLAMP_CAMERA
             #ifdef CLAMP_CAMERA
             {
                 float rad = camera.length();
@@ -1200,14 +1260,12 @@ int main()
                     camera = camera.norm() * current_cfg.universe_size * 0.99f;
                 }
             }
-            #endif // CLAMP_CAMERA
+            #endif // CLAMP_CAMERA*/
 
-            vec4f scamera = cartesian_to_schwarz(camera);
+            /*vec4f scamera = cartesian_to_schwarz(camera);
 
             if(flip_sign)
                 scamera.y() = -scamera.y();
-
-            float time = clk.restart().asMicroseconds() / 1000.;
 
             if(camera_on_geodesic)
             {
@@ -1221,6 +1279,23 @@ int main()
             else
             {
                 base_angle = {M_PI/2, 0.f};
+            }*/
+
+            float time = clk.restart().asMicroseconds() / 1000.;
+
+            {
+                cl::args args;
+
+                args.push_back(g_camera_pos_polar);
+                args.push_back(g_camera_pos_cart);
+
+                cl_float clflip = flip_sign;
+
+                args.push_back(clflip);
+
+                camera_cart_to_polar.set_args(args);
+
+                clctx.cqueue.exec(camera_cart_to_polar, {1}, {1});
             }
 
             bool should_soft_recompile = false;
@@ -1233,9 +1308,16 @@ int main()
                 {
                     if(ImGui::BeginTabItem("General"))
                     {
-                        ImGui::DragFloat3("Polar Pos", &scamera.v[1]);
-                        ImGui::DragFloat3("Cart Pos", &camera.v[1]);
-                        ImGui::SliderFloat("Camera Time", &camera.v[0], 0.f, 100.f);
+                        //ImGui::DragFloat3("Polar Pos", &scamera.v[1]);
+                        //ImGui::DragFloat3("Cart Pos", &camera.v[1]);
+                        if(ImGui::SliderFloat("Camera Time", &set_camera_time, 0.f, 100.f))
+                        {
+                            cl::args args;
+                            args.push_back(g_camera_pos_cart);
+                            args.push_back(set_camera_time);
+
+                            clctx.cqueue.exec("set_time", args, {1}, {1});
+                        }
 
                         ImGui::DragFloat("Frametime", &time);
 
@@ -1331,8 +1413,21 @@ int main()
                 current_cfg = cfg;
             }
 
+            //if(time_progresses)
+            //    camera.v[0] += time / 1000.f;
+
             if(time_progresses)
-                camera.v[0] += time / 1000.f;
+            {
+                set_camera_time += time / 1000.f;
+
+                cl::args args;
+                args.push_back(g_camera_pos_cart);
+                args.push_back(set_camera_time);
+
+                set_time.set_args(args);
+
+                clctx.cqueue.exec(set_time, {1}, {1});
+            }
 
             if(camera_time_progresses)
                 current_geodesic_time += camera_geodesic_time_progression_speed * time / 1000.f;
@@ -1382,8 +1477,8 @@ int main()
 
                     cl::args init_args_prepass;
 
-                    init_args_prepass.push_back(scamera);
-                    init_args_prepass.push_back(camera_quat);
+                    init_args_prepass.push_back(g_camera_pos_polar);
+                    init_args_prepass.push_back(g_camera_quat);
                     init_args_prepass.push_back(schwarzs_prepass);
                     init_args_prepass.push_back(schwarzs_count_prepass);
                     init_args_prepass.push_back(prepass_width);
@@ -1412,8 +1507,8 @@ int main()
                 }
 
                 cl::args init_args;
-                init_args.push_back(scamera);
-                init_args.push_back(camera_quat);
+                init_args.push_back(g_camera_pos_polar);
+                init_args.push_back(g_camera_quat);
                 init_args.push_back(schwarzs_1);
                 init_args.push_back(schwarzs_count_1);
                 init_args.push_back(width);
@@ -1427,7 +1522,7 @@ int main()
 
                 clctx.cqueue.exec("init_rays_generic", init_args, {width*height}, {16*16});
 
-                if(should_snapshot_geodesic)
+                /*if(should_snapshot_geodesic)
                 {
                     int idx = (height/2) * width + width/2;
 
@@ -1459,7 +1554,7 @@ int main()
 
                     current_geodesic_path.resize(count);
                     current_geodesic_dT_dt.resize(count);
-                }
+                }*/
 
                 int rays_num = calculate_ray_count(width, height);
 
@@ -1472,8 +1567,8 @@ int main()
                 texture_args.push_back(texture_coordinates);
                 texture_args.push_back(width);
                 texture_args.push_back(height);
-                texture_args.push_back(scamera);
-                texture_args.push_back(camera_quat);
+                texture_args.push_back(g_camera_pos_polar);
+                texture_args.push_back(g_camera_quat);
                 texture_args.push_back(base_angle);
 
                 clctx.cqueue.exec("calculate_texture_coordinates", texture_args, {width * height}, {256});

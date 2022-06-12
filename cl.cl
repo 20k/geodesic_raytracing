@@ -1465,7 +1465,7 @@ int should_early_terminate(int x, int y, int width, int height, __global int* te
 }
 
 __kernel
-void init_rays_generic(float4 polar_camera_in, float4 camera_quat,
+void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_camera_quat,
                        __global struct lightray* metric_rays, __global int* metric_ray_count,
                        int width, int height,
                        __global int* termination_buffer,
@@ -1476,6 +1476,9 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat,
 
     if(id >= width * height)
         return;
+
+    float4 polar_camera_in = *g_polar_camera_in;
+    float4 camera_quat = *g_camera_quat;
 
     const int cx = id % width;
     const int cy = id / width;
@@ -2473,12 +2476,15 @@ void calculate_singularities(__global struct lightray* finished_rays, __global i
 #endif // GENERIC_METRIC
 
 __kernel
-void calculate_texture_coordinates(__global struct lightray* finished_rays, __global int* finished_count_in, __global float2* texture_coordinates, int width, int height, float4 polar_camera_pos, float4 camera_quat, float2 base_angle)
+void calculate_texture_coordinates(__global struct lightray* finished_rays, __global int* finished_count_in, __global float2* texture_coordinates, int width, int height, __global float4* g_polar_camera_pos, __global float4* g_camera_quat, float2 base_angle)
 {
     int id = get_global_id(0);
 
     if(id >= *finished_count_in)
         return;
+
+    float4 polar_camera_pos = *g_polar_camera_pos;
+    float4 camera_quat = *g_camera_quat;
 
     __global struct lightray* ray = &finished_rays[id];
 
