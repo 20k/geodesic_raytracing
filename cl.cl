@@ -843,6 +843,41 @@ float4 spherical_velocity_to_generic_velocity(float4 in, float4 inv, dynamic_con
     return (float4)(o1, o2, o3, o4);
 }
 
+float3 cartesian_to_spherical_g(float3 v)
+{
+    float v1 = 0;
+    float v2 = v.x;
+    float v3 = v.y;
+    float v4 = v.z;
+
+    float o1 = 0;
+    float o2 = CART_TO_POL1;
+    float o3 = CART_TO_POL2;
+    float o4 = CART_TO_POL3;
+
+    return (float3)(o2, o3, o4);
+}
+
+float3 cartesian_velocity_to_spherical_velocity_g(float3 v, float3 inv)
+{
+    float v1 = 0;
+    float v2 = v.x;
+    float v3 = v.y;
+    float v4 = v.z;
+
+    float dv1 = 0;
+    float dv2 = inv.x;
+    float dv3 = inv.y;
+    float dv4 = inv.z;
+
+    float o1 = CART_TO_POL_D0;
+    float o2 = CART_TO_POL_D1;
+    float o3 = CART_TO_POL_D2;
+    float o4 = CART_TO_POL_D3;
+
+    return (float3)(o2, o3, o4);
+}
+
 ///[0, 1, 2, 3]
 ///[4, 5, 6, 7]
 ///[8, 9, 10,11]
@@ -1471,6 +1506,8 @@ void calculate_global_rotation_matrix(__global float4* g_polar_camera_in, __glob
 {
     if(get_global_id(0) != 0)
         return;
+
+
 }
 
 __kernel
@@ -1605,6 +1642,36 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
     }*/
 
     pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
+
+    #if 0
+    float3 ucartesian_cx = (spherical_velocity_to_cartesian_velocity(apolar, polar_x.yzw));
+    float3 ucartesian_cy = (spherical_velocity_to_cartesian_velocity(apolar, polar_y.yzw));
+    float3 ucartesian_cz = (spherical_velocity_to_cartesian_velocity(apolar, polar_z.yzw));
+
+    float3 cartesian_cx = normalize(ucartesian_cx);
+    float3 cartesian_cy = normalize(ucartesian_cy);
+    float3 cartesian_cz = normalize(ucartesian_cz);
+
+    //float3 next_cartesian_cx = unrotate_vector(cartesian_cx, cartesian_cy, cartesian_cz, ucartesian_cx);
+    //float3 next_cartesian_cy = unrotate_vector(cartesian_cx, cartesian_cy, cartesian_cz, ucartesian_cy);
+    //float3 next_cartesian_cz = unrotate_vector(cartesian_cx, cartesian_cy, cartesian_cz, ucartesian_cz);
+
+    //next_cartesian_cx = normalize(next_cartesian_cx);
+    //next_cartesian_cy = normalize(next_cartesian_cy);
+    //next_cartesian_cz = normalize(next_cartesian_cz);
+
+    //float3 cart_cam = polar_to_cartesian(apolar);
+
+    /*polar_x.yzw = cartesian_velocity_to_spherical_velocity_g(cart_cam, next_cartesian_cx);
+    polar_y.yzw = cartesian_velocity_to_spherical_velocity_g(cart_cam, next_cartesian_cy);
+    polar_z.yzw = cartesian_velocity_to_spherical_velocity_g(cart_cam, next_cartesian_cz);
+
+    sVx = spherical_velocity_to_generic_velocity(polar_camera, polar_x, cfg);
+    sVy = spherical_velocity_to_generic_velocity(polar_camera, polar_y, cfg);
+    sVz = spherical_velocity_to_generic_velocity(polar_camera, polar_z, cfg);*/
+
+    pixel_direction = unrotate_vector(cartesian_cx, cartesian_cy, cartesian_cz, normalize(pixel_direction));
+    #endif // 0
 
     pixel_direction = normalize(pixel_direction);
 

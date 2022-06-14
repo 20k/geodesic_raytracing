@@ -8,6 +8,16 @@
 
 namespace metrics
 {
+    inline
+    std::array<dual, 4> cartesian_to_polar_v(const dual& t, const dual& x, const dual& y, const dual& z)
+    {
+        dual r = sqrt(x * x + y * y + z * z);
+        dual theta = atan2(sqrt(x*x + y*y), z);
+        dual phi = atan2(y, x);
+
+        return {t, r, theta, phi};
+    }
+
     template<typename Func, typename... T>
     inline
     std::pair<std::vector<value>, std::vector<value>> evaluate_metric2D(Func&& f, T... raw_variables)
@@ -582,6 +592,24 @@ namespace metrics
             std::cout << "Dynamic variables " << vars << std::endl;
 
             argument_string += " -DDYNVARS=" + vars;
+        }
+
+        std::vector<value> cart_to_polar;
+        std::vector<value> cart_to_polar_derivs;
+
+        std::tie(cart_to_polar, cart_to_polar_derivs) = total_diff(cartesian_to_polar_v, "v1", "v2", "v3", "v4");
+
+        assert(cart_to_polar.size());
+        assert(cart_to_polar_derivs.size());
+
+        for(int i=0; i < 4; i++)
+        {
+            argument_string += " -DCART_TO_POL" + std::to_string(i) + "=" + type_to_string(cart_to_polar[i]);
+        }
+
+        for(int i=0; i < 4; i++)
+        {
+            argument_string += " -DCART_TO_POL_D" + std::to_string(i) + "=" + type_to_string(cart_to_polar_derivs[i]);
         }
 
         {
