@@ -1545,7 +1545,9 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
                        int width, int height,
                        __global int* termination_buffer,
                        int prepass_width, int prepass_height,
-                       int flip_geodesic_direction, float2 base_angle, dynamic_config_space struct dynamic_config* cfg)
+                       int flip_geodesic_direction, float2 base_angle,
+                       __global float4* e0, __global float4* e1, __global float4* e2, __global float4* e3,
+                       dynamic_config_space struct dynamic_config* cfg)
 {
     int id = get_global_id(0);
 
@@ -1554,6 +1556,8 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
 
     float4 polar_camera_in = *g_polar_camera_in;
     float4 camera_quat = *g_camera_quat;
+
+    float4 at_metric = spherical_to_generic(polar_camera_in, cfg);
 
     const int cx = id % width;
     const int cy = id / width;
@@ -1568,81 +1572,12 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
     }
     #endif // GENERIC_CONSTANT_THETA
 
-    float4 at_metric = spherical_to_generic(polar_camera, cfg);
-
-    #ifndef GENERIC_BIG_METRIC
-    float g_metric[4] = {};
-    calculate_metric_generic(at_metric, g_metric, cfg);
-
-    float4 co_basis = (float4){native_sqrt(-g_metric[0]), native_sqrt(g_metric[1]), native_sqrt(g_metric[2]), native_sqrt(g_metric[3])};
-
-    float4 bT = (float4)(1/co_basis.x, 0, 0, 0); ///or bt
-    float4 bX = (float4)(0, 1/co_basis.y, 0, 0); ///or br
-    float4 btheta = (float4)(0, 0, 1/co_basis.z, 0);
-    float4 bphi = (float4)(0, 0, 0, 1/co_basis.w);
-    #else
-    float g_metric_big[16] = {0};
-    calculate_metric_generic_big(at_metric, g_metric_big, cfg);
-
-    ///contravariant
-    float4 bT;
-    float4 bX;
-    float4 btheta;
-    float4 bphi;
-
-    {
-        struct frame_basis basis = calculate_frame_basis(g_metric_big);
-
-        /*if(cx == 500 && cy == 400)
-        {
-            float d1 = dot_product_big(basis.v1, basis.v2, g_metric_big);
-            float d2 = dot_product_big(basis.v1, basis.v3, g_metric_big);
-            float d3 = dot_product_big(basis.v1, basis.v4, g_metric_big);
-            float d4 = dot_product_big(basis.v2, basis.v3, g_metric_big);
-            float d5 = dot_product_big(basis.v3, basis.v4, g_metric_big);
-
-            printf("ORTHONORMAL? %f %f %f %f %f\n", d1, d2, d3, d4, d5);
-        }*/
-
-        bT = basis.v1;
-        bX = basis.v2;
-        btheta = basis.v3;
-        bphi = basis.v4;
-    }
-    #endif // GENERIC_BIG_METRIC
-
-    #if 0
-    if(cx == 500 && cy == 400)
-    {
-        /*printf("BT %f %f %f %f\n", bT.x, bT.y, bT.z, bT.w);
-        printf("bX %f %f %f %f\n", bX.x, bX.y, bX.z, bX.w);
-        printf("btheta %f %f %f %f\n", btheta.x, btheta.y, btheta.z, btheta.w);
-        printf("bphi %f %f %f %f\n", bphi.x, bphi.y, bphi.z, bphi.w);*/
-
-        /*printf("oBT %f %f %f %f\n", obT.x, obT.y, obT.z, obT.w);
-        printf("obX %f %f %f %f\n", obX.x, obX.y, obX.z, obX.w);
-        printf("obtheta %f %f %f %f\n", obtheta.x, obtheta.y, obtheta.z, obtheta.w);
-        printf("obphi %f %f %f %f\n", obphi.x, obphi.y, obphi.z, obphi.w);*/
-    }
-    #endif // 0
-
-    ///???
+    float4 bT = *e0;
     float4 observer_velocity = bT;
 
-    //float4 observer_velocity = {1, 0.5, 0, 0};
-    float lorentz[16] = {};
-
-    #ifndef GENERIC_BIG_METRIC
-    calculate_lorentz_boost(bT, observer_velocity, g_metric, lorentz);
-    #else
-    calculate_lorentz_boost_big(bT, observer_velocity, g_metric_big, lorentz);
-    #endif // GENERIC_BIG_METRIC
-
-    bT = observer_velocity;
-
-    float4 sVx = tensor_contract(lorentz, btheta);
-    float4 sVy = tensor_contract(lorentz, bphi);
-    float4 sVz = tensor_contract(lorentz, bX);
+    float4 sVx = *e1;
+    float4 sVy = *e2;
+    float4 sVz = *e3;
 
     float4 polar_x = generic_velocity_to_spherical_velocity(at_metric, sVx, cfg);
     float4 polar_y = generic_velocity_to_spherical_velocity(at_metric, sVy, cfg);
@@ -1695,6 +1630,12 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
     lightray_velocity.z = 0;
     lightray_acceleration.z = 0;
     #endif // IS_CONSTANT_THETA
+
+    #ifndef GENERIC_BIG_METRIC
+    float g_metric[4] = {0};
+    #else
+    float g_metric_big[16] = {0};
+    #endif // GENERIC_BIG_METRIC
 
     #if 1
     {

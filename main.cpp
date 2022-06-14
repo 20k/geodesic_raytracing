@@ -780,6 +780,14 @@ int main()
     cl::buffer geodesic_dT_dt_buffer(clctx.ctx);
     geodesic_dT_dt_buffer.alloc(64000 * sizeof(cl_float));
 
+    std::array<cl::buffer, 4> tetrad{clctx.ctx, clctx.ctx, clctx.ctx, clctx.ctx};
+
+    for(int i=0; i < 4; i++)
+    {
+        tetrad[i].alloc(sizeof(cl_float4));
+        tetrad[i].set_to_zero(clctx.cqueue);
+    }
+
     printf("Alloc trace buffer\n");
 
     std::vector<cl_float4> current_geodesic_path;
@@ -1446,6 +1454,20 @@ int main()
 
             clctx.cqueue.exec("clear", clr, {width, height}, {16, 16});
 
+            {
+                cl::args tetrad_args;
+                tetrad_args.push_back(g_camera_pos_polar);
+
+                for(int i=0; i < 4; i++)
+                {
+                    tetrad_args.push_back(tetrad[i]);
+                }
+
+                tetrad_args.push_back(dynamic_config);
+
+                clctx.cqueue.exec("init_basis_vectors", tetrad_args, {1}, {1});
+            }
+
             cl::event next;
 
             {
@@ -1488,6 +1510,12 @@ int main()
                     init_args_prepass.push_back(prepass_height);
                     init_args_prepass.push_back(isnap);
                     init_args_prepass.push_back(base_angle);
+
+                    for(auto& i : tetrad)
+                    {
+                        init_args_prepass.push_back(i);
+                    }
+
                     init_args_prepass.push_back(dynamic_config);
 
                     clctx.cqueue.exec("init_rays_generic", init_args_prepass, {prepass_width*prepass_height}, {256});
@@ -1518,6 +1546,12 @@ int main()
                 init_args.push_back(prepass_height);
                 init_args.push_back(isnap);
                 init_args.push_back(base_angle);
+
+                for(auto& i : tetrad)
+                {
+                    init_args.push_back(i);
+                }
+
                 init_args.push_back(dynamic_config);
 
                 clctx.cqueue.exec("init_rays_generic", init_args, {width*height}, {16*16});
