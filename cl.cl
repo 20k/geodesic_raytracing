@@ -1568,18 +1568,7 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
     }
     #endif // GENERIC_CONSTANT_THETA
 
-    if(cx == 500 && cy == 400)
-    {
-        //printf("Pixel direction %f %f %f cam %f %f %f\n", pixel_direction.x, pixel_direction.y, pixel_direction.z, polar_camera.y, polar_camera.z, polar_camera.w);
-    }
-
     float4 at_metric = spherical_to_generic(polar_camera, cfg);
-
-    /*if(cx == 500 && cy == 400)
-    {
-        printf("At %f %f %f %f\n", at_metric.x, at_metric.y, at_metric.z, at_metric.w);
-        printf("was %f %f %f %f\n", cartesian_camera_pos.x, cartesian_camera_pos.y, cartesian_camera_pos.z, cartesian_camera_pos.w);
-    }*/
 
     #ifndef GENERIC_BIG_METRIC
     float g_metric[4] = {};
