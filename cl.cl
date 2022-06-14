@@ -1465,6 +1465,15 @@ int should_early_terminate(int x, int y, int width, int height, __global int* te
 }
 
 __kernel
+void calculate_global_rotation_matrix(__global float4* g_polar_camera_in, __global float4* g_camera_quat,
+                                      __global float4* e0, __global float4* e1, __global float4* e2, __global float4* e3,
+                                      __global float4* b0, __global float4* b1, __global float4* b2)
+{
+    if(get_global_id(0) != 0)
+        return;
+}
+
+__kernel
 void init_basis_vectors(__global float4* pos, __global float4* e0_out, __global float4* e1_out, __global float4* e2_out, __global float4* e3_out, dynamic_config_space struct dynamic_config* cfg)
 {
     if(get_global_id(0) != 0)

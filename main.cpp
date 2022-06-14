@@ -1291,21 +1291,6 @@ int main()
 
             float time = clk.restart().asMicroseconds() / 1000.;
 
-            {
-                cl::args args;
-
-                args.push_back(g_camera_pos_polar);
-                args.push_back(g_camera_pos_cart);
-
-                cl_float clflip = flip_sign;
-
-                args.push_back(clflip);
-
-                camera_cart_to_polar.set_args(args);
-
-                clctx.cqueue.exec(camera_cart_to_polar, {1}, {1});
-            }
-
             bool should_soft_recompile = false;
 
             if(!taking_screenshot && !hide_ui && !menu.is_first_time_main_menu_open())
@@ -1453,6 +1438,23 @@ int main()
             clr.push_back(rtex);
 
             clctx.cqueue.exec("clear", clr, {width, height}, {16, 16});
+
+
+            {
+                cl::args args;
+
+                args.push_back(g_camera_pos_polar);
+                args.push_back(g_camera_pos_cart);
+
+                cl_float clflip = flip_sign;
+
+                args.push_back(clflip);
+
+                camera_cart_to_polar.set_args(args);
+
+                clctx.cqueue.exec(camera_cart_to_polar, {1}, {1});
+            }
+
 
             {
                 cl::args tetrad_args;
