@@ -1536,7 +1536,7 @@ void init_basis_vectors(__global float4* pos, __global float4* e0_out, __global 
     *e0_out = bT;
     *e1_out = sVx;
     *e2_out = sVy;
-    *e3_out = sVx;
+    *e3_out = sVz;
 }
 
 __kernel
