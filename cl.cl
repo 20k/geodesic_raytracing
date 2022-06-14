@@ -1465,6 +1465,58 @@ int should_early_terminate(int x, int y, int width, int height, __global int* te
 }
 
 __kernel
+void init_basis_vectors(__global float4* pos, __global float4* e0_out, __global float4* e1_out, __global float4* e2_out, __global float4* e3_out, dynamic_config_space struct dynamic_config* cfg)
+{
+    if(get_global_id(0) != 0)
+        return;
+
+    float4 polar_camera_in = *pos;
+
+    float4 at_metric = spherical_to_generic(polar_camera_in, cfg);
+
+    #ifndef GENERIC_BIG_METRIC
+    float g_metric[4] = {};
+    calculate_metric_generic(at_metric, g_metric, cfg);
+
+    float4 co_basis = (float4){native_sqrt(-g_metric[0]), native_sqrt(g_metric[1]), native_sqrt(g_metric[2]), native_sqrt(g_metric[3])};
+
+    float4 bT = (float4)(1/co_basis.x, 0, 0, 0); ///or bt
+    float4 bX = (float4)(0, 1/co_basis.y, 0, 0); ///or br
+    float4 btheta = (float4)(0, 0, 1/co_basis.z, 0);
+    float4 bphi = (float4)(0, 0, 0, 1/co_basis.w);
+    #else
+    float g_metric_big[16] = {0};
+    calculate_metric_generic_big(at_metric, g_metric_big, cfg);
+
+    ///contravariant
+    float4 bT;
+    float4 bX;
+    float4 btheta;
+    float4 bphi;
+
+    {
+        struct frame_basis basis = calculate_frame_basis(g_metric_big);
+
+        /*if(cx == 500 && cy == 400)
+        {
+            float d1 = dot_product_big(basis.v1, basis.v2, g_metric_big);
+            float d2 = dot_product_big(basis.v1, basis.v3, g_metric_big);
+            float d3 = dot_product_big(basis.v1, basis.v4, g_metric_big);
+            float d4 = dot_product_big(basis.v2, basis.v3, g_metric_big);
+            float d5 = dot_product_big(basis.v3, basis.v4, g_metric_big);
+
+            printf("ORTHONORMAL? %f %f %f %f %f\n", d1, d2, d3, d4, d5);
+        }*/
+
+        bT = basis.v1;
+        bX = basis.v2;
+        btheta = basis.v3;
+        bphi = basis.v4;
+    }
+    #endif // GENERIC_BIG_METRIC
+}
+
+__kernel
 void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_camera_quat,
                        __global struct lightray* metric_rays, __global int* metric_ray_count,
                        int width, int height,

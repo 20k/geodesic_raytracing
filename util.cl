@@ -41,8 +41,15 @@ float3 cartesian_to_polar(float3 in)
     return (float3){r, theta, phi};
 }
 
+///ok I've been procrastinating this for a while
+///I want to parallel transport my camera vectors, if and only if I'm on a geodesic
+///so: I need to first define local camera vectors
+///then I need to get a local tetrad
+///then I need to multiply my camera vectors out by the tetrad to get them in global coordinates. This means converting from a tetrad basis, to a coordinate basis
+///once in global coordinates, I need to parallel transport them
+///then, to render, I.. want to convert them back to a tetrad basis?
 __kernel
-void handle_controls(__global float4* camera_pos_cart, __global float4* camera_rot, float2 mouse_delta, float4 unrotated_translation, float universe_size)
+void handle_controls_free(__global float4* camera_pos_cart, __global float4* camera_rot, float2 mouse_delta, float4 unrotated_translation, float universe_size)
 {
     ///translation is: .x is forward - back, .y = right - left, .z = down - up
     ///totally arbitrary, purely to pass to the GPU
@@ -111,6 +118,21 @@ void camera_cart_to_polar(__global float4* g_camera_pos_polar_out, __global floa
         polar.x = -polar.x;
 
     *g_camera_pos_polar_out = (float4)(g_camera_pos_cart->x, polar.xyz);
+}
+
+/*
+so
+axis angle to local rotation matrix, take column vectors as basis
+use a passed in tetrad to convert this to coordinate basis
+convert this to a global basis
+the camera kernel will project this global rotation matrix back to a local rotation matrix, by projecting the column vectors in the tetrad
+*/
+
+__kernel
+void produce_global_rotation_vectors(__global float4* e0, __global float4* e1, __global float4* e2, __global float4* e3,
+                                     __global float4* axis_angle, __global float4* global0, __global float4* global1, __global float4* global2)
+{
+
 }
 
 __kernel

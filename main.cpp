@@ -860,7 +860,7 @@ int main()
     cl::program util(clctx.ctx, "util.cl");
     util.build(clctx.ctx, "-cl-std=CL1.2 -cl-fast-relaxed-math ");
 
-    cl::kernel handle_controls(util, "handle_controls");
+    cl::kernel handle_controls_free(util, "handle_controls_free");
     cl::kernel camera_cart_to_polar(util, "camera_cart_to_polar");
     cl::kernel advance_time(util, "advance_time");
     cl::kernel set_time(util, "set_time");
@@ -1210,9 +1210,9 @@ int main()
                 controls_args.push_back(cl_translation);
                 controls_args.push_back(current_cfg.universe_size);
 
-                handle_controls.set_args(controls_args);
+                handle_controls_free.set_args(controls_args);
 
-                clctx.cqueue.exec(handle_controls, {1}, {1});
+                clctx.cqueue.exec(handle_controls_free, {1}, {1});
 
                 /*if(delta.x() != 0.f)
                 {
