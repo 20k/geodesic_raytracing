@@ -1639,16 +1639,34 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
     float3 apolar = polar_camera.yzw;
     apolar.x = fabs(apolar.x);
 
-    float3 cartesian_cx = normalize(spherical_velocity_to_cartesian_velocity(apolar, polar_x.yzw));
-    float3 cartesian_cy = normalize(spherical_velocity_to_cartesian_velocity(apolar, polar_y.yzw));
-    float3 cartesian_cz = normalize(spherical_velocity_to_cartesian_velocity(apolar, polar_z.yzw));
+    float3 ucartesian_cx = (spherical_velocity_to_cartesian_velocity(apolar, polar_x.yzw));
+    float3 ucartesian_cy = (spherical_velocity_to_cartesian_velocity(apolar, polar_y.yzw));
+    float3 ucartesian_cz = (spherical_velocity_to_cartesian_velocity(apolar, polar_z.yzw));
+
+    float3 cartesian_cx = normalize(ucartesian_cx);
+    float3 cartesian_cy = normalize(ucartesian_cy);
+    float3 cartesian_cz = normalize(ucartesian_cz);
+
+    float3 next_cartesian_cx = unrotate_vector(cartesian_cx, cartesian_cy, cartesian_cz, ucartesian_cx);
+    float3 next_cartesian_cy = unrotate_vector(cartesian_cx, cartesian_cy, cartesian_cz, ucartesian_cy);
+    float3 next_cartesian_cz = unrotate_vector(cartesian_cx, cartesian_cy, cartesian_cz, ucartesian_cz);
+
+    //next_cartesian_cx = normalize(next_cartesian_cx);
+    //next_cartesian_cy = normalize(next_cartesian_cy);
+    //next_cartesian_cz = normalize(next_cartesian_cz);
+
+    float3 cart_cam = polar_to_cartesian(apolar);
+
+    polar_x.yzw = cartesian_velocity_to_polar_velocity(cart_cam, next_cartesian_cx);
+    polar_y.yzw = cartesian_velocity_to_polar_velocity(cart_cam, next_cartesian_cy);
+    polar_z.yzw = cartesian_velocity_to_polar_velocity(cart_cam, next_cartesian_cz);
 
     /*if(cx == 500 && cy == 400)
     {
         printf("ANGLES %f %f\n", base_angle.y, base_angle.x);
     }*/
 
-    pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
+    //pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
 
     pixel_direction = normalize(pixel_direction);
     float4 pixel_x = pixel_direction.x * polar_x;
