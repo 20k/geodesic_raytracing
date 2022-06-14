@@ -1514,6 +1514,29 @@ void init_basis_vectors(__global float4* pos, __global float4* e0_out, __global 
         bphi = basis.v4;
     }
     #endif // GENERIC_BIG_METRIC
+
+    ///???
+    float4 observer_velocity = bT;
+
+    //float4 observer_velocity = {1, 0.5, 0, 0};
+    float lorentz[16] = {};
+
+    #ifndef GENERIC_BIG_METRIC
+    calculate_lorentz_boost(bT, observer_velocity, g_metric, lorentz);
+    #else
+    calculate_lorentz_boost_big(bT, observer_velocity, g_metric_big, lorentz);
+    #endif // GENERIC_BIG_METRIC
+
+    bT = observer_velocity;
+
+    float4 sVx = tensor_contract(lorentz, btheta);
+    float4 sVy = tensor_contract(lorentz, bphi);
+    float4 sVz = tensor_contract(lorentz, bX);
+
+    *e0_out = bT;
+    *e1_out = sVx;
+    *e2_out = sVy;
+    *e3_out = sVx;
 }
 
 __kernel
@@ -1651,9 +1674,10 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
     pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
 
     pixel_direction = normalize(pixel_direction);
-    float4 pixel_x = pixel_direction.x * polar_x;
-    float4 pixel_y = pixel_direction.y * polar_y;
-    float4 pixel_z = pixel_direction.z * polar_z;
+
+    float4 pixel_x = pixel_direction.x * sVx;
+    float4 pixel_y = pixel_direction.y * sVy;
+    float4 pixel_z = pixel_direction.z * sVz;
 
     ///when people say backwards in time, what they mean is backwards in affine time, not coordinate time
     ///going backwards in coordinate time however should be identical
@@ -1671,10 +1695,6 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
     {
         pixel_t = -pixel_t;
     }
-
-    pixel_x = spherical_velocity_to_generic_velocity(polar_camera, pixel_x, cfg);
-    pixel_y = spherical_velocity_to_generic_velocity(polar_camera, pixel_y, cfg);
-    pixel_z = spherical_velocity_to_generic_velocity(polar_camera, pixel_z, cfg);
 
     float4 lightray_velocity = pixel_x + pixel_y + pixel_z + pixel_t;
     float4 lightray_spacetime_position = at_metric;
