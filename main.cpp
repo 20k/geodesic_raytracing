@@ -788,6 +788,14 @@ int main()
         tetrad[i].set_to_zero(clctx.cqueue);
     }
 
+    std::array<cl::buffer, 4> reference_basis{clctx.ctx, clctx.ctx, clctx.ctx, clctx.ctx};
+
+    for(auto& i : reference_basis)
+    {
+        i.alloc(sizeof(cl_float4));
+        i.set_to_zero(clctx.cqueue);
+    }
+
     printf("Alloc trace buffer\n");
 
     std::vector<cl_float4> current_geodesic_path;

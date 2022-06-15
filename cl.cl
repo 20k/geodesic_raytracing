@@ -1507,37 +1507,12 @@ void calculate_global_rotation_matrix(__global float4* g_polar_camera_in, __glob
     if(get_global_id(0) != 0)
         return;
 
-
 }
 
-__kernel
-void init_basis_vectors(__global float4* g_polar_camera_in, __global float4* g_camera_quat,
-                        int width, int height,
-                        float2 base_angle,
-                        __global float4* e0_out, __global float4* e1_out, __global float4* e2_out, __global float4* e3_out,
-                        dynamic_config_space struct dynamic_config* cfg)
+void calculate_tetrads(float4 polar_camera,
+                       float4* e0_out, float4* e1_out, float4* e2_out, float4* e3_out,
+                       dynamic_config_space struct dynamic_config* cfg)
 {
-    int id = get_global_id(0);
-
-    if(id >= width * height)
-        return;
-
-    float4 polar_camera_in = *g_polar_camera_in;
-    float4 camera_quat = *g_camera_quat;
-
-    float4 polar_camera = polar_camera_in;
-
-    const int cx = id % width;
-    const int cy = id / width;
-
-    float3 pixel_direction = calculate_pixel_direction(cx, cy, width, height, polar_camera_in, camera_quat, base_angle);
-
-    #if defined(GENERIC_CONSTANT_THETA) || defined(DEBUG_CONSTANT_THETA)
-    {
-        adjust_pixel_direction_and_camera_theta(pixel_direction, polar_camera, &pixel_direction, &polar_camera, cx==500&&cy==400);
-    }
-    #endif // GENERIC_CONSTANT_THETA
-
     float4 at_metric = spherical_to_generic(polar_camera, cfg);
 
     #ifndef GENERIC_BIG_METRIC
@@ -1603,6 +1578,51 @@ void init_basis_vectors(__global float4* g_polar_camera_in, __global float4* g_c
     float4 sVx = btheta;
     float4 sVy = bphi;
     float4 sVz = bX;
+
+    *e0_out = bT;
+    *e1_out = sVx;
+    *e2_out = sVy;
+    *e3_out = sVz;
+}
+
+/*__kernel
+void init_reference_vectors(__global float4* g_polar_camera_in, __global float4* g_camera_quat,
+                            __global float4* e0, __)*/
+
+__kernel
+void init_basis_vectors(__global float4* g_polar_camera_in, __global float4* g_camera_quat,
+                        int width, int height,
+                        float2 base_angle,
+                        __global float4* e0_out, __global float4* e1_out, __global float4* e2_out, __global float4* e3_out,
+                        dynamic_config_space struct dynamic_config* cfg)
+{
+    int id = get_global_id(0);
+
+    if(id >= width * height)
+        return;
+
+    float4 polar_camera_in = *g_polar_camera_in;
+    float4 camera_quat = *g_camera_quat;
+
+    float4 polar_camera = polar_camera_in;
+
+    const int cx = id % width;
+    const int cy = id / width;
+
+    float3 pixel_direction = calculate_pixel_direction(cx, cy, width, height, polar_camera_in, camera_quat, base_angle);
+
+    #if defined(GENERIC_CONSTANT_THETA) || defined(DEBUG_CONSTANT_THETA)
+    {
+        adjust_pixel_direction_and_camera_theta(pixel_direction, polar_camera, &pixel_direction, &polar_camera, cx==500&&cy==400);
+    }
+    #endif // GENERIC_CONSTANT_THETA
+
+    float4 bT;
+    float4 sVx;
+    float4 sVy;
+    float4 sVz;
+
+    calculate_tetrads(polar_camera, &bT, &sVx, &sVy, &sVz, cfg);
 
     e0_out[id] = bT;
     e1_out[id] = sVx;
