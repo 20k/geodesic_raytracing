@@ -1581,6 +1581,7 @@ void init_basis_vectors(__global float4* g_polar_camera_in, __global float4* g_c
     }
     #endif // GENERIC_BIG_METRIC
 
+    /*
     ///???
     float4 observer_velocity = bT;
 
@@ -1597,7 +1598,11 @@ void init_basis_vectors(__global float4* g_polar_camera_in, __global float4* g_c
 
     float4 sVx = tensor_contract(lorentz, btheta);
     float4 sVy = tensor_contract(lorentz, bphi);
-    float4 sVz = tensor_contract(lorentz, bX);
+    float4 sVz = tensor_contract(lorentz, bX);*/
+
+    float4 sVx = btheta;
+    float4 sVy = bphi;
+    float4 sVz = bX;
 
     e0_out[id] = bT;
     e1_out[id] = sVx;
