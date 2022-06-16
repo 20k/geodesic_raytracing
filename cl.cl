@@ -1549,6 +1549,33 @@ float4 tetrad_to_coordinate_basis(float4 vec_up, float4 e0_hi, float4 e1_hi, flo
     return vec_up.x * e0_hi + vec_up.y * e1_hi + vec_up.z * e2_hi + vec_up.w * e3_hi;
 }
 
+void get_local_minkowski(float4 e0_hi, float4 e1_hi, float4 e2_hi, float4 e3_hi, float g_metric_big[], float minkowski[])
+{
+    ///a * 4 + mu
+    float m[16] = {e0_hi.x, e0_hi.y, e0_hi.z, e0_hi.w,
+                   e1_hi.x, e1_hi.y, e1_hi.z, e1_hi.w,
+                   e2_hi.x, e2_hi.y, e2_hi.z, e2_hi.w,
+                   e3_hi.x, e3_hi.y, e3_hi.z, e3_hi.w};
+
+    for(int a=0; a < 4; a++)
+    {
+        for(int b=0; b < 4; b++)
+        {
+            float sum = 0;
+
+            for(int mu=0; mu < 4; mu++)
+            {
+                for(int v=0; v < 4; v++)
+                {
+                    sum += g_metric_big[mu * 4 + v] * m[a * 4 + mu] * m[b * 4 + v];
+                }
+            }
+
+            minkowski[a * 4 + b] = sum;
+        }
+    }
+}
+
 __kernel
 void calculate_global_rotation_matrix(__global float4* g_polar_camera_in, __global float4* g_camera_quat,
                                       __global float4* e0, __global float4* e1, __global float4* e2, __global float4* e3,
