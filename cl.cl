@@ -1835,71 +1835,7 @@ void handle_controls_free(__global float4* camera_pos_cart, __global float4* cam
     if(get_global_id(0) != 0)
         return;
 
-    #if 0
     float4 local_camera_quat = *camera_rot;
-    float4 local_camera_pos_cart = *camera_pos_cart;
-
-    if(mouse_delta.x != 0)
-    {
-        float4 q = aa_to_quat((float3)(0, 0, -1), mouse_delta.x);
-
-        local_camera_quat = quat_multiply(q, local_camera_quat);
-    }
-
-    {
-        float3 right = rot_quat((float3){1, 0, 0}, local_camera_quat);
-
-        if(mouse_delta.y != 0)
-        {
-            float4 q = aa_to_quat(right, mouse_delta.y);
-
-            local_camera_quat = quat_multiply(q, local_camera_quat);
-        }
-    }
-
-    float3 up = {0, 0, -1};
-    float3 right = rot_quat((float3){1, 0, 0}, local_camera_quat);
-    float3 forw = rot_quat((float3){0, 0, 1}, local_camera_quat);
-
-    float3 offset = {0,0,0};
-
-    offset += forw * unrotated_translation.x;
-    offset += right * unrotated_translation.y;
-    offset += up * unrotated_translation.z;
-
-    local_camera_pos_cart.y += offset.x;
-    local_camera_pos_cart.z += offset.y;
-    local_camera_pos_cart.w += offset.z;
-
-    {
-        float rad = length(local_camera_pos_cart.yzw);
-
-        if(rad > universe_size * 0.99f)
-        {
-            local_camera_pos_cart.yzw = normalize(local_camera_pos_cart.yzw) * universe_size * 0.99f;
-        }
-    }
-
-    *camera_rot = local_camera_quat;
-    *camera_pos_cart = local_camera_pos_cart;
-    #endif // 0
-
-    float4 local_camera_quat = *camera_rot;
-
-    /*float4 e0_lo;
-    float4 e1_lo;
-    float4 e2_lo;
-    float4 e3_lo;
-
-    get_tetrad_inverse(*e0, *e1, *e2, *e3, &e0_lo, &e1_lo, &e2_lo, &e3_lo);
-
-    float4 b0_e = coordinate_to_tetrad_basis(*b0, e0_lo, e1_lo, e2_lo, e3_lo);
-    float4 b1_e = coordinate_to_tetrad_basis(*b1, e0_lo, e1_lo, e2_lo, e3_lo);
-    float4 b2_e = coordinate_to_tetrad_basis(*b2, e0_lo, e1_lo, e2_lo, e3_lo);
-
-    b0_e.yzw = normalize(b0_e.yzw);
-    b1_e.yzw = normalize(b1_e.yzw);
-    b2_e.yzw = normalize(b2_e.yzw);*/
 
     if(mouse_delta.x != 0)
     {
@@ -1957,36 +1893,6 @@ void handle_controls_free(__global float4* camera_pos_cart, __global float4* cam
 
     *camera_pos_cart = local_camera_pos_cart;
     *camera_rot = local_camera_quat;
-
-    /*float4 pos_spherical = generic_to_spherical(lightray_spacetime_position, cfg);
-    float4 vel_spherical = generic_velocity_to_spherical_velocity(lightray_spacetime_position, lightray_velocity, cfg);
-
-    float fsign = sign(pos_spherical.y);
-    pos_spherical.y = fabs(pos_spherical.y);
-
-    float3 pos_cart = polar_to_cartesian(pos_spherical.yzw);
-    float3 vel_cart = spherical_velocity_to_cartesian_velocity(pos_spherical.yzw, vel_spherical.yzw);
-
-    float4 quat = get_theta_adjustment_quat(vel_cart, polar_camera, 1, false);
-
-    pos_cart = rot_quat(pos_cart, quat);
-    vel_cart = rot_quat(vel_cart, quat);
-
-    float3 next_pos_spherical = cartesian_to_polar(pos_cart);
-    float3 next_vel_spherical = cartesian_velocity_to_polar_velocity(pos_cart, vel_cart);
-
-    if(fsign < 0)
-    {
-        next_pos_spherical.x = -next_pos_spherical.x;
-    }
-
-    float4 next_pos_generic = spherical_to_generic((float4)(pos_spherical.x, next_pos_spherical), cfg);
-    float4 next_vel_generic = spherical_velocity_to_generic_velocity((float4)(pos_spherical.x, next_pos_spherical), (float4)(vel_spherical.x, next_vel_spherical), cfg);
-
-    lightray_spacetime_position = next_pos_generic;
-    lightray_velocity = next_vel_generic;*/
-
-
 }
 
 __kernel
