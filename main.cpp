@@ -892,6 +892,8 @@ int main()
 
     printf("Prog2\n");
 
+    bool reset_camera = true;
+
     while(!win.should_close() && !menu.should_quit && fullscreen.open)
     {
         if(menu.dirty_settings)
@@ -1362,6 +1364,7 @@ int main()
                     clctx.cqueue.exec("init_basis_vectors", tetrad_args, {1}, {1});
                 }
 
+                if(reset_camera)
                 {
                     cl::args mat_args;
                     mat_args.push_back(g_camera_pos_polar);
@@ -1378,6 +1381,8 @@ int main()
                     }
 
                     clctx.cqueue.exec("calculate_global_rotation_matrix", mat_args, {1}, {1});
+
+                    reset_camera = false;
                 }
             }
 
@@ -1399,12 +1404,14 @@ int main()
 
                 if(input.is_key_down("camera_reset"))
                 {
+                    reset_camera = true;
                     set_camera_time = 0;
                     g_camera_pos_cart.write(clctx.cqueue, std::vector<cl_float4>{{0, 0, 0, -4}});
                 }
 
                 if(input.is_key_down("camera_centre"))
                 {
+                    reset_camera = true;
                     set_camera_time = 0;
                     g_camera_pos_cart.write(clctx.cqueue, std::vector<cl_float4>{{0, 0, 0, 0}});
                 }
