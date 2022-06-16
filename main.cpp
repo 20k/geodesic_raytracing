@@ -779,6 +779,9 @@ int main()
     cl::buffer geodesic_trace_buffer(clctx.ctx);
     geodesic_trace_buffer.alloc(64000 * sizeof(cl_float4));
 
+    cl::buffer geodesic_vel_buffer(clctx.ctx);
+    geodesic_vel_buffer.alloc(64000 * sizeof(cl_float4));
+
     cl::buffer geodesic_dT_dt_buffer(clctx.ctx);
     geodesic_dT_dt_buffer.alloc(64000 * sizeof(cl_float));
 
@@ -1598,10 +1601,12 @@ int main()
                     geodesic_trace_buffer.set_to_zero(clctx.cqueue);
                     geodesic_dT_dt_buffer.set_to_zero(clctx.cqueue);
                     geodesic_count_buffer.set_to_zero(clctx.cqueue);
+                    geodesic_vel_buffer.set_to_zero(clctx.cqueue);
 
                     cl::args snapshot_args;
                     snapshot_args.push_back(schwarzs_1);
                     snapshot_args.push_back(geodesic_trace_buffer);
+                    snapshot_args.push_back(geodesic_vel_buffer);
                     snapshot_args.push_back(geodesic_dT_dt_buffer);
                     snapshot_args.push_back(schwarzs_count_1);
                     snapshot_args.push_back(idx);

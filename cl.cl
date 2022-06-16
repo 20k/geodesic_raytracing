@@ -2102,13 +2102,14 @@ void init_basis_vectors(__global float4* g_polar_camera_in,
     *e3_out = sVz;
 }
 
-///geodesic_path is polar
 __kernel
-void handle_interpolating_geodesic(__global float4* geodesic_path, __global float* dT_dt,
+void handle_interpolating_geodesic(__global float4* geodesic_path, __global float4* geodesic_velocity, __global float* dT_dt,
                                    __global float4* g_camera_quat,
+                                   __global float4* g_camera_polar_out,
                                    __global float4* e0_out, __global float4* e1_out, __global float4* e2_out, __global float4* e3_out,
                                    __global float4* b0_out, __global float4* b1_out, __global float4* b2_out,
-                                   float current_time,
+                                   float target_time,
+                                   __global int* count_in,
                                    dynamic_config_space struct dynamic_config* cfg)
 {
     if(get_global_id(0) != 0)
@@ -2120,8 +2121,10 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
     float4 e0, e1, e2, e3;
     calculate_tetrads(start_polar, &e0, &e1, &e2, &e3, cfg);
 
+    float4 unity_camera = (float4)(0, 0, 0, 1);
+
     float m[9];
-    quat_to_matrix(*g_camera_quat, m);
+    quat_to_matrix(unity_camera, m);
 
     float4 b0_e = (float4)(0, m[0 * 3 + 0], m[1 * 3 + 0], m[2 * 3 + 0]);
     float4 b1_e = (float4)(0, m[0 * 3 + 1], m[1 * 3 + 1], m[2 * 3 + 1]);
@@ -2134,6 +2137,56 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
     float4 b0 = tetrad_to_coordinate_basis(b0_e, e0, e1, e2, e3);
     float4 b1 = tetrad_to_coordinate_basis(b1_e, e0, e1, e2, e3);
     float4 b2 = tetrad_to_coordinate_basis(b2_e, e0, e1, e2, e3);
+
+
+    float4 te0 = e0;
+    float4 te1 = e1;
+    float4 te2 = e2;
+    float4 te3 = e3;
+
+    float4 tb0 = b0;
+    float4 tb1 = b1;
+    float4 tb2 = b2;
+
+    int cnt = *count_in;
+
+    float current_time = 0;
+
+    for(int i=0; i < cnt - 1; i++)
+    {
+        float4 current_pos = geodesic_path[i];
+        float4 next_pos = geodesic_path[i + 1];
+
+        float4 velocity = geodesic_velocity[i];
+
+        if(next_pos.x < current_pos.x)
+        {
+            float4 im = current_pos;
+            current_pos = next_pos;
+            next_pos = im;
+        }
+
+        float dt = next_pos.x - current_pos.x;
+
+        if(current_time >= current_pos.x && current_time < next_pos.x)
+        {
+            *g_camera_polar_out = generic_to_spherical(current_pos, cfg);
+
+            ///float4 parallel_transport_get_acceleration(float4 X, float4 geodesic_position, float4 geodesic_velocity, dynamic_config_space struct dynamic_config* cfg)
+
+            return;
+        }
+
+        current_time += dt;
+
+        float4 tb0_a = parallel_transport_get_acceleration(tb0, current_pos, velocity, cfg);
+        float4 tb1_a = parallel_transport_get_acceleration(tb1, current_pos, velocity, cfg);
+        float4 tb2_a = parallel_transport_get_acceleration(tb2, current_pos, velocity, cfg);
+
+        tb0 += tb0_a * dt;
+        tb1 += tb1_a * dt;
+        tb2 += tb2_a * dt;
+    }
 }
 
 __kernel
@@ -2882,6 +2935,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 __kernel
 void get_geodesic_path(__global struct lightray* generic_rays_in,
                        __global float4* positions_out,
+                       __global float4* velocities_out,
                        __global float* dT_dt_out,
                        __global int* generic_count_in, int geodesic_start, int width, int height,
                        __global float4* g_polar_camera_pos, __global float4* g_camera_quat,
@@ -3029,13 +3083,16 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         velocity = next_velocity;
         acceleration = next_acceleration;
 
+        /*
         float4 polar_out = generic_to_spherical(position, cfg);
 
         #if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC) || defined(DEBUG_CONSTANT_THETA)
         polar_out.yzw = get_texture_constant_theta_rotation(pixel_direction, polar_camera_pos, polar_out);
         #endif
+        */
 
-        positions_out[bufc] = polar_out;
+        positions_out[bufc] = position;
+        velocities_out[bufc] = velocity;
         dT_dt_out[bufc] = dT_dt;
         bufc++;
 
