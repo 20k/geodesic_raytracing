@@ -1760,6 +1760,26 @@ void test_tetrad_inverse(float4 e0_hi, float4 e1_hi, float4 e2_hi, float4 e3_hi,
 }
 #endif // 0
 
+void quat_to_matrix(float4 q, float m[9])
+{
+    float qx = q.x;
+    float qy = q.y;
+    float qz = q.z;
+    float qw = q.w;
+
+    m[0 * 3 + 0] = 1 - 2*qy*qy - 2*qz*qz;
+    m[0 * 3 + 1] = 2*qx*qy - 2*qz*qw;
+    m[0 * 3 + 2] = 2*qx*qz + 2*qy*qw;
+
+    m[1 * 3 + 0] = 2*qx*qy + 2*qz*qw;
+    m[1 * 3 + 1] = 1 - 2*qx*qx - 2*qz*qz;
+    m[1 * 3 + 2] = 2*qy*qz - 2*qx*qw;
+
+    m[2 * 3 + 0] = 2*qx*qz - 2*qy*qw;
+    m[2 * 3 + 1] = 2*qy*qz + 2*qx*qw;
+    m[2 * 3 + 2] = 1 - 2*qx*qx - 2*qy*qy;
+}
+
 __kernel
 void calculate_global_rotation_matrix(__global float4* g_polar_camera_in, __global float4* g_camera_quat,
                                       __global float4* e0, __global float4* e1, __global float4* e2, __global float4* e3,
@@ -1767,6 +1787,7 @@ void calculate_global_rotation_matrix(__global float4* g_polar_camera_in, __glob
 {
     if(get_global_id(0) != 0)
         return;
+
 
 }
 
