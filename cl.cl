@@ -1573,7 +1573,8 @@ void calculate_tetrads(float4 polar_camera,
 
     float4 sVx = tensor_contract(lorentz, btheta);
     float4 sVy = tensor_contract(lorentz, bphi);
-    float4 sVz = tensor_contract(lorentz, bX);*/
+    float4 sVz = tensor_contract(lorentz, bX);
+    */
 
     float4 sVx = btheta;
     float4 sVy = bphi;
@@ -1584,6 +1585,9 @@ void calculate_tetrads(float4 polar_camera,
     *e2_out = sVy;
     *e3_out = sVz;
 }
+
+/*ok don't lose hope
+we need to take a camera rotation, convert it to global coordinates*/
 
 /*__kernel
 void init_reference_vectors(__global float4* g_polar_camera_in, __global float4* g_camera_quat,
@@ -1609,6 +1613,7 @@ void init_basis_vectors(__global float4* g_polar_camera_in, __global float4* g_c
     const int cx = id % width;
     const int cy = id / width;
 
+    #if 0
     float3 pixel_direction = calculate_pixel_direction(cx, cy, width, height, polar_camera_in, camera_quat, base_angle);
 
     #if defined(GENERIC_CONSTANT_THETA) || defined(DEBUG_CONSTANT_THETA)
@@ -1616,6 +1621,7 @@ void init_basis_vectors(__global float4* g_polar_camera_in, __global float4* g_c
         adjust_pixel_direction_and_camera_theta(pixel_direction, polar_camera, &pixel_direction, &polar_camera, cx==500&&cy==400);
     }
     #endif // GENERIC_CONSTANT_THETA
+    #endif // 0
 
     float4 bT;
     float4 sVx;
@@ -1655,11 +1661,13 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
 
     float4 polar_camera = polar_camera_in;
 
+    #if 0
     #if defined(GENERIC_CONSTANT_THETA) || defined(DEBUG_CONSTANT_THETA)
     {
         adjust_pixel_direction_and_camera_theta(pixel_direction, polar_camera, &pixel_direction, &polar_camera, cx==500&&cy==400);
     }
     #endif // GENERIC_CONSTANT_THETA
+    #endif // 0
 
     float4 at_metric = spherical_to_generic(polar_camera, cfg);
 
@@ -1743,6 +1751,40 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
 
     float4 lightray_velocity = pixel_x + pixel_y + pixel_z + pixel_t;
     float4 lightray_spacetime_position = at_metric;
+
+    #if defined(GENERIC_CONSTANT_THETA) || defined(DEBUG_CONSTANT_THETA)
+    {
+        float4 pos_spherical = generic_to_spherical(lightray_spacetime_position, cfg);
+        float4 vel_spherical = generic_velocity_to_spherical_velocity(lightray_spacetime_position, lightray_velocity, cfg);
+
+        float fsign = sign(pos_spherical.y);
+        pos_spherical.y = fabs(pos_spherical.y);
+
+        float3 pos_cart = polar_to_cartesian(pos_spherical.yzw);
+        float3 vel_cart = spherical_velocity_to_cartesian_velocity(pos_spherical.yzw, vel_spherical.yzw);
+
+        float4 quat = get_theta_adjustment_quat(vel_cart, polar_camera, 1, false);
+
+        pos_cart = rot_quat(pos_cart, quat);
+        vel_cart = rot_quat(vel_cart, quat);
+
+        float3 next_pos_spherical = cartesian_to_polar(pos_cart);
+        float3 next_vel_spherical = cartesian_velocity_to_polar_velocity(pos_cart, vel_cart);
+
+        if(fsign < 0)
+        {
+            next_pos_spherical.x = -next_pos_spherical.x;
+        }
+
+        float4 next_pos_generic = spherical_to_generic((float4)(pos_spherical.x, next_pos_spherical), cfg);
+        float4 next_vel_generic = spherical_velocity_to_generic_velocity((float4)(pos_spherical.x, next_pos_spherical), (float4)(vel_spherical.x, next_vel_spherical), cfg);
+
+        lightray_spacetime_position = next_pos_generic;
+        lightray_velocity = next_vel_generic;
+
+        //adjust_pixel_direction_and_camera_theta(pixel_direction, polar_camera, &pixel_direction, &polar_camera, cx==500&&cy==400);
+    }
+    #endif // GENERIC_CONSTANT_THETA
 
     float4 lightray_acceleration = (float4)(0,0,0,0);
 
