@@ -1238,54 +1238,7 @@ int main()
                 handle_controls_free.set_args(controls_args);
 
                 clctx.cqueue.exec(handle_controls_free, {1}, {1});
-
-                /*if(delta.x() != 0.f)
-                {
-                    quat q;
-                    q.load_from_axis_angle({0, 0, -1, current_settings.mouse_sensitivity * delta.x() * M_PI/128});
-
-                    camera_quat = q * camera_quat;
-                }
-
-                if(input.is_key_pressed("toggle_wormhole_space"))
-                {
-                    flip_sign = !flip_sign;
-                }
-
-                vec3f up = {0, 0, -1};
-                vec3f right = rot_quat({1, 0, 0}, camera_quat);
-                vec3f forward_axis = rot_quat({0, 0, 1}, camera_quat);
-
-                if(delta.y() != 0.f)
-                {
-                    quat q;
-                    q.load_from_axis_angle({right.x(), right.y(), right.z(), current_settings.mouse_sensitivity * delta.y() * M_PI/128});
-
-                    camera_quat = q * camera_quat;
-                }
-
-                vec3f offset = {0,0,0};
-
-                offset += current_settings.keyboard_sensitivity * controls_multiplier * forward_axis * (() * speed);
-                offset += current_settings.keyboard_sensitivity * controls_multiplier * right * () * speed;
-                offset += current_settings.keyboard_sensitivity * controls_multiplier * up * () * speed;
-
-                camera.y() += offset.x();
-                camera.z() += offset.y();
-                camera.w() += offset.z();*/
             }
-
-            /*#define CLAMP_CAMERA
-            #ifdef CLAMP_CAMERA
-            {
-                float rad = camera.length();
-
-                if(rad > current_cfg.universe_size * 0.99f)
-                {
-                    camera = camera.norm() * current_cfg.universe_size * 0.99f;
-                }
-            }
-            #endif // CLAMP_CAMERA*/
 
             /*vec4f scamera = cartesian_to_schwarz(camera);
 
