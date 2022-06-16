@@ -1576,7 +1576,7 @@ float3 get_texture_constant_theta_rotation(float3 pixel_direction, float4 polar_
 	return polar_position;
 }
 
-float3 calculate_pixel_direction(int cx, int cy, float width, float height, float4 polar_camera, float4 camera_quat, float2 base_angle)
+float3 calculate_pixel_direction(int cx, int cy, float width, float height, float4 polar_camera, float3 b0, float3 b1, float3 b2, float2 base_angle)
 {
     #define FOV 90
 
@@ -1588,7 +1588,9 @@ float3 calculate_pixel_direction(int cx, int cy, float width, float height, floa
     float3 pixel_direction = (float3){cx - width/2, cy - height/2, nonphysical_f_stop};
 
     pixel_direction = normalize(pixel_direction);
-    pixel_direction = rot_quat(pixel_direction, camera_quat);
+    //pixel_direction = rot_quat(pixel_direction, camera_quat);
+
+    pixel_direction = rotate_vector(b0, b1, b2, pixel_direction);
 
     float3 up = {0, 0, 1};
 
@@ -1837,7 +1839,7 @@ void calculate_global_rotation_matrix(__global float4* g_polar_camera_in, __glob
     *b1 = tetrad_to_coordinate_basis(b1_e, *e0, *e1, *e2, *e3);
     *b2 = tetrad_to_coordinate_basis(b2_e, *e0, *e1, *e2, *e3);
 
-    printf("RBasis %f %f %f y %f %f %f z %f %f %f\n", b0_e.y, b0_e.z, b0_e.w, b1_e.y, b1_e.z, b1_e.w, b2_e.y, b2_e.z, b2_e.w);
+    //printf("RBasis %f %f %f y %f %f %f z %f %f %f\n", b0_e.y, b0_e.z, b0_e.w, b1_e.y, b1_e.z, b1_e.w, b2_e.y, b2_e.z, b2_e.w);
 }
 
 void calculate_tetrads(float4 polar_camera,
@@ -1985,11 +1987,11 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
     b1_e.yzw = normalize(b1_e.yzw);
     b2_e.yzw = normalize(b2_e.yzw);
 
-    float camera_mat[9] = {b0_e.y, b1_e.y, b2_e.y,
+    /*float camera_mat[9] = {b0_e.y, b1_e.y, b2_e.y,
                            b0_e.z, b1_e.z, b2_e.z,
-                           b0_e.w, b1_e.w, b2_e.w};
+                           b0_e.w, b1_e.w, b2_e.w};*/
 
-    float4 camera_quat = matrix_to_quat(camera_mat);
+    //float4 camera_quat = matrix_to_quat(camera_mat);
 
     const int cx = id % width;
     const int cy = id / width;
@@ -2005,7 +2007,7 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
         printf("REAL %f %f %f y %f %f %f z %f %f %f\n", rcm[0], rcm[3], rcm[6], rcm[1], rcm[4], rcm[7], rcm[2], rcm[5], rcm[8]);
     }
 
-    float3 pixel_direction = calculate_pixel_direction(cx, cy, width, height, polar_camera_in, camera_quat, base_angle);
+    float3 pixel_direction = calculate_pixel_direction(cx, cy, width, height, polar_camera_in, b0_e.yzw, b1_e.yzw, b2_e.yzw, base_angle);
 
     float4 polar_camera = polar_camera_in;
 
@@ -2762,6 +2764,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
                        __global int* generic_count_in, int geodesic_start, int width, int height,
                        float4 polar_camera_pos, float4 camera_quat, float2 base_angle, dynamic_config_space struct dynamic_config* cfg, __global int* count_out)
 {
+    #if 0
     int id = geodesic_start;
 
     if(id >= *generic_count_in)
@@ -2902,6 +2905,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
     }
 
     *count_out = bufc;
+    #endif // 0
 }
 
 #ifdef DEVICE_SIDE_ENQUEUE
@@ -2987,7 +2991,9 @@ void calculate_singularities(__global struct lightray* finished_rays, __global i
 #endif // GENERIC_METRIC
 
 __kernel
-void calculate_texture_coordinates(__global struct lightray* finished_rays, __global int* finished_count_in, __global float2* texture_coordinates, int width, int height, __global float4* g_polar_camera_pos, __global float4* g_camera_quat, float2 base_angle)
+void calculate_texture_coordinates(__global struct lightray* finished_rays, __global int* finished_count_in, __global float2* texture_coordinates, int width, int height, __global float4* g_polar_camera_pos, __global float4* g_camera_quat,
+                                   __global float4* e0, __global float4* e1, __global float4* e2, __global float4* e3,
+                                   __global float4* b0, __global float4* b1, __global float4* b2, float2 base_angle)
 {
     int id = get_global_id(0);
 
@@ -2998,6 +3004,21 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
     float4 camera_quat = *g_camera_quat;
 
     __global struct lightray* ray = &finished_rays[id];
+
+    float4 e0_lo;
+    float4 e1_lo;
+    float4 e2_lo;
+    float4 e3_lo;
+
+    get_tetrad_inverse(*e0, *e1, *e2, *e3, &e0_lo, &e1_lo, &e2_lo, &e3_lo);
+
+    float4 b0_e = coordinate_to_tetrad_basis(*b0, e0_lo, e1_lo, e2_lo, e3_lo);
+    float4 b1_e = coordinate_to_tetrad_basis(*b1, e0_lo, e1_lo, e2_lo, e3_lo);
+    float4 b2_e = coordinate_to_tetrad_basis(*b2, e0_lo, e1_lo, e2_lo, e3_lo);
+
+    b0_e.yzw = normalize(b0_e.yzw);
+    b1_e.yzw = normalize(b1_e.yzw);
+    b2_e.yzw = normalize(b2_e.yzw);
 
     int pos = ray->sy * width + ray->sx;
     int sx = ray->sx;
@@ -3038,7 +3059,7 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
     }
     #endif
 
-    float3 pixel_direction = calculate_pixel_direction(sx, sy, width, height, polar_camera_pos, camera_quat, base_angle);
+    float3 pixel_direction = calculate_pixel_direction(sx, sy, width, height, polar_camera_pos, b0_e.yzw, b1_e.yzw, b2_e.yzw, base_angle);
 
 	float3 npolar = position.yzw;
 

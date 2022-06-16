@@ -1651,6 +1651,17 @@ int main()
                 texture_args.push_back(height);
                 texture_args.push_back(g_camera_pos_polar);
                 texture_args.push_back(g_camera_quat);
+
+                for(auto& i : tetrad)
+                {
+                    texture_args.push_back(i);
+                }
+
+                for(auto& i : camera_basis)
+                {
+                    texture_args.push_back(i);
+                }
+
                 texture_args.push_back(base_angle);
 
                 clctx.cqueue.exec("calculate_texture_coordinates", texture_args, {width * height}, {256});
