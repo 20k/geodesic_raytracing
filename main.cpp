@@ -783,11 +783,18 @@ int main()
     geodesic_dT_dt_buffer.alloc(64000 * sizeof(cl_float));
 
     std::array<cl::buffer, 4> tetrad{clctx.ctx, clctx.ctx, clctx.ctx, clctx.ctx};
+    std::array<cl::buffer, 3> camera_basis{clctx.ctx, clctx.ctx, clctx.ctx};
 
     for(int i=0; i < 4; i++)
     {
         tetrad[i].alloc(sizeof(cl_float4));
         tetrad[i].set_to_zero(clctx.cqueue);
+    }
+
+    for(auto& i : camera_basis)
+    {
+        i.alloc(sizeof(cl_float4));
+        i.set_to_zero(clctx.cqueue);
     }
 
     std::array<cl::buffer, 4> reference_basis{clctx.ctx, clctx.ctx, clctx.ctx, clctx.ctx};
@@ -1479,6 +1486,23 @@ int main()
                 clctx.cqueue.exec("init_basis_vectors", tetrad_args, {1}, {1});
             }
 
+            {
+                cl::args mat_args;
+                mat_args.push_back(g_camera_pos_polar);
+                mat_args.push_back(g_camera_quat);
+
+                for(auto& i : tetrad)
+                {
+                    mat_args.push_back(i);
+                }
+
+                for(auto& i : camera_basis)
+                {
+                    mat_args.push_back(i);
+                }
+
+                clctx.cqueue.exec("calculate_global_rotation_matrix", mat_args, {1}, {1});
+            }
 
             cl::event next;
 
