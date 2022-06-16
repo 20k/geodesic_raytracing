@@ -49,7 +49,10 @@ float3 cartesian_to_polar(float3 in)
 ///once in global coordinates, I need to parallel transport them
 ///then, to render, I.. want to convert them back to a tetrad basis?
 __kernel
-void handle_controls_free(__global float4* camera_pos_cart, __global float4* camera_rot, float2 mouse_delta, float4 unrotated_translation, float universe_size)
+void handle_controls_free(__global float4* camera_pos_cart, __global float4* camera_rot,
+                          __global float4* e0, __global float4* e1, __global float4* e2, __global float4* e3,
+                          __global float4* b0, __global float4* b1, __global float4* b2,
+                          float2 mouse_delta, float4 unrotated_translation, float universe_size)
 {
     ///translation is: .x is forward - back, .y = right - left, .z = down - up
     ///totally arbitrary, purely to pass to the GPU

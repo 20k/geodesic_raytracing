@@ -1171,75 +1171,6 @@ int main()
 
             rtex.acquire(clctx.cqueue);
 
-            float speed = 0.1;
-
-            if(!menu.is_open && !ImGui::GetIO().WantCaptureKeyboard)
-            {
-                if(input.is_key_down("speed_10x"))
-                    speed *= 10;
-
-                if(input.is_key_down("speed_superslow"))
-                    speed = 0.00001;
-
-                if(input.is_key_down("speed_100th"))
-                    speed /= 100;
-
-                if(input.is_key_down("speed_100x"))
-                    speed *= 100;
-
-                if(input.is_key_down("camera_reset"))
-                {
-                    set_camera_time = 0;
-                    g_camera_pos_cart.write(clctx.cqueue, std::vector<cl_float4>{{0, 0, 0, -4}});
-                }
-
-                if(input.is_key_down("camera_centre"))
-                {
-                    set_camera_time = 0;
-                    g_camera_pos_cart.write(clctx.cqueue, std::vector<cl_float4>{{0, 0, 0, 0}});
-                }
-
-                vec2f delta;
-
-                if(!raw_input_manager.is_enabled)
-                {
-                    delta.x() = (float)input.is_key_down("camera_turn_right") - (float)input.is_key_down("camera_turn_left");
-                    delta.y() = (float)input.is_key_down("camera_turn_up") - (float)input.is_key_down("camera_turn_down");
-                }
-                else
-                {
-                    delta = {ImGui::GetIO().MouseDelta.x, ImGui::GetIO().MouseDelta.y};
-
-                    delta.y() = -delta.y();
-
-                    float mouse_sensitivity_mult = 0.05;
-
-                    delta *= mouse_sensitivity_mult;
-                }
-
-                delta *= current_settings.mouse_sensitivity * M_PI/128;
-
-                vec3f translation_delta = {input.is_key_down("forward") - input.is_key_down("back"),
-                                           input.is_key_down("right") - input.is_key_down("left"),
-                                           input.is_key_down("down") - input.is_key_down("up")};
-
-                translation_delta *= current_settings.keyboard_sensitivity * controls_multiplier * speed;
-
-                cl_float2 cl_mouse = {delta.x(), delta.y()};
-                cl_float4 cl_translation = {translation_delta.x(), translation_delta.y(), translation_delta.z(), 0};
-
-                cl::args controls_args;
-                controls_args.push_back(g_camera_pos_cart);
-                controls_args.push_back(g_camera_quat);
-                controls_args.push_back(cl_mouse);
-                controls_args.push_back(cl_translation);
-                controls_args.push_back(current_cfg.universe_size);
-
-                handle_controls_free.set_args(controls_args);
-
-                clctx.cqueue.exec(handle_controls_free, {1}, {1});
-            }
-
             /*vec4f scamera = cartesian_to_schwarz(camera);
 
             if(flip_sign)
@@ -1401,6 +1332,150 @@ int main()
 
             metric_manage.check_substitution(clctx.ctx);
 
+            {
+                {
+                    cl::args args;
+
+                    args.push_back(g_camera_pos_polar);
+                    args.push_back(g_camera_pos_cart);
+
+                    cl_float clflip = flip_sign;
+
+                    args.push_back(clflip);
+
+                    camera_cart_to_polar.set_args(args);
+
+                    clctx.cqueue.exec(camera_cart_to_polar, {1}, {1});
+                }
+
+                {
+                    cl::args tetrad_args;
+                    tetrad_args.push_back(g_camera_pos_polar);
+
+                    for(int i=0; i < 4; i++)
+                    {
+                        tetrad_args.push_back(tetrad[i]);
+                    }
+
+                    tetrad_args.push_back(dynamic_config);
+
+                    clctx.cqueue.exec("init_basis_vectors", tetrad_args, {1}, {1});
+                }
+
+                {
+                    cl::args mat_args;
+                    mat_args.push_back(g_camera_pos_polar);
+                    mat_args.push_back(g_camera_quat);
+
+                    for(auto& i : tetrad)
+                    {
+                        mat_args.push_back(i);
+                    }
+
+                    for(auto& i : camera_basis)
+                    {
+                        mat_args.push_back(i);
+                    }
+
+                    clctx.cqueue.exec("calculate_global_rotation_matrix", mat_args, {1}, {1});
+                }
+            }
+
+            float speed = 0.1;
+
+            if(!menu.is_open && !ImGui::GetIO().WantCaptureKeyboard)
+            {
+                if(input.is_key_down("speed_10x"))
+                    speed *= 10;
+
+                if(input.is_key_down("speed_superslow"))
+                    speed = 0.00001;
+
+                if(input.is_key_down("speed_100th"))
+                    speed /= 100;
+
+                if(input.is_key_down("speed_100x"))
+                    speed *= 100;
+
+                if(input.is_key_down("camera_reset"))
+                {
+                    set_camera_time = 0;
+                    g_camera_pos_cart.write(clctx.cqueue, std::vector<cl_float4>{{0, 0, 0, -4}});
+                }
+
+                if(input.is_key_down("camera_centre"))
+                {
+                    set_camera_time = 0;
+                    g_camera_pos_cart.write(clctx.cqueue, std::vector<cl_float4>{{0, 0, 0, 0}});
+                }
+
+                vec2f delta;
+
+                if(!raw_input_manager.is_enabled)
+                {
+                    delta.x() = (float)input.is_key_down("camera_turn_right") - (float)input.is_key_down("camera_turn_left");
+                    delta.y() = (float)input.is_key_down("camera_turn_up") - (float)input.is_key_down("camera_turn_down");
+                }
+                else
+                {
+                    delta = {ImGui::GetIO().MouseDelta.x, ImGui::GetIO().MouseDelta.y};
+
+                    delta.y() = -delta.y();
+
+                    float mouse_sensitivity_mult = 0.05;
+
+                    delta *= mouse_sensitivity_mult;
+                }
+
+                delta *= current_settings.mouse_sensitivity * M_PI/128;
+
+                vec3f translation_delta = {input.is_key_down("forward") - input.is_key_down("back"),
+                                           input.is_key_down("right") - input.is_key_down("left"),
+                                           input.is_key_down("down") - input.is_key_down("up")};
+
+                translation_delta *= current_settings.keyboard_sensitivity * controls_multiplier * speed;
+
+                cl_float2 cl_mouse = {delta.x(), delta.y()};
+                cl_float4 cl_translation = {translation_delta.x(), translation_delta.y(), translation_delta.z(), 0};
+
+                cl::args controls_args;
+                controls_args.push_back(g_camera_pos_cart);
+                controls_args.push_back(g_camera_quat);
+
+                for(auto& i : tetrad)
+                {
+                    controls_args.push_back(i);
+                }
+
+                for(auto& i : camera_basis)
+                {
+                    controls_args.push_back(i);
+                }
+
+                controls_args.push_back(cl_mouse);
+                controls_args.push_back(cl_translation);
+                controls_args.push_back(current_cfg.universe_size);
+
+                handle_controls_free.set_args(controls_args);
+
+                clctx.cqueue.exec(handle_controls_free, {1}, {1});
+
+                {
+                    cl::args args;
+
+                    args.push_back(g_camera_pos_polar);
+                    args.push_back(g_camera_pos_cart);
+
+                    cl_float clflip = flip_sign;
+
+                    args.push_back(clflip);
+
+                    camera_cart_to_polar.set_args(args);
+
+                    clctx.cqueue.exec(camera_cart_to_polar, {1}, {1});
+                }
+            }
+
             int width = rtex.size<2>().x();
             int height = rtex.size<2>().y();
 
@@ -1408,54 +1483,6 @@ int main()
             clr.push_back(rtex);
 
             clctx.cqueue.exec("clear", clr, {width, height}, {16, 16});
-
-
-            {
-                cl::args args;
-
-                args.push_back(g_camera_pos_polar);
-                args.push_back(g_camera_pos_cart);
-
-                cl_float clflip = flip_sign;
-
-                args.push_back(clflip);
-
-                camera_cart_to_polar.set_args(args);
-
-                clctx.cqueue.exec(camera_cart_to_polar, {1}, {1});
-            }
-
-            {
-                cl::args tetrad_args;
-                tetrad_args.push_back(g_camera_pos_polar);
-
-                for(int i=0; i < 4; i++)
-                {
-                    tetrad_args.push_back(tetrad[i]);
-                }
-
-                tetrad_args.push_back(dynamic_config);
-
-                clctx.cqueue.exec("init_basis_vectors", tetrad_args, {1}, {1});
-            }
-
-            {
-                cl::args mat_args;
-                mat_args.push_back(g_camera_pos_polar);
-                mat_args.push_back(g_camera_quat);
-
-                for(auto& i : tetrad)
-                {
-                    mat_args.push_back(i);
-                }
-
-                for(auto& i : camera_basis)
-                {
-                    mat_args.push_back(i);
-                }
-
-                clctx.cqueue.exec("calculate_global_rotation_matrix", mat_args, {1}, {1});
-            }
 
             cl::event next;
 
