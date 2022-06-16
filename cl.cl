@@ -2130,9 +2130,9 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
     calculate_tetrads(start_polar, &e0, &e1, &e2, &e3, cfg);
 
     ///need to use unity camera because g_camera_quat is dynamic?
-    float4 start_camera = (float4)(0, 0, 0, 1);
+    //float4 start_camera = (float4)(0, 0, 0, 1);
 
-    //float4 start_camera = *g_camera_quat;
+    float4 start_camera = *g_camera_quat;
 
     float m[9];
     quat_to_matrix(start_camera, m);
@@ -2141,9 +2141,9 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
     float4 b1_e = (float4)(0, m[0 * 3 + 1], m[1 * 3 + 1], m[2 * 3 + 1]);
     float4 b2_e = (float4)(0, m[0 * 3 + 2], m[1 * 3 + 2], m[2 * 3 + 2]);
 
-    b0_e.yzw = normalize(b0_e.yzw);
-    b1_e.yzw = normalize(b1_e.yzw);
-    b2_e.yzw = normalize(b2_e.yzw);
+    //b0_e.yzw = normalize(b0_e.yzw);
+    //b1_e.yzw = normalize(b1_e.yzw);
+    //b2_e.yzw = normalize(b2_e.yzw);
 
     float4 b0 = tetrad_to_coordinate_basis(b0_e, e0, e1, e2, e3);
     float4 b1 = tetrad_to_coordinate_basis(b1_e, e0, e1, e2, e3);

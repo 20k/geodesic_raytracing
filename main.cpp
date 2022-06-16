@@ -1391,7 +1391,7 @@ int main()
                 }
 
                 //if(reset_camera)
-                //if(!camera_on_geodesic)
+                if(!camera_on_geodesic)
                 {
                     cl::args mat_args;
                     mat_args.push_back(g_camera_pos_polar);
