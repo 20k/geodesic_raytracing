@@ -1537,6 +1537,12 @@ int main()
 
                     init_args_prepass.push_back(g_camera_pos_polar);
                     init_args_prepass.push_back(g_camera_quat);
+
+                    for(auto& i : camera_basis)
+                    {
+                        init_args_prepass.push_back(i);
+                    }
+
                     init_args_prepass.push_back(schwarzs_prepass);
                     init_args_prepass.push_back(schwarzs_count_prepass);
                     init_args_prepass.push_back(prepass_width);
@@ -1573,6 +1579,12 @@ int main()
                 cl::args init_args;
                 init_args.push_back(g_camera_pos_polar);
                 init_args.push_back(g_camera_quat);
+
+                for(auto& i : camera_basis)
+                {
+                    init_args.push_back(i);
+                }
+
                 init_args.push_back(schwarzs_1);
                 init_args.push_back(schwarzs_count_1);
                 init_args.push_back(width);

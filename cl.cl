@@ -1936,6 +1936,7 @@ void init_basis_vectors(__global float4* g_polar_camera_in,
 
 __kernel
 void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_camera_quat,
+                       __global float4* b0, __global float4* b1, __global float4* b2,
                        __global struct lightray* metric_rays, __global int* metric_ray_count,
                        int width, int height,
                        __global int* termination_buffer,
@@ -1950,10 +1951,45 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
         return;
 
     float4 polar_camera_in = *g_polar_camera_in;
-    float4 camera_quat = *g_camera_quat;
+    //float4 camera_quat = *g_camera_quat;
+
+    /*float camera_mat[9] = {b0->y, b1->y, b2->y,
+                           b0->z, b1->z, b2->z,
+                           b0->w, b1->w, b2->w};*/
+
+    float4 e0_lo;
+    float4 e1_lo;
+    float4 e2_lo;
+    float4 e3_lo;
+
+    get_tetrad_inverse(*e0, *e1, *e2, *e3, &e0_lo, &e1_lo, &e2_lo, &e3_lo);
+
+    float4 b0_e = coordinate_to_tetrad_basis(*b0, e0_lo, e1_lo, e2_lo, e3_lo);
+    float4 b1_e = coordinate_to_tetrad_basis(*b1, e0_lo, e1_lo, e2_lo, e3_lo);
+    float4 b2_e = coordinate_to_tetrad_basis(*b2, e0_lo, e1_lo, e2_lo, e3_lo);
+
+    b0_e.yzw = normalize(b0_e.yzw);
+    b1_e.yzw = normalize(b1_e.yzw);
+    b2_e.yzw = normalize(b2_e.yzw);
+
+    float camera_mat[9] = {b0_e.y, b1_e.y, b2_e.y,
+                           b0_e.z, b1_e.z, b2_e.z,
+                           b0_e.w, b1_e.w, b2_e.w};
+
+    float4 camera_quat = matrix_to_quat(camera_mat);
 
     const int cx = id % width;
     const int cy = id / width;
+
+    if(cx == width/2 && cy == height/2)
+    {
+        float rcm[9];
+
+        quat_to_matrix(*g_camera_quat, rcm);
+
+        printf("BASIS %f %f %f y %f %f %f z %f %f %f\n", b0_e.y, b0_e.z, b0_e.w, b1_e.y, b1_e.z, b1_e.w, b2_e.y, b2_e.z, b2_e.w);
+        printf("REAL %f %f %f y %f %f %f z %f %f %f\n", rcm[0], rcm[3], rcm[6], rcm[1], rcm[4], rcm[7], rcm[2], rcm[5], rcm[8]);
+    }
 
     float3 pixel_direction = calculate_pixel_direction(cx, cy, width, height, polar_camera_in, camera_quat, base_angle);
 
