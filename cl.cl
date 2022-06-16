@@ -1886,7 +1886,7 @@ void handle_controls_free(__global float4* camera_pos_cart, __global float4* cam
 
     float4 local_camera_quat = *camera_rot;
 
-    float4 e0_lo;
+    /*float4 e0_lo;
     float4 e1_lo;
     float4 e2_lo;
     float4 e3_lo;
@@ -1899,35 +1899,31 @@ void handle_controls_free(__global float4* camera_pos_cart, __global float4* cam
 
     b0_e.yzw = normalize(b0_e.yzw);
     b1_e.yzw = normalize(b1_e.yzw);
-    b2_e.yzw = normalize(b2_e.yzw);
+    b2_e.yzw = normalize(b2_e.yzw);*/
 
     if(mouse_delta.x != 0)
     {
         float4 q = aa_to_quat((float3)(0, 0, -1), mouse_delta.x);
 
-        b0_e.yzw = rot_quat(b0_e.yzw, q);
-        b1_e.yzw = rot_quat(b1_e.yzw, q);
-        b2_e.yzw = rot_quat(b2_e.yzw, q);
+        local_camera_quat = quat_multiply(q, local_camera_quat);
     }
 
     {
-        float3 right = b0_e.yzw;
+        float3 right = rot_quat((float3){1, 0, 0}, local_camera_quat);
 
         if(mouse_delta.y != 0)
         {
             float4 q = aa_to_quat(right, mouse_delta.y);
 
-            b0_e.yzw = rot_quat(b0_e.yzw, q);
-            b1_e.yzw = rot_quat(b1_e.yzw, q);
-            b2_e.yzw = rot_quat(b2_e.yzw, q);
+            local_camera_quat = quat_multiply(q, local_camera_quat);
         }
     }
 
     float4 local_camera_pos_cart = *camera_pos_cart;
 
     float3 up = {0, 0, -1};
-    float3 right = b0_e.yzw;
-    float3 forw = b2_e.yzw;
+    float3 right = rot_quat((float3){1, 0, 0}, local_camera_quat);
+    float3 forw = rot_quat((float3){0, 0, 1}, local_camera_quat);
 
     float3 offset = {0,0,0};
 
@@ -1948,11 +1944,19 @@ void handle_controls_free(__global float4* camera_pos_cart, __global float4* cam
         }
     }
 
+    float m[9] = {0};
+    quat_to_matrix(local_camera_quat, m);
+
+    float4 b0_e = (float4)(0, m[0], m[3], m[6]);
+    float4 b1_e = (float4)(0, m[1], m[4], m[7]);
+    float4 b2_e = (float4)(0, m[2], m[5], m[8]);
+
     *b0 = tetrad_to_coordinate_basis(b0_e, *e0, *e1, *e2, *e3);
     *b1 = tetrad_to_coordinate_basis(b1_e, *e0, *e1, *e2, *e3);
     *b2 = tetrad_to_coordinate_basis(b2_e, *e0, *e1, *e2, *e3);
 
     *camera_pos_cart = local_camera_pos_cart;
+    *camera_rot = local_camera_quat;
 
     /*float4 pos_spherical = generic_to_spherical(lightray_spacetime_position, cfg);
     float4 vel_spherical = generic_velocity_to_spherical_velocity(lightray_spacetime_position, lightray_velocity, cfg);

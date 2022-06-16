@@ -1466,7 +1466,7 @@ int main()
 
                 clctx.cqueue.exec("handle_controls_free", controls_args, {1}, {1});
 
-                {
+                /*{
                     cl::args args;
 
                     args.push_back(g_camera_pos_polar);
@@ -1479,7 +1479,7 @@ int main()
                     camera_cart_to_polar.set_args(args);
 
                     clctx.cqueue.exec(camera_cart_to_polar, {1}, {1});
-                }
+                }*/
             }
 
             int width = rtex.size<2>().x();
