@@ -1462,10 +1462,9 @@ int main()
                 controls_args.push_back(cl_mouse);
                 controls_args.push_back(cl_translation);
                 controls_args.push_back(current_cfg.universe_size);
+                controls_args.push_back(dynamic_config);
 
-                handle_controls_free.set_args(controls_args);
-
-                clctx.cqueue.exec(handle_controls_free, {1}, {1});
+                clctx.cqueue.exec("handle_controls_free", controls_args, {1}, {1});
 
                 {
                     cl::args args;
