@@ -1351,6 +1351,7 @@ float4 normalize_big_metric(float4 in, float big_metric[])
     return in / native_sqrt(fabs(dot));
 }
 
+///todo: generic orthonormalisation
 struct frame_basis calculate_frame_basis(float big_metric[])
 {
     ///while really i think it should be columns, the metric tensor is always symmetric
@@ -2112,7 +2113,7 @@ void init_basis_vectors(__global float4* g_polar_camera_in,
 }
 
 __kernel
-void handle_interpolating_geodesic(__global float4* geodesic_path, __global float4* geodesic_velocity, __global float* dT_dt,
+void handle_interpolating_geodesic(__global float4* geodesic_path, __global float4* geodesic_velocity, __global float* dT_dt, __global float* ds_in,
                                    __global float4* g_camera_quat,
                                    __global float4* g_camera_polar_out,
                                    __global float4* e0_out, __global float4* e1_out, __global float4* e2_out, __global float4* e3_out,
@@ -2211,18 +2212,21 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
 
         current_time += dt;
 
+        float ds = ds_in[i];
+
+        ///todo: use affine parameter
         float4 tb0_a = parallel_transport_get_acceleration(tb0, geodesic_path[i], velocity, cfg);
         float4 tb1_a = parallel_transport_get_acceleration(tb1, geodesic_path[i], velocity, cfg);
         float4 tb2_a = parallel_transport_get_acceleration(tb2, geodesic_path[i], velocity, cfg);
 
-        tb0 += tb0_a * dt;
-        tb1 += tb1_a * dt;
-        tb2 += tb2_a * dt;
+        tb0 += tb0_a * ds;
+        tb1 += tb1_a * ds;
+        tb2 += tb2_a * ds;
 
-        e0 += parallel_transport_get_acceleration(e0, geodesic_path[i], velocity, cfg) * dt;
-        e1 += parallel_transport_get_acceleration(e1, geodesic_path[i], velocity, cfg) * dt;
-        e2 += parallel_transport_get_acceleration(e2, geodesic_path[i], velocity, cfg) * dt;
-        e3 += parallel_transport_get_acceleration(e3, geodesic_path[i], velocity, cfg) * dt;
+        e0 += parallel_transport_get_acceleration(e0, geodesic_path[i], velocity, cfg) * ds;
+        e1 += parallel_transport_get_acceleration(e1, geodesic_path[i], velocity, cfg) * ds;
+        e2 += parallel_transport_get_acceleration(e2, geodesic_path[i], velocity, cfg) * ds;
+        e3 += parallel_transport_get_acceleration(e3, geodesic_path[i], velocity, cfg) * ds;
     }
 }
 
@@ -2974,6 +2978,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
                        __global float4* positions_out,
                        __global float4* velocities_out,
                        __global float* dT_dt_out,
+                       __global float* ds_out,
                        __global int* generic_count_in, int geodesic_start, int width, int height,
                        __global float4* g_polar_camera_pos, __global float4* g_camera_quat,
                        __global float4* e0, __global float4* e1, __global float4* e2, __global float4* e3,
@@ -3131,6 +3136,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         positions_out[bufc] = position;
         velocities_out[bufc] = velocity;
         dT_dt_out[bufc] = dT_dt;
+        ds_out[bufc] = ds;
         bufc++;
 
         if(any(isnan(position)) || any(isnan(velocity)) || any(isnan(acceleration)))

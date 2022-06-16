@@ -785,6 +785,15 @@ int main()
     cl::buffer geodesic_dT_dt_buffer(clctx.ctx);
     geodesic_dT_dt_buffer.alloc(64000 * sizeof(cl_float));
 
+    cl::buffer geodesic_ds_buffer(clctx.ctx);
+    geodesic_ds_buffer.alloc(64000 * sizeof(cl_float));
+
+    geodesic_count_buffer.set_to_zero(clctx.cqueue);
+    geodesic_trace_buffer.set_to_zero(clctx.cqueue);
+    geodesic_vel_buffer.set_to_zero(clctx.cqueue);
+    geodesic_dT_dt_buffer.set_to_zero(clctx.cqueue);
+    geodesic_ds_buffer.set_to_zero(clctx.cqueue);
+
     std::array<cl::buffer, 4> tetrad{clctx.ctx, clctx.ctx, clctx.ctx, clctx.ctx};
     std::array<cl::buffer, 3> camera_basis{clctx.ctx, clctx.ctx, clctx.ctx};
 
@@ -1345,6 +1354,7 @@ int main()
                 interpolate_args.push_back(geodesic_trace_buffer);
                 interpolate_args.push_back(geodesic_vel_buffer);
                 interpolate_args.push_back(geodesic_dT_dt_buffer);
+                interpolate_args.push_back(geodesic_ds_buffer);
                 interpolate_args.push_back(g_camera_quat);
                 interpolate_args.push_back(g_camera_pos_polar);
 
@@ -1632,12 +1642,14 @@ int main()
                     geodesic_dT_dt_buffer.set_to_zero(clctx.cqueue);
                     geodesic_count_buffer.set_to_zero(clctx.cqueue);
                     geodesic_vel_buffer.set_to_zero(clctx.cqueue);
+                    geodesic_ds_buffer.set_to_zero(clctx.cqueue);
 
                     cl::args snapshot_args;
                     snapshot_args.push_back(schwarzs_1);
                     snapshot_args.push_back(geodesic_trace_buffer);
                     snapshot_args.push_back(geodesic_vel_buffer);
                     snapshot_args.push_back(geodesic_dT_dt_buffer);
+                    snapshot_args.push_back(geodesic_ds_buffer);
                     snapshot_args.push_back(schwarzs_count_1);
                     snapshot_args.push_back(idx);
                     snapshot_args.push_back(width);
