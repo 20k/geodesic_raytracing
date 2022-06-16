@@ -2291,7 +2291,7 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
     float3 cartesian_cy = normalize(spherical_velocity_to_cartesian_velocity(apolar, polar_y.yzw));
     float3 cartesian_cz = normalize(spherical_velocity_to_cartesian_velocity(apolar, polar_z.yzw));
 
-    pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
+    //pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
 
     pixel_direction = normalize(pixel_direction);
 
