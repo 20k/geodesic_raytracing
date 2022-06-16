@@ -2239,6 +2239,7 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
                        int prepass_width, int prepass_height,
                        int flip_geodesic_direction, float2 base_angle,
                        __global float4* e0, __global float4* e1, __global float4* e2, __global float4* e3,
+                       float on_geodesic,
                        dynamic_config_space struct dynamic_config* cfg)
 {
     int id = get_global_id(0);
@@ -2266,6 +2267,10 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
     const int cx = id % width;
     const int cy = id / width;
 
+    //b0_e.yzw = (float3)(1, 0, 0);
+    //b1_e.yzw = (float3)(0, 1, 0);
+    //b2_e.yzw = (float3)(0, 0, 1);
+
 
     float3 pixel_direction = calculate_pixel_direction(cx, cy, width, height, polar_camera_in, b0_e.yzw, b1_e.yzw, b2_e.yzw, base_angle);
 
@@ -2291,7 +2296,8 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
     float3 cartesian_cy = normalize(spherical_velocity_to_cartesian_velocity(apolar, polar_y.yzw));
     float3 cartesian_cz = normalize(spherical_velocity_to_cartesian_velocity(apolar, polar_z.yzw));
 
-    //pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
+    if(on_geodesic == 0)
+        pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
 
     pixel_direction = normalize(pixel_direction);
 

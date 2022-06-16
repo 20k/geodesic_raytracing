@@ -1551,6 +1551,8 @@ int main()
                     }
                 }
 
+                float on_geodesic = camera_on_geodesic ? 1 : 0;
+
                 cl_int prepass_width = width/16;
                 cl_int prepass_height = height/16;
 
@@ -1588,6 +1590,7 @@ int main()
                         init_args_prepass.push_back(i);
                     }
 
+                    init_args_prepass.push_back(on_geodesic);
                     init_args_prepass.push_back(dynamic_config);
 
                     clctx.cqueue.exec("init_rays_generic", init_args_prepass, {prepass_width*prepass_height}, {256});
@@ -1630,6 +1633,7 @@ int main()
                     init_args.push_back(i);
                 }
 
+                init_args.push_back(on_geodesic);
                 init_args.push_back(dynamic_config);
 
                 clctx.cqueue.exec("init_rays_generic", init_args, {width*height}, {16*16});
