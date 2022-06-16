@@ -1816,6 +1816,31 @@ float4 matrix_to_quat(float m[9])
     return l;
 }
 
+float4 rotate_generic_velocity(float4 polar_camera, float4 generic_velocity, dynamic_config_space struct dynamic_config* cfg)
+{
+    float4 pos_spherical = generic_to_spherical(polar_camera, cfg);
+    float4 vel_spherical = generic_velocity_to_spherical_velocity(polar_camera, generic_velocity, cfg);
+
+    float fsign = sign(pos_spherical.y);
+    pos_spherical.y = fabs(pos_spherical.y);
+
+    float3 pos_cart = polar_to_cartesian(pos_spherical.yzw);
+    float3 vel_cart = spherical_velocity_to_cartesian_velocity(pos_spherical.yzw, vel_spherical.yzw);
+
+    float4 quat = get_theta_adjustment_quat(vel_cart, polar_camera, 1, false);
+
+    vel_cart = rot_quat(vel_cart, quat);
+
+    float3 next_pos_spherical = cartesian_to_polar(pos_cart);
+    float3 next_vel_spherical = cartesian_velocity_to_polar_velocity(pos_cart, vel_cart);
+
+    if(fsign < 0)
+    {
+        next_pos_spherical.x = -next_pos_spherical.x;
+    }
+
+    return spherical_velocity_to_generic_velocity((float4)(pos_spherical.x, next_pos_spherical), (float4)(vel_spherical.x, next_vel_spherical), cfg);
+}
 
 ///ok I've been procrastinating this for a while
 ///I want to parallel transport my camera vectors, if and only if I'm on a geodesic
@@ -1899,7 +1924,6 @@ void handle_controls_free(__global float4* camera_pos_cart, __global float4* cam
     b0_e.yzw = normalize(b0_e.yzw);
     b1_e.yzw = normalize(b1_e.yzw);
     b2_e.yzw = normalize(b2_e.yzw);
-
 
     /*float4 pos_spherical = generic_to_spherical(lightray_spacetime_position, cfg);
     float4 vel_spherical = generic_velocity_to_spherical_velocity(lightray_spacetime_position, lightray_velocity, cfg);

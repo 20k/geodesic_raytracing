@@ -885,7 +885,7 @@ int main()
     cl::program util(clctx.ctx, "util.cl");
     util.build(clctx.ctx, "-cl-std=CL1.2 -cl-fast-relaxed-math ");
 
-    cl::kernel handle_controls_free(util, "handle_controls_free");
+    //cl::kernel handle_controls_free(util, "handle_controls_free");
     cl::kernel camera_cart_to_polar(util, "camera_cart_to_polar");
     cl::kernel advance_time(util, "advance_time");
     cl::kernel set_time(util, "set_time");
