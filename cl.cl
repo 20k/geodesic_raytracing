@@ -2106,7 +2106,6 @@ __kernel
 void handle_interpolating_geodesic(__global float4* geodesic_path, __global float4* geodesic_velocity, __global float* dT_dt,
                                    __global float4* g_camera_quat,
                                    __global float4* g_camera_polar_out,
-                                   __global float4* e0_out, __global float4* e1_out, __global float4* e2_out, __global float4* e3_out,
                                    __global float4* b0_out, __global float4* b1_out, __global float4* b2_out,
                                    float target_time,
                                    __global int* count_in,
@@ -2121,10 +2120,12 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
     float4 e0, e1, e2, e3;
     calculate_tetrads(start_polar, &e0, &e1, &e2, &e3, cfg);
 
-    float4 unity_camera = (float4)(0, 0, 0, 1);
+    //float4 unity_camera = (float4)(0, 0, 0, 1);
+
+    float4 start_camera = *g_camera_quat;
 
     float m[9];
-    quat_to_matrix(unity_camera, m);
+    quat_to_matrix(start_camera, m);
 
     float4 b0_e = (float4)(0, m[0 * 3 + 0], m[1 * 3 + 0], m[2 * 3 + 0]);
     float4 b1_e = (float4)(0, m[0 * 3 + 1], m[1 * 3 + 1], m[2 * 3 + 1]);
@@ -2138,17 +2139,13 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
     float4 b1 = tetrad_to_coordinate_basis(b1_e, e0, e1, e2, e3);
     float4 b2 = tetrad_to_coordinate_basis(b2_e, e0, e1, e2, e3);
 
-
-    float4 te0 = e0;
-    float4 te1 = e1;
-    float4 te2 = e2;
-    float4 te3 = e3;
-
     float4 tb0 = b0;
     float4 tb1 = b1;
     float4 tb2 = b2;
 
     int cnt = *count_in;
+
+    printf("Count %i\n", cnt);
 
     float current_time = 0;
 
@@ -2170,9 +2167,16 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
 
         if(current_time >= current_pos.x && current_time < next_pos.x)
         {
+            printf("hi\n");
+
             *g_camera_polar_out = generic_to_spherical(current_pos, cfg);
 
-            ///float4 parallel_transport_get_acceleration(float4 X, float4 geodesic_position, float4 geodesic_velocity, dynamic_config_space struct dynamic_config* cfg)
+            *b0_out = tb0;
+            *b1_out = tb1;
+            *b2_out = tb2;
+
+            ///so. now we have the basis. Need to apply camera rotation to it
+            ///or... could just parallel transport the whole rotation initially?
 
             return;
         }

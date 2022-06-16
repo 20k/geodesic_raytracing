@@ -1338,7 +1338,29 @@ int main()
                 base_angle = {M_PI/2, 0.f};
             }*/
 
+            if(camera_on_geodesic)
             {
+                cl::args interpolate_args;
+                interpolate_args.push_back(geodesic_trace_buffer);
+                interpolate_args.push_back(geodesic_vel_buffer);
+                interpolate_args.push_back(geodesic_dT_dt_buffer);
+                interpolate_args.push_back(g_camera_quat);
+                interpolate_args.push_back(g_camera_pos_polar);
+
+                for(auto& i : camera_basis)
+                {
+                    interpolate_args.push_back(i);
+                }
+
+                interpolate_args.push_back(current_geodesic_time);
+                interpolate_args.push_back(geodesic_count_buffer);
+                interpolate_args.push_back(dynamic_config);
+
+                clctx.cqueue.exec("handle_interpolating_geodesic", interpolate_args, {1}, {1});
+            }
+
+            {
+                if(!camera_on_geodesic)
                 {
                     cl::args args;
 
