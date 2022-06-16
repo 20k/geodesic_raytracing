@@ -1691,6 +1691,7 @@ float4 tetrad_to_coordinate_basis(float4 vec_up, float4 e0_hi, float4 e1_hi, flo
     return vec_up.x * e0_hi + vec_up.y * e1_hi + vec_up.z * e2_hi + vec_up.w * e3_hi;
 }
 
+///specifically: cartesian minkowski
 void get_local_minkowski(float4 e0_hi, float4 e1_hi, float4 e2_hi, float4 e3_hi, float g_metric_big[], float minkowski[])
 {
     ///a * 4 + mu
