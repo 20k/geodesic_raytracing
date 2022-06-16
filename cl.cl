@@ -1824,7 +1824,7 @@ float4 matrix_to_quat(float m[9])
 ///once in global coordinates, I need to parallel transport them
 ///then, to render, I.. want to convert them back to a tetrad basis?
 __kernel
-void handle_controls_free(__global float4* camera_pos_polar, __global float4* camera_rot,
+void handle_controls_free(__global float4* camera_pos_cart, __global float4* camera_rot,
                           __global float4* e0, __global float4* e1, __global float4* e2, __global float4* e3,
                           __global float4* b0, __global float4* b1, __global float4* b2,
                           float2 mouse_delta, float4 unrotated_translation, float universe_size,
@@ -1884,6 +1884,8 @@ void handle_controls_free(__global float4* camera_pos_polar, __global float4* ca
     *camera_pos_cart = local_camera_pos_cart;
     #endif // 0
 
+    float4 local_camera_quat = *camera_rot;
+
     float4 e0_lo;
     float4 e1_lo;
     float4 e2_lo;
@@ -1921,9 +1923,36 @@ void handle_controls_free(__global float4* camera_pos_polar, __global float4* ca
         }
     }
 
+    float4 local_camera_pos_cart = *camera_pos_cart;
+
+    float3 up = {0, 0, -1};
+    float3 right = b0_e.yzw;
+    float3 forw = b2_e.yzw;
+
+    float3 offset = {0,0,0};
+
+    offset += forw * unrotated_translation.x;
+    offset += right * unrotated_translation.y;
+    offset += up * unrotated_translation.z;
+
+    local_camera_pos_cart.y += offset.x;
+    local_camera_pos_cart.z += offset.y;
+    local_camera_pos_cart.w += offset.z;
+
+    {
+        float rad = length(local_camera_pos_cart.yzw);
+
+        if(rad > universe_size * 0.99f)
+        {
+            local_camera_pos_cart.yzw = normalize(local_camera_pos_cart.yzw) * universe_size * 0.99f;
+        }
+    }
+
     *b0 = tetrad_to_coordinate_basis(b0_e, *e0, *e1, *e2, *e3);
     *b1 = tetrad_to_coordinate_basis(b1_e, *e0, *e1, *e2, *e3);
     *b2 = tetrad_to_coordinate_basis(b2_e, *e0, *e1, *e2, *e3);
+
+    *camera_pos_cart = local_camera_pos_cart;
 
     /*float4 pos_spherical = generic_to_spherical(lightray_spacetime_position, cfg);
     float4 vel_spherical = generic_velocity_to_spherical_velocity(lightray_spacetime_position, lightray_velocity, cfg);

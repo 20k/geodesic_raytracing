@@ -1446,7 +1446,7 @@ int main()
                 cl_float4 cl_translation = {translation_delta.x(), translation_delta.y(), translation_delta.z(), 0};
 
                 cl::args controls_args;
-                controls_args.push_back(g_camera_pos_polar);
+                controls_args.push_back(g_camera_pos_cart);
                 controls_args.push_back(g_camera_quat);
 
                 for(auto& i : tetrad)
