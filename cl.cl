@@ -1825,9 +1825,9 @@ void calculate_global_rotation_matrix(__global float4* g_polar_camera_in, __glob
     float m[9];
     quat_to_matrix(*g_camera_quat, m);
 
-    float4 b0_e = (float4)(0, m[0 * 3 + 0], m[0 * 3 + 1], m[0 * 3 + 2]);
-    float4 b1_e = (float4)(0, m[1 * 3 + 0], m[1 * 3 + 1], m[1 * 3 + 2]);
-    float4 b2_e = (float4)(0, m[2 * 3 + 0], m[2 * 3 + 1], m[2 * 3 + 2]);
+    float4 b0_e = (float4)(0, m[0 * 3 + 0], m[1 * 3 + 0], m[2 * 3 + 0]);
+    float4 b1_e = (float4)(0, m[0 * 3 + 1], m[1 * 3 + 1], m[2 * 3 + 1]);
+    float4 b2_e = (float4)(0, m[0 * 3 + 2], m[1 * 3 + 2], m[2 * 3 + 2]);
 
     b0_e.yzw = normalize(b0_e.yzw);
     b1_e.yzw = normalize(b1_e.yzw);
@@ -1836,6 +1836,8 @@ void calculate_global_rotation_matrix(__global float4* g_polar_camera_in, __glob
     *b0 = tetrad_to_coordinate_basis(b0_e, *e0, *e1, *e2, *e3);
     *b1 = tetrad_to_coordinate_basis(b1_e, *e0, *e1, *e2, *e3);
     *b2 = tetrad_to_coordinate_basis(b2_e, *e0, *e1, *e2, *e3);
+
+    printf("RBasis %f %f %f y %f %f %f z %f %f %f\n", b0_e.y, b0_e.z, b0_e.w, b1_e.y, b1_e.z, b1_e.w, b2_e.y, b2_e.z, b2_e.w);
 }
 
 void calculate_tetrads(float4 polar_camera,
@@ -1994,10 +1996,9 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
 
     if(cx == width/2 && cy == height/2)
     {
-        printf("B1 global %f %f %f\n", b1->y, b1->z, b1->w);
+        //printf("B1 global %f %f %f\n", b1->y, b1->z, b1->w);
 
         float rcm[9];
-
         quat_to_matrix(*g_camera_quat, rcm);
 
         printf("BASIS %f %f %f y %f %f %f z %f %f %f\n", b0_e.y, b0_e.z, b0_e.w, b1_e.y, b1_e.z, b1_e.w, b2_e.y, b2_e.z, b2_e.w);
