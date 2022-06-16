@@ -1816,32 +1816,6 @@ float4 matrix_to_quat(float m[9])
     return l;
 }
 
-float4 rotate_generic_velocity(float4 polar_camera, float4 generic_velocity, dynamic_config_space struct dynamic_config* cfg)
-{
-    float4 pos_spherical = generic_to_spherical(polar_camera, cfg);
-    float4 vel_spherical = generic_velocity_to_spherical_velocity(polar_camera, generic_velocity, cfg);
-
-    float fsign = sign(pos_spherical.y);
-    pos_spherical.y = fabs(pos_spherical.y);
-
-    float3 pos_cart = polar_to_cartesian(pos_spherical.yzw);
-    float3 vel_cart = spherical_velocity_to_cartesian_velocity(pos_spherical.yzw, vel_spherical.yzw);
-
-    float4 quat = get_theta_adjustment_quat(vel_cart, polar_camera, 1, false);
-
-    vel_cart = rot_quat(vel_cart, quat);
-
-    float3 next_pos_spherical = cartesian_to_polar(pos_cart);
-    float3 next_vel_spherical = cartesian_velocity_to_polar_velocity(pos_cart, vel_cart);
-
-    if(fsign < 0)
-    {
-        next_pos_spherical.x = -next_pos_spherical.x;
-    }
-
-    return spherical_velocity_to_generic_velocity((float4)(pos_spherical.x, next_pos_spherical), (float4)(vel_spherical.x, next_vel_spherical), cfg);
-}
-
 ///ok I've been procrastinating this for a while
 ///I want to parallel transport my camera vectors, if and only if I'm on a geodesic
 ///so: I need to first define local camera vectors
@@ -1850,7 +1824,7 @@ float4 rotate_generic_velocity(float4 polar_camera, float4 generic_velocity, dyn
 ///once in global coordinates, I need to parallel transport them
 ///then, to render, I.. want to convert them back to a tetrad basis?
 __kernel
-void handle_controls_free(__global float4* camera_pos_cart, __global float4* camera_rot,
+void handle_controls_free(__global float4* camera_pos_polar, __global float4* camera_rot,
                           __global float4* e0, __global float4* e1, __global float4* e2, __global float4* e3,
                           __global float4* b0, __global float4* b1, __global float4* b2,
                           float2 mouse_delta, float4 unrotated_translation, float universe_size,
@@ -1924,6 +1898,32 @@ void handle_controls_free(__global float4* camera_pos_cart, __global float4* cam
     b0_e.yzw = normalize(b0_e.yzw);
     b1_e.yzw = normalize(b1_e.yzw);
     b2_e.yzw = normalize(b2_e.yzw);
+
+    if(mouse_delta.x != 0)
+    {
+        float4 q = aa_to_quat((float3)(0, 0, -1), mouse_delta.x);
+
+        b0_e.yzw = rot_quat(b0_e.yzw, q);
+        b1_e.yzw = rot_quat(b1_e.yzw, q);
+        b2_e.yzw = rot_quat(b2_e.yzw, q);
+    }
+
+    {
+        float3 right = b0_e.yzw;
+
+        if(mouse_delta.y != 0)
+        {
+            float4 q = aa_to_quat(right, mouse_delta.y);
+
+            b0_e.yzw = rot_quat(b0_e.yzw, q);
+            b1_e.yzw = rot_quat(b1_e.yzw, q);
+            b2_e.yzw = rot_quat(b2_e.yzw, q);
+        }
+    }
+
+    *b0 = tetrad_to_coordinate_basis(b0_e, *e0, *e1, *e2, *e3);
+    *b1 = tetrad_to_coordinate_basis(b1_e, *e0, *e1, *e2, *e3);
+    *b2 = tetrad_to_coordinate_basis(b2_e, *e0, *e1, *e2, *e3);
 
     /*float4 pos_spherical = generic_to_spherical(lightray_spacetime_position, cfg);
     float4 vel_spherical = generic_velocity_to_spherical_velocity(lightray_spacetime_position, lightray_velocity, cfg);
