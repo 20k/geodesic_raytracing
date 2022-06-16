@@ -1594,46 +1594,26 @@ void init_reference_vectors(__global float4* g_polar_camera_in, __global float4*
                             __global float4* e0, __)*/
 
 __kernel
-void init_basis_vectors(__global float4* g_polar_camera_in, __global float4* g_camera_quat,
-                        int width, int height,
-                        float2 base_angle,
+void init_basis_vectors(__global float4* g_polar_camera_in,
                         __global float4* e0_out, __global float4* e1_out, __global float4* e2_out, __global float4* e3_out,
                         dynamic_config_space struct dynamic_config* cfg)
 {
-    int id = get_global_id(0);
-
-    if(id >= width * height)
+    if(get_global_id(0) != 0)
         return;
 
     float4 polar_camera_in = *g_polar_camera_in;
-    float4 camera_quat = *g_camera_quat;
-
-    float4 polar_camera = polar_camera_in;
-
-    const int cx = id % width;
-    const int cy = id / width;
-
-    #if 0
-    float3 pixel_direction = calculate_pixel_direction(cx, cy, width, height, polar_camera_in, camera_quat, base_angle);
-
-    #if defined(GENERIC_CONSTANT_THETA) || defined(DEBUG_CONSTANT_THETA)
-    {
-        adjust_pixel_direction_and_camera_theta(pixel_direction, polar_camera, &pixel_direction, &polar_camera, cx==500&&cy==400);
-    }
-    #endif // GENERIC_CONSTANT_THETA
-    #endif // 0
 
     float4 bT;
     float4 sVx;
     float4 sVy;
     float4 sVz;
 
-    calculate_tetrads(polar_camera, &bT, &sVx, &sVy, &sVz, cfg);
+    calculate_tetrads(polar_camera_in, &bT, &sVx, &sVy, &sVz, cfg);
 
-    e0_out[id] = bT;
-    e1_out[id] = sVx;
-    e2_out[id] = sVy;
-    e3_out[id] = sVz;
+    *e0_out = bT;
+    *e1_out = sVx;
+    *e2_out = sVy;
+    *e3_out = sVz;
 }
 
 __kernel
@@ -1671,12 +1651,12 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
 
     float4 at_metric = spherical_to_generic(polar_camera, cfg);
 
-    float4 bT = e0[id];
+    float4 bT = *e0;
     float4 observer_velocity = bT;
 
-    float4 sVx = e1[id];
-    float4 sVy = e2[id];
-    float4 sVz = e3[id];
+    float4 sVx = *e1;
+    float4 sVy = *e2;
+    float4 sVz = *e3;
 
     float4 polar_x = generic_velocity_to_spherical_velocity(at_metric, sVx, cfg);
     float4 polar_y = generic_velocity_to_spherical_velocity(at_metric, sVy, cfg);
@@ -1781,8 +1761,6 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
 
         lightray_spacetime_position = next_pos_generic;
         lightray_velocity = next_vel_generic;
-
-        //adjust_pixel_direction_and_camera_theta(pixel_direction, polar_camera, &pixel_direction, &polar_camera, cx==500&&cy==400);
     }
     #endif // GENERIC_CONSTANT_THETA
 

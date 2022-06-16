@@ -784,7 +784,7 @@ int main()
 
     for(int i=0; i < 4; i++)
     {
-        tetrad[i].alloc(sizeof(cl_float4) * ray_count);
+        tetrad[i].alloc(sizeof(cl_float4));
         tetrad[i].set_to_zero(clctx.cqueue);
     }
 
@@ -1153,11 +1153,6 @@ int main()
                 schwarzs_prepass.alloc(sizeof(lightray) * ray_count);
                 finished_1.alloc(sizeof(lightray) * ray_count);
 
-                for(auto& i : tetrad)
-                {
-                    i.alloc(sizeof(cl_float4) * ray_count);
-                }
-
                 texture_coordinates.alloc(width * height * sizeof(float) * 2);
                 texture_coordinates.set_to_zero(clctx.cqueue);
 
@@ -1468,6 +1463,21 @@ int main()
                 clctx.cqueue.exec(camera_cart_to_polar, {1}, {1});
             }
 
+            {
+                cl::args tetrad_args;
+                tetrad_args.push_back(g_camera_pos_polar);
+
+                for(int i=0; i < 4; i++)
+                {
+                    tetrad_args.push_back(tetrad[i]);
+                }
+
+                tetrad_args.push_back(dynamic_config);
+
+                clctx.cqueue.exec("init_basis_vectors", tetrad_args, {1}, {1});
+            }
+
+
             cl::event next;
 
             {
@@ -1490,24 +1500,6 @@ int main()
 
                 if(metric_manage.current_metric->metric_cfg.use_prepass)
                 {
-                    {
-                        cl::args tetrad_args;
-                        tetrad_args.push_back(g_camera_pos_polar);
-                        tetrad_args.push_back(g_camera_quat);
-                        tetrad_args.push_back(prepass_width);
-                        tetrad_args.push_back(prepass_height);
-                        tetrad_args.push_back(base_angle);
-
-                        for(int i=0; i < 4; i++)
-                        {
-                            tetrad_args.push_back(tetrad[i]);
-                        }
-
-                        tetrad_args.push_back(dynamic_config);
-
-                        clctx.cqueue.exec("init_basis_vectors", tetrad_args, {prepass_width * prepass_height}, {256});
-                    }
-
                     cl::args clear_args;
                     clear_args.push_back(termination_buffer);
                     clear_args.push_back(prepass_width);
@@ -1550,24 +1542,6 @@ int main()
                     singular_args.push_back(prepass_height);
 
                     clctx.cqueue.exec("calculate_singularities", singular_args, {prepass_width*prepass_height}, {256});
-                }
-
-                {
-                    cl::args tetrad_args;
-                    tetrad_args.push_back(g_camera_pos_polar);
-                    tetrad_args.push_back(g_camera_quat);
-                    tetrad_args.push_back(width);
-                    tetrad_args.push_back(height);
-                    tetrad_args.push_back(base_angle);
-
-                    for(int i=0; i < 4; i++)
-                    {
-                        tetrad_args.push_back(tetrad[i]);
-                    }
-
-                    tetrad_args.push_back(dynamic_config);
-
-                    clctx.cqueue.exec("init_basis_vectors", tetrad_args, {width * height}, {256});
                 }
 
                 cl::args init_args;
