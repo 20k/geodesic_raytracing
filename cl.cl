@@ -1529,6 +1529,20 @@ int should_early_terminate(int x, int y, int width, int height, __global int* te
     return termination_buffer[y * width + x] == 1;
 }
 
+float4 coordinate_to_tetrad_basis(float4 vec_up, float4 e0_lo, float4 e1_lo, float4 e2_lo, float4 e3_lo)
+{
+    float4 ret;
+
+    ret.x = dot(e0_lo, vec_up);
+    ret.y = dot(e1_lo, vec_up);
+    ret.z = dot(e2_lo, vec_up);
+    ret.w = dot(e3_lo, vec_up);
+
+    return ret;
+}
+
+//float4 tetrad_to_coordinate_basis(float4 vec_)
+
 __kernel
 void calculate_global_rotation_matrix(__global float4* g_polar_camera_in, __global float4* g_camera_quat,
                                       __global float4* e0, __global float4* e1, __global float4* e2, __global float4* e3,

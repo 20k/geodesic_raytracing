@@ -106,6 +106,8 @@ https://core.ac.uk/download/pdf/25279526.pdf - binary black hole approximation?
 
 https://hal.archives-ouvertes.fr/hal-01862911/document - natario warp drive
 
+https://arxiv.org/pdf/1908.10757.pdf - good tetrad reference
+
 "how do i convert rgb to wavelengths"
 https://github.com/colour-science/smits1999
 https://github.com/appleseedhq/appleseed/blob/54ce23fc940087180511cb5659d8a7aac33712fb/src/appleseed/foundation/image/colorspace.h#L956
