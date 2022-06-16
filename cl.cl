@@ -2115,6 +2115,7 @@ __kernel
 void handle_interpolating_geodesic(__global float4* geodesic_path, __global float4* geodesic_velocity, __global float* dT_dt,
                                    __global float4* g_camera_quat,
                                    __global float4* g_camera_polar_out,
+                                   __global float4* e0_out, __global float4* e1_out, __global float4* e2_out, __global float4* e3_out,
                                    __global float4* b0_out, __global float4* b1_out, __global float4* b2_out,
                                    float target_time,
                                    __global int* count_in,
@@ -2123,11 +2124,10 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
     if(get_global_id(0) != 0)
         return;
 
-    float4 start_polar = geodesic_path[0];
-    float4 start_generic = spherical_to_generic(start_polar, cfg);
+    float4 start_generic = geodesic_path[0];
 
     float4 e0, e1, e2, e3;
-    calculate_tetrads(start_polar, &e0, &e1, &e2, &e3, cfg);
+    calculate_tetrads(generic_to_spherical(start_generic, cfg), &e0, &e1, &e2, &e3, cfg);
 
     ///need to use unity camera because g_camera_quat is dynamic?
     //float4 start_camera = (float4)(0, 0, 0, 1);
@@ -2159,6 +2159,17 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
 
     float current_time = geodesic_path[0].x;
 
+    *g_camera_polar_out = generic_to_spherical(start_generic, cfg);
+
+    *b0_out = tb0;
+    *b1_out = tb1;
+    *b2_out = tb2;
+
+    *e0_out = e0;
+    *e1_out = e1;
+    *e2_out = e2;
+    *e3_out = e3;
+
     for(int i=0; i < cnt - 1; i++)
     {
         float4 current_pos = geodesic_path[i];
@@ -2187,6 +2198,11 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
             *b1_out = tb1;
             *b2_out = tb2;
 
+            *e0_out = e0;
+            *e1_out = e1;
+            *e2_out = e2;
+            *e3_out = e3;
+
             ///so. now we have the basis. Need to apply camera rotation to it
             ///or... could just parallel transport the whole rotation initially?
 
@@ -2195,13 +2211,18 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
 
         current_time += dt;
 
-        float4 tb0_a = parallel_transport_get_acceleration(tb0, current_pos, velocity, cfg);
-        float4 tb1_a = parallel_transport_get_acceleration(tb1, current_pos, velocity, cfg);
-        float4 tb2_a = parallel_transport_get_acceleration(tb2, current_pos, velocity, cfg);
+        float4 tb0_a = parallel_transport_get_acceleration(tb0, geodesic_path[i], velocity, cfg);
+        float4 tb1_a = parallel_transport_get_acceleration(tb1, geodesic_path[i], velocity, cfg);
+        float4 tb2_a = parallel_transport_get_acceleration(tb2, geodesic_path[i], velocity, cfg);
 
         tb0 += tb0_a * dt;
         tb1 += tb1_a * dt;
         tb2 += tb2_a * dt;
+
+        e0 += parallel_transport_get_acceleration(e0, geodesic_path[i], velocity, cfg) * dt;
+        e1 += parallel_transport_get_acceleration(e1, geodesic_path[i], velocity, cfg) * dt;
+        e2 += parallel_transport_get_acceleration(e2, geodesic_path[i], velocity, cfg) * dt;
+        e3 += parallel_transport_get_acceleration(e3, geodesic_path[i], velocity, cfg) * dt;
     }
 }
 

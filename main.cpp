@@ -1275,6 +1275,7 @@ int main()
                         if(ImGui::Button("Snapshot Camera Geodesic"))
                         {
                             should_snapshot_geodesic = true;
+                            printf("Snap\n");
                         }
 
                         ImGui::Checkbox("Camera Snapshot Geodesic goes forward", &camera_geodesics_go_foward);
@@ -1347,6 +1348,11 @@ int main()
                 interpolate_args.push_back(g_camera_quat);
                 interpolate_args.push_back(g_camera_pos_polar);
 
+                for(auto& i : tetrad)
+                {
+                    interpolate_args.push_back(i);
+                }
+
                 for(auto& i : camera_basis)
                 {
                     interpolate_args.push_back(i);
@@ -1376,6 +1382,7 @@ int main()
                     clctx.cqueue.exec(camera_cart_to_polar, {1}, {1});
                 }
 
+                if(!camera_on_geodesic)
                 {
                     cl::args tetrad_args;
                     tetrad_args.push_back(g_camera_pos_polar);
