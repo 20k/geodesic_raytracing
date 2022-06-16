@@ -1894,6 +1894,32 @@ void handle_controls_free(__global float4* camera_pos_cart, __global float4* cam
 
     float4 local_camera_quat = *camera_rot;
 
+    ///doesn't work, because its lossy. Would need to do corrections
+    /*float4 local_camera_quat;
+
+    {
+        float4 e0_lo;
+        float4 e1_lo;
+        float4 e2_lo;
+        float4 e3_lo;
+
+        get_tetrad_inverse(*e0, *e1, *e2, *e3, &e0_lo, &e1_lo, &e2_lo, &e3_lo);
+
+        float4 b0_e = coordinate_to_tetrad_basis(*b0, e0_lo, e1_lo, e2_lo, e3_lo);
+        float4 b1_e = coordinate_to_tetrad_basis(*b1, e0_lo, e1_lo, e2_lo, e3_lo);
+        float4 b2_e = coordinate_to_tetrad_basis(*b2, e0_lo, e1_lo, e2_lo, e3_lo);
+
+        b0_e.yzw = normalize(b0_e.yzw);
+        b1_e.yzw = normalize(b1_e.yzw);
+        b2_e.yzw = normalize(b2_e.yzw);
+
+        float m[9] = {b0_e.y, b1_e.y, b2_e.y,
+                      b0_e.z, b1_e.z, b2_e.z,
+                      b0_e.w, b1_e.w, b2_e.w};
+
+        local_camera_quat = normalize(matrix_to_quat(m));
+    }*/
+
     if(mouse_delta.x != 0)
     {
         float4 q = aa_to_quat((float3)(0, 0, -1), mouse_delta.x);
@@ -2818,7 +2844,6 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
     generic_rays_out[out_id] = out_ray;
 }
-
 
 __kernel
 void get_geodesic_path(__global struct lightray* generic_rays_in,
