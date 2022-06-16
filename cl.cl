@@ -1004,6 +1004,131 @@ void metric_inverse(const float m[16], float invOut[16])
         invOut[i] = inv[i] * det;
 }
 
+void matrix_inverse(const float m[16], float invOut[16])
+{
+    float inv[16], det;
+    int i;
+
+    inv[0] = m[5]  * m[10] * m[15] -
+             m[5]  * m[11] * m[14] -
+             m[9]  * m[6]  * m[15] +
+             m[9]  * m[7]  * m[14] +
+             m[13] * m[6]  * m[11] -
+             m[13] * m[7]  * m[10];
+
+    inv[4] = -m[4]  * m[10] * m[15] +
+              m[4]  * m[11] * m[14] +
+              m[8]  * m[6]  * m[15] -
+              m[8]  * m[7]  * m[14] -
+              m[12] * m[6]  * m[11] +
+              m[12] * m[7]  * m[10];
+
+    inv[8] = m[4]  * m[9] * m[15] -
+             m[4]  * m[11] * m[13] -
+             m[8]  * m[5] * m[15] +
+             m[8]  * m[7] * m[13] +
+             m[12] * m[5] * m[11] -
+             m[12] * m[7] * m[9];
+
+    inv[12] = -m[4]  * m[9] * m[14] +
+               m[4]  * m[10] * m[13] +
+               m[8]  * m[5] * m[14] -
+               m[8]  * m[6] * m[13] -
+               m[12] * m[5] * m[10] +
+               m[12] * m[6] * m[9];
+
+    inv[1] = -m[1]  * m[10] * m[15] +
+              m[1]  * m[11] * m[14] +
+              m[9]  * m[2] * m[15] -
+              m[9]  * m[3] * m[14] -
+              m[13] * m[2] * m[11] +
+              m[13] * m[3] * m[10];
+
+    inv[5] = m[0]  * m[10] * m[15] -
+             m[0]  * m[11] * m[14] -
+             m[8]  * m[2] * m[15] +
+             m[8]  * m[3] * m[14] +
+             m[12] * m[2] * m[11] -
+             m[12] * m[3] * m[10];
+
+    inv[9] = -m[0]  * m[9] * m[15] +
+              m[0]  * m[11] * m[13] +
+              m[8]  * m[1] * m[15] -
+              m[8]  * m[3] * m[13] -
+              m[12] * m[1] * m[11] +
+              m[12] * m[3] * m[9];
+
+    inv[13] = m[0]  * m[9] * m[14] -
+              m[0]  * m[10] * m[13] -
+              m[8]  * m[1] * m[14] +
+              m[8]  * m[2] * m[13] +
+              m[12] * m[1] * m[10] -
+              m[12] * m[2] * m[9];
+
+    inv[2] = m[1]  * m[6] * m[15] -
+             m[1]  * m[7] * m[14] -
+             m[5]  * m[2] * m[15] +
+             m[5]  * m[3] * m[14] +
+             m[13] * m[2] * m[7] -
+             m[13] * m[3] * m[6];
+
+    inv[6] = -m[0]  * m[6] * m[15] +
+              m[0]  * m[7] * m[14] +
+              m[4]  * m[2] * m[15] -
+              m[4]  * m[3] * m[14] -
+              m[12] * m[2] * m[7] +
+              m[12] * m[3] * m[6];
+
+    inv[10] = m[0]  * m[5] * m[15] -
+              m[0]  * m[7] * m[13] -
+              m[4]  * m[1] * m[15] +
+              m[4]  * m[3] * m[13] +
+              m[12] * m[1] * m[7] -
+              m[12] * m[3] * m[5];
+
+    inv[14] = -m[0]  * m[5] * m[14] +
+               m[0]  * m[6] * m[13] +
+               m[4]  * m[1] * m[14] -
+               m[4]  * m[2] * m[13] -
+               m[12] * m[1] * m[6] +
+               m[12] * m[2] * m[5];
+
+    inv[3] = -m[1] * m[6] * m[11] +
+              m[1] * m[7] * m[10] +
+              m[5] * m[2] * m[11] -
+              m[5] * m[3] * m[10] -
+              m[9] * m[2] * m[7] +
+              m[9] * m[3] * m[6];
+
+    inv[7] = m[0] * m[6] * m[11] -
+             m[0] * m[7] * m[10] -
+             m[4] * m[2] * m[11] +
+             m[4] * m[3] * m[10] +
+             m[8] * m[2] * m[7] -
+             m[8] * m[3] * m[6];
+
+    inv[11] = -m[0] * m[5] * m[11] +
+               m[0] * m[7] * m[9] +
+               m[4] * m[1] * m[11] -
+               m[4] * m[3] * m[9] -
+               m[8] * m[1] * m[7] +
+               m[8] * m[3] * m[5];
+
+    inv[15] = m[0] * m[5] * m[10] -
+              m[0] * m[6] * m[9] -
+              m[4] * m[1] * m[10] +
+              m[4] * m[2] * m[9] +
+              m[8] * m[1] * m[6] -
+              m[8] * m[2] * m[5];
+
+    det = m[0] * inv[0] + m[1] * inv[4] + m[2] * inv[8] + m[3] * inv[12];
+
+    det = 1.0 / det;
+
+    for(i = 0; i < 16; i++)
+        invOut[i] = inv[i] * det;
+}
+
 float stable_quad(float a, float d, float k, float sign)
 {
     if(k <= 4.38072748497961 * pow(10.f, 16.f))
@@ -1529,6 +1654,23 @@ int should_early_terminate(int x, int y, int width, int height, __global int* te
     return termination_buffer[y * width + x] == 1;
 }
 
+void get_tetrad_inverse(float4 e0_hi, float4 e1_hi, float4 e2_hi, float4 e3_hi, float4* oe0_lo, float4* oe1_lo, float4* oe2_lo, float4* oe3_lo)
+{
+    float m[16] = {e0_hi.x, e0_hi.y, e0_hi.z, e0_hi.w,
+                   e1_hi.x, e1_hi.y, e1_hi.z, e1_hi.w,
+                   e2_hi.x, e2_hi.y, e2_hi.z, e2_hi.w,
+                   e3_hi.x, e3_hi.y, e3_hi.z, e3_hi.w};
+
+    float inv[16] = {0};
+
+    matrix_inverse(m, inv);
+
+    *oe0_lo = (float4){inv[0 * 4 + 0], inv[0 * 4 + 1], inv[0 * 4 + 2], inv[0 * 4 + 3]};
+    *oe1_lo = (float4){inv[1 * 4 + 0], inv[1 * 4 + 1], inv[1 * 4 + 2], inv[1 * 4 + 3]};
+    *oe2_lo = (float4){inv[2 * 4 + 0], inv[2 * 4 + 1], inv[2 * 4 + 2], inv[2 * 4 + 3]};
+    *oe3_lo = (float4){inv[3 * 4 + 0], inv[3 * 4 + 1], inv[3 * 4 + 2], inv[3 * 4 + 3]};
+}
+
 /// e upper i, lower mu, which must be inverse of tetrad to coordinate basis vectors
 float4 coordinate_to_tetrad_basis(float4 vec_up, float4 e0_lo, float4 e1_lo, float4 e2_lo, float4 e3_lo)
 {
@@ -1575,6 +1717,47 @@ void get_local_minkowski(float4 e0_hi, float4 e1_hi, float4 e2_hi, float4 e3_hi,
         }
     }
 }
+
+#if 0
+void test_tetrad_inverse(float4 e0_hi, float4 e1_hi, float4 e2_hi, float4 e3_hi, float g_metric_big[])
+{
+    float m[16] = {e0_hi.x, e0_hi.y, e0_hi.z, e0_hi.w,
+                   e1_hi.x, e1_hi.y, e1_hi.z, e1_hi.w,
+                   e2_hi.x, e2_hi.y, e2_hi.z, e2_hi.w,
+                   e3_hi.x, e3_hi.y, e3_hi.z, e3_hi.w};
+
+    float minkowski[16] = {0};
+
+    get_local_minkowski(e0_hi, e1_hi, e2_hi, e3_hi, g_metric_big, minkowski);
+
+    float minkowski_inverse[16] = {0};
+
+    metric_inverse(minkowski, minkowski_inverse);
+
+    ///a, mu
+    float tetrad_inverse[16] = {0};
+
+    for(int a=0; a < 4; a++)
+    {
+        for(int mu=0; mu < 4; mu++)
+        {
+            float sum = 0;
+
+            for(int v=0; v < 4; v++)
+            {
+                for(int b=0; b < 4; b++)
+                {
+                    sum += g_metric_big[mu * 4 + v] * minkowski_inverse[a * 4 + b] * m[b * 4 + v];
+                }
+            }
+
+            tetrad_inverse[a * 4 +  u];
+        }
+    }
+
+    float dij[16] = {0};
+}
+#endif // 0
 
 __kernel
 void calculate_global_rotation_matrix(__global float4* g_polar_camera_in, __global float4* g_camera_quat,
