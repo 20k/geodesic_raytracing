@@ -1390,7 +1390,8 @@ int main()
                     clctx.cqueue.exec("init_basis_vectors", tetrad_args, {1}, {1});
                 }
 
-                if(reset_camera)
+                //if(reset_camera)
+                //if(!camera_on_geodesic)
                 {
                     cl::args mat_args;
                     mat_args.push_back(g_camera_pos_polar);

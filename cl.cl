@@ -1963,7 +1963,7 @@ void handle_controls_free(__global float4* camera_pos_cart, __global float4* cam
         }
     }
 
-    float m[9] = {0};
+    /*float m[9] = {0};
     quat_to_matrix(local_camera_quat, m);
 
     float4 b0_e = (float4)(0, m[0], m[3], m[6]);
@@ -1972,11 +1972,20 @@ void handle_controls_free(__global float4* camera_pos_cart, __global float4* cam
 
     *b0 = tetrad_to_coordinate_basis(b0_e, *e0, *e1, *e2, *e3);
     *b1 = tetrad_to_coordinate_basis(b1_e, *e0, *e1, *e2, *e3);
-    *b2 = tetrad_to_coordinate_basis(b2_e, *e0, *e1, *e2, *e3);
+    *b2 = tetrad_to_coordinate_basis(b2_e, *e0, *e1, *e2, *e3);*/
 
     *camera_pos_cart = local_camera_pos_cart;
     *camera_rot = local_camera_quat;
 }
+
+/*__kernel
+void quat_to_basis(__global float4* camera_quat,
+                   __global float4* e0, __global float4* e1, __global float4* e2, __global float4* e3,
+                   __global float4* b0, __global float4* b1, __global float4* b2)
+{
+    if(get_global_id(0) != 0)
+
+}*/
 
 __kernel
 void calculate_global_rotation_matrix(__global float4* g_polar_camera_in, __global float4* g_camera_quat,
@@ -2120,9 +2129,10 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
     float4 e0, e1, e2, e3;
     calculate_tetrads(start_polar, &e0, &e1, &e2, &e3, cfg);
 
-    //float4 unity_camera = (float4)(0, 0, 0, 1);
+    ///need to use unity camera because g_camera_quat is dynamic?
+    float4 start_camera = (float4)(0, 0, 0, 1);
 
-    float4 start_camera = *g_camera_quat;
+    //float4 start_camera = *g_camera_quat;
 
     float m[9];
     quat_to_matrix(start_camera, m);
@@ -2145,7 +2155,7 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
 
     int cnt = *count_in;
 
-    printf("Count %i\n", cnt);
+    //printf("Count %i\n", cnt);
 
     float current_time = geodesic_path[0].x;
 
@@ -2169,7 +2179,7 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
 
         if(target_time >= current_pos.x && target_time < next_pos.x)
         {
-            printf("hi\n");
+            //printf("hi\n");
 
             *g_camera_polar_out = generic_to_spherical(current_pos, cfg);
 
