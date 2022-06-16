@@ -1622,6 +1622,17 @@ int main()
                     snapshot_args.push_back(height);
                     snapshot_args.push_back(scamera);
                     snapshot_args.push_back(camera_quat);
+
+                    for(auto& i : tetrad)
+                    {
+                        snapshot_args.push_back(i);
+                    }
+
+                    for(auto& i : camera_basis)
+                    {
+                        snapshot_args.push_back(i);
+                    }
+
                     snapshot_args.push_back(base_angle);
                     snapshot_args.push_back(dynamic_config);
                     snapshot_args.push_back(geodesic_count_buffer);

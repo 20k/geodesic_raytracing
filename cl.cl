@@ -1996,7 +1996,7 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
     const int cx = id % width;
     const int cy = id / width;
 
-    if(cx == width/2 && cy == height/2)
+    /*if(cx == width/2 && cy == height/2)
     {
         //printf("B1 global %f %f %f\n", b1->y, b1->z, b1->w);
 
@@ -2005,7 +2005,7 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
 
         printf("BASIS %f %f %f y %f %f %f z %f %f %f\n", b0_e.y, b0_e.z, b0_e.w, b1_e.y, b1_e.z, b1_e.w, b2_e.y, b2_e.z, b2_e.w);
         printf("REAL %f %f %f y %f %f %f z %f %f %f\n", rcm[0], rcm[3], rcm[6], rcm[1], rcm[4], rcm[7], rcm[2], rcm[5], rcm[8]);
-    }
+    }*/
 
     float3 pixel_direction = calculate_pixel_direction(cx, cy, width, height, polar_camera_in, b0_e.yzw, b1_e.yzw, b2_e.yzw, base_angle);
 
@@ -2762,9 +2762,11 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
                        __global float4* positions_out,
                        __global float* dT_dt_out,
                        __global int* generic_count_in, int geodesic_start, int width, int height,
-                       float4 polar_camera_pos, float4 camera_quat, float2 base_angle, dynamic_config_space struct dynamic_config* cfg, __global int* count_out)
+                       float4 polar_camera_pos, float4 camera_quat,
+                       __global float4* e0, __global float4* e1, __global float4* e2, __global float4* e3,
+                       __global float4* b0, __global float4* b1, __global float4* b2,
+                       float2 base_angle, dynamic_config_space struct dynamic_config* cfg, __global int* count_out)
 {
-    #if 0
     int id = geodesic_start;
 
     if(id >= *generic_count_in)
@@ -2810,7 +2812,22 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
 
     int bufc = 0;
 
-    float3 pixel_direction = calculate_pixel_direction(sx, sy, width, height, polar_camera_pos, camera_quat, base_angle);
+    float4 e0_lo;
+    float4 e1_lo;
+    float4 e2_lo;
+    float4 e3_lo;
+
+    get_tetrad_inverse(*e0, *e1, *e2, *e3, &e0_lo, &e1_lo, &e2_lo, &e3_lo);
+
+    float4 b0_e = coordinate_to_tetrad_basis(*b0, e0_lo, e1_lo, e2_lo, e3_lo);
+    float4 b1_e = coordinate_to_tetrad_basis(*b1, e0_lo, e1_lo, e2_lo, e3_lo);
+    float4 b2_e = coordinate_to_tetrad_basis(*b2, e0_lo, e1_lo, e2_lo, e3_lo);
+
+    b0_e.yzw = normalize(b0_e.yzw);
+    b1_e.yzw = normalize(b1_e.yzw);
+    b2_e.yzw = normalize(b2_e.yzw);
+
+    float3 pixel_direction = calculate_pixel_direction(sx, sy, width, height, polar_camera_pos, b0_e.yzw, b1_e.yzw, b2_e.yzw, base_angle);
 
     //#pragma unroll
     for(int i=0; i < 64000; i++)
@@ -2905,7 +2922,6 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
     }
 
     *count_out = bufc;
-    #endif // 0
 }
 
 #ifdef DEVICE_SIDE_ENQUEUE
