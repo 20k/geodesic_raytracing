@@ -1828,9 +1828,49 @@ float4 matrix_to_quat(float m[9])
     return l;
 }
 
-float4 parallel_transport_get_acceleration(float4 X, float4 geodesic_velocity)
+float4 parallel_transport_get_acceleration(float4 X, float4 geodesic_position, float4 geodesic_velocity, dynamic_config_space struct dynamic_config* cfg)
 {
+    float X_arr[4] = {X.x, X.y, X.z, X.w};
+    float Y_arr[4] = {geodesic_velocity.x, geodesic_velocity.y, geodesic_velocity.z, geodesic_velocity.w};
 
+    float christoffel[64] = {0};
+
+    {
+        #ifndef GENERIC_BIG_METRIC
+        float g_metric[4] = {0};
+        float g_partials[16] = {0};
+
+        calculate_metric_generic(geodesic_position, g_metric, cfg);
+        calculate_partial_derivatives_generic(geodesic_position, g_partials, cfg);
+        #else
+        float g_metric[16] = {0};
+        float g_partials[64] = {0};
+
+        calculate_metric_generic_big(geodesic_position, g_metric, cfg);
+        calculate_partial_derivatives_generic_big(geodesic_position, g_partials, cfg);
+        #endif // GENERIC_BIG_METRIC
+
+        get_christoffel_generic(g_metric, g_partials, christoffel);
+    }
+
+    float accel[4] = {0};
+
+    for(int a=0; a < 4; a++)
+    {
+        float sum = 0;
+
+        for(int b=0; b < 4; b++)
+        {
+            for(int s=0; s < 4; s++)
+            {
+                sum += christoffel[a * 16 + b * 4 + s] * X_arr[b] * Y_arr[s];
+            }
+        }
+
+        accel[a] = -sum;
+    }
+
+    return (float4){accel[0], accel[1], accel[2], accel[3]};
 }
 
 ///ok I've been procrastinating this for a while
