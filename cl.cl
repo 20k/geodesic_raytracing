@@ -2147,7 +2147,7 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
 
     printf("Count %i\n", cnt);
 
-    float current_time = 0;
+    float current_time = geodesic_path[0].x;
 
     for(int i=0; i < cnt - 1; i++)
     {
@@ -2165,7 +2165,9 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
 
         float dt = next_pos.x - current_pos.x;
 
-        if(current_time >= current_pos.x && current_time < next_pos.x)
+        //printf("Ctime %f %f %f\n", current_time, current_pos.x, next_pos.x);
+
+        if(target_time >= current_pos.x && target_time < next_pos.x)
         {
             printf("hi\n");
 
