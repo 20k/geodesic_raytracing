@@ -1546,7 +1546,7 @@ float4 coordinate_to_tetrad_basis(float4 vec_up, float4 e0_lo, float4 e1_lo, flo
 ///so this is lower i, upper mu, against a vec with upper i
 float4 tetrad_to_coordinate_basis(float4 vec_up, float4 e0_hi, float4 e1_hi, float4 e2_hi, float4 e3_hi)
 {
-    return vec_up.x * e0_hi + vec_up.y * e1_hi + vec_up.z * e2_hi + vec_up.z * e3_hi;
+    return vec_up.x * e0_hi + vec_up.y * e1_hi + vec_up.z * e2_hi + vec_up.w * e3_hi;
 }
 
 __kernel
