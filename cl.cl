@@ -1981,9 +1981,9 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
     float4 b1_e = coordinate_to_tetrad_basis(*b1, e0_lo, e1_lo, e2_lo, e3_lo);
     float4 b2_e = coordinate_to_tetrad_basis(*b2, e0_lo, e1_lo, e2_lo, e3_lo);
 
-    //b0_e.yzw = normalize(b0_e.yzw);
-    //b1_e.yzw = normalize(b1_e.yzw);
-    //b2_e.yzw = normalize(b2_e.yzw);
+    b0_e.yzw = normalize(b0_e.yzw);
+    b1_e.yzw = normalize(b1_e.yzw);
+    b2_e.yzw = normalize(b2_e.yzw);
 
     float camera_mat[9] = {b0_e.y, b1_e.y, b2_e.y,
                            b0_e.z, b1_e.z, b2_e.z,
