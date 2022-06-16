@@ -1173,25 +1173,6 @@ int main()
 
             rtex.acquire(clctx.cqueue);
 
-            /*vec4f scamera = cartesian_to_schwarz(camera);
-
-            if(flip_sign)
-                scamera.y() = -scamera.y();
-
-            if(camera_on_geodesic)
-            {
-                scamera = interpolate_geodesic(current_geodesic_path, current_geodesic_dT_dt, current_geodesic_time);
-
-                if(metric_manage.current_metric)
-                {
-                    base_angle = get_geodesic_intersection(*metric_manage.current_metric, current_geodesic_path, current_geodesic_dT_dt);
-                }
-            }
-            else
-            {
-                base_angle = {M_PI/2, 0.f};
-            }*/
-
             float time = clk.restart().asMicroseconds() / 1000.;
 
             bool should_soft_recompile = false;
@@ -1333,6 +1314,26 @@ int main()
                                           sett, clctx.ctx, termination_buffer);
 
             metric_manage.check_substitution(clctx.ctx);
+
+
+            /*vec4f scamera = cartesian_to_schwarz(camera);
+
+            if(flip_sign)
+                scamera.y() = -scamera.y();
+
+            if(camera_on_geodesic)
+            {
+                scamera = interpolate_geodesic(current_geodesic_path, current_geodesic_dT_dt, current_geodesic_time);
+
+                if(metric_manage.current_metric)
+                {
+                    base_angle = get_geodesic_intersection(*metric_manage.current_metric, current_geodesic_path, current_geodesic_dT_dt);
+                }
+            }
+            else
+            {
+                base_angle = {M_PI/2, 0.f};
+            }*/
 
             {
                 {
@@ -1590,7 +1591,7 @@ int main()
 
                 clctx.cqueue.exec("init_rays_generic", init_args, {width*height}, {16*16});
 
-                /*if(should_snapshot_geodesic)
+                if(should_snapshot_geodesic)
                 {
                     int idx = (height/2) * width + width/2;
 
@@ -1606,8 +1607,8 @@ int main()
                     snapshot_args.push_back(idx);
                     snapshot_args.push_back(width);
                     snapshot_args.push_back(height);
-                    snapshot_args.push_back(scamera);
-                    snapshot_args.push_back(camera_quat);
+                    snapshot_args.push_back(g_camera_pos_polar);
+                    snapshot_args.push_back(g_camera_quat);
 
                     for(auto& i : tetrad)
                     {
@@ -1625,15 +1626,15 @@ int main()
 
                     clctx.cqueue.exec("get_geodesic_path", snapshot_args, {1}, {1});
 
-                    current_geodesic_path = geodesic_trace_buffer.read<cl_float4>(clctx.cqueue);
+                    /*current_geodesic_path = geodesic_trace_buffer.read<cl_float4>(clctx.cqueue);
                     current_geodesic_dT_dt = geodesic_dT_dt_buffer.read<cl_float>(clctx.cqueue);
                     int count = geodesic_count_buffer.read<cl_int>(clctx.cqueue)[0];
 
                     printf("Found geodesic count %i\n", count);
 
                     current_geodesic_path.resize(count);
-                    current_geodesic_dT_dt.resize(count);
-                }*/
+                    current_geodesic_dT_dt.resize(count);*/
+                }
 
                 int rays_num = calculate_ray_count(width, height);
 
