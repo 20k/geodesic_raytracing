@@ -1656,10 +1656,15 @@ int should_early_terminate(int x, int y, int width, int height, __global int* te
 
 void get_tetrad_inverse(float4 e0_hi, float4 e1_hi, float4 e2_hi, float4 e3_hi, float4* oe0_lo, float4* oe1_lo, float4* oe2_lo, float4* oe3_lo)
 {
-    float m[16] = {e0_hi.x, e0_hi.y, e0_hi.z, e0_hi.w,
+    /*float m[16] = {e0_hi.x, e0_hi.y, e0_hi.z, e0_hi.w,
                    e1_hi.x, e1_hi.y, e1_hi.z, e1_hi.w,
                    e2_hi.x, e2_hi.y, e2_hi.z, e2_hi.w,
-                   e3_hi.x, e3_hi.y, e3_hi.z, e3_hi.w};
+                   e3_hi.x, e3_hi.y, e3_hi.z, e3_hi.w};*/
+
+    float m[16] = {e0_hi.x, e1_hi.x, e2_hi.x, e3_hi.x,
+                   e0_hi.y, e1_hi.y, e2_hi.y, e3_hi.y,
+                   e0_hi.z, e1_hi.z, e2_hi.z, e3_hi.z,
+                   e0_hi.w, e1_hi.w, e2_hi.w, e3_hi.w};
 
     float inv[16] = {0};
 
@@ -1682,6 +1687,8 @@ float4 coordinate_to_tetrad_basis(float4 vec_up, float4 e0_lo, float4 e1_lo, flo
     ret.w = dot(e3_lo, vec_up);
 
     return ret;
+
+    //return vec_up.x * e0_lo + vec_up.y * e1_lo + vec_up.z * e2_lo + vec_up.w * e3_lo;
 }
 
 ///so. The hi tetrads are the one we get out of gram schmidt
@@ -1821,6 +1828,10 @@ void calculate_global_rotation_matrix(__global float4* g_polar_camera_in, __glob
     float4 b0_e = (float4)(0, m[0 * 3 + 0], m[0 * 3 + 1], m[0 * 3 + 2]);
     float4 b1_e = (float4)(0, m[1 * 3 + 0], m[1 * 3 + 1], m[1 * 3 + 2]);
     float4 b2_e = (float4)(0, m[2 * 3 + 0], m[2 * 3 + 1], m[2 * 3 + 2]);
+
+    b0_e.yzw = normalize(b0_e.yzw);
+    b1_e.yzw = normalize(b1_e.yzw);
+    b2_e.yzw = normalize(b2_e.yzw);
 
     *b0 = tetrad_to_coordinate_basis(b0_e, *e0, *e1, *e2, *e3);
     *b1 = tetrad_to_coordinate_basis(b1_e, *e0, *e1, *e2, *e3);
@@ -1983,6 +1994,8 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
 
     if(cx == width/2 && cy == height/2)
     {
+        printf("B1 global %f %f %f\n", b1->y, b1->z, b1->w);
+
         float rcm[9];
 
         quat_to_matrix(*g_camera_quat, rcm);
