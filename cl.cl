@@ -503,6 +503,36 @@ float4 raise_index_big(float4 vec, float g_metric_big_inv[])
     return (float4)(ret[0], ret[1], ret[2], ret[3]);
 }
 
+float4 raise_index(float4 vec, float g_metric_inv[])
+{
+    float4 ret;
+
+    ret.x = vec.x * g_metric_inv[0];
+    ret.y = vec.y * g_metric_inv[1];
+    ret.z = vec.z * g_metric_inv[2];
+    ret.w = vec.w * g_metric_inv[3];
+
+    return ret;
+}
+
+float4 raise_index_generic(float4 vec, float g_metric_inv[])
+{
+    #ifdef GENERIC_BIG_METRIC
+    return raise_index_big(vec, g_metric_inv);
+    #else
+    return raise_index(vec, g_metric_inv);
+    #endif // GENERIC_BIG_METRIC
+}
+
+float4 lower_index_generic(float4 vec, float g_metric[])
+{
+    #ifdef GENERIC_BIG_METRIC
+    return lower_index_big(vec, g_metric);
+    #else
+    return lower_index(vec, g_metric);
+    #endif // GENERIC_BIG_METRIC
+}
+
 float dot_product_big(float4 u, float4 v, float g_metric_big[])
 {
     float4 lowered = lower_index_big(u, g_metric_big);
