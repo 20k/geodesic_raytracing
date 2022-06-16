@@ -1728,47 +1728,6 @@ void get_local_minkowski(float4 e0_hi, float4 e1_hi, float4 e2_hi, float4 e3_hi,
     }
 }
 
-#if 0
-void test_tetrad_inverse(float4 e0_hi, float4 e1_hi, float4 e2_hi, float4 e3_hi, float g_metric_big[])
-{
-    float m[16] = {e0_hi.x, e0_hi.y, e0_hi.z, e0_hi.w,
-                   e1_hi.x, e1_hi.y, e1_hi.z, e1_hi.w,
-                   e2_hi.x, e2_hi.y, e2_hi.z, e2_hi.w,
-                   e3_hi.x, e3_hi.y, e3_hi.z, e3_hi.w};
-
-    float minkowski[16] = {0};
-
-    get_local_minkowski(e0_hi, e1_hi, e2_hi, e3_hi, g_metric_big, minkowski);
-
-    float minkowski_inverse[16] = {0};
-
-    metric_inverse(minkowski, minkowski_inverse);
-
-    ///a, mu
-    float tetrad_inverse[16] = {0};
-
-    for(int a=0; a < 4; a++)
-    {
-        for(int mu=0; mu < 4; mu++)
-        {
-            float sum = 0;
-
-            for(int v=0; v < 4; v++)
-            {
-                for(int b=0; b < 4; b++)
-                {
-                    sum += g_metric_big[mu * 4 + v] * minkowski_inverse[a * 4 + b] * m[b * 4 + v];
-                }
-            }
-
-            tetrad_inverse[a * 4 +  u];
-        }
-    }
-
-    float dij[16] = {0};
-}
-#endif // 0
-
 void quat_to_matrix(float4 q, float m[9])
 {
     float qx = q.x;
@@ -1917,8 +1876,6 @@ void calculate_global_rotation_matrix(__global float4* g_polar_camera_in, __glob
     *b0 = tetrad_to_coordinate_basis(b0_e, *e0, *e1, *e2, *e3);
     *b1 = tetrad_to_coordinate_basis(b1_e, *e0, *e1, *e2, *e3);
     *b2 = tetrad_to_coordinate_basis(b2_e, *e0, *e1, *e2, *e3);
-
-    //printf("RBasis %f %f %f y %f %f %f z %f %f %f\n", b0_e.y, b0_e.z, b0_e.w, b1_e.y, b1_e.z, b1_e.w, b2_e.y, b2_e.z, b2_e.w);
 }
 
 void calculate_tetrads(float4 polar_camera,
@@ -1998,13 +1955,6 @@ void calculate_tetrads(float4 polar_camera,
     *e3_out = sVz;
 }
 
-/*ok don't lose hope
-we need to take a camera rotation, convert it to global coordinates*/
-
-/*__kernel
-void init_reference_vectors(__global float4* g_polar_camera_in, __global float4* g_camera_quat,
-                            __global float4* e0, __)*/
-
 __kernel
 void init_basis_vectors(__global float4* g_polar_camera_in,
                         __global float4* e0_out, __global float4* e1_out, __global float4* e2_out, __global float4* e3_out,
@@ -2045,11 +1995,6 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
         return;
 
     float4 polar_camera_in = *g_polar_camera_in;
-    //float4 camera_quat = *g_camera_quat;
-
-    /*float camera_mat[9] = {b0->y, b1->y, b2->y,
-                           b0->z, b1->z, b2->z,
-                           b0->w, b1->w, b2->w};*/
 
     float4 e0_lo;
     float4 e1_lo;
@@ -2066,37 +2011,13 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
     b1_e.yzw = normalize(b1_e.yzw);
     b2_e.yzw = normalize(b2_e.yzw);
 
-    /*float camera_mat[9] = {b0_e.y, b1_e.y, b2_e.y,
-                           b0_e.z, b1_e.z, b2_e.z,
-                           b0_e.w, b1_e.w, b2_e.w};*/
-
-    //float4 camera_quat = matrix_to_quat(camera_mat);
-
     const int cx = id % width;
     const int cy = id / width;
 
-    /*if(cx == width/2 && cy == height/2)
-    {
-        //printf("B1 global %f %f %f\n", b1->y, b1->z, b1->w);
-
-        float rcm[9];
-        quat_to_matrix(*g_camera_quat, rcm);
-
-        printf("BASIS %f %f %f y %f %f %f z %f %f %f\n", b0_e.y, b0_e.z, b0_e.w, b1_e.y, b1_e.z, b1_e.w, b2_e.y, b2_e.z, b2_e.w);
-        printf("REAL %f %f %f y %f %f %f z %f %f %f\n", rcm[0], rcm[3], rcm[6], rcm[1], rcm[4], rcm[7], rcm[2], rcm[5], rcm[8]);
-    }*/
 
     float3 pixel_direction = calculate_pixel_direction(cx, cy, width, height, polar_camera_in, b0_e.yzw, b1_e.yzw, b2_e.yzw, base_angle);
 
     float4 polar_camera = polar_camera_in;
-
-    #if 0
-    #if defined(GENERIC_CONSTANT_THETA) || defined(DEBUG_CONSTANT_THETA)
-    {
-        adjust_pixel_direction_and_camera_theta(pixel_direction, polar_camera, &pixel_direction, &polar_camera, cx==500&&cy==400);
-    }
-    #endif // GENERIC_CONSTANT_THETA
-    #endif // 0
 
     float4 at_metric = spherical_to_generic(polar_camera, cfg);
 
@@ -2118,42 +2039,7 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
     float3 cartesian_cy = normalize(spherical_velocity_to_cartesian_velocity(apolar, polar_y.yzw));
     float3 cartesian_cz = normalize(spherical_velocity_to_cartesian_velocity(apolar, polar_z.yzw));
 
-    /*if(cx == 500 && cy == 400)
-    {
-        printf("ANGLES %f %f\n", base_angle.y, base_angle.x);
-    }*/
-
     pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
-
-    #if 0
-    float3 ucartesian_cx = (spherical_velocity_to_cartesian_velocity(apolar, polar_x.yzw));
-    float3 ucartesian_cy = (spherical_velocity_to_cartesian_velocity(apolar, polar_y.yzw));
-    float3 ucartesian_cz = (spherical_velocity_to_cartesian_velocity(apolar, polar_z.yzw));
-
-    float3 cartesian_cx = normalize(ucartesian_cx);
-    float3 cartesian_cy = normalize(ucartesian_cy);
-    float3 cartesian_cz = normalize(ucartesian_cz);
-
-    //float3 next_cartesian_cx = unrotate_vector(cartesian_cx, cartesian_cy, cartesian_cz, ucartesian_cx);
-    //float3 next_cartesian_cy = unrotate_vector(cartesian_cx, cartesian_cy, cartesian_cz, ucartesian_cy);
-    //float3 next_cartesian_cz = unrotate_vector(cartesian_cx, cartesian_cy, cartesian_cz, ucartesian_cz);
-
-    //next_cartesian_cx = normalize(next_cartesian_cx);
-    //next_cartesian_cy = normalize(next_cartesian_cy);
-    //next_cartesian_cz = normalize(next_cartesian_cz);
-
-    //float3 cart_cam = polar_to_cartesian(apolar);
-
-    /*polar_x.yzw = cartesian_velocity_to_spherical_velocity_g(cart_cam, next_cartesian_cx);
-    polar_y.yzw = cartesian_velocity_to_spherical_velocity_g(cart_cam, next_cartesian_cy);
-    polar_z.yzw = cartesian_velocity_to_spherical_velocity_g(cart_cam, next_cartesian_cz);
-
-    sVx = spherical_velocity_to_generic_velocity(polar_camera, polar_x, cfg);
-    sVy = spherical_velocity_to_generic_velocity(polar_camera, polar_y, cfg);
-    sVz = spherical_velocity_to_generic_velocity(polar_camera, polar_z, cfg);*/
-
-    pixel_direction = unrotate_vector(cartesian_cx, cartesian_cy, cartesian_cz, normalize(pixel_direction));
-    #endif // 0
 
     pixel_direction = normalize(pixel_direction);
 
