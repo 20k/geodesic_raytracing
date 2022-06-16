@@ -372,6 +372,59 @@ float4 tensor_contract(float t16[16], float4 vec)
     return res;
 }
 
+void get_christoffel_generic(float g_metric_generic[], float g_partials_generic[], float christoff[64])
+{
+    #ifndef GENERIC_BIG_METRIC
+    ///diagonal of the metric, because it only has diagonals
+    float g_inv[4] = {1/g_metric_generic[0], 1/g_metric_generic[1], 1/g_metric_generic[2], 1/g_metric_generic[3]};
+
+    {
+        #pragma unroll
+        for(int i=0; i < 4; i++)
+        {
+            float ginvii = 0.5 * g_inv[i];
+
+            #pragma unroll
+            for(int m=0; m < 4; m++)
+            {
+                float adding = ginvii * g_partials_generic[i * 4 + m];
+
+                christoff[i * 16 + i * 4 + m] += adding;
+                christoff[i * 16 + m * 4 + i] += adding;
+                christoff[i * 16 + m * 4 + m] -= ginvii * g_partials_generic[m * 4 + i];
+            }
+        }
+    }
+    #else
+    float g_inv_big[16] = {0};
+    metric_inverse(g_metric_generic, g_inv_big);
+
+    #pragma unroll
+    for(int i = 0; i < 4; i++)
+    {
+        #pragma unroll
+        for(int k = 0; k < 4; k++)
+        {
+            #pragma unroll
+            for(int l = 0; l < 4; l++)
+            {
+                float sum = 0;
+
+                #pragma unroll
+                for (int m = 0; m < 4; m++)
+                {
+                    sum += g_inv_big[i * 4 + m] * g_partials_generic[l * 16 + m * 4 + k];
+                    sum += g_inv_big[i * 4 + m] * g_partials_generic[k * 16 + m * 4 + l];
+                    sum -= g_inv_big[i * 4 + m] * g_partials_generic[m * 16 + k * 4 + l];
+                }
+
+                christoff[i * 16 + k * 4 + l] = 0.5f * sum;
+            }
+        }
+    }
+    #endif
+}
+
 float4 calculate_acceleration(float4 lightray_velocity, float g_metric[4], float g_partials[16])
 {
     #ifdef IS_CONSTANT_THETA
@@ -1773,6 +1826,11 @@ float4 matrix_to_quat(float m[9])
     l.z = copysign( l.z, m10 - m01 );
 
     return l;
+}
+
+float4 parallel_transport_get_acceleration(float4 X, float4 geodesic_velocity)
+{
+
 }
 
 ///ok I've been procrastinating this for a while
