@@ -2102,6 +2102,40 @@ void init_basis_vectors(__global float4* g_polar_camera_in,
     *e3_out = sVz;
 }
 
+///geodesic_path is polar
+__kernel
+void handle_interpolating_geodesic(__global float4* geodesic_path, __global float* dT_dt,
+                                   __global float4* g_camera_quat,
+                                   __global float4* e0_out, __global float4* e1_out, __global float4* e2_out, __global float4* e3_out,
+                                   __global float4* b0_out, __global float4* b1_out, __global float4* b2_out,
+                                   float current_time,
+                                   dynamic_config_space struct dynamic_config* cfg)
+{
+    if(get_global_id(0) != 0)
+        return;
+
+    float4 start_polar = geodesic_path[0];
+    float4 start_generic = spherical_to_generic(start_polar, cfg);
+
+    float4 e0, e1, e2, e3;
+    calculate_tetrads(start_polar, &e0, &e1, &e2, &e3, cfg);
+
+    float m[9];
+    quat_to_matrix(*g_camera_quat, m);
+
+    float4 b0_e = (float4)(0, m[0 * 3 + 0], m[1 * 3 + 0], m[2 * 3 + 0]);
+    float4 b1_e = (float4)(0, m[0 * 3 + 1], m[1 * 3 + 1], m[2 * 3 + 1]);
+    float4 b2_e = (float4)(0, m[0 * 3 + 2], m[1 * 3 + 2], m[2 * 3 + 2]);
+
+    b0_e.yzw = normalize(b0_e.yzw);
+    b1_e.yzw = normalize(b1_e.yzw);
+    b2_e.yzw = normalize(b2_e.yzw);
+
+    float4 b0 = tetrad_to_coordinate_basis(b0_e, e0, e1, e2, e3);
+    float4 b1 = tetrad_to_coordinate_basis(b1_e, e0, e1, e2, e3);
+    float4 b2 = tetrad_to_coordinate_basis(b2_e, e0, e1, e2, e3);
+}
+
 __kernel
 void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_camera_quat,
                        __global float4* b0, __global float4* b1, __global float4* b2,
