@@ -1780,6 +1780,33 @@ void quat_to_matrix(float4 q, float m[9])
     m[2 * 3 + 2] = 1 - 2*qx*qx - 2*qy*qy;
 }
 
+float4 matrix_to_quat(float m[9])
+{
+    float4 l;
+
+    float m00 = m[0 * 3 + 0];
+    float m11 = m[1 * 3 + 1];
+    float m22 = m[2 * 3 + 2];
+
+    l.w = sqrt( max( 0.f, 1 + m00 + m11 + m22 ) ) / 2;
+    l.x = sqrt( max( 0.f, 1 + m00 - m11 - m22 ) ) / 2;
+    l.y = sqrt( max( 0.f, 1 - m00 + m11 - m22 ) ) / 2;
+    l.z = sqrt( max( 0.f, 1 - m00 - m11 + m22 ) ) / 2;
+
+    float m21 = m[2 * 3 + 1];
+    float m12 = m[1 * 3 + 2];
+    float m02 = m[0 * 3 + 2];
+    float m20 = m[2 * 3 + 0];
+    float m10 = m[1 * 3 + 0];
+    float m01 = m[0 * 3 + 1];
+
+    l.x = copysign( l.x, m21 - m12 );
+    l.y = copysign( l.y, m02 - m20 );
+    l.z = copysign( l.z, m10 - m01 );
+
+    return l;
+}
+
 __kernel
 void calculate_global_rotation_matrix(__global float4* g_polar_camera_in, __global float4* g_camera_quat,
                                       __global float4* e0, __global float4* e1, __global float4* e2, __global float4* e3,
@@ -1788,7 +1815,16 @@ void calculate_global_rotation_matrix(__global float4* g_polar_camera_in, __glob
     if(get_global_id(0) != 0)
         return;
 
+    float m[9];
+    quat_to_matrix(*g_camera_quat, m);
 
+    float4 b0_e = (float4)(0, m[0 * 3 + 0], m[0 * 3 + 1], m[0 * 3 + 2]);
+    float4 b1_e = (float4)(0, m[1 * 3 + 0], m[1 * 3 + 1], m[1 * 3 + 2]);
+    float4 b2_e = (float4)(0, m[2 * 3 + 0], m[2 * 3 + 1], m[2 * 3 + 2]);
+
+    *b0 = tetrad_to_coordinate_basis(b0_e, *e0, *e1, *e2, *e3);
+    *b1 = tetrad_to_coordinate_basis(b1_e, *e0, *e1, *e2, *e3);
+    *b2 = tetrad_to_coordinate_basis(b2_e, *e0, *e1, *e2, *e3);
 }
 
 void calculate_tetrads(float4 polar_camera,
