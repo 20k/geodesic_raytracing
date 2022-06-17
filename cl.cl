@@ -1641,7 +1641,7 @@ float3 get_texture_constant_theta_rotation(float3 pixel_direction, float4 polar_
 	return polar_position;
 }
 
-float3 calculate_pixel_direction(int cx, int cy, float width, float height, float4 polar_camera, float3 b0, float3 b1, float3 b2, float2 base_angle)
+float3 calculate_pixel_direction(int cx, int cy, float width, float height, float4 polar_camera, float4 camera_quat, float2 base_angle)
 {
     #define FOV 90
 
@@ -1653,9 +1653,9 @@ float3 calculate_pixel_direction(int cx, int cy, float width, float height, floa
     float3 pixel_direction = (float3){cx - width/2, cy - height/2, nonphysical_f_stop};
 
     pixel_direction = normalize(pixel_direction);
-    //pixel_direction = rot_quat(pixel_direction, camera_quat);
+    pixel_direction = rot_quat(pixel_direction, camera_quat);
 
-    pixel_direction = rotate_vector(b0, b1, b2, pixel_direction);
+    //pixel_direction = rotate_vector(b0, b1, b2, pixel_direction);
 
     float3 up = {0, 0, 1};
 
@@ -2103,9 +2103,9 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
     calculate_tetrads(generic_to_spherical(start_generic, cfg), &e0, &e1, &e2, &e3, cfg);
 
     ///need to use unity camera because g_camera_quat is dynamic?
-    //float4 start_camera = (float4)(0, 0, 0, 1);
+    float4 start_camera = (float4)(0, 0, 0, 1);
 
-    float4 start_camera = *g_camera_quat;
+    //float4 start_camera = *g_camera_quat;
 
     float m[9];
     quat_to_matrix(start_camera, m);
@@ -2142,8 +2142,6 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
     *e1_out = e1;
     *e2_out = e2;
     *e3_out = e3;
-
-    printf("start\n");
 
     for(int i=0; i < cnt - 1; i++)
     {
@@ -2197,7 +2195,7 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
         tb1 += tb1_a * ds;
         tb2 += tb2_a * ds;
 
-        {
+        /*{
             #ifndef GENERIC_BIG_METRIC
             float g_metric[4] = {};
             calculate_metric_generic(current_pos, g_metric, cfg);
@@ -2209,7 +2207,7 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
             float ang = dot_product_generic(tb0, velocity, g_metric);
 
             printf("Ang %f\n", ang);
-        }
+        }*/
 
         e0 += parallel_transport_get_acceleration(e0, geodesic_path[i], velocity, cfg) * ds;
         e1 += parallel_transport_get_acceleration(e1, geodesic_path[i], velocity, cfg) * ds;
@@ -2237,7 +2235,7 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
 
     float4 polar_camera_in = *g_polar_camera_in;
 
-    float4 e0_lo;
+    /*float4 e0_lo;
     float4 e1_lo;
     float4 e2_lo;
     float4 e3_lo;
@@ -2250,7 +2248,7 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
 
     b0_e.yzw = normalize(b0_e.yzw);
     b1_e.yzw = normalize(b1_e.yzw);
-    b2_e.yzw = normalize(b2_e.yzw);
+    b2_e.yzw = normalize(b2_e.yzw);*/
 
     const int cx = id % width;
     const int cy = id / width;
@@ -2260,7 +2258,7 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
     //b2_e.yzw = (float3)(0, 0, 1);
 
 
-    float3 pixel_direction = calculate_pixel_direction(cx, cy, width, height, polar_camera_in, b0_e.yzw, b1_e.yzw, b2_e.yzw, base_angle);
+    float3 pixel_direction = calculate_pixel_direction(cx, cy, width, height, polar_camera_in, *g_camera_quat, base_angle);
 
     float4 polar_camera = polar_camera_in;
 
@@ -3042,7 +3040,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
     b1_e.yzw = normalize(b1_e.yzw);
     b2_e.yzw = normalize(b2_e.yzw);
 
-    float3 pixel_direction = calculate_pixel_direction(sx, sy, width, height, polar_camera_pos, b0_e.yzw, b1_e.yzw, b2_e.yzw, base_angle);
+    //float3 pixel_direction = calculate_pixel_direction(sx, sy, width, height, polar_camera_pos, b0_e.yzw, b1_e.yzw, b2_e.yzw, base_angle);
 
     //#pragma unroll
     for(int i=0; i < 64000; i++)
@@ -3294,7 +3292,7 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
     }
     #endif
 
-    float3 pixel_direction = calculate_pixel_direction(sx, sy, width, height, polar_camera_pos, b0_e.yzw, b1_e.yzw, b2_e.yzw, base_angle);
+    float3 pixel_direction = calculate_pixel_direction(sx, sy, width, height, polar_camera_pos, *g_camera_quat, base_angle);
 
 	float3 npolar = position.yzw;
 

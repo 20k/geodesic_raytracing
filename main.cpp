@@ -1408,7 +1408,7 @@ int main()
                 }
 
                 //if(reset_camera)
-                if(!camera_on_geodesic)
+                /*if(!camera_on_geodesic)
                 {
                     cl::args mat_args;
                     mat_args.push_back(g_camera_pos_polar);
@@ -1427,7 +1427,7 @@ int main()
                     clctx.cqueue.exec("calculate_global_rotation_matrix", mat_args, {1}, {1});
 
                     reset_camera = false;
-                }
+                }*/
             }
 
             float speed = 0.1;
