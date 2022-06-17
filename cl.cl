@@ -593,6 +593,17 @@ float dot_product_big(float4 u, float4 v, float g_metric_big[])
     return dot(lowered, v);
 }
 
+float dot_product_generic(float4 u, float4 v, float g_metric[])
+{
+    #ifdef GENERIC_BIG_METRIC
+    return dot_product_big(u, v, g_metric);
+    #else
+    float4 lowered = lower_index(u, g_metric);
+
+    return dot(lowered, v);
+    #endif // GENERIC_BIG_METRIC
+}
+
 void small_to_big_metric(float g_metric[], float g_metric_big[])
 {
     g_metric_big[0]         = g_metric[0];
@@ -2171,6 +2182,8 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
     *e2_out = e2;
     *e3_out = e3;
 
+    printf("start\n");
+
     for(int i=0; i < cnt - 1; i++)
     {
         float4 current_pos = geodesic_path[i];
@@ -2222,6 +2235,20 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
         tb0 += tb0_a * ds;
         tb1 += tb1_a * ds;
         tb2 += tb2_a * ds;
+
+        {
+            #ifndef GENERIC_BIG_METRIC
+            float g_metric[4] = {};
+            calculate_metric_generic(current_pos, g_metric, cfg);
+            #else
+            float g_metric[16] = {0};
+            calculate_metric_generic_big(current_pos, g_metric, cfg);
+            #endif // GENERIC_BIG_METRIC
+
+            float ang = dot_product_generic(tb0, velocity, g_metric);
+
+            printf("Ang %f\n", ang);
+        }
 
         e0 += parallel_transport_get_acceleration(e0, geodesic_path[i], velocity, cfg) * ds;
         e1 += parallel_transport_get_acceleration(e1, geodesic_path[i], velocity, cfg) * ds;
