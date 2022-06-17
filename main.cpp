@@ -1492,12 +1492,6 @@ int main()
                 cl::args controls_args;
                 controls_args.push_back(g_camera_pos_cart);
                 controls_args.push_back(g_camera_quat);
-
-                for(auto& i : tetrad)
-                {
-                    controls_args.push_back(i);
-                }
-
                 controls_args.push_back(cl_mouse);
                 controls_args.push_back(cl_translation);
                 controls_args.push_back(current_cfg.universe_size);

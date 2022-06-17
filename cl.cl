@@ -1894,7 +1894,6 @@ float4 parallel_transport_get_acceleration(float4 X, float4 geodesic_position, f
 ///then, to render, I.. want to convert them back to a tetrad basis?
 __kernel
 void handle_controls_free(__global float4* camera_pos_cart, __global float4* camera_rot,
-                          __global float4* e0, __global float4* e1, __global float4* e2, __global float4* e3,
                           float2 mouse_delta, float4 unrotated_translation, float universe_size,
                           dynamic_config_space struct dynamic_config* cfg)
 {
@@ -1904,32 +1903,6 @@ void handle_controls_free(__global float4* camera_pos_cart, __global float4* cam
         return;
 
     float4 local_camera_quat = *camera_rot;
-
-    ///doesn't work, because its lossy. Would need to do corrections
-    /*float4 local_camera_quat;
-
-    {
-        float4 e0_lo;
-        float4 e1_lo;
-        float4 e2_lo;
-        float4 e3_lo;
-
-        get_tetrad_inverse(*e0, *e1, *e2, *e3, &e0_lo, &e1_lo, &e2_lo, &e3_lo);
-
-        float4 b0_e = coordinate_to_tetrad_basis(*b0, e0_lo, e1_lo, e2_lo, e3_lo);
-        float4 b1_e = coordinate_to_tetrad_basis(*b1, e0_lo, e1_lo, e2_lo, e3_lo);
-        float4 b2_e = coordinate_to_tetrad_basis(*b2, e0_lo, e1_lo, e2_lo, e3_lo);
-
-        b0_e.yzw = normalize(b0_e.yzw);
-        b1_e.yzw = normalize(b1_e.yzw);
-        b2_e.yzw = normalize(b2_e.yzw);
-
-        float m[9] = {b0_e.y, b1_e.y, b2_e.y,
-                      b0_e.z, b1_e.z, b2_e.z,
-                      b0_e.w, b1_e.w, b2_e.w};
-
-        local_camera_quat = normalize(matrix_to_quat(m));
-    }*/
 
     if(mouse_delta.x != 0)
     {
@@ -1973,17 +1946,6 @@ void handle_controls_free(__global float4* camera_pos_cart, __global float4* cam
             local_camera_pos_cart.yzw = normalize(local_camera_pos_cart.yzw) * universe_size * 0.99f;
         }
     }
-
-    /*float m[9] = {0};
-    quat_to_matrix(local_camera_quat, m);
-
-    float4 b0_e = (float4)(0, m[0], m[3], m[6]);
-    float4 b1_e = (float4)(0, m[1], m[4], m[7]);
-    float4 b2_e = (float4)(0, m[2], m[5], m[8]);
-
-    *b0 = tetrad_to_coordinate_basis(b0_e, *e0, *e1, *e2, *e3);
-    *b1 = tetrad_to_coordinate_basis(b1_e, *e0, *e1, *e2, *e3);
-    *b2 = tetrad_to_coordinate_basis(b2_e, *e0, *e1, *e2, *e3);*/
 
     *camera_pos_cart = local_camera_pos_cart;
     *camera_rot = local_camera_quat;
