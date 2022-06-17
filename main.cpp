@@ -1498,11 +1498,6 @@ int main()
                     controls_args.push_back(i);
                 }
 
-                for(auto& i : camera_basis)
-                {
-                    controls_args.push_back(i);
-                }
-
                 controls_args.push_back(cl_mouse);
                 controls_args.push_back(cl_translation);
                 controls_args.push_back(current_cfg.universe_size);

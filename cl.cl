@@ -1895,7 +1895,6 @@ float4 parallel_transport_get_acceleration(float4 X, float4 geodesic_position, f
 __kernel
 void handle_controls_free(__global float4* camera_pos_cart, __global float4* camera_rot,
                           __global float4* e0, __global float4* e1, __global float4* e2, __global float4* e3,
-                          __global float4* b0, __global float4* b1, __global float4* b2,
                           float2 mouse_delta, float4 unrotated_translation, float universe_size,
                           dynamic_config_space struct dynamic_config* cfg)
 {
