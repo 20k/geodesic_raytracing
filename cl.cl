@@ -1960,30 +1960,6 @@ void quat_to_basis(__global float4* camera_quat,
 
 }*/
 
-__kernel
-void calculate_global_rotation_matrix(__global float4* g_polar_camera_in, __global float4* g_camera_quat,
-                                      __global float4* e0, __global float4* e1, __global float4* e2, __global float4* e3,
-                                      __global float4* b0, __global float4* b1, __global float4* b2)
-{
-    if(get_global_id(0) != 0)
-        return;
-
-    float m[9];
-    quat_to_matrix(*g_camera_quat, m);
-
-    float4 b0_e = (float4)(0, m[0 * 3 + 0], m[1 * 3 + 0], m[2 * 3 + 0]);
-    float4 b1_e = (float4)(0, m[0 * 3 + 1], m[1 * 3 + 1], m[2 * 3 + 1]);
-    float4 b2_e = (float4)(0, m[0 * 3 + 2], m[1 * 3 + 2], m[2 * 3 + 2]);
-
-    b0_e.yzw = normalize(b0_e.yzw);
-    b1_e.yzw = normalize(b1_e.yzw);
-    b2_e.yzw = normalize(b2_e.yzw);
-
-    *b0 = tetrad_to_coordinate_basis(b0_e, *e0, *e1, *e2, *e3);
-    *b1 = tetrad_to_coordinate_basis(b1_e, *e0, *e1, *e2, *e3);
-    *b2 = tetrad_to_coordinate_basis(b2_e, *e0, *e1, *e2, *e3);
-}
-
 void calculate_tetrads(float4 polar_camera,
                        float4* e0_out, float4* e1_out, float4* e2_out, float4* e3_out,
                        dynamic_config_space struct dynamic_config* cfg)
@@ -2089,7 +2065,6 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
                                    __global float4* g_camera_quat,
                                    __global float4* g_camera_polar_out,
                                    __global float4* e0_out, __global float4* e1_out, __global float4* e2_out, __global float4* e3_out,
-                                   __global float4* b0_out, __global float4* b1_out, __global float4* b2_out,
                                    float target_time,
                                    __global int* count_in,
                                    dynamic_config_space struct dynamic_config* cfg)
@@ -2102,30 +2077,6 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
     float4 e0, e1, e2, e3;
     calculate_tetrads(generic_to_spherical(start_generic, cfg), &e0, &e1, &e2, &e3, cfg);
 
-    ///need to use unity camera because g_camera_quat is dynamic?
-    float4 start_camera = (float4)(0, 0, 0, 1);
-
-    //float4 start_camera = *g_camera_quat;
-
-    float m[9];
-    quat_to_matrix(start_camera, m);
-
-    float4 b0_e = (float4)(0, m[0 * 3 + 0], m[1 * 3 + 0], m[2 * 3 + 0]);
-    float4 b1_e = (float4)(0, m[0 * 3 + 1], m[1 * 3 + 1], m[2 * 3 + 1]);
-    float4 b2_e = (float4)(0, m[0 * 3 + 2], m[1 * 3 + 2], m[2 * 3 + 2]);
-
-    //b0_e.yzw = normalize(b0_e.yzw);
-    //b1_e.yzw = normalize(b1_e.yzw);
-    //b2_e.yzw = normalize(b2_e.yzw);
-
-    float4 b0 = tetrad_to_coordinate_basis(b0_e, e0, e1, e2, e3);
-    float4 b1 = tetrad_to_coordinate_basis(b1_e, e0, e1, e2, e3);
-    float4 b2 = tetrad_to_coordinate_basis(b2_e, e0, e1, e2, e3);
-
-    float4 tb0 = b0;
-    float4 tb1 = b1;
-    float4 tb2 = b2;
-
     int cnt = *count_in;
 
     //printf("Count %i\n", cnt);
@@ -2133,10 +2084,6 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
     float current_time = geodesic_path[0].x;
 
     *g_camera_polar_out = generic_to_spherical(start_generic, cfg);
-
-    *b0_out = tb0;
-    *b1_out = tb1;
-    *b2_out = tb2;
 
     *e0_out = e0;
     *e1_out = e1;
@@ -2167,10 +2114,6 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
 
             *g_camera_polar_out = generic_to_spherical(current_pos, cfg);
 
-            *b0_out = tb0;
-            *b1_out = tb1;
-            *b2_out = tb2;
-
             *e0_out = e0;
             *e1_out = e1;
             *e2_out = e2;
@@ -2185,15 +2128,6 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
         current_time += dt;
 
         float ds = ds_in[i];
-
-        ///todo: use affine parameter
-        float4 tb0_a = parallel_transport_get_acceleration(tb0, geodesic_path[i], velocity, cfg);
-        float4 tb1_a = parallel_transport_get_acceleration(tb1, geodesic_path[i], velocity, cfg);
-        float4 tb2_a = parallel_transport_get_acceleration(tb2, geodesic_path[i], velocity, cfg);
-
-        tb0 += tb0_a * ds;
-        tb1 += tb1_a * ds;
-        tb2 += tb2_a * ds;
 
         /*{
             #ifndef GENERIC_BIG_METRIC
@@ -2218,7 +2152,6 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
 
 __kernel
 void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_camera_quat,
-                       __global float4* b0, __global float4* b1, __global float4* b2,
                        __global struct lightray* metric_rays, __global int* metric_ray_count,
                        int width, int height,
                        __global int* termination_buffer,
@@ -2235,28 +2168,8 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
 
     float4 polar_camera_in = *g_polar_camera_in;
 
-    /*float4 e0_lo;
-    float4 e1_lo;
-    float4 e2_lo;
-    float4 e3_lo;
-
-    get_tetrad_inverse(*e0, *e1, *e2, *e3, &e0_lo, &e1_lo, &e2_lo, &e3_lo);
-
-    float4 b0_e = coordinate_to_tetrad_basis(*b0, e0_lo, e1_lo, e2_lo, e3_lo);
-    float4 b1_e = coordinate_to_tetrad_basis(*b1, e0_lo, e1_lo, e2_lo, e3_lo);
-    float4 b2_e = coordinate_to_tetrad_basis(*b2, e0_lo, e1_lo, e2_lo, e3_lo);
-
-    b0_e.yzw = normalize(b0_e.yzw);
-    b1_e.yzw = normalize(b1_e.yzw);
-    b2_e.yzw = normalize(b2_e.yzw);*/
-
     const int cx = id % width;
     const int cy = id / width;
-
-    //b0_e.yzw = (float3)(1, 0, 0);
-    //b1_e.yzw = (float3)(0, 1, 0);
-    //b2_e.yzw = (float3)(0, 0, 1);
-
 
     float3 pixel_direction = calculate_pixel_direction(cx, cy, width, height, polar_camera_in, *g_camera_quat, base_angle);
 
@@ -2974,7 +2887,6 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
                        __global int* generic_count_in, int geodesic_start, int width, int height,
                        __global float4* g_polar_camera_pos, __global float4* g_camera_quat,
                        __global float4* e0, __global float4* e1, __global float4* e2, __global float4* e3,
-                       __global float4* b0, __global float4* b1, __global float4* b2,
                        float2 base_angle, dynamic_config_space struct dynamic_config* cfg, __global int* count_out)
 {
     int id = geodesic_start;
@@ -3024,23 +2936,6 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
     float rs = 1;
 
     int bufc = 0;
-
-    float4 e0_lo;
-    float4 e1_lo;
-    float4 e2_lo;
-    float4 e3_lo;
-
-    get_tetrad_inverse(*e0, *e1, *e2, *e3, &e0_lo, &e1_lo, &e2_lo, &e3_lo);
-
-    float4 b0_e = coordinate_to_tetrad_basis(*b0, e0_lo, e1_lo, e2_lo, e3_lo);
-    float4 b1_e = coordinate_to_tetrad_basis(*b1, e0_lo, e1_lo, e2_lo, e3_lo);
-    float4 b2_e = coordinate_to_tetrad_basis(*b2, e0_lo, e1_lo, e2_lo, e3_lo);
-
-    b0_e.yzw = normalize(b0_e.yzw);
-    b1_e.yzw = normalize(b1_e.yzw);
-    b2_e.yzw = normalize(b2_e.yzw);
-
-    //float3 pixel_direction = calculate_pixel_direction(sx, sy, width, height, polar_camera_pos, b0_e.yzw, b1_e.yzw, b2_e.yzw, base_angle);
 
     //#pragma unroll
     for(int i=0; i < 64000; i++)
@@ -3226,7 +3121,7 @@ void calculate_singularities(__global struct lightray* finished_rays, __global i
 __kernel
 void calculate_texture_coordinates(__global struct lightray* finished_rays, __global int* finished_count_in, __global float2* texture_coordinates, int width, int height, __global float4* g_polar_camera_pos, __global float4* g_camera_quat,
                                    __global float4* e0, __global float4* e1, __global float4* e2, __global float4* e3,
-                                   __global float4* b0, __global float4* b1, __global float4* b2, float2 base_angle)
+                                   float2 base_angle)
 {
     int id = get_global_id(0);
 
@@ -3237,21 +3132,6 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
     float4 camera_quat = *g_camera_quat;
 
     __global struct lightray* ray = &finished_rays[id];
-
-    float4 e0_lo;
-    float4 e1_lo;
-    float4 e2_lo;
-    float4 e3_lo;
-
-    get_tetrad_inverse(*e0, *e1, *e2, *e3, &e0_lo, &e1_lo, &e2_lo, &e3_lo);
-
-    float4 b0_e = coordinate_to_tetrad_basis(*b0, e0_lo, e1_lo, e2_lo, e3_lo);
-    float4 b1_e = coordinate_to_tetrad_basis(*b1, e0_lo, e1_lo, e2_lo, e3_lo);
-    float4 b2_e = coordinate_to_tetrad_basis(*b2, e0_lo, e1_lo, e2_lo, e3_lo);
-
-    b0_e.yzw = normalize(b0_e.yzw);
-    b1_e.yzw = normalize(b1_e.yzw);
-    b2_e.yzw = normalize(b2_e.yzw);
 
     int pos = ray->sy * width + ray->sx;
     int sx = ray->sx;

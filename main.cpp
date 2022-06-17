@@ -795,18 +795,11 @@ int main()
     geodesic_ds_buffer.set_to_zero(clctx.cqueue);
 
     std::array<cl::buffer, 4> tetrad{clctx.ctx, clctx.ctx, clctx.ctx, clctx.ctx};
-    std::array<cl::buffer, 3> camera_basis{clctx.ctx, clctx.ctx, clctx.ctx};
 
     for(int i=0; i < 4; i++)
     {
         tetrad[i].alloc(sizeof(cl_float4));
         tetrad[i].set_to_zero(clctx.cqueue);
-    }
-
-    for(auto& i : camera_basis)
-    {
-        i.alloc(sizeof(cl_float4));
-        i.set_to_zero(clctx.cqueue);
     }
 
     std::array<cl::buffer, 4> reference_basis{clctx.ctx, clctx.ctx, clctx.ctx, clctx.ctx};
@@ -1363,11 +1356,6 @@ int main()
                     interpolate_args.push_back(i);
                 }
 
-                for(auto& i : camera_basis)
-                {
-                    interpolate_args.push_back(i);
-                }
-
                 interpolate_args.push_back(current_geodesic_time);
                 interpolate_args.push_back(geodesic_count_buffer);
                 interpolate_args.push_back(dynamic_config);
@@ -1558,12 +1546,6 @@ int main()
 
                     init_args_prepass.push_back(g_camera_pos_polar);
                     init_args_prepass.push_back(g_camera_quat);
-
-                    for(auto& i : camera_basis)
-                    {
-                        init_args_prepass.push_back(i);
-                    }
-
                     init_args_prepass.push_back(schwarzs_prepass);
                     init_args_prepass.push_back(schwarzs_count_prepass);
                     init_args_prepass.push_back(prepass_width);
@@ -1601,12 +1583,6 @@ int main()
                 cl::args init_args;
                 init_args.push_back(g_camera_pos_polar);
                 init_args.push_back(g_camera_quat);
-
-                for(auto& i : camera_basis)
-                {
-                    init_args.push_back(i);
-                }
-
                 init_args.push_back(schwarzs_1);
                 init_args.push_back(schwarzs_count_1);
                 init_args.push_back(width);
@@ -1655,11 +1631,6 @@ int main()
                         snapshot_args.push_back(i);
                     }
 
-                    for(auto& i : camera_basis)
-                    {
-                        snapshot_args.push_back(i);
-                    }
-
                     snapshot_args.push_back(base_angle);
                     snapshot_args.push_back(dynamic_config);
                     snapshot_args.push_back(geodesic_count_buffer);
@@ -1691,11 +1662,6 @@ int main()
                 texture_args.push_back(g_camera_quat);
 
                 for(auto& i : tetrad)
-                {
-                    texture_args.push_back(i);
-                }
-
-                for(auto& i : camera_basis)
                 {
                     texture_args.push_back(i);
                 }
