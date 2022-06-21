@@ -2112,6 +2112,8 @@ void init_basis_vectors(__global float4* g_polar_camera_in,
         float4 tE2 = coordinate_to_tetrad_basis(approximate_basis[1], e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
         float4 tE3 = coordinate_to_tetrad_basis(approximate_basis[2], e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
 
+        printf("Z base %f %f %f\n", tE1.y, tE1.z, tE1.w);
+
         struct ortho_result result = orthonormalise(tE1.yzw, tE2.yzw, tE3.yzw);
 
         float4 basis1 = (float4)(tE1.x, result.v1);
@@ -2122,13 +2124,19 @@ void init_basis_vectors(__global float4* g_polar_camera_in,
         float4 y_basis = basis3;
         float4 z_basis = basis1;
 
+        printf("Testing basis %f %f %f\n", z_basis.y, z_basis.z, z_basis.w);
+
         float4 x_out = tetrad_to_coordinate_basis(x_basis, e0, e1, e2, e3);
         float4 y_out = tetrad_to_coordinate_basis(y_basis, e0, e1, e2, e3);
         float4 z_out = tetrad_to_coordinate_basis(z_basis, e0, e1, e2, e3);
 
+        printf("Z_in %f %f %f\n", sVz.y, sVz.z, sVz.w);
+
         sVx = x_out;
         sVy = y_out;
         sVz = z_out;
+
+        printf("sVz %f %f %f\n", sVz.y, sVz.z, sVz.w);
     }
 
     *e0_out = bT;
