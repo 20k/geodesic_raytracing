@@ -1369,13 +1369,9 @@ float4 calculate_acceleration_big(float4 lightray_velocity, float g_metric_big[1
     return acceleration;
 }
 
-float3 project(float3 v1, float3 dir)
+float3 project(float3 u, float3 v)
 {
-    float3 ndir = normalize(dir);
-
-    float a1 = dot(v1, ndir);
-
-    return a1 * ndir;
+    return (dot(u, v) / dot(u, u)) * u;
 }
 
 struct ortho_result
