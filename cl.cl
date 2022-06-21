@@ -937,6 +937,36 @@ float4 spherical_velocity_to_generic_velocity(float4 in, float4 inv, dynamic_con
     return (float4)(o1, o2, o3, o4);
 }
 
+float4 generic_to_cartesian(float4 in, dynamic_config_space struct dynamic_config* cfg)
+{
+    float4 spherical = generic_to_spherical(in, cfg);
+
+    return (float4)(spherical.x, polar_to_cartesian(spherical.yzw));
+}
+
+float4 generic_velocity_to_cartesian_velocity(float4 in, float4 in_v, dynamic_config_space struct dynamic_config* cfg)
+{
+    float4 spherical = generic_to_spherical(in, cfg);
+    float4 spherical_v = generic_velocity_to_spherical_velocity(in, in_v, cfg);
+
+    return (float4)(spherical_v.x, spherical_velocity_to_cartesian_velocity(spherical.yzw, spherical_v.yzw));
+}
+
+float4 cartesian_to_generic(float4 in, dynamic_config_space struct dynamic_config* cfg)
+{
+    float3 polar = cartesian_to_polar(in.yzw);
+
+    return spherical_to_generic((float4)(in.x, polar), cfg);
+}
+
+float4 cartesian_velocity_to_generic_velocity(float4 in, float4 in_v, dynamic_config_space struct dynamic_config* cfg)
+{
+    float3 polar = cartesian_to_polar(in.yzw);
+    float3 polar_v = cartesian_velocity_to_polar_velocity(in.yzw, in_v.yzw);
+
+    return spherical_velocity_to_generic_velocity((float4)(in.x, polar), (float4)(in_v.x, polar_v), cfg);
+}
+
 float3 cartesian_to_spherical_g(float3 v)
 {
     float v1 = 0;
