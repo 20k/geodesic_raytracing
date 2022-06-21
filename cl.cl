@@ -2139,13 +2139,12 @@ void init_basis_vectors(__global float4* g_polar_camera_in,
         float3 forw = rot_quat((float3){0, 0, 1}, local_camera_quat);*/
 
         //float4 approximate_basis[3] = {cz, cy, cx};
-        float4 approximate_basis[3] = {cz, cx, cy};
+        //float4 approximate_basis[3] = {cz, cx, cy};
+        float4 approximate_basis[3] = {cy, cx, cz};
 
         float4 tE1 = coordinate_to_tetrad_basis(approximate_basis[0], e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
         float4 tE2 = coordinate_to_tetrad_basis(approximate_basis[1], e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
         float4 tE3 = coordinate_to_tetrad_basis(approximate_basis[2], e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
-
-        printf("Z base %f %f %f\n", tE1.y, tE1.z, tE1.w);
 
         struct ortho_result result = orthonormalise(tE1.yzw, tE2.yzw, tE3.yzw);
 
@@ -2153,27 +2152,21 @@ void init_basis_vectors(__global float4* g_polar_camera_in,
         float4 basis2 = (float4)(tE2.x, result.v2);
         float4 basis3 = (float4)(tE3.x, result.v3);
 
-        float4 x_basis = basis2;
+        /*float4 x_basis = basis2;
         float4 y_basis = basis3;
-        float4 z_basis = basis1;
+        float4 z_basis = basis1;*/
 
-        printf("Testing basis %f %f %f\n", z_basis.y, z_basis.z, z_basis.w);
+        float4 x_basis = basis2;
+        float4 y_basis = basis1;
+        float4 z_basis = basis3;
 
         float4 x_out = tetrad_to_coordinate_basis(x_basis, e0, e1, e2, e3);
         float4 y_out = tetrad_to_coordinate_basis(y_basis, e0, e1, e2, e3);
         float4 z_out = tetrad_to_coordinate_basis(z_basis, e0, e1, e2, e3);
 
-        printf("sVx_in %f %f %f\n", sVx.y, sVx.z, sVx.w);
-        printf("sVy_in %f %f %f\n", sVy.y, sVy.z, sVy.w);
-        printf("sVz_in %f %f %f\n", sVz.y, sVz.z, sVz.w);
-
         sVx = x_out;
         sVy = y_out;
         sVz = z_out;
-
-        printf("sVx %f %f %f\n", sVx.y, sVx.z, sVx.w);
-        printf("sVy %f %f %f\n", sVy.y, sVy.z, sVy.w);
-        printf("sVz %f %f %f\n", sVz.y, sVz.z, sVz.w);
     }
 
     *e0_out = bT;
