@@ -2098,6 +2098,7 @@ void init_basis_vectors(__global float4* g_polar_camera_in,
         float4 e_lo[4];
         get_tetrad_inverse(bT, sVx, sVy, sVz, &e_lo[0], &e_lo[1], &e_lo[2], &e_lo[3]);
 
+        ///doesn't work because we're in generic coordinates!!! which makes this an identity matrix
         float4 cx = (float4)(sVx.x, 1, 0, 0);
         float4 cy = (float4)(sVy.x, 0, 1, 0);
         float4 cz = (float4)(sVz.x, 0, 0, 1);
@@ -2130,12 +2131,16 @@ void init_basis_vectors(__global float4* g_polar_camera_in,
         float4 y_out = tetrad_to_coordinate_basis(y_basis, e0, e1, e2, e3);
         float4 z_out = tetrad_to_coordinate_basis(z_basis, e0, e1, e2, e3);
 
-        printf("Z_in %f %f %f\n", sVz.y, sVz.z, sVz.w);
+        printf("sVx_in %f %f %f\n", sVx.y, sVx.z, sVx.w);
+        printf("sVy_in %f %f %f\n", sVy.y, sVy.z, sVy.w);
+        printf("sVz_in %f %f %f\n", sVz.y, sVz.z, sVz.w);
 
         sVx = x_out;
         sVy = y_out;
         sVz = z_out;
 
+        printf("sVx %f %f %f\n", sVx.y, sVx.z, sVx.w);
+        printf("sVy %f %f %f\n", sVy.y, sVy.z, sVy.w);
         printf("sVz %f %f %f\n", sVz.y, sVz.z, sVz.w);
     }
 
