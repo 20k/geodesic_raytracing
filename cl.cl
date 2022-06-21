@@ -1365,9 +1365,9 @@ struct ortho_result orthonormalise(float3 i1, float3 i2, float3 i3)
     u3 = u3 - project(u2, u3);
 
     struct ortho_result result;
-    result.v1 = u1;
-    result.v2 = u2;
-    result.v3 = u3;
+    result.v1 = normalize(u1);
+    result.v2 = normalize(u2);
+    result.v3 = normalize(u3);
 
     return result;
 };
@@ -2087,6 +2087,50 @@ void init_basis_vectors(__global float4* g_polar_camera_in,
 
     calculate_tetrads(polar_camera_in, &bT, &sVx, &sVy, &sVz, cfg);
 
+    float4 e0 = bT;
+    float4 e1 = sVx;
+    float4 e2 = sVy;
+    float4 e3 = sVz;
+
+    ///void get_tetrad_inverse(float4 e0_hi, float4 e1_hi, float4 e2_hi, float4 e3_hi, float4* oe0_lo, float4* oe1_lo, float4* oe2_lo, float4* oe3_lo)
+
+    {
+        float4 e_lo[4];
+        get_tetrad_inverse(bT, sVx, sVy, sVz, &e_lo[0], &e_lo[1], &e_lo[2], &e_lo[3]);
+
+        float4 cx = (float4)(sVx.x, 1, 0, 0);
+        float4 cy = (float4)(sVy.x, 0, 1, 0);
+        float4 cz = (float4)(sVz.x, 0, 0, 1);
+
+        /*float3 right = rot_quat((float3){1, 0, 0}, local_camera_quat);
+        float3 forw = rot_quat((float3){0, 0, 1}, local_camera_quat);*/
+
+        //float4 approximate_basis[3] = {cz, cy, cx};
+        float4 approximate_basis[3] = {cz, cx, cy};
+
+        float4 tE1 = coordinate_to_tetrad_basis(approximate_basis[0], e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
+        float4 tE2 = coordinate_to_tetrad_basis(approximate_basis[1], e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
+        float4 tE3 = coordinate_to_tetrad_basis(approximate_basis[2], e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
+
+        struct ortho_result result = orthonormalise(tE1.yzw, tE2.yzw, tE3.yzw);
+
+        float4 basis1 = (float4)(tE1.x, result.v1);
+        float4 basis2 = (float4)(tE2.x, result.v2);
+        float4 basis3 = (float4)(tE3.x, result.v3);
+
+        float4 x_basis = basis2;
+        float4 y_basis = basis3;
+        float4 z_basis = basis1;
+
+        float4 x_out = tetrad_to_coordinate_basis(x_basis, e0, e1, e2, e3);
+        float4 y_out = tetrad_to_coordinate_basis(y_basis, e0, e1, e2, e3);
+        float4 z_out = tetrad_to_coordinate_basis(z_basis, e0, e1, e2, e3);
+
+        sVx = x_out;
+        sVy = y_out;
+        sVz = z_out;
+    }
+
     *e0_out = bT;
     *e1_out = sVx;
     *e2_out = sVy;
@@ -2228,8 +2272,8 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
     float3 cartesian_cy = normalize(spherical_velocity_to_cartesian_velocity(apolar, polar_y.yzw));
     float3 cartesian_cz = normalize(spherical_velocity_to_cartesian_velocity(apolar, polar_z.yzw));
 
-    if(on_geodesic == 0)
-        pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
+    //if(on_geodesic == 0)
+    //    pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
 
     pixel_direction = normalize(pixel_direction);
 
