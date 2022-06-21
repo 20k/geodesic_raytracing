@@ -2097,7 +2097,7 @@ void calculate_tetrads(float4 polar_camera,
 }
 
 __kernel
-void init_basis_vectors(__global float4* g_polar_camera_in,
+void init_basis_vectors(__global float4* g_polar_camera_in, __global float4* g_camera_quat,
                         __global float4* e0_out, __global float4* e1_out, __global float4* e2_out, __global float4* e3_out,
                         dynamic_config_space struct dynamic_config* cfg)
 {
@@ -2117,6 +2117,11 @@ void init_basis_vectors(__global float4* g_polar_camera_in,
     float4 e1 = sVx;
     float4 e2 = sVy;
     float4 e3 = sVz;
+
+    printf("Basis bT %f %f %f %f\n", e0.x, e0.y, e0.z, e0.w);
+    printf("Basis sVx %f %f %f %f\n", e1.x, e1.y, e1.z, e1.w);
+    printf("Basis sVy %f %f %f %f\n", e2.x, e2.y, e2.z, e2.w);
+    printf("Basis sVz %f %f %f %f\n", e3.x, e3.y, e3.z, e3.w);
 
     ///void get_tetrad_inverse(float4 e0_hi, float4 e1_hi, float4 e2_hi, float4 e3_hi, float4* oe0_lo, float4* oe1_lo, float4* oe2_lo, float4* oe3_lo)
 
@@ -2162,6 +2167,11 @@ void init_basis_vectors(__global float4* g_polar_camera_in,
         sVy = y_out;
         sVz = z_out;
     }
+
+    printf("Out Basis bT %f %f %f %f\n", bT.x, bT.y, bT.z, bT.w);
+    printf("Out Basis sVx %f %f %f %f\n", sVx.x, sVx.y, sVx.z, sVx.w);
+    printf("Out Basis sVy %f %f %f %f\n", sVy.x, sVy.y, sVy.z, sVy.w);
+    printf("Out Basis sVz %f %f %f %f\n", sVz.x, sVz.y, sVz.z, sVz.w);
 
     *e0_out = bT;
     *e1_out = sVx;

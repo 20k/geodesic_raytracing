@@ -1384,6 +1384,7 @@ int main()
                 {
                     cl::args tetrad_args;
                     tetrad_args.push_back(g_camera_pos_polar);
+                    tetrad_args.push_back(g_camera_quat);
 
                     for(int i=0; i < 4; i++)
                     {
