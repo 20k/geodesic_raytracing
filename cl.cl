@@ -2125,6 +2125,8 @@ void init_basis_vectors(__global float4* g_polar_camera_in,
     ///void get_tetrad_inverse(float4 e0_hi, float4 e1_hi, float4 e2_hi, float4 e3_hi, float4* oe0_lo, float4* oe1_lo, float4* oe2_lo, float4* oe3_lo)
 
     {
+        float4 cart_camera = (float4)(g_polar_camera_in->x, polar_to_cartesian(g_polar_camera_in->yzw));
+
         float4 e_lo[4];
         get_tetrad_inverse(bT, sVx, sVy, sVz, &e_lo[0], &e_lo[1], &e_lo[2], &e_lo[3]);
 
@@ -2132,6 +2134,10 @@ void init_basis_vectors(__global float4* g_polar_camera_in,
         float4 cx = (float4)(sVx.x, 1, 0, 0);
         float4 cy = (float4)(sVy.x, 0, 1, 0);
         float4 cz = (float4)(sVz.x, 0, 0, 1);
+
+        cx = cartesian_velocity_to_generic_velocity(cart_camera, cx, cfg);
+        cy = cartesian_velocity_to_generic_velocity(cart_camera, cy, cfg);
+        cz = cartesian_velocity_to_generic_velocity(cart_camera, cz, cfg);
 
         /*float3 right = rot_quat((float3){1, 0, 0}, local_camera_quat);
         float3 forw = rot_quat((float3){0, 0, 1}, local_camera_quat);*/
