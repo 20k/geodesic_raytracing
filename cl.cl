@@ -2126,7 +2126,6 @@ void init_basis_vectors(__global float4* g_polar_camera_in,
         float4 e_lo[4];
         get_tetrad_inverse(bT, sVx, sVy, sVz, &e_lo[0], &e_lo[1], &e_lo[2], &e_lo[3]);
 
-        ///doesn't work because we're in generic coordinates!!! which makes this an identity matrix
         float4 cx = (float4)(sVx.x, 1, 0, 0);
         float4 cy = (float4)(sVy.x, 0, 1, 0);
         float4 cz = (float4)(sVz.x, 0, 0, 1);
@@ -2138,8 +2137,6 @@ void init_basis_vectors(__global float4* g_polar_camera_in,
         /*float3 right = rot_quat((float3){1, 0, 0}, local_camera_quat);
         float3 forw = rot_quat((float3){0, 0, 1}, local_camera_quat);*/
 
-        //float4 approximate_basis[3] = {cz, cy, cx};
-        //float4 approximate_basis[3] = {cz, cx, cy};
         float4 approximate_basis[3] = {cy, cx, cz};
 
         float4 tE1 = coordinate_to_tetrad_basis(approximate_basis[0], e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
@@ -2151,10 +2148,6 @@ void init_basis_vectors(__global float4* g_polar_camera_in,
         float4 basis1 = (float4)(tE1.x, result.v1);
         float4 basis2 = (float4)(tE2.x, result.v2);
         float4 basis3 = (float4)(tE3.x, result.v3);
-
-        /*float4 x_basis = basis2;
-        float4 y_basis = basis3;
-        float4 z_basis = basis1;*/
 
         float4 x_basis = basis2;
         float4 y_basis = basis1;
