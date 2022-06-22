@@ -2051,7 +2051,7 @@ void quat_to_basis(__global float4* camera_quat,
 
 void calculate_tetrads(float4 polar_camera,
                        float4* e0_out, float4* e1_out, float4* e2_out, float4* e3_out,
-                       dynamic_config_space struct dynamic_config* cfg)
+                       dynamic_config_space struct dynamic_config* cfg, int should_orient)
 {
     float4 at_metric = spherical_to_generic(polar_camera, cfg);
 
@@ -2061,19 +2061,19 @@ void calculate_tetrads(float4 polar_camera,
 
     float4 co_basis = (float4){native_sqrt(-g_metric[0]), native_sqrt(g_metric[1]), native_sqrt(g_metric[2]), native_sqrt(g_metric[3])};
 
-    float4 bT = (float4)(1/co_basis.x, 0, 0, 0); ///or bt
-    float4 bX = (float4)(0, 1/co_basis.y, 0, 0); ///or br
-    float4 btheta = (float4)(0, 0, 1/co_basis.z, 0);
-    float4 bphi = (float4)(0, 0, 0, 1/co_basis.w);
+    float4 e0 = (float4)(1/co_basis.x, 0, 0, 0); ///or bt
+    float4 e1 = (float4)(0, 1/co_basis.y, 0, 0); ///or br
+    float4 e2 = (float4)(0, 0, 1/co_basis.z, 0);
+    float4 e3 = (float4)(0, 0, 0, 1/co_basis.w);
     #else
     float g_metric_big[16] = {0};
     calculate_metric_generic_big(at_metric, g_metric_big, cfg);
 
     ///contravariant
-    float4 bT;
-    float4 bX;
-    float4 btheta;
-    float4 bphi;
+    float4 e0;
+    float4 e1;
+    float4 e2;
+    float4 e3;
 
     {
         struct frame_basis basis = calculate_frame_basis(g_metric_big);
@@ -2089,10 +2089,10 @@ void calculate_tetrads(float4 polar_camera,
             printf("ORTHONORMAL? %f %f %f %f %f\n", d1, d2, d3, d4, d5);
         }*/
 
-        bT = basis.v1;
-        bX = basis.v2;
-        btheta = basis.v3;
-        bphi = basis.v4;
+        e0 = basis.v1;
+        e1 = basis.v2;
+        e2 = basis.v3;
+        e3 = basis.v4;
     }
     #endif // GENERIC_BIG_METRIC
 
@@ -2116,14 +2116,79 @@ void calculate_tetrads(float4 polar_camera,
     float4 sVz = tensor_contract(lorentz, bX);
     */
 
-    float4 sVx = btheta;
-    float4 sVy = bphi;
-    float4 sVz = bX;
+    if(should_orient)
+    {
+        /*printf("Basis bT %f %f %f %f\n", e0.x, e0.y, e0.z, e0.w);
+        printf("Basis sVx %f %f %f %f\n", e1.x, e1.y, e1.z, e1.w);
+        printf("Basis sVy %f %f %f %f\n", e2.x, e2.y, e2.z, e2.w);
+        printf("Basis sVz %f %f %f %f\n", e3.x, e3.y, e3.z, e3.w);*/
 
-    *e0_out = bT;
-    *e1_out = sVx;
-    *e2_out = sVy;
-    *e3_out = sVz;
+        ///void get_tetrad_inverse(float4 e0_hi, float4 e1_hi, float4 e2_hi, float4 e3_hi, float4* oe0_lo, float4* oe1_lo, float4* oe2_lo, float4* oe3_lo)
+
+        float4 le0;
+        float4 le1;
+        float4 le2;
+        float4 le3;
+
+        {
+            float4 cart_camera = (float4)(polar_camera.x, polar_to_cartesian(polar_camera.yzw));
+
+            float4 e_lo[4];
+            get_tetrad_inverse(e0, e1, e2, e3, &e_lo[0], &e_lo[1], &e_lo[2], &e_lo[3]);
+
+            float4 cx = (float4)(0, 1, 0, 0);
+            float4 cy = (float4)(0, 0, 1, 0);
+            float4 cz = (float4)(0, 0, 0, 1);
+
+            cx = cartesian_velocity_to_generic_velocity(cart_camera, cx, cfg);
+            cy = cartesian_velocity_to_generic_velocity(cart_camera, cy, cfg);
+            cz = cartesian_velocity_to_generic_velocity(cart_camera, cz, cfg);
+
+            /*float3 right = rot_quat((float3){1, 0, 0}, local_camera_quat);
+            float3 forw = rot_quat((float3){0, 0, 1}, local_camera_quat);*/
+
+            ///normalise with y first, so that the camera controls always work intuitively - as they are inherently a 'global' concept
+            float4 approximate_basis[3] = {cy, cx, cz};
+
+            float4 tE1 = coordinate_to_tetrad_basis(approximate_basis[0], e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
+            float4 tE2 = coordinate_to_tetrad_basis(approximate_basis[1], e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
+            float4 tE3 = coordinate_to_tetrad_basis(approximate_basis[2], e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
+
+            struct ortho_result result = orthonormalise(tE1.yzw, tE2.yzw, tE3.yzw);
+
+            float4 basis1 = (float4)(0, result.v1);
+            float4 basis2 = (float4)(0, result.v2);
+            float4 basis3 = (float4)(0, result.v3);
+
+            float4 x_basis = basis2;
+            float4 y_basis = basis1;
+            float4 z_basis = basis3;
+
+            float4 x_out = tetrad_to_coordinate_basis(x_basis, e0, e1, e2, e3);
+            float4 y_out = tetrad_to_coordinate_basis(y_basis, e0, e1, e2, e3);
+            float4 z_out = tetrad_to_coordinate_basis(z_basis, e0, e1, e2, e3);
+
+            le0 = e0;
+            le1 = x_out;
+            le2 = y_out;
+            le3 = z_out;
+        }
+
+        /*printf("Out Basis bT %f %f %f %f\n", le0.x, le0.y, le0.z, le0.w);
+        printf("Out Basis sVx %f %f %f %f\n", le1.x, le1.y, le1.z, le1.w);
+        printf("Out Basis sVy %f %f %f %f\n", le2.x, le2.y, le2.z, le2.w);
+        printf("Out Basis sVz %f %f %f %f\n", le3.x, le3.y, le3.z, le3.w);*/
+
+        e0 = le0;
+        e1 = le1;
+        e2 = le2;
+        e3 = le3;
+    }
+
+    *e0_out = e0;
+    *e1_out = e1;
+    *e2_out = e2;
+    *e3_out = e3;
 }
 
 __kernel
@@ -2136,79 +2201,17 @@ void init_basis_vectors(__global float4* g_polar_camera_in, __global float4* g_c
 
     float4 polar_camera_in = *g_polar_camera_in;
 
-    float4 generic_pos = spherical_to_generic(polar_camera_in, cfg);
+    float4 e0;
+    float4 e1;
+    float4 e2;
+    float4 e3;
 
-    float4 bT;
-    float4 sVx;
-    float4 sVy;
-    float4 sVz;
+    calculate_tetrads(polar_camera_in, &e0, &e1, &e2, &e3, cfg, 1);
 
-    calculate_tetrads(polar_camera_in, &bT, &sVx, &sVy, &sVz, cfg);
-
-    float4 e0 = bT;
-    float4 e1 = sVx;
-    float4 e2 = sVy;
-    float4 e3 = sVz;
-
-    printf("Basis bT %f %f %f %f\n", e0.x, e0.y, e0.z, e0.w);
-    printf("Basis sVx %f %f %f %f\n", e1.x, e1.y, e1.z, e1.w);
-    printf("Basis sVy %f %f %f %f\n", e2.x, e2.y, e2.z, e2.w);
-    printf("Basis sVz %f %f %f %f\n", e3.x, e3.y, e3.z, e3.w);
-
-    ///void get_tetrad_inverse(float4 e0_hi, float4 e1_hi, float4 e2_hi, float4 e3_hi, float4* oe0_lo, float4* oe1_lo, float4* oe2_lo, float4* oe3_lo)
-
-    {
-        float4 cart_camera = (float4)(g_polar_camera_in->x, polar_to_cartesian(g_polar_camera_in->yzw));
-
-        float4 e_lo[4];
-        get_tetrad_inverse(bT, sVx, sVy, sVz, &e_lo[0], &e_lo[1], &e_lo[2], &e_lo[3]);
-
-        float4 cx = (float4)(0, 1, 0, 0);
-        float4 cy = (float4)(0, 0, 1, 0);
-        float4 cz = (float4)(0, 0, 0, 1);
-
-        cx = cartesian_velocity_to_generic_velocity(cart_camera, cx, cfg);
-        cy = cartesian_velocity_to_generic_velocity(cart_camera, cy, cfg);
-        cz = cartesian_velocity_to_generic_velocity(cart_camera, cz, cfg);
-
-        /*float3 right = rot_quat((float3){1, 0, 0}, local_camera_quat);
-        float3 forw = rot_quat((float3){0, 0, 1}, local_camera_quat);*/
-
-        ///normalise with y first, so that the camera controls always work intuitively - as they are inherently a 'global' concept
-        float4 approximate_basis[3] = {cy, cx, cz};
-
-        float4 tE1 = coordinate_to_tetrad_basis(approximate_basis[0], e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
-        float4 tE2 = coordinate_to_tetrad_basis(approximate_basis[1], e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
-        float4 tE3 = coordinate_to_tetrad_basis(approximate_basis[2], e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
-
-        struct ortho_result result = orthonormalise(tE1.yzw, tE2.yzw, tE3.yzw);
-
-        float4 basis1 = (float4)(0, result.v1);
-        float4 basis2 = (float4)(0, result.v2);
-        float4 basis3 = (float4)(0, result.v3);
-
-        float4 x_basis = basis2;
-        float4 y_basis = basis1;
-        float4 z_basis = basis3;
-
-        float4 x_out = tetrad_to_coordinate_basis(x_basis, e0, e1, e2, e3);
-        float4 y_out = tetrad_to_coordinate_basis(y_basis, e0, e1, e2, e3);
-        float4 z_out = tetrad_to_coordinate_basis(z_basis, e0, e1, e2, e3);
-
-        sVx = x_out;
-        sVy = y_out;
-        sVz = z_out;
-    }
-
-    printf("Out Basis bT %f %f %f %f\n", bT.x, bT.y, bT.z, bT.w);
-    printf("Out Basis sVx %f %f %f %f\n", sVx.x, sVx.y, sVx.z, sVx.w);
-    printf("Out Basis sVy %f %f %f %f\n", sVy.x, sVy.y, sVy.z, sVy.w);
-    printf("Out Basis sVz %f %f %f %f\n", sVz.x, sVz.y, sVz.z, sVz.w);
-
-    *e0_out = bT;
-    *e1_out = sVx;
-    *e2_out = sVy;
-    *e3_out = sVz;
+    *e0_out = e0;
+    *e1_out = e1;
+    *e2_out = e2;
+    *e3_out = e3;
 }
 
 __kernel
@@ -2226,7 +2229,7 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
     float4 start_generic = geodesic_path[0];
 
     float4 e0, e1, e2, e3;
-    calculate_tetrads(generic_to_spherical(start_generic, cfg), &e0, &e1, &e2, &e3, cfg);
+    calculate_tetrads(generic_to_spherical(start_generic, cfg), &e0, &e1, &e2, &e3, cfg, 1);
 
     int cnt = *count_in;
 
