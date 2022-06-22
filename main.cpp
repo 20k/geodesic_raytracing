@@ -853,7 +853,7 @@ int main()
     vec2f base_angle = {M_PI/2, 0};
     float set_camera_time = 0;
 
-    printf("Pre main\n");
+    printf("Pre fullscreen\n");
 
     steady_timer workshop_poll;
     steady_timer frametime_timer;
@@ -885,17 +885,7 @@ int main()
     current_settings.vsync_enabled = win.backend->is_vsync();
     current_settings.fullscreen = win.backend->is_maximised();
 
-    printf("Prog1\n");
-
-    cl::program util(clctx.ctx, "util.cl");
-    util.build(clctx.ctx, "-cl-std=CL1.2 -cl-fast-relaxed-math ");
-
-    //cl::kernel handle_controls_free(util, "handle_controls_free");
-    cl::kernel camera_cart_to_polar(util, "camera_cart_to_polar");
-    cl::kernel advance_time(util, "advance_time");
-    cl::kernel set_time(util, "set_time");
-
-    printf("Prog2\n");
+    printf("Pre main\n");
 
     bool reset_camera = true;
 
@@ -1181,6 +1171,7 @@ int main()
             float time = clk.restart().asMicroseconds() / 1000.;
 
             bool should_soft_recompile = false;
+            bool should_update_camera_time = false;
 
             if(!taking_screenshot && !hide_ui && !menu.is_first_time_main_menu_open())
             {
@@ -1194,11 +1185,7 @@ int main()
                         //ImGui::DragFloat3("Cart Pos", &camera.v[1]);
                         if(ImGui::SliderFloat("Camera Time", &set_camera_time, 0.f, 100.f))
                         {
-                            cl::args args;
-                            args.push_back(g_camera_pos_cart);
-                            args.push_back(set_camera_time);
-
-                            clctx.cqueue.exec("set_time", args, {1}, {1});
+                            should_update_camera_time = true;
                         }
 
                         ImGui::DragFloat("Frametime", &time);
@@ -1299,19 +1286,6 @@ int main()
             //if(time_progresses)
             //    camera.v[0] += time / 1000.f;
 
-            if(time_progresses)
-            {
-                set_camera_time += time / 1000.f;
-
-                cl::args args;
-                args.push_back(g_camera_pos_cart);
-                args.push_back(set_camera_time);
-
-                set_time.set_args(args);
-
-                clctx.cqueue.exec(set_time, {1}, {1});
-            }
-
             if(camera_time_progresses)
                 current_geodesic_time += camera_geodesic_time_progression_speed * time / 1000.f;
 
@@ -1321,6 +1295,26 @@ int main()
 
             metric_manage.check_substitution(clctx.ctx);
 
+            if(time_progresses)
+            {
+                set_camera_time += time / 1000.f;
+
+                cl::args args;
+                args.push_back(g_camera_pos_cart);
+                args.push_back(set_camera_time);
+
+                clctx.cqueue.exec("set_time", args, {1}, {1});
+            }
+
+            if(should_update_camera_time)
+            {
+                cl::args args;
+                args.push_back(g_camera_pos_cart);
+                args.push_back(set_camera_time);
+
+                clctx.cqueue.exec("set_time", args, {1}, {1});
+                should_update_camera_time = false;
+            }
 
             /*vec4f scamera = cartesian_to_schwarz(camera);
 
@@ -1375,9 +1369,7 @@ int main()
 
                     args.push_back(clflip);
 
-                    camera_cart_to_polar.set_args(args);
-
-                    clctx.cqueue.exec(camera_cart_to_polar, {1}, {1});
+                    clctx.cqueue.exec("camera_cart_to_polar", args, {1}, {1});
                 }
 
                 if(!camera_on_geodesic)
@@ -1395,28 +1387,6 @@ int main()
 
                     clctx.cqueue.exec("init_basis_vectors", tetrad_args, {1}, {1});
                 }
-
-                //if(reset_camera)
-                /*if(!camera_on_geodesic)
-                {
-                    cl::args mat_args;
-                    mat_args.push_back(g_camera_pos_polar);
-                    mat_args.push_back(g_camera_quat);
-
-                    for(auto& i : tetrad)
-                    {
-                        mat_args.push_back(i);
-                    }
-
-                    for(auto& i : camera_basis)
-                    {
-                        mat_args.push_back(i);
-                    }
-
-                    clctx.cqueue.exec("calculate_global_rotation_matrix", mat_args, {1}, {1});
-
-                    reset_camera = false;
-                }*/
             }
 
             float speed = 0.1;

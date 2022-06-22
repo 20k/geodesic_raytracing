@@ -3884,3 +3884,37 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
 
     write_imagef(out, (int2){sx, sy}, end_result);
 }
+
+__kernel
+void camera_cart_to_polar(__global float4* g_camera_pos_polar_out, __global float4* g_camera_pos_cart, float flip)
+{
+    if(get_global_id(0) != 0)
+        return;
+
+    float3 cart = g_camera_pos_cart->yzw;
+
+    float3 polar = cartesian_to_polar(cart);
+
+    if(flip > 0)
+        polar.x = -polar.x;
+
+    *g_camera_pos_polar_out = (float4)(g_camera_pos_cart->x, polar.xyz);
+}
+
+__kernel
+void advance_time(__global float4* camera, float time)
+{
+    if(get_global_id(0) != 0)
+        return;
+
+    camera->x += time;
+}
+
+__kernel
+void set_time(__global float4* camera, float time)
+{
+    if(get_global_id(0) != 0)
+        return;
+
+    camera->x = time;
+}
