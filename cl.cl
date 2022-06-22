@@ -2216,8 +2216,14 @@ void init_basis_vectors(__global float4* g_polar_camera_in, __global float4* g_c
 
 float4 mix_spherical(float4 in1, float4 in2, float a)
 {
-    float3 cart1 = polar_to_cartesian(in1.yzw);
-    float3 cart2 = polar_to_cartesian(in2.yzw);
+    float4 ain1 = in1;
+    float4 ain2 = in2;
+
+    ain1.y = fabs(ain1.y);
+    ain2.y = fabs(ain2.y);
+
+    float3 cart1 = polar_to_cartesian(ain1.yzw);
+    float3 cart2 = polar_to_cartesian(ain1.yzw);
 
     float r1 = in1.y;
     float r2 = in2.y;
@@ -2335,10 +2341,10 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
             float4 oe2 = mix_spherical_velocity(spherical1, spherical2, cce2, cne2, dx);
             float4 oe3 = mix_spherical_velocity(spherical1, spherical2, cce3, cne3, dx);
 
-            *e0_out = oe0;
-            *e1_out = oe1;
-            *e2_out = oe2;
-            *e3_out = oe3;
+            *e0_out = e0;
+            *e1_out = e1;
+            *e2_out = e2;
+            *e3_out = e3;
 
             ///so. now we have the basis. Need to apply camera rotation to it
             ///or... could just parallel transport the whole rotation initially?
