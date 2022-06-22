@@ -2223,7 +2223,7 @@ float4 mix_spherical(float4 in1, float4 in2, float a)
     ain2.y = fabs(ain2.y);
 
     float3 cart1 = polar_to_cartesian(ain1.yzw);
-    float3 cart2 = polar_to_cartesian(ain1.yzw);
+    float3 cart2 = polar_to_cartesian(ain2.yzw);
 
     float r1 = in1.y;
     float r2 = in2.y;
@@ -2332,21 +2332,10 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
             float4 fin_polar = mix_spherical(spherical1, spherical2, dx);
             *g_camera_polar_out = fin_polar;
 
-            ///interpolating tetrads will inherently never work across r = 0
-            float4 cce0 = generic_velocity_to_spherical_velocity(current_pos, e0, cfg);
-            float4 cce1 = generic_velocity_to_spherical_velocity(current_pos, e1, cfg);
-            float4 cce2 = generic_velocity_to_spherical_velocity(current_pos, e2, cfg);
-            float4 cce3 = generic_velocity_to_spherical_velocity(current_pos, e3, cfg);
-
-            float4 cne0 = generic_velocity_to_spherical_velocity(next_pos, ne0, cfg);
-            float4 cne1 = generic_velocity_to_spherical_velocity(next_pos, ne1, cfg);
-            float4 cne2 = generic_velocity_to_spherical_velocity(next_pos, ne2, cfg);
-            float4 cne3 = generic_velocity_to_spherical_velocity(next_pos, ne3, cfg);
-
-            float4 oe0 = mix_spherical_velocity(spherical1, spherical2, cce0, cne0, dx);
-            float4 oe1 = mix_spherical_velocity(spherical1, spherical2, cce1, cne1, dx);
-            float4 oe2 = mix_spherical_velocity(spherical1, spherical2, cce2, cne2, dx);
-            float4 oe3 = mix_spherical_velocity(spherical1, spherical2, cce3, cne3, dx);
+            float4 oe0 = mix(e0, ne0, dx);
+            float4 oe1 = mix(e1, ne1, dx);
+            float4 oe2 = mix(e2, ne2, dx);
+            float4 oe3 = mix(e3, ne3, dx);
 
             *e0_out = oe0;
             *e1_out = oe1;
