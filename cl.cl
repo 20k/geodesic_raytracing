@@ -2233,6 +2233,29 @@ float4 mix_spherical(float4 in1, float4 in2, float a)
     return (float4)(t, as_polar);
 }
 
+float4 mix_spherical_velocity(float4 p1, float4 p2, float4 in1, float4 in2, float a)
+{
+    float3 cart1 = spherical_velocity_to_cartesian_velocity(p1.yzw, in1.yzw);
+    float3 cart2 = spherical_velocity_to_cartesian_velocity(p2.yzw, in2.yzw);
+
+    float3 cp_1 = polar_to_cartesian(p1.yzw);
+    float3 cp_2 = polar_to_cartesian(p2.yzw);
+
+    float r1 = in1.y;
+    float r2 = in2.y;
+
+    float3 mixed = mix(cart1, cart2, a);
+    float3 mixed_cart_pos = mix(cp_1, cp_2, a);
+
+    float3 as_polar = cartesian_velocity_to_polar_velocity(mixed_cart_pos, mixed);
+
+    as_polar.x = mix(r1, r2, a);
+
+    float t = mix(in1.x, in2.x, a);
+
+    return (float4)(t, as_polar);
+}
+
 __kernel
 void handle_interpolating_geodesic(__global float4* geodesic_path, __global float4* geodesic_velocity, __global float* dT_dt, __global float* ds_in,
                                    __global float4* g_camera_quat,
@@ -2307,15 +2330,15 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
             float4 cne2 = generic_velocity_to_spherical_velocity(next_pos, ne2, cfg);
             float4 cne3 = generic_velocity_to_spherical_velocity(next_pos, ne3, cfg);
 
-            float4 oe0 = mix_spherical(cce0, cne0, dx);
-            float4 oe1 = mix_spherical(cce1, cne1, dx);
-            float4 oe2 = mix_spherical(cce2, cne2, dx);
-            float4 oe3 = mix_spherical(cce3, cne3, dx);
+            float4 oe0 = mix_spherical_velocity(spherical1, spherical2, cce0, cne0, dx);
+            float4 oe1 = mix_spherical_velocity(spherical1, spherical2, cce1, cne1, dx);
+            float4 oe2 = mix_spherical_velocity(spherical1, spherical2, cce2, cne2, dx);
+            float4 oe3 = mix_spherical_velocity(spherical1, spherical2, cce3, cne3, dx);
 
-            *e0_out = e0;
-            *e1_out = e1;
-            *e2_out = e2;
-            *e3_out = e3;
+            *e0_out = oe0;
+            *e1_out = oe1;
+            *e2_out = oe2;
+            *e3_out = oe3;
 
             ///so. now we have the basis. Need to apply camera rotation to it
             ///or... could just parallel transport the whole rotation initially?
