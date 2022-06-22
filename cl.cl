@@ -2239,35 +2239,6 @@ float4 mix_spherical(float4 in1, float4 in2, float a)
     return (float4)(t, as_polar);
 }
 
-float4 mix_spherical_velocity(float4 p1, float4 p2, float4 in1, float4 in2, float a)
-{
-    float4 ap1 = p1;
-    float4 ap2 = p2;
-
-    ap1.y = fabs(ap1.y);
-    ap2.y = fabs(ap2.y);
-
-    float3 cart1 = spherical_velocity_to_cartesian_velocity(ap1.yzw, in1.yzw);
-    float3 cart2 = spherical_velocity_to_cartesian_velocity(ap2.yzw, in2.yzw);
-
-    float3 cp_1 = polar_to_cartesian(ap1.yzw);
-    float3 cp_2 = polar_to_cartesian(ap2.yzw);
-
-    //float r1 = in1.y;
-    //float r2 = in2.y;
-
-    float3 mixed = mix(cart1, cart2, a);
-    float3 mixed_cart_pos = mix(cp_1, cp_2, a);
-
-    float3 as_polar = cartesian_velocity_to_polar_velocity(mixed_cart_pos, mixed);
-
-    //as_polar.x = mix(r1, r2, a);
-
-    float t = mix(in1.x, in2.x, a);
-
-    return (float4)(t, as_polar);
-}
-
 __kernel
 void handle_interpolating_geodesic(__global float4* geodesic_path, __global float4* geodesic_velocity, __global float* dT_dt, __global float* ds_in,
                                    __global float4* g_camera_quat,
