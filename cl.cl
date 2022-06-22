@@ -2133,33 +2133,13 @@ void init_basis_vectors(__global float4* g_polar_camera_in, __global float4* g_c
         float4 e_lo[4];
         get_tetrad_inverse(bT, sVx, sVy, sVz, &e_lo[0], &e_lo[1], &e_lo[2], &e_lo[3]);
 
-        float4 cx = (float4)(sVx.x, 1, 0, 0);
-        float4 cy = (float4)(sVy.x, 0, 1, 0);
-        float4 cz = (float4)(sVz.x, 0, 0, 1);
+        float4 cx = (float4)(0, 1, 0, 0);
+        float4 cy = (float4)(0, 0, 1, 0);
+        float4 cz = (float4)(0, 0, 0, 1);
 
         cx = cartesian_velocity_to_generic_velocity(cart_camera, cx, cfg);
         cy = cartesian_velocity_to_generic_velocity(cart_camera, cy, cfg);
         cz = cartesian_velocity_to_generic_velocity(cart_camera, cz, cfg);
-
-        /*float4 cx = generic_velocity_to_cartesian_velocity(generic_pos, e1, cfg);
-        float4 cy = generic_velocity_to_cartesian_velocity(generic_pos, e2, cfg);
-        float4 cz = generic_velocity_to_cartesian_velocity(generic_pos, e3, cfg);
-
-        {
-            struct ortho_result result = orthonormalise(cx.yzw, cy.yzw, cz.yzw);
-
-            float3 ocx = unrotate_vector(cx.yzw, result.v1, result.v2, result.v3);
-            float3 ocy = unrotate_vector(cy.yzw, result.v1, result.v2, result.v3);
-            float3 ocz = unrotate_vector(cz.yzw, result.v1, result.v2, result.v3);
-
-            cx.yzw = ocx;
-            cy.yzw = ocy;
-            cz.yzw = ocz;
-
-            cx = cartesian_velocity_to_generic_velocity(cart_camera, cx, cfg);
-            cy = cartesian_velocity_to_generic_velocity(cart_camera, cy, cfg);
-            cz = cartesian_velocity_to_generic_velocity(cart_camera, cz, cfg);
-        }*/
 
         /*float3 right = rot_quat((float3){1, 0, 0}, local_camera_quat);
         float3 forw = rot_quat((float3){0, 0, 1}, local_camera_quat);*/
@@ -2173,9 +2153,9 @@ void init_basis_vectors(__global float4* g_polar_camera_in, __global float4* g_c
 
         struct ortho_result result = orthonormalise(tE1.yzw, tE2.yzw, tE3.yzw);
 
-        float4 basis1 = (float4)(tE1.x*0, result.v1);
-        float4 basis2 = (float4)(tE2.x*0, result.v2);
-        float4 basis3 = (float4)(tE3.x*0, result.v3);
+        float4 basis1 = (float4)(0, result.v1);
+        float4 basis2 = (float4)(0, result.v2);
+        float4 basis3 = (float4)(0, result.v3);
 
         float4 x_basis = basis2;
         float4 y_basis = basis1;
