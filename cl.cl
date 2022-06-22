@@ -2214,6 +2214,25 @@ void init_basis_vectors(__global float4* g_polar_camera_in, __global float4* g_c
     *e3_out = e3;
 }
 
+float4 mix_spherical(float4 in1, float4 in2, float a)
+{
+    float3 cart1 = polar_to_cartesian(in1.yzw);
+    float3 cart2 = polar_to_cartesian(in2.yzw);
+
+    float r1 = in1.y;
+    float r2 = in2.y;
+
+    float3 mixed = mix(cart1, cart2, a);
+
+    float3 as_polar = cartesian_to_polar(mixed);
+
+    as_polar.x = mix(r1, r2, a);
+
+    float t = mix(in1.x, in2.x, a);
+
+    return (float4)(t, as_polar);
+}
+
 __kernel
 void handle_interpolating_geodesic(__global float4* geodesic_path, __global float4* geodesic_velocity, __global float* dT_dt, __global float* ds_in,
                                    __global float4* g_camera_quat,
@@ -2246,10 +2265,17 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
 
     for(int i=0; i < cnt - 1; i++)
     {
+        float ds = ds_in[i];
+
         float4 current_pos = geodesic_path[i];
         float4 next_pos = geodesic_path[i + 1];
 
         float4 velocity = geodesic_velocity[i];
+
+        float4 ne0 = e0 + parallel_transport_get_acceleration(e0, geodesic_path[i], velocity, cfg) * ds;
+        float4 ne1 = e1 + parallel_transport_get_acceleration(e1, geodesic_path[i], velocity, cfg) * ds;
+        float4 ne2 = e2 + parallel_transport_get_acceleration(e2, geodesic_path[i], velocity, cfg) * ds;
+        float4 ne3 = e3 + parallel_transport_get_acceleration(e3, geodesic_path[i], velocity, cfg) * ds;
 
         if(next_pos.x < current_pos.x)
         {
@@ -2260,13 +2286,31 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
 
         float dt = next_pos.x - current_pos.x;
 
-        //printf("Ctime %f %f %f\n", current_time, current_pos.x, next_pos.x);
-
         if(target_time >= current_pos.x && target_time < next_pos.x)
         {
-            //printf("hi\n");
+            float dx = (target_time - current_pos.x) / (next_pos.x - current_pos.x);
 
-            *g_camera_polar_out = generic_to_spherical(current_pos, cfg);
+            ///NEED TO BACKWARDS ROTATE POS FOR CONSTANT THETA
+            float4 spherical1 = generic_to_spherical(current_pos, cfg);
+            float4 spherical2 = generic_to_spherical(next_pos, cfg);
+
+            float4 fin_polar = mix_spherical(spherical1, spherical2, dx);
+            *g_camera_polar_out = fin_polar;
+
+            float4 cce0 = generic_velocity_to_spherical_velocity(current_pos, e0, cfg);
+            float4 cce1 = generic_velocity_to_spherical_velocity(current_pos, e1, cfg);
+            float4 cce2 = generic_velocity_to_spherical_velocity(current_pos, e2, cfg);
+            float4 cce3 = generic_velocity_to_spherical_velocity(current_pos, e3, cfg);
+
+            float4 cne0 = generic_velocity_to_spherical_velocity(next_pos, ne0, cfg);
+            float4 cne1 = generic_velocity_to_spherical_velocity(next_pos, ne1, cfg);
+            float4 cne2 = generic_velocity_to_spherical_velocity(next_pos, ne2, cfg);
+            float4 cne3 = generic_velocity_to_spherical_velocity(next_pos, ne3, cfg);
+
+            float4 oe0 = mix_spherical(cce0, cne0, dx);
+            float4 oe1 = mix_spherical(cce1, cne1, dx);
+            float4 oe2 = mix_spherical(cce2, cne2, dx);
+            float4 oe3 = mix_spherical(cce3, cne3, dx);
 
             *e0_out = e0;
             *e1_out = e1;
@@ -2281,26 +2325,10 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
 
         current_time += dt;
 
-        float ds = ds_in[i];
-
-        /*{
-            #ifndef GENERIC_BIG_METRIC
-            float g_metric[4] = {};
-            calculate_metric_generic(current_pos, g_metric, cfg);
-            #else
-            float g_metric[16] = {0};
-            calculate_metric_generic_big(current_pos, g_metric, cfg);
-            #endif // GENERIC_BIG_METRIC
-
-            float ang = dot_product_generic(tb0, velocity, g_metric);
-
-            printf("Ang %f\n", ang);
-        }*/
-
-        e0 += parallel_transport_get_acceleration(e0, geodesic_path[i], velocity, cfg) * ds;
-        e1 += parallel_transport_get_acceleration(e1, geodesic_path[i], velocity, cfg) * ds;
-        e2 += parallel_transport_get_acceleration(e2, geodesic_path[i], velocity, cfg) * ds;
-        e3 += parallel_transport_get_acceleration(e3, geodesic_path[i], velocity, cfg) * ds;
+        e0 = ne0;
+        e1 = ne1;
+        e2 = ne2;
+        e3 = ne3;
     }
 }
 
