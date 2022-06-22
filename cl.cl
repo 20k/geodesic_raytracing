@@ -1398,6 +1398,36 @@ struct ortho_result orthonormalise(float3 i1, float3 i2, float3 i3)
     return result;
 };
 
+struct ortho_result4
+{
+    float3 v1, v2, v3, v4;
+};
+
+struct ortho_result4 orthonormalise4(float3 i1, float3 i2, float3 i3, float3 i4)
+{
+    float3 u1 = i1;
+    float3 u2 = i2;
+    float3 u3 = i3;
+    float3 u4 = i4;
+
+    u2 = u2 - project(u1, u2);
+
+    u3 = u3 - project(u1, u3);
+    u3 = u3 - project(u2, u3);
+
+    u4 = u4 - project(u1, u4);
+    u4 = u4 - project(u2, u4);
+    u4 = u4 - project(u3, u4);
+
+    struct ortho_result4 result;
+    result.v1 = normalize(u1);
+    result.v2 = normalize(u2);
+    result.v3 = normalize(u3);
+    result.v4 = normalize(u4);
+
+    return result;
+};
+
 struct frame_basis
 {
     float4 v1;
