@@ -1731,7 +1731,7 @@ float3 get_texture_constant_theta_rotation(float3 pixel_direction, float4 polar_
 	return polar_position;
 }
 
-float3 calculate_pixel_direction(int cx, int cy, float width, float height, float4 polar_camera, float4 camera_quat, float2 base_angle)
+float3 calculate_pixel_direction(int cx, int cy, float width, float height, float4 polar_camera, float4 camera_quat)
 {
     #define FOV 90
 
@@ -2298,7 +2298,7 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
                        int width, int height,
                        __global int* termination_buffer,
                        int prepass_width, int prepass_height,
-                       int flip_geodesic_direction, float2 base_angle,
+                       int flip_geodesic_direction,
                        __global float4* e0, __global float4* e1, __global float4* e2, __global float4* e3,
                        float on_geodesic,
                        dynamic_config_space struct dynamic_config* cfg)
@@ -2313,7 +2313,7 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
     const int cx = id % width;
     const int cy = id / width;
 
-    float3 pixel_direction = calculate_pixel_direction(cx, cy, width, height, polar_camera_in, *g_camera_quat, base_angle);
+    float3 pixel_direction = calculate_pixel_direction(cx, cy, width, height, polar_camera_in, *g_camera_quat);
 
     float4 polar_camera = polar_camera_in;
 
@@ -3035,7 +3035,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
                        __global int* generic_count_in, int geodesic_start, int width, int height,
                        __global float4* g_polar_camera_pos, __global float4* g_camera_quat,
                        __global float4* e0, __global float4* e1, __global float4* e2, __global float4* e3,
-                       float2 base_angle, dynamic_config_space struct dynamic_config* cfg, __global int* count_out)
+                       dynamic_config_space struct dynamic_config* cfg, __global int* count_out)
 {
     int id = geodesic_start;
 
@@ -3157,17 +3157,6 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
 
         float4 generic_position_out = position;
         float4 generic_velocity_out = velocity;
-
-        /*{
-
-            float4 polar_out = generic_to_spherical(position, cfg);
-
-            #if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC) || defined(DEBUG_CONSTANT_THETA)
-            polar_out.yzw = get_texture_constant_theta_rotation(pixel_direction, polar_camera_pos, polar_out);
-            #endif
-
-            generic_position_out = spherical_to_generic(polar_out, cfg);
-        }*/
 
         #if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC) || defined(DEBUG_CONSTANT_THETA)
         {
@@ -3306,8 +3295,7 @@ void calculate_singularities(__global struct lightray* finished_rays, __global i
 
 __kernel
 void calculate_texture_coordinates(__global struct lightray* finished_rays, __global int* finished_count_in, __global float2* texture_coordinates, int width, int height, __global float4* g_polar_camera_pos, __global float4* g_camera_quat,
-                                   __global float4* e0, __global float4* e1, __global float4* e2, __global float4* e3,
-                                   float2 base_angle)
+                                   __global float4* e0, __global float4* e1, __global float4* e2, __global float4* e3)
 {
     int id = get_global_id(0);
 

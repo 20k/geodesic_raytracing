@@ -211,31 +211,6 @@ vec4f interpolate_geodesic(const std::vector<cl_float4>& geodesic, const std::ve
     return {selected_geodesic.s[0], selected_geodesic.s[1], selected_geodesic.s[2], selected_geodesic.s[3]};
 }
 
-vec2f get_geodesic_intersection(const metrics::metric& met, const std::vector<cl_float4>& geodesic, const std::vector<cl_float>& geodesic_dT_dt)
-{
-    for(int i=0; i < (int)geodesic.size() - 2; i++)
-    {
-        vec4f cur = {geodesic[i].s[0], geodesic[i].s[1], geodesic[i].s[2], geodesic[i].s[3]};
-        vec4f next = {geodesic[i + 1].s[0], geodesic[i + 1].s[1], geodesic[i + 1].s[2], geodesic[i + 1].s[3]};
-
-        if(signum(geodesic[i].s[1]) != signum(geodesic[i + 1].s[1]))
-        {
-            float total_r = fabs(geodesic[i].s[1]) + fabs(geodesic[i + 1].s[1]);
-
-            float dx = fabs(geodesic[i].s[1]) / total_r;
-
-            vec3f as_cart1 = polar_to_cartesian<float>({fabs(cur.y()), cur.z(), cur.w()});
-            vec3f as_cart2 = polar_to_cartesian<float>({fabs(next.y()), next.z(), next.w()});
-
-            vec3f next_cart = cartesian_to_polar(mix(as_cart1, as_cart2, dx));
-
-            return {next_cart.y(), next_cart.z()};
-        }
-    }
-
-    return {M_PI/2, 0};
-}
-
 cl::image load_mipped_image(const std::string& fname, opencl_context& clctx)
 {
     sf::Image img;
@@ -851,7 +826,6 @@ int main()
     bool camera_time_progresses = false;
     float camera_geodesic_time_progression_speed = 1.f;
     bool camera_geodesics_go_foward = true;
-    vec2f base_angle = {M_PI/2, 0};
     float set_camera_time = 0;
 
     printf("Pre fullscreen\n");
@@ -1526,7 +1500,6 @@ int main()
                     init_args_prepass.push_back(prepass_width);
                     init_args_prepass.push_back(prepass_height);
                     init_args_prepass.push_back(isnap);
-                    init_args_prepass.push_back(base_angle);
 
                     for(auto& i : tetrad)
                     {
@@ -1563,7 +1536,6 @@ int main()
                 init_args.push_back(prepass_width);
                 init_args.push_back(prepass_height);
                 init_args.push_back(isnap);
-                init_args.push_back(base_angle);
 
                 for(auto& i : tetrad)
                 {
@@ -1603,7 +1575,6 @@ int main()
                         snapshot_args.push_back(i);
                     }
 
-                    snapshot_args.push_back(base_angle);
                     snapshot_args.push_back(dynamic_config);
                     snapshot_args.push_back(geodesic_count_buffer);
 
@@ -1637,8 +1608,6 @@ int main()
                 {
                     texture_args.push_back(i);
                 }
-
-                texture_args.push_back(base_angle);
 
                 clctx.cqueue.exec("calculate_texture_coordinates", texture_args, {width * height}, {256});
 
