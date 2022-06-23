@@ -2256,6 +2256,23 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
         float4 ne2 = e2 + parallel_transport_get_acceleration(e2, geodesic_path[i], velocity, cfg) * ds;
         float4 ne3 = e3 + parallel_transport_get_acceleration(e3, geodesic_path[i], velocity, cfg) * ds;
 
+        /*{
+            #ifndef GENERIC_BIG_METRIC
+            float g_metric[4] = {0};
+            calculate_metric_generic(next_pos, g_metric, cfg);
+            #else
+            float g_metric[16] = {0};
+            calculate_metric_generic_big(next_pos, g_metric, cfg);
+            #endif // GENERIC_BIG_METRIC
+
+            struct frame_basis basis = orthonormalise4_metric(ne0, ne1, ne2, ne3, g_metric);
+
+            ne0 = basis.v1;
+            ne1 = basis.v2;
+            ne2 = basis.v3;
+            ne3 = basis.v4;
+        }*/
+
         if(next_pos.x < current_pos.x)
         {
             float4 im = current_pos;
