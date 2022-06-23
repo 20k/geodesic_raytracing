@@ -3200,21 +3200,59 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
 
         #endif // ADAPTIVE_PRECISION
 
+        float4 generic_position_out = position;
+        float4 generic_velocity_out = velocity;
+
+        /*{
+
+            float4 polar_out = generic_to_spherical(position, cfg);
+
+            #if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC) || defined(DEBUG_CONSTANT_THETA)
+            polar_out.yzw = get_texture_constant_theta_rotation(pixel_direction, polar_camera_pos, polar_out);
+            #endif
+
+            generic_position_out = spherical_to_generic(polar_out, cfg);
+        }*/
+
+        #if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC) || defined(DEBUG_CONSTANT_THETA)
+        {
+            float4 pos_spherical = generic_to_spherical(position, cfg);
+            float4 vel_spherical = generic_velocity_to_spherical_velocity(position, velocity, cfg);
+
+            float fsign = sign(pos_spherical.y);
+            pos_spherical.y = fabs(pos_spherical.y);
+
+            float3 pos_cart = polar_to_cartesian(pos_spherical.yzw);
+            float3 vel_cart = spherical_velocity_to_cartesian_velocity(pos_spherical.yzw, vel_spherical.yzw);
+
+            float4 quat = get_theta_adjustment_quat(vel_cart, pos_spherical, -1, false);
+
+            pos_cart = rot_quat(pos_cart, quat);
+            vel_cart = rot_quat(vel_cart, quat);
+
+            float3 next_pos_spherical = cartesian_to_polar(pos_cart);
+            float3 next_vel_spherical = cartesian_velocity_to_polar_velocity(pos_cart, vel_cart);
+
+            if(fsign < 0)
+            {
+                next_pos_spherical.x = -next_pos_spherical.x;
+            }
+
+            float4 next_pos_generic = spherical_to_generic((float4)(pos_spherical.x, next_pos_spherical), cfg);
+            float4 next_vel_generic = spherical_velocity_to_generic_velocity((float4)(pos_spherical.x, next_pos_spherical), (float4)(vel_spherical.x, next_vel_spherical), cfg);
+
+            generic_position_out = next_pos_generic;
+            generic_velocity_out = next_vel_generic;
+        }
+        #endif
+
         position = next_position;
         //velocity = fix_light_velocity2(next_velocity, g_metric);
         velocity = next_velocity;
         acceleration = next_acceleration;
 
-        /*
-        float4 polar_out = generic_to_spherical(position, cfg);
-
-        #if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC) || defined(DEBUG_CONSTANT_THETA)
-        polar_out.yzw = get_texture_constant_theta_rotation(pixel_direction, polar_camera_pos, polar_out);
-        #endif
-        */
-
-        positions_out[bufc] = position;
-        velocities_out[bufc] = velocity;
+        positions_out[bufc] = generic_position_out;
+        velocities_out[bufc] = generic_velocity_out;
         dT_dt_out[bufc] = dT_dt;
         ds_out[bufc] = ds;
         bufc++;

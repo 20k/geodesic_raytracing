@@ -439,7 +439,7 @@ namespace metrics
             is_polar_spherically_symmetric = no_offdiagonal_phi_components && in.metric_cfg.system == X_Y_THETA_PHI;
         }
 
-        is_polar_spherically_symmetric = false;
+        //is_polar_spherically_symmetric = false;
 
         if(derivatives.size() == 16)
         {
