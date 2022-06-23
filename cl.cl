@@ -1447,10 +1447,61 @@ float4 gram_proj(float4 u, float4 v, float big_metric[])
 
 float4 normalize_big_metric(float4 in, float big_metric[])
 {
-    float dot = dot_product_big(in, in, big_metric);
+    float d = dot_product_big(in, in, big_metric);
 
-    return in / native_sqrt(fabs(dot));
+    return in / native_sqrt(fabs(d));
 }
+
+float4 gram_proj_generic(float4 u, float4 v, float metric[])
+{
+    float top = dot_product_generic(u, v, metric);
+    float bottom = dot_product_generic(u, u, metric);
+
+    return (top / bottom) * u;
+}
+
+float4 normalise_generic(float4 in, float metric[])
+{
+    float d = dot_product_generic(in, in, metric);
+
+    return in / native_sqrt(fabs(d));
+}
+
+///i1-4 are raised
+struct frame_basis orthonormalise4_metric(float4 i1, float4 i2, float4 i3, float4 i4, float metric[])
+{
+    float4 u1 = i1;
+
+    float4 u2 = i2;
+    u2 = u2 - gram_proj_generic(u1, u2, metric);
+
+    float4 u3 = i3;
+    u3 = u3 - gram_proj_generic(u1, u3, metric);
+    u3 = u3 - gram_proj_generic(u2, u3, metric);
+
+    float4 u4 = i4;
+    u4 = u4 - gram_proj_generic(u1, u4, metric);
+    u4 = u4 - gram_proj_generic(u2, u4, metric);
+    u4 = u4 - gram_proj_generic(u3, u4, metric);
+
+    u1 = normalize(u1);
+    u2 = normalize(u2);
+    u3 = normalize(u3);
+    u4 = normalize(u4);
+
+    u1 = normalise_generic(u1, metric);
+    u2 = normalise_generic(u2, metric);
+    u3 = normalise_generic(u3, metric);
+    u4 = normalise_generic(u4, metric);
+
+    struct frame_basis ret;
+    ret.v1 = u1;
+    ret.v2 = u2;
+    ret.v3 = u3;
+    ret.v4 = u4;
+
+    return ret;
+};
 
 ///todo: generic orthonormalisation
 struct frame_basis calculate_frame_basis(float big_metric[])
@@ -1470,37 +1521,7 @@ struct frame_basis calculate_frame_basis(float big_metric[])
     i3 = raise_index_big(i3, g_big_metric_inverse);
     i4 = raise_index_big(i4, g_big_metric_inverse);
 
-    float4 u1 = i1;
-
-    float4 u2 = i2;
-    u2 = u2 - gram_proj(u1, u2, big_metric);
-
-    float4 u3 = i3;
-    u3 = u3 - gram_proj(u1, u3, big_metric);
-    u3 = u3 - gram_proj(u2, u3, big_metric);
-
-    float4 u4 = i4;
-    u4 = u4 - gram_proj(u1, u4, big_metric);
-    u4 = u4 - gram_proj(u2, u4, big_metric);
-    u4 = u4 - gram_proj(u3, u4, big_metric);
-
-    u1 = normalize(u1);
-    u2 = normalize(u2);
-    u3 = normalize(u3);
-    u4 = normalize(u4);
-
-    u1 = normalize_big_metric(u1, big_metric);
-    u2 = normalize_big_metric(u2, big_metric);
-    u3 = normalize_big_metric(u3, big_metric);
-    u4 = normalize_big_metric(u4, big_metric);
-
-    struct frame_basis ret;
-    ret.v1 = u1;
-    ret.v2 = u2;
-    ret.v3 = u3;
-    ret.v4 = u4;
-
-    return ret;
+    return orthonormalise4_metric(i1, i2, i3, i4, big_metric);
 }
 
 void print_metric_big_trace(float g_metric_big[])
