@@ -3180,7 +3180,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
             float3 pos_cart = polar_to_cartesian(pos_spherical.yzw);
             float3 vel_cart = spherical_velocity_to_cartesian_velocity(pos_spherical.yzw, vel_spherical.yzw);
 
-            float4 quat = get_theta_adjustment_quat(vel_cart, pos_spherical, -1, false);
+            float4 quat = ray->initial_quat;
 
             pos_cart = rot_quat(pos_cart, quat);
             vel_cart = rot_quat(vel_cart, quat);
