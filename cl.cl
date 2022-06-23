@@ -1744,58 +1744,6 @@ float3 calculate_pixel_direction(int cx, int cy, float width, float height, floa
     pixel_direction = normalize(pixel_direction);
     pixel_direction = rot_quat(pixel_direction, camera_quat);
 
-    //pixel_direction = rotate_vector(b0, b1, b2, pixel_direction);
-
-    float3 up = {0, 0, 1};
-
-    if(base_angle.y != 0)
-    {
-        float4 goff2 = aa_to_quat(up, base_angle.y);
-
-        if(polar_camera.y < 0)
-        {
-            goff2 = aa_to_quat(up, -base_angle.y);
-        }
-
-        pixel_direction = rot_quat(pixel_direction, goff2);
-    }
-
-    if(base_angle.x != M_PIf/2)
-    {
-        ///gets the rotation associated with the theta intersection of r=0
-        float base_theta_angle = cos_mix(M_PIf/2, base_angle.x, clamp(1 - fabs(polar_camera.y), 0.f, 1.f));
-
-        float4 theta_goff = aa_to_quat(get_theta_axis(pixel_direction, polar_camera), -(-base_theta_angle + M_PIf/2));
-
-        if(polar_camera.y < 0)
-        {
-            float3 theta_axis = get_theta_axis(pixel_direction, polar_camera);
-
-            float4 new_thetaquat = aa_to_quat(theta_axis, -(-polar_camera.z + M_PIf/2));
-
-            pixel_direction = rot_quat(pixel_direction, new_thetaquat);
-
-            float3 phi_axis = get_phi_axis(pixel_direction, polar_camera);
-
-            ///the phi axis... is a basis up axis?
-            float4 new_quat = aa_to_quat(phi_axis, -(polar_camera.w + M_PIf/2));
-
-            pixel_direction = rot_quat(pixel_direction, new_quat);
-
-            float4 new_quat2 = aa_to_quat(phi_axis, -(polar_camera.w - M_PIf/2));
-
-            pixel_direction = rot_quat(pixel_direction, new_quat2);
-
-            float4 new_thetaquat2 = aa_to_quat(theta_axis, -(-polar_camera.z + M_PIf/2));
-
-            pixel_direction = rot_quat(pixel_direction, new_thetaquat2);
-
-            theta_goff = aa_to_quat(get_theta_axis(pixel_direction, polar_camera), (-base_theta_angle + M_PIf/2));
-        }
-
-        pixel_direction = rot_quat(pixel_direction, theta_goff);
-    }
-
     return pixel_direction;
 }
 
