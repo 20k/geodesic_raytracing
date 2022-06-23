@@ -2269,6 +2269,9 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
     *e2_out = e2;
     *e3_out = e3;
 
+    if(cnt == 0)
+        return;
+
     for(int i=0; i < cnt - 1; i++)
     {
         float ds = ds_in[i];
@@ -2292,9 +2295,12 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
 
         float dt = next_pos.x - current_pos.x;
 
-        if(target_time >= current_pos.x && target_time < next_pos.x)
+        if(target_time >= current_pos.x && target_time < next_pos.x || target_time < current_pos.x)
         {
             float dx = (target_time - current_pos.x) / (next_pos.x - current_pos.x);
+
+            if(target_time < current_pos.x)
+                dx = 0;
 
             ///NEED TO BACKWARDS ROTATE POS FOR CONSTANT THETA
             float4 spherical1 = generic_to_spherical(current_pos, cfg);
@@ -2326,6 +2332,15 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
         e2 = ne2;
         e3 = ne3;
     }
+
+    *g_camera_polar_out = generic_to_spherical(geodesic_path[cnt - 1], cfg);
+
+    calculate_tetrads(*g_camera_polar_out, &e0, &e1, &e2, &e3, cfg, 1);
+
+    *e0_out = e0;
+    *e1_out = e1;
+    *e2_out = e2;
+    *e3_out = e3;
 }
 
 __kernel
