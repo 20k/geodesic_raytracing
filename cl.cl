@@ -3141,18 +3141,19 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         float dT_dt = native_sqrt(fabs(g00));
 
         #ifdef ADAPTIVE_PRECISION
-
         if(fabs(r_value) < new_max)
         {
             int res = calculate_ds_error(ds, next_acceleration, acceleration, &next_ds);
 
             if(res == DS_RETURN)
+            {
+                *count_out = bufc;
                 return;
+            }
 
             if(res == DS_SKIP)
                 continue;
         }
-
         #endif // ADAPTIVE_PRECISION
 
         float4 generic_position_out = position;
