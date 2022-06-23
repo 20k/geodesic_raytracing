@@ -132,6 +132,7 @@ struct lightray
     cl_float4 position;
     cl_float4 velocity;
     cl_float4 acceleration;
+    cl_float4 initial_quat;
     cl_uint sx, sy;
     cl_float ku_uobsu;
     cl_float original_theta;
@@ -1755,6 +1756,7 @@ int main()
         ImGui::PopAllowKeyboardFocus();
 
         win.display();
+        clctx.cqueue.block();
     }
 
     last_event = std::nullopt;

@@ -725,6 +725,7 @@ struct lightray
 {
     float4 position;
     float4 velocity;
+    float4 initial_quat;
     float4 acceleration;
     int sx, sy;
     float ku_uobsu;
@@ -2365,6 +2366,8 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
     float4 lightray_velocity = pixel_x + pixel_y + pixel_z + pixel_t;
     float4 lightray_spacetime_position = at_metric;
 
+    float4 extra_quat = (float4)(0, 0, 0, 1);
+
     #if defined(GENERIC_CONSTANT_THETA) || defined(DEBUG_CONSTANT_THETA)
     {
         float4 pos_spherical = generic_to_spherical(lightray_spacetime_position, cfg);
@@ -2377,6 +2380,7 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
         float3 vel_cart = spherical_velocity_to_cartesian_velocity(pos_spherical.yzw, vel_spherical.yzw);
 
         float4 quat = get_theta_adjustment_quat(vel_cart, polar_camera, 1, false);
+        extra_quat  = get_theta_adjustment_quat(vel_cart, polar_camera,-1, false);
 
         pos_cart = rot_quat(pos_cart, quat);
         vel_cart = rot_quat(vel_cart, quat);
@@ -2456,6 +2460,7 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
     ray.position = lightray_spacetime_position;
     ray.velocity = lightray_velocity;
     ray.acceleration = lightray_acceleration;
+    ray.initial_quat = extra_quat;
     ray.early_terminate = 0;
 
     {
@@ -2948,6 +2953,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
             out_ray.sy = sy;
             out_ray.position = polar_position;
             out_ray.velocity = polar_velocity;
+            out_ray.initial_quat = ray->initial_quat;
             out_ray.acceleration = 0;
             out_ray.ku_uobsu = ray->ku_uobsu;
             out_ray.early_terminate = 0;
@@ -3013,6 +3019,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
     out_ray.position = position;
     out_ray.velocity = velocity;
     out_ray.acceleration = acceleration;
+    out_ray.initial_quat = ray->initial_quat;
     out_ray.ku_uobsu = ray->ku_uobsu;
     out_ray.early_terminate = 0;
 
@@ -3351,12 +3358,18 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
     }
     #endif
 
-    float3 pixel_direction = calculate_pixel_direction(sx, sy, width, height, polar_camera_pos, *g_camera_quat, base_angle);
-
 	float3 npolar = position.yzw;
 
     #if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC) || defined(DEBUG_CONSTANT_THETA)
-	npolar = get_texture_constant_theta_rotation(pixel_direction, polar_camera_pos, position);
+	{
+        float4 quat = ray->initial_quat;
+
+	    float3 cart_pos = polar_to_cartesian(position.yzw);
+
+	    cart_pos = rot_quat(cart_pos, quat);
+
+	    npolar = cartesian_to_polar(cart_pos);
+	}
     #endif // GENERIC_CONSTANT_THETA
 
     float thetaf = fmod(npolar.y, 2 * M_PIf);
