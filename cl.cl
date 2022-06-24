@@ -2808,7 +2808,7 @@ enum ds_result
 
 #define I_HATE_COMPUTERS (256*256)
 
-float acceleration_to_precision(float4 acceleration, float* next_ds_out)
+float acceleration_to_precision(float4 acceleration, float max_err_mult, float* next_ds_out)
 {
     float uniform_coordinate_precision_divisor = max(max(W_V1, W_V2), max(W_V3, W_V4));
 
@@ -2817,7 +2817,7 @@ float acceleration_to_precision(float4 acceleration, float* next_ds_out)
 
     float experienced_acceleration_change = current_acceleration_err;
 
-    float err = MAX_ACCELERATION_CHANGE;
+    float err = max_err_mult * (MAX_ACCELERATION_CHANGE);
 
     //#define MIN_STEP 0.00001f
     #define MIN_STEP 0.000001f
@@ -2839,10 +2839,10 @@ float acceleration_to_precision(float4 acceleration, float* next_ds_out)
     return diff;
 }
 
-int calculate_ds_error(float current_ds, float4 next_acceleration, float4 acceleration, float* next_ds_out)
+int calculate_ds_error(float current_ds, float4 next_acceleration, float4 acceleration, float max_err_mult, float* next_ds_out)
 {
     float next_ds = 0;
-    float diff = acceleration_to_precision(next_acceleration, &next_ds);
+    float diff = acceleration_to_precision(next_acceleration, max_err_mult, &next_ds);
 
     ///produces strictly worse results for kerr
     next_ds = 0.99f * current_ds * clamp(next_ds / current_ds, 0.3f, 2.f);
@@ -2906,7 +2906,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
     float next_ds = 0.00001;
 
     #ifdef ADAPTIVE_PRECISION
-    (void)acceleration_to_precision(acceleration, &next_ds);
+    (void)acceleration_to_precision(acceleration, 1.f, &next_ds);
     #endif // ADAPTIVE_PRECISION
 
     ///results:
@@ -3020,7 +3020,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
         if(fabs(r_value) < new_max)
         {
-            int res = calculate_ds_error(ds, next_acceleration, acceleration, &next_ds);
+            int res = calculate_ds_error(ds, next_acceleration, acceleration, 1.f, &next_ds);
 
             if(res == DS_RETURN)
                 return;
@@ -3110,8 +3110,10 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
 
     float next_ds = 0.00001;
 
+    float err_mult = 0.1f;
+
     #ifdef ADAPTIVE_PRECISION
-    (void)acceleration_to_precision(acceleration, &next_ds);
+    (void)acceleration_to_precision(acceleration, err_mult, &next_ds);
     #endif // ADAPTIVE_PRECISION
 
     float subambient_precision = 0.5;
@@ -3158,14 +3160,15 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
             ds = 0.1 * pow((fabs(r_value) - new_max), 1) + ambient_precision;
         }
 
+        bool should_break = false;
+
         #ifndef SINGULAR
         if(fabs(polar_position.y) >= UNIVERSE_SIZE)
         #else
         if(fabs(polar_position.y) < rs*SINGULAR_TERMINATOR || fabs(polar_position.y) >= UNIVERSE_SIZE)
         #endif // SINGULAR
         {
-            *count_out = bufc;
-            return;
+            should_break = true;
         }
 
         float4 next_position, next_velocity, next_acceleration;
@@ -3179,12 +3182,11 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         #ifdef ADAPTIVE_PRECISION
         if(fabs(r_value) < new_max)
         {
-            int res = calculate_ds_error(ds, next_acceleration, acceleration, &next_ds);
+            int res = calculate_ds_error(ds, next_acceleration, acceleration, err_mult, &next_ds);
 
             if(res == DS_RETURN)
             {
-                *count_out = bufc;
-                return;
+                should_break = true;
             }
 
             if(res == DS_SKIP)
@@ -3227,6 +3229,9 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         }
         #endif
 
+        if(any(isnan(next_position)) || any(isnan(next_velocity)) || any(isnan(next_acceleration)))
+            break;
+
         position = next_position;
         //velocity = fix_light_velocity2(next_velocity, g_metric);
         velocity = next_velocity;
@@ -3238,7 +3243,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         ds_out[bufc] = ds;
         bufc++;
 
-        if(any(isnan(position)) || any(isnan(velocity)) || any(isnan(acceleration)))
+        if(should_break)
         {
             *count_out = bufc;
             return;
