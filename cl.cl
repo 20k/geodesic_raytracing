@@ -2251,10 +2251,20 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
 
         float4 velocity = geodesic_velocity[i];
 
-        float4 ne0 = e0 + parallel_transport_get_acceleration(e0, geodesic_path[i], velocity, cfg) * ds;
-        float4 ne1 = e1 + parallel_transport_get_acceleration(e1, geodesic_path[i], velocity, cfg) * ds;
-        float4 ne2 = e2 + parallel_transport_get_acceleration(e2, geodesic_path[i], velocity, cfg) * ds;
-        float4 ne3 = e3 + parallel_transport_get_acceleration(e3, geodesic_path[i], velocity, cfg) * ds;
+        float4 f_e0 = parallel_transport_get_acceleration(e0, geodesic_path[i], velocity, cfg);
+        float4 f_e1 = parallel_transport_get_acceleration(e1, geodesic_path[i], velocity, cfg);
+        float4 f_e2 = parallel_transport_get_acceleration(e2, geodesic_path[i], velocity, cfg);
+        float4 f_e3 = parallel_transport_get_acceleration(e3, geodesic_path[i], velocity, cfg);
+
+        float4 ne0_i = e0 + f_e0 * ds;
+        float4 ne1_i = e1 + f_e1 * ds;
+        float4 ne2_i = e2 + f_e2 * ds;
+        float4 ne3_i = e3 + f_e3 * ds;
+
+        float4 ne0 = e0 + 0.5f * ds * (f_e0 + parallel_transport_get_acceleration(ne0_i, geodesic_path[i + 1], geodesic_velocity[i + 1], cfg));
+        float4 ne1 = e1 + 0.5f * ds * (f_e1 + parallel_transport_get_acceleration(ne1_i, geodesic_path[i + 1], geodesic_velocity[i + 1], cfg));
+        float4 ne2 = e2 + 0.5f * ds * (f_e2 + parallel_transport_get_acceleration(ne2_i, geodesic_path[i + 1], geodesic_velocity[i + 1], cfg));
+        float4 ne3 = e3 + 0.5f * ds * (f_e3 + parallel_transport_get_acceleration(ne3_i, geodesic_path[i + 1], geodesic_velocity[i + 1], cfg));
 
         /*{
             #ifndef GENERIC_BIG_METRIC
@@ -2508,12 +2518,12 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
         float4 uobsu_lower = lower_index(uobsu_upper, g_metric);
         #endif // GENERIC_BIG_METRIC
 
-        if(cx == width/2 && cy == height/2)
+        /*if(cx == width/2 && cy == height/2)
         {
             printf("Uobsl %f %f %f %f\nlightray_v %f %f %f %f\n",
                    uobsu_lower.x, uobsu_lower.y, uobsu_lower.z, uobsu_lower.w,
                    lightray_velocity.x, lightray_velocity.y, lightray_velocity.z, lightray_velocity.w);
-        }
+        }*/
 
         float final_val = dot(lightray_velocity, uobsu_lower);
 
@@ -3115,7 +3125,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
     acceleration.z = 0;
     #endif // IS_CONSTANT_THETA
 
-    float max_accel = 0.00000100;
+    float max_accel = 0.00001000;
 
     float next_ds = 0.00001;
 
@@ -3825,10 +3835,10 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
 
     z_shift = max(z_shift, -0.999f);
 
-    if(sx == width/2 && sy == height/2)
+    /*if(sx == width/2 && sy == height/2)
     {
         printf("Vx %f ray %f\n", velocity.x, -ray->ku_uobsu);
-    }
+    }*/
 
     ///linf / le = z + 1
     ///le =  linf / (z + 1)
@@ -3947,10 +3957,10 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
 
     if(fabs(r_value) > rs * 2)
     {
-        if(sx == width/2 && sy == height/2)
+        /*if(sx == width/2 && sy == height/2)
         {
             printf("ZShift %f\n", z_shift);
-        }
+        }*/
 
         lin_result = redshift(lin_result, z_shift);
 
