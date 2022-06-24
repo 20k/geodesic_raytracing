@@ -3115,7 +3115,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
     acceleration.z = 0;
     #endif // IS_CONSTANT_THETA
 
-    float max_accel = 0.00000001;
+    float max_accel = 0.00000100;
 
     float next_ds = 0.00001;
 
