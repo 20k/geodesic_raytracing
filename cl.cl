@@ -2322,8 +2322,6 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
 
     *g_camera_polar_out = generic_to_spherical(geodesic_path[cnt - 1], cfg);
 
-    calculate_tetrads(*g_camera_polar_out, &e0, &e1, &e2, &e3, cfg, 1);
-
     *e0_out = e0;
     *e1_out = e1;
     *e2_out = e2;
