@@ -3110,7 +3110,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
 
     float next_ds = 0.00001;
 
-    float err_mult = 0.1f;
+    float err_mult = 1.f;
 
     #ifdef ADAPTIVE_PRECISION
     (void)acceleration_to_precision(acceleration, err_mult, &next_ds);
