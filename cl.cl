@@ -2508,6 +2508,13 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
         float4 uobsu_lower = lower_index(uobsu_upper, g_metric);
         #endif // GENERIC_BIG_METRIC
 
+        if(cx == width/2 && cy == height/2)
+        {
+            printf("Uobsl %f %f %f %f\nlightray_v %f %f %f %f\n",
+                   uobsu_lower.x, uobsu_lower.y, uobsu_lower.z, uobsu_lower.w,
+                   lightray_velocity.x, lightray_velocity.y, lightray_velocity.z, lightray_velocity.w);
+        }
+
         float final_val = dot(lightray_velocity, uobsu_lower);
 
         ray.ku_uobsu = final_val;
@@ -2808,7 +2815,7 @@ enum ds_result
 
 #define I_HATE_COMPUTERS (256*256)
 
-float acceleration_to_precision(float4 acceleration, float max_err_mult, float* next_ds_out)
+float acceleration_to_precision(float4 acceleration, float max_acceleration, float* next_ds_out)
 {
     float uniform_coordinate_precision_divisor = max(max(W_V1, W_V2), max(W_V3, W_V4));
 
@@ -2817,7 +2824,7 @@ float acceleration_to_precision(float4 acceleration, float max_err_mult, float* 
 
     float experienced_acceleration_change = current_acceleration_err;
 
-    float err = max_err_mult * (MAX_ACCELERATION_CHANGE);
+    float err = max_acceleration;
 
     //#define MIN_STEP 0.00001f
     #define MIN_STEP 0.000001f
@@ -2839,10 +2846,10 @@ float acceleration_to_precision(float4 acceleration, float max_err_mult, float* 
     return diff;
 }
 
-int calculate_ds_error(float current_ds, float4 next_acceleration, float4 acceleration, float max_err_mult, float* next_ds_out)
+int calculate_ds_error(float current_ds, float4 next_acceleration, float4 acceleration, float max_acceleration, float* next_ds_out)
 {
     float next_ds = 0;
-    float diff = acceleration_to_precision(next_acceleration, max_err_mult, &next_ds);
+    float diff = acceleration_to_precision(next_acceleration, max_acceleration, &next_ds);
 
     ///produces strictly worse results for kerr
     next_ds = 0.99f * current_ds * clamp(next_ds / current_ds, 0.3f, 2.f);
@@ -2851,7 +2858,7 @@ int calculate_ds_error(float current_ds, float4 next_acceleration, float4 accele
 
     *next_ds_out = next_ds;
 
-    float err = MAX_ACCELERATION_CHANGE;
+    float err = max_acceleration;
 
     #ifdef SINGULARITY_DETECTION
     if(next_ds == MIN_STEP && (diff/I_HATE_COMPUTERS) > err * 10000)
@@ -2906,7 +2913,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
     float next_ds = 0.00001;
 
     #ifdef ADAPTIVE_PRECISION
-    (void)acceleration_to_precision(acceleration, 1.f, &next_ds);
+    (void)acceleration_to_precision(acceleration, MAX_ACCELERATION_CHANGE, &next_ds);
     #endif // ADAPTIVE_PRECISION
 
     ///results:
@@ -3020,7 +3027,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
         if(fabs(r_value) < new_max)
         {
-            int res = calculate_ds_error(ds, next_acceleration, acceleration, 1.f, &next_ds);
+            int res = calculate_ds_error(ds, next_acceleration, acceleration, MAX_ACCELERATION_CHANGE, &next_ds);
 
             if(res == DS_RETURN)
                 return;
@@ -3108,12 +3115,12 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
     acceleration.z = 0;
     #endif // IS_CONSTANT_THETA
 
+    float max_accel = 0.00000001;
+
     float next_ds = 0.00001;
 
-    float err_mult = 1.f;
-
     #ifdef ADAPTIVE_PRECISION
-    (void)acceleration_to_precision(acceleration, err_mult, &next_ds);
+    (void)acceleration_to_precision(acceleration, max_accel, &next_ds);
     #endif // ADAPTIVE_PRECISION
 
     float subambient_precision = 0.5;
@@ -3182,7 +3189,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         #ifdef ADAPTIVE_PRECISION
         if(fabs(r_value) < new_max)
         {
-            int res = calculate_ds_error(ds, next_acceleration, acceleration, err_mult, &next_ds);
+            int res = calculate_ds_error(ds, next_acceleration, acceleration, max_accel, &next_ds);
 
             if(res == DS_RETURN)
             {
@@ -3816,6 +3823,13 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
     ///[-1, +infinity]
     float z_shift = (velocity.x / -ray->ku_uobsu) - 1;
 
+    z_shift = max(z_shift, -0.999f);
+
+    if(sx == width/2 && sy == height/2)
+    {
+        printf("Vx %f ray %f\n", velocity.x, -ray->ku_uobsu);
+    }
+
     ///linf / le = z + 1
     ///le =  linf / (z + 1)
 
@@ -3933,7 +3947,14 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
 
     if(fabs(r_value) > rs * 2)
     {
+        if(sx == width/2 && sy == height/2)
+        {
+            printf("ZShift %f\n", z_shift);
+        }
+
         lin_result = redshift(lin_result, z_shift);
+
+        lin_result = clamp(lin_result, 0.f, 1.f);
     }
 
     #ifndef LINEAR_FRAMEBUFFER
