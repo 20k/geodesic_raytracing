@@ -2216,6 +2216,7 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
                                    __global float4* e0_out, __global float4* e1_out, __global float4* e2_out, __global float4* e3_out,
                                    float target_time,
                                    __global int* count_in,
+                                   int parallel_transport_observer,
                                    dynamic_config_space struct dynamic_config* cfg)
 {
     if(get_global_id(0) != 0)
@@ -2311,6 +2312,11 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
             float4 oe2 = mix(e2, ne2, dx);
             float4 oe3 = mix(e3, ne3, dx);
 
+            if(!parallel_transport_observer)
+            {
+                calculate_tetrads(fin_polar, &oe0, &oe1, &oe2, &oe3, cfg, 1);
+            }
+
             *e0_out = oe0;
             *e1_out = oe1;
             *e2_out = oe2;
@@ -2331,6 +2337,11 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
     }
 
     *g_camera_polar_out = generic_to_spherical(geodesic_path[cnt - 1], cfg);
+
+    if(!parallel_transport_observer)
+    {
+        calculate_tetrads(generic_to_spherical(geodesic_path[cnt - 1], cfg), &e0, &e1, &e2, &e3, cfg, 1);
+    }
 
     *e0_out = e0;
     *e1_out = e1;

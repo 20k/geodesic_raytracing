@@ -827,6 +827,7 @@ int main()
     float camera_geodesic_time_progression_speed = 1.f;
     bool camera_geodesics_go_foward = true;
     float set_camera_time = 0;
+    bool parallel_transport_observer = true;
 
     printf("Pre fullscreen\n");
 
@@ -1244,6 +1245,8 @@ int main()
 
                         ImGui::Checkbox("Camera Snapshot Geodesic goes forward", &camera_geodesics_go_foward);
 
+                        ImGui::Checkbox("Transport observer along geodesic", &parallel_transport_observer);
+
                         ImGui::EndTabItem();
                     }
 
@@ -1312,6 +1315,8 @@ int main()
 
             if(camera_on_geodesic)
             {
+                cl_int transport = parallel_transport_observer;
+
                 cl::args interpolate_args;
                 interpolate_args.push_back(geodesic_trace_buffer);
                 interpolate_args.push_back(geodesic_vel_buffer);
@@ -1327,13 +1332,14 @@ int main()
 
                 interpolate_args.push_back(current_geodesic_time);
                 interpolate_args.push_back(geodesic_count_buffer);
+                interpolate_args.push_back(transport);
                 interpolate_args.push_back(dynamic_config);
 
                 clctx.cqueue.exec("handle_interpolating_geodesic", interpolate_args, {1}, {1});
             }
 
+            if(!camera_on_geodesic)
             {
-                if(!camera_on_geodesic)
                 {
                     cl::args args;
 
@@ -1347,7 +1353,6 @@ int main()
                     clctx.cqueue.exec("camera_cart_to_polar", args, {1}, {1});
                 }
 
-                if(!camera_on_geodesic)
                 {
                     cl::args tetrad_args;
                     tetrad_args.push_back(g_camera_pos_polar);
