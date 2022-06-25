@@ -2388,15 +2388,21 @@ void init_timelike_geodesic(__global float4* g_polar_position,
     *generic_velocity_out = timelike_vector;
 }
 
-///fully set up except for ray.early_terminate
-struct lightray geodesic_to_render_ray(int cx, int cy, float4 position, float4 velocity, float4 observer_velocity, dynamic_config_space struct dynamic_config* cfg)
+struct corrected_lightray
 {
-    float4 polar_pos = generic_to_spherical(position, cfg);
+    float4 position;
+    float4 velocity;
+    float4 inverse_quat;
+};
 
+struct corrected_lightray correct_lightray(float4 position, float4 velocity, dynamic_config_space struct dynamic_config* cfg)
+{
     float4 extra_quat = (float4)(0, 0, 0, 1);
 
     #if defined(GENERIC_CONSTANT_THETA) || defined(DEBUG_CONSTANT_THETA)
     {
+        float4 polar_pos = generic_to_spherical(position, cfg);
+
         float4 pos_spherical = generic_to_spherical(position, cfg);
         float4 vel_spherical = generic_velocity_to_spherical_velocity(position, velocity, cfg);
 
@@ -2427,6 +2433,23 @@ struct lightray geodesic_to_render_ray(int cx, int cy, float4 position, float4 v
         velocity = next_vel_generic;
     }
     #endif // GENERIC_CONSTANT_THETA
+
+    struct corrected_lightray ret;
+
+    ret.position = position;
+    ret.velocity = velocity;
+    ret.inverse_quat = extra_quat;
+
+    return ret;
+};
+
+///fully set up except for ray.early_terminate
+struct lightray geodesic_to_render_ray(int cx, int cy, float4 position, float4 velocity, float4 observer_velocity, dynamic_config_space struct dynamic_config* cfg)
+{
+    struct corrected_lightray corrected = correct_lightray(position, velocity, cfg);
+
+    position = corrected.position;
+    velocity = corrected.velocity;
 
     float4 lightray_acceleration = (float4)(0,0,0,0);
 
@@ -2467,7 +2490,7 @@ struct lightray geodesic_to_render_ray(int cx, int cy, float4 position, float4 v
     ray.position = position;
     ray.velocity = velocity;
     ray.acceleration = lightray_acceleration;
-    ray.initial_quat = extra_quat;
+    ray.initial_quat = corrected.inverse_quat;
     ray.early_terminate = 0;
 
     {
