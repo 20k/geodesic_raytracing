@@ -778,6 +778,14 @@ int main()
         tetrad[i].set_to_zero(clctx.cqueue);
     }
 
+    cl::buffer timelike_geodesic_pos{clctx.ctx};
+    timelike_geodesic_pos.alloc(sizeof(cl_float4));
+    timelike_geodesic_pos.set_to_zero(clctx.cqueue);
+
+    cl::buffer timelike_geodesic_vel{clctx.ctx};
+    timelike_geodesic_vel.alloc(sizeof(cl_float4));
+    timelike_geodesic_vel.set_to_zero(clctx.cqueue);
+
     std::array<cl::buffer, 4> reference_basis{clctx.ctx, clctx.ctx, clctx.ctx, clctx.ctx};
 
     for(auto& i : reference_basis)
@@ -828,6 +836,7 @@ int main()
     bool camera_geodesics_go_foward = true;
     float set_camera_time = 0;
     bool parallel_transport_observer = true;
+    cl_float4 cartesian_basis_speed = {0,0,0,0};
 
     printf("Pre fullscreen\n");
 
@@ -1510,7 +1519,6 @@ int main()
                         init_args_prepass.push_back(i);
                     }
 
-                    init_args_prepass.push_back(on_geodesic);
                     init_args_prepass.push_back(dynamic_config);
 
                     clctx.cqueue.exec("init_rays_generic", init_args_prepass, {prepass_width*prepass_height}, {256});
@@ -1546,7 +1554,6 @@ int main()
                     init_args.push_back(i);
                 }
 
-                init_args.push_back(on_geodesic);
                 init_args.push_back(dynamic_config);
 
                 clctx.cqueue.exec("init_rays_generic", init_args, {width*height}, {16*16});

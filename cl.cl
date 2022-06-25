@@ -2371,8 +2371,22 @@ float4 get_timelike_vector(float3 cartesian_basis_speed, float time_direction,
     return bT + bX + bY + bZ;
 }
 
-//__kernel
-//void init_timelike_geodesic(__global float4* g_polar_camera_in, __global float4* g_camera_quat)
+__kernel
+void init_timelike_geodesic(__global float4* g_polar_position,
+                            float3 cartesian_basis_speed, float time_direction,
+                            __global float4* e0, __global float4* e1, __global float4* e2, __global float4* e3,
+                            __global float4* generic_position_out,
+                            __global float4* generic_velocity_out,
+                            dynamic_config_space struct dynamic_config* cfg)
+{
+    if(get_global_id(0) != 0)
+        return;
+
+    float4 timelike_vector = get_timelike_vector(cartesian_basis_speed, time_direction, e0, e1, e2, e3);
+
+    *generic_position_out = spherical_to_generic(*g_polar_position, cfg);
+    *generic_velocity_out = timelike_vector;
+}
 
 __kernel
 void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_camera_quat,
@@ -2382,7 +2396,6 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
                        int prepass_width, int prepass_height,
                        int flip_geodesic_direction,
                        __global float4* e0, __global float4* e1, __global float4* e2, __global float4* e3,
-                       float on_geodesic,
                        dynamic_config_space struct dynamic_config* cfg)
 {
     int id = get_global_id(0);
