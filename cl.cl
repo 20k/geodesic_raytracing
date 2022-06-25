@@ -2510,6 +2510,57 @@ struct lightray geodesic_to_render_ray(int cx, int cy, float4 position, float4 v
     return ray;
 };
 
+struct lightray geodesic_to_trace_ray(float4 position, float4 velocity, dynamic_config_space struct dynamic_config* cfg)
+{
+    struct corrected_lightray corrected = correct_lightray(position, velocity, cfg);
+
+    position = corrected.position;
+    velocity = corrected.velocity;
+
+    float4 lightray_acceleration = (float4)(0,0,0,0);
+
+    #ifdef IS_CONSTANT_THETA
+    position.z = M_PIf/2;
+    velocity.z = 0;
+    #endif // IS_CONSTANT_THETA
+
+    #ifndef GENERIC_BIG_METRIC
+    float g_metric[4] = {0};
+    #else
+    float g_metric_big[16] = {0};
+    #endif // GENERIC_BIG_METRIC
+
+    {
+        #ifndef GENERIC_BIG_METRIC
+        float g_partials[16] = {0};
+
+        calculate_metric_generic(position, g_metric, cfg);
+        calculate_partial_derivatives_generic(position, g_partials, cfg);
+
+        lightray_acceleration = calculate_acceleration(velocity, g_metric, g_partials);
+        #else
+        float g_partials_big[64] = {0};
+
+        calculate_metric_generic_big(position, g_metric_big, cfg);
+        calculate_partial_derivatives_generic_big(position, g_partials_big, cfg);
+
+        lightray_acceleration = calculate_acceleration_big(velocity, g_metric_big, g_partials_big);
+        #endif // GENERIC_BIG_METRIC
+    }
+
+    struct lightray ray;
+    ray.sx = 0;
+    ray.sy = 0;
+    ray.position = position;
+    ray.velocity = velocity;
+    ray.acceleration = lightray_acceleration;
+    ray.initial_quat = corrected.inverse_quat;
+    ray.early_terminate = 0;
+    ray.ku_uobsu = 1;
+
+    return ray;
+};
+
 __kernel
 void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_camera_quat,
                        __global struct lightray* metric_rays, __global int* metric_ray_count,
