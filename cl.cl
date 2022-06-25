@@ -2388,6 +2388,105 @@ void init_timelike_geodesic(__global float4* g_polar_position,
     *generic_velocity_out = timelike_vector;
 }
 
+///fully set up except for ray.early_terminate
+struct lightray geodesic_to_render_ray(int cx, int cy, float4 position, float4 velocity, float4 observer_velocity, dynamic_config_space struct dynamic_config* cfg)
+{
+    float4 polar_pos = generic_to_spherical(position, cfg);
+
+    float4 extra_quat = (float4)(0, 0, 0, 1);
+
+    #if defined(GENERIC_CONSTANT_THETA) || defined(DEBUG_CONSTANT_THETA)
+    {
+        float4 pos_spherical = generic_to_spherical(position, cfg);
+        float4 vel_spherical = generic_velocity_to_spherical_velocity(position, velocity, cfg);
+
+        float fsign = sign(pos_spherical.y);
+        pos_spherical.y = fabs(pos_spherical.y);
+
+        float3 pos_cart = polar_to_cartesian(pos_spherical.yzw);
+        float3 vel_cart = spherical_velocity_to_cartesian_velocity(pos_spherical.yzw, vel_spherical.yzw);
+
+        float4 quat = get_theta_adjustment_quat(vel_cart, polar_pos, 1, false);
+        extra_quat  = get_theta_adjustment_quat(vel_cart, polar_pos,-1, false);
+
+        pos_cart = rot_quat(pos_cart, quat);
+        vel_cart = rot_quat(vel_cart, quat);
+
+        float3 next_pos_spherical = cartesian_to_polar(pos_cart);
+        float3 next_vel_spherical = cartesian_velocity_to_polar_velocity(pos_cart, vel_cart);
+
+        if(fsign < 0)
+        {
+            next_pos_spherical.x = -next_pos_spherical.x;
+        }
+
+        float4 next_pos_generic = spherical_to_generic((float4)(pos_spherical.x, next_pos_spherical), cfg);
+        float4 next_vel_generic = spherical_velocity_to_generic_velocity((float4)(pos_spherical.x, next_pos_spherical), (float4)(vel_spherical.x, next_vel_spherical), cfg);
+
+        position = next_pos_generic;
+        velocity = next_vel_generic;
+    }
+    #endif // GENERIC_CONSTANT_THETA
+
+    float4 lightray_acceleration = (float4)(0,0,0,0);
+
+    #ifdef IS_CONSTANT_THETA
+    position.z = M_PIf/2;
+    velocity.z = 0;
+    #endif // IS_CONSTANT_THETA
+
+    #ifndef GENERIC_BIG_METRIC
+    float g_metric[4] = {0};
+    #else
+    float g_metric_big[16] = {0};
+    #endif // GENERIC_BIG_METRIC
+
+    {
+        #ifndef GENERIC_BIG_METRIC
+        float g_partials[16] = {0};
+
+        calculate_metric_generic(position, g_metric, cfg);
+        calculate_partial_derivatives_generic(position, g_partials, cfg);
+
+        velocity = fix_light_velocity2(velocity, g_metric);
+        lightray_acceleration = calculate_acceleration(velocity, g_metric, g_partials);
+        #else
+        float g_partials_big[64] = {0};
+
+        calculate_metric_generic_big(position, g_metric_big, cfg);
+        calculate_partial_derivatives_generic_big(position, g_partials_big, cfg);
+
+        velocity = fix_light_velocity_big(velocity, g_metric_big);
+        lightray_acceleration = calculate_acceleration_big(velocity, g_metric_big, g_partials_big);
+        #endif // GENERIC_BIG_METRIC
+    }
+
+    struct lightray ray;
+    ray.sx = cx;
+    ray.sy = cy;
+    ray.position = position;
+    ray.velocity = velocity;
+    ray.acceleration = lightray_acceleration;
+    ray.initial_quat = extra_quat;
+    ray.early_terminate = 0;
+
+    {
+        float4 uobsu_upper = observer_velocity;
+
+        #ifdef GENERIC_BIG_METRIC
+        float4 uobsu_lower = lower_index_big(uobsu_upper, g_metric_big);
+        #else
+        float4 uobsu_lower = lower_index(uobsu_upper, g_metric);
+        #endif // GENERIC_BIG_METRIC
+
+        float final_val = dot(velocity, uobsu_lower);
+
+        ray.ku_uobsu = final_val;
+    }
+
+    return ray;
+};
+
 __kernel
 void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_camera_quat,
                        __global struct lightray* metric_rays, __global int* metric_ray_count,
@@ -2443,123 +2542,7 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
     float4 lightray_velocity = pixel_x + pixel_y + pixel_z + pixel_t;
     float4 lightray_spacetime_position = at_metric;
 
-    float4 extra_quat = (float4)(0, 0, 0, 1);
-
-    #if defined(GENERIC_CONSTANT_THETA) || defined(DEBUG_CONSTANT_THETA)
-    {
-        float4 pos_spherical = generic_to_spherical(lightray_spacetime_position, cfg);
-        float4 vel_spherical = generic_velocity_to_spherical_velocity(lightray_spacetime_position, lightray_velocity, cfg);
-
-        float fsign = sign(pos_spherical.y);
-        pos_spherical.y = fabs(pos_spherical.y);
-
-        float3 pos_cart = polar_to_cartesian(pos_spherical.yzw);
-        float3 vel_cart = spherical_velocity_to_cartesian_velocity(pos_spherical.yzw, vel_spherical.yzw);
-
-        float4 quat = get_theta_adjustment_quat(vel_cart, polar_camera, 1, false);
-        extra_quat  = get_theta_adjustment_quat(vel_cart, polar_camera,-1, false);
-
-        pos_cart = rot_quat(pos_cart, quat);
-        vel_cart = rot_quat(vel_cart, quat);
-
-        float3 next_pos_spherical = cartesian_to_polar(pos_cart);
-        float3 next_vel_spherical = cartesian_velocity_to_polar_velocity(pos_cart, vel_cart);
-
-        if(fsign < 0)
-        {
-            next_pos_spherical.x = -next_pos_spherical.x;
-        }
-
-        float4 next_pos_generic = spherical_to_generic((float4)(pos_spherical.x, next_pos_spherical), cfg);
-        float4 next_vel_generic = spherical_velocity_to_generic_velocity((float4)(pos_spherical.x, next_pos_spherical), (float4)(vel_spherical.x, next_vel_spherical), cfg);
-
-        lightray_spacetime_position = next_pos_generic;
-        lightray_velocity = next_vel_generic;
-    }
-    #endif // GENERIC_CONSTANT_THETA
-
-    float4 lightray_acceleration = (float4)(0,0,0,0);
-
-    #ifdef IS_CONSTANT_THETA
-    lightray_spacetime_position.z = M_PIf/2;
-    lightray_velocity.z = 0;
-    lightray_acceleration.z = 0;
-    #endif // IS_CONSTANT_THETA
-
-    #ifndef GENERIC_BIG_METRIC
-    float g_metric[4] = {0};
-    #else
-    float g_metric_big[16] = {0};
-    #endif // GENERIC_BIG_METRIC
-
-    #if 1
-    {
-        #ifndef GENERIC_BIG_METRIC
-        float g_partials[16] = {0};
-
-        calculate_metric_generic(lightray_spacetime_position, g_metric, cfg);
-        calculate_partial_derivatives_generic(lightray_spacetime_position, g_partials, cfg);
-
-        lightray_velocity = fix_light_velocity2(lightray_velocity, g_metric);
-        lightray_acceleration = calculate_acceleration(lightray_velocity, g_metric, g_partials);
-        #else
-        float g_partials_big[64] = {0};
-
-        calculate_metric_generic_big(lightray_spacetime_position, g_metric_big, cfg);
-        calculate_partial_derivatives_generic_big(lightray_spacetime_position, g_partials_big, cfg);
-
-        //float4 prefix = lightray_velocity;
-
-        lightray_velocity = fix_light_velocity_big(lightray_velocity, g_metric_big);
-
-        /*if(cx == 500 && cy == 400)
-        {
-            printf("pre %f %f %f %f post %f %f %f %f", prefix.x, prefix.y, prefix.z, prefix.w,
-                                                         lightray_velocity.x, lightray_velocity.y, lightray_velocity.z, lightray_velocity.w);
-        }*/
-
-        lightray_acceleration = calculate_acceleration_big(lightray_velocity, g_metric_big, g_partials_big);
-        #endif // GENERIC_BIG_METRIC
-    }
-    #endif // 0
-
-    //if(cx == 500 && cy == 400)
-    //    printf("Posr %f %f %f\n", polar_camera.y, polar_camera.z, polar_camera.w);
-    //    printf("DS %f\n", dot_product_big(lightray_velocity, lightray_velocity, g_metric_big));
-
-    /*lightray_spacetime_position.z = M_PIf/2;
-    lightray_velocity.z = 0;
-    lightray_acceleration.z = 0;*/
-
-    struct lightray ray;
-    ray.sx = cx;
-    ray.sy = cy;
-    ray.position = lightray_spacetime_position;
-    ray.velocity = lightray_velocity;
-    ray.acceleration = lightray_acceleration;
-    ray.initial_quat = extra_quat;
-    ray.early_terminate = 0;
-
-    {
-        float4 uobsu_upper = observer_velocity;
-
-        #ifdef GENERIC_BIG_METRIC
-        float4 uobsu_lower = lower_index_big(uobsu_upper, g_metric_big);
-        #else
-        float4 uobsu_lower = lower_index(uobsu_upper, g_metric);
-        #endif // GENERIC_BIG_METRIC
-
-        /*if(cx == width/2 && cy == height/2)
-        {
-            printf("Uobsl %f %f %f %f\nlightray_v %f %f %f %f\n",
-                   uobsu_lower.x, uobsu_lower.y, uobsu_lower.z, uobsu_lower.w,
-                   lightray_velocity.x, lightray_velocity.y, lightray_velocity.z, lightray_velocity.w);
-        }*/
-
-        float final_val = dot(lightray_velocity, uobsu_lower);
-
-        ray.ku_uobsu = final_val;
-    }
+    struct lightray ray = geodesic_to_render_ray(cx, cy, lightray_spacetime_position, lightray_velocity, observer_velocity, cfg);
 
     #define USE_PREPASS
     #ifdef USE_PREPASS
