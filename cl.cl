@@ -2019,7 +2019,29 @@ void quat_to_basis(__global float4* camera_quat,
 
 }*/
 
-void calculate_tetrads(float4 polar_camera,
+///https://arxiv.org/pdf/0904.4184.pdf 1.4.18
+float4 get_timelike_vector(float3 cartesian_basis_speed, float time_direction,
+                           float4 e0, float4 e1, float4 e2, float4 e3)
+{
+    float v = length(cartesian_basis_speed);
+    float Y = 1 / sqrt(1 - v*v);
+
+    float B = v;
+
+    float psi = B * Y;
+
+    float4 bT = time_direction * Y * e0;
+
+    float3 dir = normalize(cartesian_basis_speed);
+
+    float4 bX = psi * dir.x * e1;
+    float4 bY = psi * dir.y * e2;
+    float4 bZ = psi * dir.z * e3;
+
+    return bT + bX + bY + bZ;
+}
+
+void calculate_tetrads(float4 polar_camera, float3 cartesian_basis_speed,
                        float4* e0_out, float4* e1_out, float4* e2_out, float4* e3_out,
                        dynamic_config_space struct dynamic_config* cfg, int should_orient)
 {
@@ -2155,6 +2177,29 @@ void calculate_tetrads(float4 polar_camera,
         e3 = le3;
     }
 
+
+    {
+        float4 observer_velocity = get_timelike_vector(cartesian_basis_speed, 1, e0, e1, e2, e3);
+
+        float lorentz[16] = {};
+
+        #ifndef GENERIC_BIG_METRIC
+        float g_metric[4] = {};
+        calculate_metric_generic(at_metric, g_metric, cfg);
+        calculate_lorentz_boost(e0, observer_velocity, g_metric, lorentz);
+        #else
+        float g_metric_big[16] = {0};
+        calculate_metric_generic_big(at_metric, g_metric_big, cfg);
+        calculate_lorentz_boost_big(e0, observer_velocity, g_metric_big, lorentz);
+        #endif // GENERIC_METRIC
+
+        e0 = observer_velocity;
+        e1 = tensor_contract(lorentz, e1);
+        e2 = tensor_contract(lorentz, e2);
+        e3 = tensor_contract(lorentz, e3);
+    }
+
+
     *e0_out = e0;
     *e1_out = e1;
     *e2_out = e2;
@@ -2163,6 +2208,7 @@ void calculate_tetrads(float4 polar_camera,
 
 __kernel
 void init_basis_vectors(__global float4* g_polar_camera_in, __global float4* g_camera_quat,
+                        float3 cartesian_basis_speed,
                         __global float4* e0_out, __global float4* e1_out, __global float4* e2_out, __global float4* e3_out,
                         dynamic_config_space struct dynamic_config* cfg)
 {
@@ -2176,7 +2222,7 @@ void init_basis_vectors(__global float4* g_polar_camera_in, __global float4* g_c
     float4 e2;
     float4 e3;
 
-    calculate_tetrads(polar_camera_in, &e0, &e1, &e2, &e3, cfg, 1);
+    calculate_tetrads(polar_camera_in, cartesian_basis_speed, &e0, &e1, &e2, &e3, cfg, 1);
 
     *e0_out = e0;
     *e1_out = e1;
@@ -2217,6 +2263,7 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
                                    float target_time,
                                    __global int* count_in,
                                    int parallel_transport_observer,
+                                   float3 cartesian_basis_speed,
                                    dynamic_config_space struct dynamic_config* cfg)
 {
     if(get_global_id(0) != 0)
@@ -2225,7 +2272,7 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
     float4 start_generic = geodesic_path[0];
 
     float4 e0, e1, e2, e3;
-    calculate_tetrads(generic_to_spherical(start_generic, cfg), &e0, &e1, &e2, &e3, cfg, 1);
+    calculate_tetrads(generic_to_spherical(start_generic, cfg), cartesian_basis_speed, &e0, &e1, &e2, &e3, cfg, 1);
 
     int cnt = *count_in;
 
@@ -2314,7 +2361,7 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
 
             if(!parallel_transport_observer)
             {
-                calculate_tetrads(fin_polar, &oe0, &oe1, &oe2, &oe3, cfg, 1);
+                calculate_tetrads(fin_polar, cartesian_basis_speed, &oe0, &oe1, &oe2, &oe3, cfg, 1);
             }
 
             *e0_out = oe0;
@@ -2340,35 +2387,13 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
 
     if(!parallel_transport_observer)
     {
-        calculate_tetrads(generic_to_spherical(geodesic_path[cnt - 1], cfg), &e0, &e1, &e2, &e3, cfg, 1);
+        calculate_tetrads(generic_to_spherical(geodesic_path[cnt - 1], cfg), cartesian_basis_speed, &e0, &e1, &e2, &e3, cfg, 1);
     }
 
     *e0_out = e0;
     *e1_out = e1;
     *e2_out = e2;
     *e3_out = e3;
-}
-
-///https://arxiv.org/pdf/0904.4184.pdf 1.4.18
-float4 get_timelike_vector(float3 cartesian_basis_speed, float time_direction,
-                           float4 e0, float4 e1, float4 e2, float4 e3)
-{
-    float v = length(cartesian_basis_speed);
-    float Y = 1 / sqrt(1 - v*v);
-
-    float B = v;
-
-    float psi = B * Y;
-
-    float4 bT = time_direction * Y * e0;
-
-    float3 dir = normalize(cartesian_basis_speed);
-
-    float4 bX = psi * dir.x * e1;
-    float4 bY = psi * dir.y * e2;
-    float4 bZ = psi * dir.z * e3;
-
-    return bT + bX + bY + bZ;
 }
 
 __kernel
@@ -2611,7 +2636,7 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
     //float4 bT = *e0;
     //float4 observer_velocity = bT;
 
-    float4 timelike = get_timelike_vector(cartesian_basis_speed, 1, *e0, *e1, *e2, *e3);
+    //float4 timelike = get_timelike_vector(cartesian_basis_speed, 1, *e0, *e1, *e2, *e3);
 
     /*{
         float g_metric[4] = {0};
@@ -2626,35 +2651,11 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
     }*/
 
     float4 bT = *e0;
-    float4 observer_velocity = timelike;
+    float4 observer_velocity = *e0;
 
     float4 le1 = *e1;
     float4 le2 = *e2;
     float4 le3 = *e3;
-
-    {
-        /*if(cx == width/2 && cy == height/2)
-        {
-            printf("OVel %f %f %f %f\n", timelike.x, timelike.y, timelike.z, timelike.w);
-        }*/
-
-        float lorentz[16] = {};
-
-        #ifndef GENERIC_BIG_METRIC
-        float g_metric[4] = {};
-        calculate_metric_generic(at_metric, g_metric, cfg);
-        calculate_lorentz_boost(bT, observer_velocity, g_metric, lorentz);
-        #else
-        float g_metric_big[16] = {0};
-        calculate_metric_generic_big(at_metric, g_metric_big, cfg);
-        calculate_lorentz_boost_big(bT, observer_velocity, g_metric_big, lorentz);
-        #endif // GENERIC_METRIC
-        bT = observer_velocity;
-
-        le1 = tensor_contract(lorentz, le1);
-        le2 = tensor_contract(lorentz, le2);
-        le3 = tensor_contract(lorentz, le3);
-    }
 
     pixel_direction = normalize(pixel_direction);
 

@@ -1341,6 +1341,7 @@ int main()
                 interpolate_args.push_back(current_geodesic_time);
                 interpolate_args.push_back(geodesic_count_buffer);
                 interpolate_args.push_back(transport);
+                interpolate_args.push_back(cartesian_basis_speed);
                 interpolate_args.push_back(dynamic_config);
 
                 clctx.cqueue.exec("handle_interpolating_geodesic", interpolate_args, {1}, {1});
@@ -1365,6 +1366,7 @@ int main()
                     cl::args tetrad_args;
                     tetrad_args.push_back(g_camera_pos_polar);
                     tetrad_args.push_back(g_camera_quat);
+                    tetrad_args.push_back(cartesian_basis_speed);
 
                     for(int i=0; i < 4; i++)
                     {
