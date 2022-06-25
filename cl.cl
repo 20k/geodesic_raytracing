@@ -2371,6 +2371,9 @@ float4 get_timelike_vector(float3 cartesian_basis_speed, float time_direction,
     return bT + bX + bY + bZ;
 }
 
+//__kernel
+//void init_timelike_geodesic(__global float4* g_polar_camera_in, __global float4* g_camera_quat)
+
 __kernel
 void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_camera_quat,
                        __global struct lightray* metric_rays, __global int* metric_ray_count,
@@ -2401,29 +2404,11 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
     float4 bT = *e0;
     float4 observer_velocity = bT;
 
-    float4 sVx = *e1;
-    float4 sVy = *e2;
-    float4 sVz = *e3;
-
-    float4 polar_x = generic_velocity_to_spherical_velocity(at_metric, sVx, cfg);
-    float4 polar_y = generic_velocity_to_spherical_velocity(at_metric, sVy, cfg);
-    float4 polar_z = generic_velocity_to_spherical_velocity(at_metric, sVz, cfg);
-
-    float3 apolar = polar_camera.yzw;
-    apolar.x = fabs(apolar.x);
-
-    float3 cartesian_cx = normalize(spherical_velocity_to_cartesian_velocity(apolar, polar_x.yzw));
-    float3 cartesian_cy = normalize(spherical_velocity_to_cartesian_velocity(apolar, polar_y.yzw));
-    float3 cartesian_cz = normalize(spherical_velocity_to_cartesian_velocity(apolar, polar_z.yzw));
-
-    //if(on_geodesic == 0)
-    //    pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
-
     pixel_direction = normalize(pixel_direction);
 
-    float4 pixel_x = pixel_direction.x * sVx;
-    float4 pixel_y = pixel_direction.y * sVy;
-    float4 pixel_z = pixel_direction.z * sVz;
+    float4 pixel_x = pixel_direction.x * (*e1);
+    float4 pixel_y = pixel_direction.y * (*e2);
+    float4 pixel_z = pixel_direction.z * (*e3);
 
     ///when people say backwards in time, what they mean is backwards in affine time, not coordinate time
     ///going backwards in coordinate time however should be identical
