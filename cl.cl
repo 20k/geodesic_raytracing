@@ -2780,7 +2780,7 @@ void step_verlet(float4 position, float4 velocity, float4 acceleration, float ds
     }
 
     ///1ms
-    intermediate_next_velocity = fix_light_velocity2(intermediate_next_velocity, g_metric);
+    //intermediate_next_velocity = fix_light_velocity2(intermediate_next_velocity, g_metric);
 
     float4 next_acceleration = calculate_acceleration(intermediate_next_velocity, g_metric, g_partials);
     #else
@@ -2818,7 +2818,7 @@ void step_euler(float4 position, float4 velocity, float ds, float4* position_out
     calculate_metric_generic(position, g_metric, cfg);
     calculate_partial_derivatives_generic(position, g_partials, cfg);
 
-    velocity = fix_light_velocity2(velocity, g_metric);
+    //velocity = fix_light_velocity2(velocity, g_metric);
 
     float4 lacceleration = calculate_acceleration(velocity, g_metric, g_partials);
     #else
@@ -3143,14 +3143,14 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
     int sx = ray->sx;
     int sy = ray->sy;
 
-    #ifndef GENERIC_BIG_METRIC
+    /*#ifndef GENERIC_BIG_METRIC
     {
         float g_metric[4] = {0};
         calculate_metric_generic(position, g_metric, cfg);
 
         velocity = fix_light_velocity2(velocity, g_metric);
     }
-    #endif // GENERIC_BIG_METRIC
+    #endif // GENERIC_BIG_METRIC*/
 
     #ifdef IS_CONSTANT_THETA
     position.z = M_PIf/2;
@@ -3283,7 +3283,6 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
             break;
 
         position = next_position;
-        //velocity = fix_light_velocity2(next_velocity, g_metric);
         velocity = next_velocity;
         acceleration = next_acceleration;
 
