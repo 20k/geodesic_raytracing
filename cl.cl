@@ -2351,7 +2351,7 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
 
 ///https://arxiv.org/pdf/0904.4184.pdf 1.4.18
 float4 get_timelike_vector(float3 cartesian_basis_speed, float time_direction,
-                           __global float4* e0, __global float4* e1, __global float4* e2, __global float4* e3)
+                           float4 e0, float4 e1, float4 e2, float4 e3)
 {
     float v = length(cartesian_basis_speed);
     float Y = 1 / sqrt(1 - v*v);
@@ -2360,13 +2360,13 @@ float4 get_timelike_vector(float3 cartesian_basis_speed, float time_direction,
 
     float psi = B * Y;
 
-    float4 bT = time_direction * Y * (*e0);
+    float4 bT = time_direction * Y * e0;
 
     float3 dir = normalize(cartesian_basis_speed);
 
-    float4 bX = psi * dir.x * (*e1);
-    float4 bY = psi * dir.y * (*e2);
-    float4 bZ = psi * dir.z * (*e3);
+    float4 bX = psi * dir.x * e1;
+    float4 bY = psi * dir.y * e2;
+    float4 bZ = psi * dir.z * e3;
 
     return bT + bX + bY + bZ;
 }
@@ -2382,7 +2382,7 @@ void init_timelike_geodesic(__global float4* g_polar_position,
     if(get_global_id(0) != 0)
         return;
 
-    float4 timelike_vector = get_timelike_vector(cartesian_basis_speed, time_direction, e0, e1, e2, e3);
+    float4 timelike_vector = get_timelike_vector(cartesian_basis_speed, time_direction, *e0, *e1, *e2, *e3);
 
     *generic_position_out = spherical_to_generic(*g_polar_position, cfg);
     *generic_velocity_out = timelike_vector;
@@ -2495,6 +2495,7 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
                        int prepass_width, int prepass_height,
                        int flip_geodesic_direction,
                        __global float4* e0, __global float4* e1, __global float4* e2, __global float4* e3,
+                       float3 cartesian_basis_speed,
                        dynamic_config_space struct dynamic_config* cfg)
 {
     int id = get_global_id(0);
@@ -2513,8 +2514,25 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
 
     float4 at_metric = spherical_to_generic(polar_camera, cfg);
 
-    float4 bT = *e0;
-    float4 observer_velocity = bT;
+    //float4 bT = *e0;
+    //float4 observer_velocity = bT;
+
+    float4 timelike = get_timelike_vector(cartesian_basis_speed, 1, *e0, *e1, *e2, *e3);
+
+    /*{
+        float g_metric[4] = {0};
+        calculate_metric_generic(at_metric, g_metric, cfg);
+
+        float len = dot_product_generic(timelike, timelike, g_metric);
+
+        if(cx == width/2 && cy == height/2)
+        {
+            printf("Len %f\n", len);
+        }
+    }*/
+
+    float4 bT = timelike;
+    float4 observer_velocity = timelike;
 
     pixel_direction = normalize(pixel_direction);
 
@@ -3366,8 +3384,7 @@ void calculate_singularities(__global struct lightray* finished_rays, __global i
 #endif // GENERIC_METRIC
 
 __kernel
-void calculate_texture_coordinates(__global struct lightray* finished_rays, __global int* finished_count_in, __global float2* texture_coordinates, int width, int height, __global float4* g_polar_camera_pos, __global float4* g_camera_quat,
-                                   __global float4* e0, __global float4* e1, __global float4* e2, __global float4* e3)
+void calculate_texture_coordinates(__global struct lightray* finished_rays, __global int* finished_count_in, __global float2* texture_coordinates, int width, int height, __global float4* g_polar_camera_pos, __global float4* g_camera_quat)
 {
     int id = get_global_id(0);
 

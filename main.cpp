@@ -1519,6 +1519,7 @@ int main()
                         init_args_prepass.push_back(i);
                     }
 
+                    init_args_prepass.push_back(cartesian_basis_speed);
                     init_args_prepass.push_back(dynamic_config);
 
                     clctx.cqueue.exec("init_rays_generic", init_args_prepass, {prepass_width*prepass_height}, {256});
@@ -1554,6 +1555,7 @@ int main()
                     init_args.push_back(i);
                 }
 
+                init_args.push_back(cartesian_basis_speed);
                 init_args.push_back(dynamic_config);
 
                 clctx.cqueue.exec("init_rays_generic", init_args, {width*height}, {16*16});
@@ -1614,11 +1616,6 @@ int main()
                 texture_args.push_back(height);
                 texture_args.push_back(g_camera_pos_polar);
                 texture_args.push_back(g_camera_quat);
-
-                for(auto& i : tetrad)
-                {
-                    texture_args.push_back(i);
-                }
 
                 clctx.cqueue.exec("calculate_texture_coordinates", texture_args, {width * height}, {256});
 
