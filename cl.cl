@@ -2349,6 +2349,28 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
     *e3_out = e3;
 }
 
+///https://arxiv.org/pdf/0904.4184.pdf 1.4.18
+float4 get_timelike_vector(float3 cartesian_basis_speed, float time_direction,
+                           __global float4* e0, __global float4* e1, __global float4* e2, __global float4* e3)
+{
+    float v = length(cartesian_basis_speed);
+    float Y = 1 / sqrt(1 - v*v);
+
+    float B = v;
+
+    float psi = B * Y;
+
+    float4 bT = time_direction * Y * (*e0);
+
+    float3 dir = normalize(cartesian_basis_speed);
+
+    float4 bX = psi * dir.x * (*e1);
+    float4 bY = psi * dir.y * (*e2);
+    float4 bZ = psi * dir.z * (*e3);
+
+    return bT + bX + bY + bZ;
+}
+
 __kernel
 void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_camera_quat,
                        __global struct lightray* metric_rays, __global int* metric_ray_count,
