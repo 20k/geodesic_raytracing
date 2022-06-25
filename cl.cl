@@ -2531,14 +2531,42 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
         }
     }*/
 
-    float4 bT = timelike;
+    float4 bT = *e0;
     float4 observer_velocity = timelike;
+
+    float4 le1 = *e1;
+    float4 le2 = *e2;
+    float4 le3 = *e3;
+
+    {
+        /*if(cx == width/2 && cy == height/2)
+        {
+            printf("OVel %f %f %f %f\n", timelike.x, timelike.y, timelike.z, timelike.w);
+        }*/
+
+        float lorentz[16] = {};
+
+        #ifndef GENERIC_BIG_METRIC
+        float g_metric[4] = {};
+        calculate_metric_generic(at_metric, g_metric, cfg);
+        calculate_lorentz_boost(bT, observer_velocity, g_metric, lorentz);
+        #else
+        float g_metric_big[16] = {0};
+        calculate_metric_generic_big(at_metric, g_metric_big, cfg);
+        calculate_lorentz_boost_big(bT, observer_velocity, g_metric_big, lorentz);
+        #endif // GENERIC_METRIC
+        bT = observer_velocity;
+
+        le1 = tensor_contract(lorentz, le1);
+        le2 = tensor_contract(lorentz, le2);
+        le3 = tensor_contract(lorentz, le3);
+    }
 
     pixel_direction = normalize(pixel_direction);
 
-    float4 pixel_x = pixel_direction.x * (*e1);
-    float4 pixel_y = pixel_direction.y * (*e2);
-    float4 pixel_z = pixel_direction.z * (*e3);
+    float4 pixel_x = pixel_direction.x * le1;
+    float4 pixel_y = pixel_direction.y * le2;
+    float4 pixel_z = pixel_direction.z * le3;
 
     ///when people say backwards in time, what they mean is backwards in affine time, not coordinate time
     ///going backwards in coordinate time however should be identical
