@@ -3168,9 +3168,6 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
     float4 velocity = ray->velocity;
     float4 acceleration = ray->acceleration;
 
-    int sx = ray->sx;
-    int sy = ray->sy;
-
     /*#ifndef GENERIC_BIG_METRIC
     {
         float g_metric[4] = {0};
