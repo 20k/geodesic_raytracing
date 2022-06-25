@@ -2783,7 +2783,7 @@ float4 rk4_f(float t, float4 position, float4 velocity)
 ///it would be useful to be able to combine data from multiple ticks which are separated by some delta, but where I don't have control over that delta
 ///I wonder if a taylor series expansion of F(y + dt) might be helpful
 ///this is actually regular velocity verlet with no modifications https://en.wikipedia.org/wiki/Verlet_integration#Velocity_Verlet
-void step_verlet(float4 position, float4 velocity, float4 acceleration, float ds, float4* position_out, float4* velocity_out, float4* acceleration_out, float* g_00_out, dynamic_config_space struct dynamic_config* cfg)
+void step_verlet(float4 position, float4 velocity, float4 acceleration, bool always_lightlike, float ds, float4* position_out, float4* velocity_out, float4* acceleration_out, float* g_00_out, dynamic_config_space struct dynamic_config* cfg)
 {
     #ifndef GENERIC_BIG_METRIC
     float g_metric[4] = {};
@@ -2807,7 +2807,8 @@ void step_verlet(float4 position, float4 velocity, float4 acceleration, float ds
     }
 
     ///1ms
-    //intermediate_next_velocity = fix_light_velocity2(intermediate_next_velocity, g_metric);
+    if(always_lightlike)
+        intermediate_next_velocity = fix_light_velocity2(intermediate_next_velocity, g_metric);
 
     float4 next_acceleration = calculate_acceleration(intermediate_next_velocity, g_metric, g_partials);
     #else
@@ -3091,7 +3092,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
         float4 next_position, next_velocity, next_acceleration;
 
-        step_verlet(position, velocity, acceleration, ds, &next_position, &next_velocity, &next_acceleration, 0, cfg);
+        step_verlet(position, velocity, acceleration, true, ds, &next_position, &next_velocity, &next_acceleration, 0, cfg);
 
         #ifdef ADAPTIVE_PRECISION
 
@@ -3251,7 +3252,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         float4 next_position, next_velocity, next_acceleration;
         float g00 = 0;
 
-        step_verlet(position, velocity, acceleration, ds, &next_position, &next_velocity, &next_acceleration, &g00, cfg);
+        step_verlet(position, velocity, acceleration, false, ds, &next_position, &next_velocity, &next_acceleration, &g00, cfg);
 
         ///https://en.wikipedia.org/wiki/Coordinate_time#Mathematics
         float dT_dt = native_sqrt(fabs(g00));
