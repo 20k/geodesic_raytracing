@@ -770,6 +770,13 @@ int main()
     geodesic_dT_dt_buffer.set_to_zero(clctx.cqueue);
     geodesic_ds_buffer.set_to_zero(clctx.cqueue);
 
+    cl::buffer generic_geodesic_buffer(clctx.ctx);
+    generic_geodesic_buffer.alloc(sizeof(cl_float4) * 1024);
+
+    cl::buffer generic_geodesic_count(clctx.ctx);
+    generic_geodesic_count.alloc(sizeof(cl_int));
+    generic_geodesic_count.set_to_zero(clctx.cqueue);
+
     std::array<cl::buffer, 4> tetrad{clctx.ctx, clctx.ctx, clctx.ctx, clctx.ctx};
 
     for(int i=0; i < 4; i++)
@@ -1564,7 +1571,26 @@ int main()
 
                 if(should_snapshot_geodesic)
                 {
-                    int idx = (height/2) * width + width/2;
+                    {
+                        generic_geodesic_count.set_to_zero(clctx.cqueue);
+
+                        cl::args args;
+                        args.push_back(g_camera_pos_polar);
+                        args.push_back(generic_geodesic_buffer);
+                        args.push_back(generic_geodesic_count);
+
+                        for(auto& i : tetrad)
+                        {
+                            args.push_back(i);
+                        }
+
+                        args.push_back(cartesian_basis_speed);
+                        args.push_back(dynamic_config);
+
+                        clctx.cqueue.exec("init_inertial_ray", args, {1}, {1});
+                    }
+
+                    int idx = 0;
 
                     geodesic_trace_buffer.set_to_zero(clctx.cqueue);
                     geodesic_dT_dt_buffer.set_to_zero(clctx.cqueue);
@@ -1573,12 +1599,12 @@ int main()
                     geodesic_ds_buffer.set_to_zero(clctx.cqueue);
 
                     cl::args snapshot_args;
-                    snapshot_args.push_back(schwarzs_1);
+                    snapshot_args.push_back(generic_geodesic_buffer);
                     snapshot_args.push_back(geodesic_trace_buffer);
                     snapshot_args.push_back(geodesic_vel_buffer);
                     snapshot_args.push_back(geodesic_dT_dt_buffer);
                     snapshot_args.push_back(geodesic_ds_buffer);
-                    snapshot_args.push_back(schwarzs_count_1);
+                    snapshot_args.push_back(generic_geodesic_count);
                     snapshot_args.push_back(idx);
                     snapshot_args.push_back(width);
                     snapshot_args.push_back(height);
