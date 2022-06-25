@@ -1240,7 +1240,6 @@ int main()
                         if(ImGui::Button("Snapshot Camera Geodesic"))
                         {
                             should_snapshot_geodesic = true;
-                            printf("Snap\n");
                         }
 
                         ImGui::Checkbox("Camera Snapshot Geodesic goes forward", &camera_geodesics_go_foward);
