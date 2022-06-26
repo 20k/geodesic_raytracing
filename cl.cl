@@ -3324,7 +3324,8 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
 
         #ifndef RK4_GENERIC
         #ifdef ADAPTIVE_PRECISION
-        ds = max(next_ds, 0.01f);
+        //ds = max(next_ds, 0.01f);
+        ds = next_ds;
         #endif // ADAPTIVE_PRECISION
         #endif // RK4_GENERIC
 
@@ -3346,7 +3347,6 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         #endif // SINGULAR
         {
             should_break = true;
-            printf("Escaped\n");
         }
 
         float4 next_position, next_velocity, next_acceleration;
@@ -3368,8 +3368,8 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
                 printf("Return detected\n");
             }
 
-            //if(res == DS_SKIP)
-            //    continue;
+            if(res == DS_SKIP)
+                continue;
         }
         #endif // ADAPTIVE_PRECISION
 
