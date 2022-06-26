@@ -5,7 +5,7 @@ function metric(v, r, theta, phi)
     var rs = $cfg.rs;
 
     var dv = -(1 - rs / r)
-    var dv_dr = -2;
+    var dv_dr = 2;
     var dtheta = r*r;
     var dphi = r*r * CMath.sin(theta) * CMath.sin(theta);
 
