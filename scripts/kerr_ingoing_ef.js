@@ -1,5 +1,6 @@
 function metric(v, r, theta, phi)
 {
+	//http://www.scholarpedia.org/article/Kerr-Newman_metric (47), with signs flipped due to signature
 	$cfg.rs.$default = 1;
 	$cfg.a.$default = -0.5;
 	
