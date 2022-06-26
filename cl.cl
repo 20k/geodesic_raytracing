@@ -64,6 +64,8 @@ float calculate_ds(float4 velocity, float g_metric[])
 ///ds2 = guv dx^u dx^v
 float4 fix_light_velocity2(float4 v, float g_metric[])
 {
+    return v;
+
     ///g_metric[1] * v[1]^2 + g_metric[2] * v[2]^2 + g_metric[3] * v[3]^2 = -g_metric[0] * v[0]^2
 
     float3 vmetric = {g_metric[1], g_metric[2], g_metric[3]};
@@ -1234,6 +1236,8 @@ float stable_quad(float a, float d, float k, float sign)
 
 float4 fix_light_velocity_big(float4 v, float g_metric_big[])
 {
+    return v;
+
     //return v;
 
     float4 c = tensor_contract(g_metric_big, v);
@@ -2627,6 +2631,9 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
     const int cx = id % width;
     const int cy = id / width;
 
+    if(cx == width/2 && cy == height/2)
+        printf("Pos %f %f %f %f\n", polar_camera_in.x, polar_camera_in.y, polar_camera_in.z, polar_camera_in.w);
+
     float3 pixel_direction = calculate_pixel_direction(cx, cy, width, height, polar_camera_in, *g_camera_quat);
 
     float4 polar_camera = polar_camera_in;
@@ -3317,7 +3324,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
 
         #ifndef RK4_GENERIC
         #ifdef ADAPTIVE_PRECISION
-        ds = next_ds;
+        ds = max(next_ds, 0.05f);
         #endif // ADAPTIVE_PRECISION
         #endif // RK4_GENERIC
 
@@ -3339,6 +3346,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         #endif // SINGULAR
         {
             should_break = true;
+            printf("Escaped\n");
         }
 
         float4 next_position, next_velocity, next_acceleration;
@@ -3357,10 +3365,11 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
             if(res == DS_RETURN)
             {
                 should_break = true;
+                printf("Return detected\n");
             }
 
-            if(res == DS_SKIP)
-                continue;
+            //if(res == DS_SKIP)
+            //    continue;
         }
         #endif // ADAPTIVE_PRECISION
 
@@ -3405,6 +3414,8 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         position = next_position;
         velocity = next_velocity;
         acceleration = next_acceleration;
+
+        printf("Pos %f %f %f %f vel %f %f %f %f ds %f\n", position.x, position.y, position.z, position.w, velocity.x, velocity.y, velocity.z, velocity.w, ds);
 
         positions_out[bufc] = generic_position_out;
         velocities_out[bufc] = generic_velocity_out;
