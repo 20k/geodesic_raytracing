@@ -9,18 +9,34 @@ function metric(v, r, theta, phi)
 	var ct = CMath.cos(theta);
 	var st = CMath.sin(theta);
 	
-	/*var R = r*r + a * a * ct * ct;
+	var R2 = r*r + a * a * ct * ct;
 	var D = r*r + a * a - rs * r;
 	
 	var metric = [];
 	metric.length = 16;
 	
-	var du = (1 - (rs * r) / (R*R));
-	var du_dr = 2;
-	var du_dphi = (2 * a * st * st / (R * R)) * (rs * r);
-	var dr_dphi = -2 * a * st * st;
-	var dtheta = -R * R;
-	var dphi = (st * st / (R*R)) * (D * a * a * */
+	var dv = (1 - (rs * r) / R2);
+	var dv_dr = -2;
+	var dv_dphi = (2 * a * st * st / R2) * (rs * r);
+	var dr_dphi = 2 * a * st * st;
+	var dtheta = -R2;
+	var dphi = (st * st / R2) * (D * a * a * st * st - CMath.pow(a * a + r*r, 2));
+	
+	///v, r, theta, phi
+	metric[0] = -dv;
+	metric[1 * 4 + 0] = -0.5 * dv_dr;
+	metric[0 * 4 + 1] = -0.5 * dv_dr;
+	
+	metric[3 * 4 + 0] = -0.5 * dv_dphi;
+	metric[0 * 4 + 3] = -0.5 * dv_dphi;
+	
+	metric[1 * 4 + 3] = -0.5 * dr_dphi;
+	metric[3 * 4 + 1] = -0.5 * dr_dphi;
+	
+	metric[2 * 4 + 2] = -dtheta;
+	metric[3 * 4 + 3] = -dphi;
+	
+	return metric;
 	
 	/*var l = [1, 0, 0, a * st * st];
 	
