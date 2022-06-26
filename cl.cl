@@ -3324,7 +3324,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
 
         #ifndef RK4_GENERIC
         #ifdef ADAPTIVE_PRECISION
-        ds = max(next_ds, 0.05f);
+        ds = max(next_ds, 0.01f);
         #endif // ADAPTIVE_PRECISION
         #endif // RK4_GENERIC
 
