@@ -843,7 +843,7 @@ int main()
     bool camera_geodesics_go_foward = true;
     float set_camera_time = 0;
     bool parallel_transport_observer = true;
-    cl_float4 cartesian_basis_speed = {0.2,0,0,0};
+    cl_float4 cartesian_basis_speed = {0,0,0,0};
 
     printf("Pre fullscreen\n");
 
