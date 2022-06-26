@@ -1234,7 +1234,7 @@ float stable_quad(float a, float d, float k, float sign)
 
 float4 fix_light_velocity_big(float4 v, float g_metric_big[])
 {
-    //return v;
+    return v;
 
     float4 c = tensor_contract(g_metric_big, v);
 
