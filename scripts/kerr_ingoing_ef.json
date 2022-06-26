@@ -1,5 +1,6 @@
 {
 	"name": "kerr_ingoing_ef",
 	"inherit_settings": "ingoing_ef_base",
+	"use_prepass": true,
 	"description": "An uncharged, spinning black hole\nNote that the event horizon *is* traversible in the ingoing Eddington-Finkelstein coordinate system"
 }
