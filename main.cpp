@@ -1482,19 +1482,8 @@ int main()
             cl::event next;
 
             {
-                int isnap = should_snapshot_geodesic;
-
-                if(should_snapshot_geodesic)
-                {
-                    if(camera_geodesics_go_foward)
-                    {
-                        isnap = 1;
-                    }
-                    else
-                    {
-                        isnap = 0;
-                    }
-                }
+                ///should invert geodesics is unused for the moment
+                int isnap = 0;
 
                 float on_geodesic = camera_on_geodesic ? 1 : 0;
 
