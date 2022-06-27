@@ -850,6 +850,8 @@ int main()
     cl_float4 cartesian_basis_speed = {0,0,0,0};
     float linear_basis_speed = 0.f;
 
+    bool has_geodesic = false;
+
     printf("Pre fullscreen\n");
 
     steady_timer workshop_poll;
@@ -1251,27 +1253,40 @@ int main()
 
                     if(ImGui::BeginTabItem("Paths"))
                     {
-                        ImGui::DragFloat("Geodesic Camera Time", &current_geodesic_time, 0.1, 0.f, 0.f);
+                        if(ImGui::Button("Snapshot Camera Geodesic"))
+                        {
+                            should_snapshot_geodesic = true;
+                        }
+
+                        if(has_geodesic)
+                        {
+                            ImGui::SameLine();
+
+                            if(ImGui::Button("Reset"))
+                            {
+                                has_geodesic = false;
+                            }
+                        }
 
                         if(ImGui::DragFloat("Observer Velocity", &linear_basis_speed, 0.001f, -0.9999999f, 0.9999999f))
                         {
                             should_set_observer_velocity = true;
                         }
 
-                        ImGui::Checkbox("Use Camera Geodesic", &camera_on_geodesic);
-
-                        ImGui::Checkbox("Camera Time Progresses Along Geodesic", &camera_time_progresses);
-
-                        ImGui::SliderFloat("Camera Time Progression Speed", &camera_geodesic_time_progression_speed, 0.f, 4.f, "%.2f");
-
-                        if(ImGui::Button("Snapshot Camera Geodesic"))
-                        {
-                            should_snapshot_geodesic = true;
-                        }
-
                         ImGui::Checkbox("Camera Snapshot Geodesic goes forward", &camera_geodesics_go_foward);
 
-                        ImGui::Checkbox("Transport observer along geodesic", &parallel_transport_observer);
+                        if(has_geodesic)
+                        {
+                            ImGui::DragFloat("Geodesic Camera Time", &current_geodesic_time, 0.1, 0.f, 0.f);
+
+                            ImGui::Checkbox("Attach Camera to Geodesic", &camera_on_geodesic);
+
+                            ImGui::Checkbox("Camera Time Progresses Along Geodesic", &camera_time_progresses);
+
+                            ImGui::SliderFloat("Camera Time Progression Speed", &camera_geodesic_time_progression_speed, 0.f, 4.f, "%.2f");
+
+                            ImGui::Checkbox("Transport observer along geodesic", &parallel_transport_observer);
+                        }
 
                         ImGui::EndTabItem();
                     }
@@ -1292,6 +1307,12 @@ int main()
 
             if(camera_time_progresses)
                 current_geodesic_time += camera_geodesic_time_progression_speed * time / 1000.f;
+
+            if(!has_geodesic)
+            {
+                camera_on_geodesic = false;
+                camera_time_progresses = false;
+            }
 
             metric_manage.check_recompile(should_recompile, should_soft_recompile, parent_directories,
                                           all_content, metric_names, dynamic_config, clctx.cqueue, cfg,
@@ -1577,72 +1598,9 @@ int main()
 
                 clctx.cqueue.exec("init_rays_generic", init_args, {width*height}, {16*16});
 
-                if(should_snapshot_geodesic)
-                {
-                    {
-                        generic_geodesic_count.set_to_zero(clctx.cqueue);
-
-                        cl::args args;
-                        args.push_back(g_camera_pos_polar);
-                        args.push_back(generic_geodesic_buffer);
-                        args.push_back(generic_geodesic_count);
-
-                        for(auto& i : tetrad)
-                        {
-                            args.push_back(i);
-                        }
-
-                        args.push_back(g_geodesic_basis_speed);
-                        args.push_back(dynamic_config);
-
-                        clctx.cqueue.exec("init_inertial_ray", args, {1}, {1});
-                    }
-
-                    int idx = 0;
-
-                    geodesic_trace_buffer.set_to_zero(clctx.cqueue);
-                    geodesic_dT_dt_buffer.set_to_zero(clctx.cqueue);
-                    geodesic_count_buffer.set_to_zero(clctx.cqueue);
-                    geodesic_vel_buffer.set_to_zero(clctx.cqueue);
-                    geodesic_ds_buffer.set_to_zero(clctx.cqueue);
-
-                    cl::args snapshot_args;
-                    snapshot_args.push_back(generic_geodesic_buffer);
-                    snapshot_args.push_back(geodesic_trace_buffer);
-                    snapshot_args.push_back(geodesic_vel_buffer);
-                    snapshot_args.push_back(geodesic_dT_dt_buffer);
-                    snapshot_args.push_back(geodesic_ds_buffer);
-                    snapshot_args.push_back(generic_geodesic_count);
-                    snapshot_args.push_back(idx);
-                    snapshot_args.push_back(width);
-                    snapshot_args.push_back(height);
-                    snapshot_args.push_back(g_camera_pos_polar);
-                    snapshot_args.push_back(g_camera_quat);
-
-                    for(auto& i : tetrad)
-                    {
-                        snapshot_args.push_back(i);
-                    }
-
-                    snapshot_args.push_back(dynamic_config);
-                    snapshot_args.push_back(geodesic_count_buffer);
-
-                    clctx.cqueue.exec("get_geodesic_path", snapshot_args, {1}, {1});
-
-                    /*current_geodesic_path = geodesic_trace_buffer.read<cl_float4>(clctx.cqueue);
-                    current_geodesic_dT_dt = geodesic_dT_dt_buffer.read<cl_float>(clctx.cqueue);
-                    int count = geodesic_count_buffer.read<cl_int>(clctx.cqueue)[0];
-
-                    printf("Found geodesic count %i\n", count);
-
-                    current_geodesic_path.resize(count);
-                    current_geodesic_dT_dt.resize(count);*/
-                }
-
                 int rays_num = calculate_ray_count(width, height);
 
                 execute_kernel(clctx.cqueue, schwarzs_1, schwarzs_scratch, finished_1, schwarzs_count_1, schwarzs_count_scratch, finished_count_1, rays_num, cfg.use_device_side_enqueue, dynamic_config);
-
 
                 cl::args texture_args;
                 texture_args.push_back(finished_1);
@@ -1668,6 +1626,64 @@ int main()
 
                 next = clctx.cqueue.exec("render", render_args, {width * height}, {256});
             }
+
+            if(should_snapshot_geodesic)
+            {
+                current_geodesic_time = 0;
+                has_geodesic = true;
+                camera_on_geodesic = true;
+
+                {
+                    generic_geodesic_count.set_to_zero(clctx.cqueue);
+
+                    cl::args args;
+                    args.push_back(g_camera_pos_polar);
+                    args.push_back(generic_geodesic_buffer);
+                    args.push_back(generic_geodesic_count);
+
+                    for(auto& i : tetrad)
+                    {
+                        args.push_back(i);
+                    }
+
+                    args.push_back(g_geodesic_basis_speed);
+                    args.push_back(dynamic_config);
+
+                    clctx.cqueue.exec("init_inertial_ray", args, {1}, {1});
+                }
+
+                int idx = 0;
+
+                geodesic_trace_buffer.set_to_zero(clctx.cqueue);
+                geodesic_dT_dt_buffer.set_to_zero(clctx.cqueue);
+                geodesic_count_buffer.set_to_zero(clctx.cqueue);
+                geodesic_vel_buffer.set_to_zero(clctx.cqueue);
+                geodesic_ds_buffer.set_to_zero(clctx.cqueue);
+
+                cl::args snapshot_args;
+                snapshot_args.push_back(generic_geodesic_buffer);
+                snapshot_args.push_back(geodesic_trace_buffer);
+                snapshot_args.push_back(geodesic_vel_buffer);
+                snapshot_args.push_back(geodesic_dT_dt_buffer);
+                snapshot_args.push_back(geodesic_ds_buffer);
+                snapshot_args.push_back(generic_geodesic_count);
+                snapshot_args.push_back(idx);
+                snapshot_args.push_back(width);
+                snapshot_args.push_back(height);
+                snapshot_args.push_back(g_camera_pos_polar);
+                snapshot_args.push_back(g_camera_quat);
+
+                for(auto& i : tetrad)
+                {
+                    snapshot_args.push_back(i);
+                }
+
+                snapshot_args.push_back(dynamic_config);
+                snapshot_args.push_back(geodesic_count_buffer);
+
+                clctx.cqueue.exec("get_geodesic_path", snapshot_args, {1}, {1});
+            }
+
 
             rtex.unacquire(clctx.cqueue);
 
