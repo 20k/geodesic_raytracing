@@ -535,6 +535,54 @@ struct main_menu
     }
 };
 
+template<typename T>
+struct read_queue
+{
+    struct element
+    {
+        T data = T{};
+        cl::event evt;
+        cl::buffer gpu_buffer;
+
+        element(cl::context& ctx) : gpu_buffer(ctx){}
+    };
+
+    std::vector<element*> q;
+
+    void start_read(cl::context& ctx, cl::command_queue& async_q, cl::buffer&& buf, cl::event wait_on)
+    {
+        element* e = new element(ctx);
+
+        e.gpu_buffer = std::move(buf);
+
+        e.evt = e.gpu_buffer.read_async(async_q, (char*)&e->data, sizeof(T), {wait_on});
+
+        q.push_back(e);
+    }
+
+    std::vector<std::pair<T, cl::buffer>> fetch()
+    {
+        std::vector<T> ret;
+
+        for(int i=0; i < (int)q.size(); i++)
+        {
+            element* e = q[i];
+
+            if(e->evt.is_finished())
+            {
+                ret.push_back({e->data, std::move(e->gpu_buffer)});
+
+                q.erase(q.begin() + i);
+                i--;
+                delete e;
+                continue;
+            }
+        }
+
+        return ret;
+    }
+};
+
 ///i need the ability to have dynamic parameters
 int main()
 {
