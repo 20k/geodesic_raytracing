@@ -2279,6 +2279,7 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
     //printf("Count %i\n", cnt);
 
     float current_time = geodesic_path[0].x;
+    float current_proper_time = 0;
 
     *g_camera_polar_out = generic_to_spherical(start_generic, cfg);
 
@@ -2339,13 +2340,27 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
         }
 
         float dt = next_pos.x - current_pos.x;
+        float next_proper_time = current_proper_time + dT_dt[i] * dt;
 
+        #ifdef INTERPOLATE_USE_COORDINATE_TIME
         if(target_time >= current_pos.x && target_time < next_pos.x || target_time < current_pos.x)
+        #else
+        if(target_time >= current_proper_time && target_time < next_proper_time || target_time < current_proper_time)
+        #endif
         {
+            #ifdef INTERPOLATE_USE_COORDINATE_TIME
             float dx = (target_time - current_pos.x) / (next_pos.x - current_pos.x);
+            #else
+            float dx = (target_time - current_proper_time) / (next_proper_time - current_proper_time);
+            #endif
 
+            #ifdef INTERPOLATE_USE_COORDINATE_TIME
             if(target_time < current_pos.x)
                 dx = 0;
+            #else
+            if(target_time < current_proper_time)
+                dx = 0;
+            #endif
 
             ///NEED TO BACKWARDS ROTATE POS FOR CONSTANT THETA
             float4 spherical1 = generic_to_spherical(current_pos, cfg);
@@ -2376,6 +2391,7 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
         }
 
         current_time += dt;
+        current_proper_time = next_proper_time;
 
         e0 = ne0;
         e1 = ne1;
