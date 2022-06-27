@@ -1686,6 +1686,11 @@ float3 get_phi_axis(float3 pixel_direction, float4 polar_camera_in)
 
 float4 get_theta_adjustment_quat(float3 pixel_direction, float4 polar_camera_in, float angle_sign, bool debug)
 {
+    if(fast_length(pixel_direction) < 0.00001f)
+    {
+        pixel_direction = (float3){0, 1, 0};
+    }
+
     float3 apolar = polar_camera_in.yzw;
     apolar.x = fabs(apolar.x);
 
@@ -2046,6 +2051,9 @@ float4 get_timelike_vector(float3 cartesian_basis_speed, float time_direction,
     float4 bT = time_direction * Y * e0;
 
     float3 dir = normalize(cartesian_basis_speed);
+
+    if(v == 0)
+        dir = (float3)(0, 0, 1);
 
     float4 bX = psi * dir.x * e1;
     float4 bY = psi * dir.y * e2;
