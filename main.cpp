@@ -583,6 +583,49 @@ struct read_queue
     }
 };
 
+template<typename T>
+struct read_queue_pool
+{
+    read_queue<T> q;
+
+    std::vector<cl::buffer> pool;
+
+    cl::buffer get_buffer(cl::context& ctx)
+    {
+        if(pool.size() > 0)
+        {
+            cl::buffer next = pool.back();
+            pool.pop_back();
+            return next;
+        }
+
+        cl::buffer buf(ctx);
+        buf.alloc(sizeof(T));
+
+        return buf;
+    }
+
+    void start_read(cl::context& ctx, cl::command_queue& async_q, cl::buffer&& buf, cl::event wait_on)
+    {
+        q.start_read(ctx, async_q, std::move(buf), wait_on);
+    }
+
+    std::vector<T> fetch()
+    {
+        std::vector<T> ret;
+
+        std::vector<std::pair<T, cl::buffer>> impl_fetch = q.fetch();
+
+        for(auto& [d, buf] : impl_fetch)
+        {
+            ret.push_back(std::move(d));
+            pool.push_back(buf);
+        }
+
+        return ret;
+    }
+};
+
 ///i need the ability to have dynamic parameters
 int main()
 {
@@ -654,6 +697,7 @@ int main()
 
     assert(win.clctx);
 
+
     std::cout << "extensions " << cl::get_extensions(win.clctx->ctx) << std::endl;
 
     ImFontAtlas* atlas = ImGui::GetIO().Fonts;
@@ -669,6 +713,8 @@ int main()
     io.Fonts->AddFontFromFileTTF("VeraMono.ttf", 14, &font_cfg);
 
     opencl_context& clctx = *win.clctx;
+
+    cl::command_queue async_queue(clctx.ctx, CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE);
 
     std::filesystem::path scripts_dir{"./scripts"};
 
@@ -883,6 +929,10 @@ int main()
     finished_count_1.alloc(sizeof(int));
 
     printf("Alloc rays and counts\n");
+
+    read_queue_pool<std::array<cl_float, 8>> rqueue;
+
+    printf("Finished async read queue init\n");
 
     std::optional<cl::event> last_event;
 
