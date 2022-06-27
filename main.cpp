@@ -777,6 +777,10 @@ int main()
     generic_geodesic_count.alloc(sizeof(cl_int));
     generic_geodesic_count.set_to_zero(clctx.cqueue);
 
+    cl::buffer g_geodesic_basis_speed(clctx.ctx);
+    g_geodesic_basis_speed.alloc(sizeof(cl_float4));
+    g_geodesic_basis_speed.set_to_zero(clctx.cqueue);
+
     std::array<cl::buffer, 4> tetrad{clctx.ctx, clctx.ctx, clctx.ctx, clctx.ctx};
 
     for(int i=0; i < 4; i++)
@@ -844,6 +848,7 @@ int main()
     float set_camera_time = 0;
     bool parallel_transport_observer = true;
     cl_float4 cartesian_basis_speed = {0,0,0,0};
+    float linear_basis_speed = 0.f;
 
     printf("Pre fullscreen\n");
 
@@ -1164,6 +1169,7 @@ int main()
 
             bool should_soft_recompile = false;
             bool should_update_camera_time = false;
+            bool should_set_observer_velocity = false;
 
             if(!taking_screenshot && !hide_ui && !menu.is_first_time_main_menu_open())
             {
@@ -1247,6 +1253,11 @@ int main()
                     {
                         ImGui::DragFloat("Geodesic Camera Time", &current_geodesic_time, 0.1, 0.f, 0.f);
 
+                        if(ImGui::DragFloat("Observer Velocity", &linear_basis_speed, 0.001f, -0.9999999f, 0.9999999f))
+                        {
+                            should_set_observer_velocity = true;
+                        }
+
                         ImGui::Checkbox("Use Camera Geodesic", &camera_on_geodesic);
 
                         ImGui::Checkbox("Camera Time Progresses Along Geodesic", &camera_time_progresses);
@@ -1309,6 +1320,16 @@ int main()
                 should_update_camera_time = false;
             }
 
+            if(should_set_observer_velocity)
+            {
+                cl::args args;
+                args.push_back(g_camera_quat);
+                args.push_back(linear_basis_speed);
+                args.push_back(g_geodesic_basis_speed);
+
+                clctx.cqueue.exec("init_basis_speed", args, {1}, {1});
+            }
+
             /*vec4f scamera = cartesian_to_schwarz(camera);
 
             if(flip_sign)
@@ -1348,7 +1369,7 @@ int main()
                 interpolate_args.push_back(current_geodesic_time);
                 interpolate_args.push_back(geodesic_count_buffer);
                 interpolate_args.push_back(transport);
-                interpolate_args.push_back(cartesian_basis_speed);
+                interpolate_args.push_back(g_geodesic_basis_speed);
                 interpolate_args.push_back(dynamic_config);
 
                 clctx.cqueue.exec("handle_interpolating_geodesic", interpolate_args, {1}, {1});
@@ -1517,7 +1538,6 @@ int main()
                         init_args_prepass.push_back(i);
                     }
 
-                    init_args_prepass.push_back(cartesian_basis_speed);
                     init_args_prepass.push_back(dynamic_config);
 
                     clctx.cqueue.exec("init_rays_generic", init_args_prepass, {prepass_width*prepass_height}, {256});
@@ -1553,7 +1573,6 @@ int main()
                     init_args.push_back(i);
                 }
 
-                init_args.push_back(cartesian_basis_speed);
                 init_args.push_back(dynamic_config);
 
                 clctx.cqueue.exec("init_rays_generic", init_args, {width*height}, {16*16});
@@ -1573,7 +1592,7 @@ int main()
                             args.push_back(i);
                         }
 
-                        args.push_back(cartesian_basis_speed);
+                        args.push_back(g_geodesic_basis_speed);
                         args.push_back(dynamic_config);
 
                         clctx.cqueue.exec("init_inertial_ray", args, {1}, {1});
