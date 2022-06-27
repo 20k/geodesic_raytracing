@@ -2,7 +2,7 @@
 	"name": "kerr_schild",
 	"adaptive_precision": true,
 	"detect_singularities": true,
-	"use_prepass": false,
+	"use_prepass": true,
 	"max_acceleration_change": 0.000001,
 	"inherit_settings": "cartesian_base",
 	"description": "A kerr black hole in kerr-schild coordinates, which are a set of cartesian coordinates\nThis does not suffer from the coordinate artifacts that other metrics do at the poles"
