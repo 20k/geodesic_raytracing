@@ -782,11 +782,15 @@ int main()
     g_geodesic_basis_speed.set_to_zero(clctx.cqueue);
 
     std::array<cl::buffer, 4> tetrad{clctx.ctx, clctx.ctx, clctx.ctx, clctx.ctx};
+    std::array<cl::buffer, 4> geodesic_tetrad{clctx.ctx, clctx.ctx, clctx.ctx, clctx.ctx};
 
     for(int i=0; i < 4; i++)
     {
         tetrad[i].alloc(sizeof(cl_float4));
         tetrad[i].set_to_zero(clctx.cqueue);
+
+        geodesic_tetrad[i].alloc(sizeof(cl_float4));
+        geodesic_tetrad[i].set_to_zero(clctx.cqueue);
     }
 
     cl::buffer timelike_geodesic_pos{clctx.ctx};
@@ -1382,6 +1386,11 @@ int main()
                 interpolate_args.push_back(g_camera_quat);
                 interpolate_args.push_back(g_camera_pos_polar);
 
+                for(auto& i : geodesic_tetrad)
+                {
+                    interpolate_args.push_back(i);
+                }
+
                 for(auto& i : tetrad)
                 {
                     interpolate_args.push_back(i);
@@ -1677,6 +1686,11 @@ int main()
                 snapshot_args.push_back(geodesic_count_buffer);
 
                 clctx.cqueue.exec("get_geodesic_path", snapshot_args, {1}, {1});
+
+                for(int i=0; i < (int)tetrad.size(); i++)
+                {
+                    cl::copy(clctx.cqueue, tetrad[i], geodesic_tetrad[i]);
+                }
             }
 
 

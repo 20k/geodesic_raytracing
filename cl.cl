@@ -2280,6 +2280,7 @@ __kernel
 void handle_interpolating_geodesic(__global float4* geodesic_path, __global float4* geodesic_velocity, __global float* dT_dt, __global float* ds_in,
                                    __global float4* g_camera_quat,
                                    __global float4* g_camera_polar_out,
+                                   __global float4* e0_in, __global float4* e1_in, __global float4* e2_in, __global float4* e3_in,
                                    __global float4* e0_out, __global float4* e1_out, __global float4* e2_out, __global float4* e3_out,
                                    float target_time,
                                    __global int* count_in,
@@ -2293,7 +2294,18 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
     float4 start_generic = geodesic_path[0];
 
     float4 e0, e1, e2, e3;
-    calculate_tetrads(generic_to_spherical(start_generic, cfg), *geodesic_basis_speed, &e0, &e1, &e2, &e3, cfg, 1);
+
+    if(!parallel_transport_observer)
+    {
+        calculate_tetrads(generic_to_spherical(start_generic, cfg), *geodesic_basis_speed, &e0, &e1, &e2, &e3, cfg, 1);
+    }
+    else
+    {
+        e0 = *e0_in;
+        e1 = *e1_in;
+        e2 = *e2_in;
+        e3 = *e3_in;
+    }
 
     int cnt = *count_in;
 
