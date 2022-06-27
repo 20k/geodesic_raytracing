@@ -107,6 +107,7 @@ https://core.ac.uk/download/pdf/25279526.pdf - binary black hole approximation?
 https://hal.archives-ouvertes.fr/hal-01862911/document - natario warp drive
 
 https://arxiv.org/pdf/1908.10757.pdf - good tetrad reference
+https://academic.oup.com/ptep/article/2015/4/043E02/1524372 - interesting kerr coordinate system
 
 "how do i convert rgb to wavelengths"
 https://github.com/colour-science/smits1999
