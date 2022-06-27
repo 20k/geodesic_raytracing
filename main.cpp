@@ -848,7 +848,6 @@ int main()
     bool camera_on_geodesic = false;
     bool camera_time_progresses = false;
     float camera_geodesic_time_progression_speed = 1.f;
-    bool camera_geodesics_go_foward = true;
     float set_camera_time = 0;
     bool parallel_transport_observer = true;
     cl_float4 cartesian_basis_speed = {0,0,0,0};
@@ -1276,8 +1275,6 @@ int main()
                         {
                             should_set_observer_velocity = true;
                         }
-
-                        ImGui::Checkbox("Camera Snapshot Geodesic goes forward", &camera_geodesics_go_foward);
 
                         if(has_geodesic)
                         {
