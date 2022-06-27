@@ -1673,11 +1673,6 @@ int main()
                 snapshot_args.push_back(g_camera_pos_polar);
                 snapshot_args.push_back(g_camera_quat);
 
-                for(auto& i : tetrad)
-                {
-                    snapshot_args.push_back(i);
-                }
-
                 snapshot_args.push_back(dynamic_config);
                 snapshot_args.push_back(geodesic_count_buffer);
 
