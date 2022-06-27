@@ -2278,7 +2278,6 @@ float4 mix_spherical(float4 in1, float4 in2, float a)
 
 __kernel
 void handle_interpolating_geodesic(__global float4* geodesic_path, __global float4* geodesic_velocity, __global float* dT_dt, __global float* ds_in,
-                                   __global float4* g_camera_quat,
                                    __global float4* g_camera_polar_out,
                                    __global float4* e0_in, __global float4* e1_in, __global float4* e2_in, __global float4* e3_in,
                                    __global float4* e0_out, __global float4* e1_out, __global float4* e2_out, __global float4* e3_out,

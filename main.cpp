@@ -1345,7 +1345,7 @@ int main()
                 should_update_camera_time = false;
             }
 
-            if(should_set_observer_velocity)
+            //if(should_set_observer_velocity)
             {
                 cl::args args;
                 args.push_back(g_camera_quat);
@@ -1383,7 +1383,6 @@ int main()
                 interpolate_args.push_back(geodesic_vel_buffer);
                 interpolate_args.push_back(geodesic_dT_dt_buffer);
                 interpolate_args.push_back(geodesic_ds_buffer);
-                interpolate_args.push_back(g_camera_quat);
                 interpolate_args.push_back(g_camera_pos_polar);
 
                 for(auto& i : geodesic_tetrad)
