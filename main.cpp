@@ -1302,9 +1302,12 @@ int main()
                 {
                     if(ImGui::BeginTabItem("General"))
                     {
-                        if(last_camera_pos.has_value())
+                        if(!current_settings.no_gpu_reads)
                         {
-                            ImGui::DragFloat4("Camera Position", &last_camera_pos.value().s[0]);
+                            if(last_camera_pos.has_value())
+                            {
+                                ImGui::DragFloat4("Camera Position", &last_camera_pos.value().s[0]);
+                            }
                         }
 
                         if(ImGui::SliderFloat("Camera Time", &set_camera_time, 0.f, 100.f))
@@ -1386,7 +1389,7 @@ int main()
                         {
                             ImGui::SameLine();
 
-                            if(ImGui::Button("Reset"))
+                            if(ImGui::Button("Clear"))
                             {
                                 has_geodesic = false;
                             }
@@ -1399,23 +1402,26 @@ int main()
 
                         if(has_geodesic)
                         {
-                            if(last_camera_pos.has_value())
+                            if(!current_settings.no_gpu_reads)
                             {
-                                ImGui::DragFloat4("Geodesic Position", &last_camera_pos.value().s[0]);
+                                if(last_camera_pos.has_value())
+                                {
+                                    ImGui::DragFloat4("Geodesic Position", &last_camera_pos.value().s[0]);
+                                }
+
+                                if(last_geodesic_velocity.has_value())
+                                {
+                                    ImGui::DragFloat4("Geodesic Velocity", &last_geodesic_velocity.value().s[0]);
+                                }
                             }
 
-                            if(last_geodesic_velocity.has_value())
-                            {
-                                ImGui::DragFloat4("Geodesic Velocity", &last_geodesic_velocity.value().s[0]);
-                            }
+                            ImGui::DragFloat("Proper Time", &current_geodesic_time, 0.1, 0.f, 0.f);
 
-                            ImGui::DragFloat("Geodesic Camera Time", &current_geodesic_time, 0.1, 0.f, 0.f);
+                            ImGui::Checkbox("Proper Time Progresses", &camera_time_progresses);
+
+                            ImGui::SliderFloat("Proper Time Progession Rate", &camera_geodesic_time_progression_speed, 0.f, 4.f, "%.2f");
 
                             ImGui::Checkbox("Attach Camera to Geodesic", &camera_on_geodesic);
-
-                            ImGui::Checkbox("Camera Time Progresses Along Geodesic", &camera_time_progresses);
-
-                            ImGui::SliderFloat("Camera Time Progression Speed", &camera_geodesic_time_progression_speed, 0.f, 4.f, "%.2f");
 
                             ImGui::Checkbox("Transport observer along geodesic", &parallel_transport_observer);
                         }
