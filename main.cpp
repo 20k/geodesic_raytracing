@@ -1259,6 +1259,8 @@ int main()
 
                         ImGui::Checkbox("Time Progresses", &time_progresses);
 
+                        ImGui::Checkbox("Put Camera into negative space", &flip_sign);
+
                         if(ImGui::Button("Screenshot"))
                             should_take_screenshot = true;
 
