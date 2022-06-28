@@ -2277,6 +2277,47 @@ float4 mix_spherical(float4 in1, float4 in2, float a)
 }
 
 __kernel
+void parallel_transport_quantity(__global float4* geodesic_path, __global float4* geodesic_velocity, __global float* ds_in, __global float4* quantity, __global int* count_in, __global float4* quantity_out, dynamic_config_space struct dynamic_config* cfg)
+{
+    if(get_global_id(0) != 0)
+        return;
+
+    if(*count_in == 0)
+        return;
+
+    float4 current_quantity = *quantity;
+
+    quantity_out[0] = current_quantity;
+
+    int cnt = *count_in;
+
+    if(cnt == 1)
+        return;
+
+    for(int i=0; i < cnt - 1; i++)
+    {
+        float ds = ds_in[i];
+
+        float4 current_pos = geodesic_path[i];
+        float4 next_pos = geodesic_path[i + 1];
+
+        float4 f_x = parallel_transport_get_acceleration(current_quantity, geodesic_path[i], geodesic_velocity[i], cfg);
+
+        float4 intermediate_next = current_quantity + f_x * ds;
+
+        float4 next = current_quantity + 0.5f * ds * (f_x + parallel_transport_get_acceleration(intermediate_next, geodesic_path[i + 1], geodesic_velocity[i + 1], cfg));
+
+        ///so. quantity_out[0] ends up being initial, quantity_out[1] = after one transport
+        quantity_out[i] = current_quantity;
+
+        current_quantity = next;
+    }
+
+    ///need to write final one
+    quantity_out[cnt - 1] = current_quantity;
+}
+
+__kernel
 void handle_interpolating_geodesic(__global float4* geodesic_path, __global float4* geodesic_velocity, __global float* dT_dt, __global float* ds_in,
                                    __global float4* g_camera_polar_out,
                                    __global float4* e0_in, __global float4* e1_in, __global float4* e2_in, __global float4* e3_in,
