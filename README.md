@@ -14,7 +14,7 @@ When in mouse mode, WASD + arrow keys control the camera. Press tab to toggle to
 
 # What features does this support?
 
-This tool can also do redshift visualisations, has the ability to dynamically modify metric parameters at runtime, and you can attach the camera to a geodesic (ie a lightray) to fly through a wormhole
+This tool can also do redshift visualisations, has the ability to dynamically modify metric parameters at runtime, and you can attach the camera to a geodesic to fly through a wormhole or fall into a black hole
 
 Arbitrary metrics can also be added easily in javascript, including complex valued functions. See ./scripts for examples of this. The steam workshop is also supported, if you own this on steam (it'll be free!)
 
