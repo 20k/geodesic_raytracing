@@ -2144,24 +2144,38 @@ void calculate_tetrads(float4 polar_camera, float3 cartesian_basis_speed,
         float4 le3;
 
         {
-            float4 cart_camera = (float4)(polar_camera.x, polar_to_cartesian(polar_camera.yzw));
+            float3 apolar = polar_camera.yzw;
+            apolar.x = fabs(apolar.x);
+
+            float3 cart_camera = polar_to_cartesian(apolar);
 
             float4 e_lo[4];
             get_tetrad_inverse(e0, e1, e2, e3, &e_lo[0], &e_lo[1], &e_lo[2], &e_lo[3]);
 
-            float4 cx = (float4)(0, 1, 0, 0);
-            float4 cy = (float4)(0, 0, 1, 0);
-            float4 cz = (float4)(0, 0, 0, 1);
+            float3 cx = (float3)(1, 0, 0);
+            float3 cy = (float3)(0, 1, 0);
+            float3 cz = (float3)(0, 0, 1);
 
-            cx = cartesian_velocity_to_generic_velocity(cart_camera, cx, cfg);
-            cy = cartesian_velocity_to_generic_velocity(cart_camera, cy, cfg);
-            cz = cartesian_velocity_to_generic_velocity(cart_camera, cz, cfg);
+            float3 sx = cartesian_velocity_to_polar_velocity(cart_camera, cx);
+            float3 sy = cartesian_velocity_to_polar_velocity(cart_camera, cy);
+            float3 sz = cartesian_velocity_to_polar_velocity(cart_camera, cz);
+
+            if(polar_camera.y < 0)
+            {
+                sx.x = -sx.x;
+                sy.x = -sy.x;
+                sz.x = -sz.x;
+            }
+
+            float4 gx = spherical_velocity_to_generic_velocity(polar_camera, (float4)(0, sx), cfg);
+            float4 gy = spherical_velocity_to_generic_velocity(polar_camera, (float4)(0, sy), cfg);
+            float4 gz = spherical_velocity_to_generic_velocity(polar_camera, (float4)(0, sz), cfg);
 
             /*float3 right = rot_quat((float3){1, 0, 0}, local_camera_quat);
             float3 forw = rot_quat((float3){0, 0, 1}, local_camera_quat);*/
 
             ///normalise with y first, so that the camera controls always work intuitively - as they are inherently a 'global' concept
-            float4 approximate_basis[3] = {cy, cx, cz};
+            float4 approximate_basis[3] = {gy, gx, gz};
 
             float4 tE1 = coordinate_to_tetrad_basis(approximate_basis[0], e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
             float4 tE2 = coordinate_to_tetrad_basis(approximate_basis[1], e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
