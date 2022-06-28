@@ -1873,6 +1873,8 @@ int main()
                 auto duration = now.time_since_epoch();
                 auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
 
+                file::mkdir("./screenshots");
+
                 std::string fname = "./screenshots/" + metric_manage.current_metric->metric_cfg.name + "_" + std::to_string(millis) + ".png";
 
                 img.saveToFile(fname);
