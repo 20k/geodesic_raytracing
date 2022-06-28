@@ -1533,7 +1533,9 @@ int main()
                 interpolate_args.push_back(geodesic_ds_buffer);
                 interpolate_args.push_back(g_camera_pos_polar);
 
-                for(auto& i : geodesic_tetrad)
+                //for(auto& i : geodesic_tetrad)
+
+                for(auto& i : parallel_transported_tetrads)
                 {
                     interpolate_args.push_back(i);
                 }

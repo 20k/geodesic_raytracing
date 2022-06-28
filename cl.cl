@@ -2320,7 +2320,7 @@ void parallel_transport_quantity(__global float4* geodesic_path, __global float4
 __kernel
 void handle_interpolating_geodesic(__global float4* geodesic_path, __global float4* geodesic_velocity, __global float* dT_dt, __global float* ds_in,
                                    __global float4* g_camera_polar_out,
-                                   __global float4* e0_in, __global float4* e1_in, __global float4* e2_in, __global float4* e3_in,
+                                   __global float4* t_e0_in, __global float4* t_e1_in, __global float4* t_e2_in, __global float4* t_e3_in,
                                    __global float4* e0_out, __global float4* e1_out, __global float4* e2_out, __global float4* e3_out,
                                    float target_time,
                                    __global int* count_in,
@@ -2332,25 +2332,30 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
     if(get_global_id(0) != 0)
         return;
 
-    float4 start_generic = geodesic_path[0];
+    if(*count_in == 0)
+        return;
 
-    float4 e0, e1, e2, e3;
+    float4 start_generic = geodesic_path[0];
 
     if(!parallel_transport_observer)
     {
+        float4 e0, e1, e2, e3;
         calculate_tetrads(generic_to_spherical(start_generic, cfg), *geodesic_basis_speed, &e0, &e1, &e2, &e3, cfg, 1);
+
+        *e0_out = e0;
+        *e1_out = e1;
+        *e2_out = e2;
+        *e3_out = e3;
     }
     else
     {
-        e0 = *e0_in;
-        e1 = *e1_in;
-        e2 = *e2_in;
-        e3 = *e3_in;
+        *e0_out = t_e0_in[0];
+        *e1_out = t_e1_in[0];
+        *e2_out = t_e2_in[0];
+        *e3_out = t_e3_in[0];
     }
 
     int cnt = *count_in;
-
-    //printf("Count %i\n", cnt);
 
     float current_time = geodesic_path[0].x;
     float current_proper_time = 0;
@@ -2358,37 +2363,13 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
     *g_camera_polar_out = generic_to_spherical(start_generic, cfg);
     *interpolated_geodesic_velocity = geodesic_velocity[0];
 
-    *e0_out = e0;
-    *e1_out = e1;
-    *e2_out = e2;
-    *e3_out = e3;
-
-    if(cnt == 0)
+    if(cnt == 1)
         return;
 
     for(int i=0; i < cnt - 1; i++)
     {
-        float ds = ds_in[i];
-
         float4 current_pos = geodesic_path[i];
         float4 next_pos = geodesic_path[i + 1];
-
-        float4 velocity = geodesic_velocity[i];
-
-        float4 f_e0 = parallel_transport_get_acceleration(e0, geodesic_path[i], velocity, cfg);
-        float4 f_e1 = parallel_transport_get_acceleration(e1, geodesic_path[i], velocity, cfg);
-        float4 f_e2 = parallel_transport_get_acceleration(e2, geodesic_path[i], velocity, cfg);
-        float4 f_e3 = parallel_transport_get_acceleration(e3, geodesic_path[i], velocity, cfg);
-
-        float4 ne0_i = e0 + f_e0 * ds;
-        float4 ne1_i = e1 + f_e1 * ds;
-        float4 ne2_i = e2 + f_e2 * ds;
-        float4 ne3_i = e3 + f_e3 * ds;
-
-        float4 ne0 = e0 + 0.5f * ds * (f_e0 + parallel_transport_get_acceleration(ne0_i, geodesic_path[i + 1], geodesic_velocity[i + 1], cfg));
-        float4 ne1 = e1 + 0.5f * ds * (f_e1 + parallel_transport_get_acceleration(ne1_i, geodesic_path[i + 1], geodesic_velocity[i + 1], cfg));
-        float4 ne2 = e2 + 0.5f * ds * (f_e2 + parallel_transport_get_acceleration(ne2_i, geodesic_path[i + 1], geodesic_velocity[i + 1], cfg));
-        float4 ne3 = e3 + 0.5f * ds * (f_e3 + parallel_transport_get_acceleration(ne3_i, geodesic_path[i + 1], geodesic_velocity[i + 1], cfg));
 
         /*{
             #ifndef GENERIC_BIG_METRIC
@@ -2444,6 +2425,16 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
             float4 fin_polar = mix_spherical(spherical1, spherical2, dx);
             *g_camera_polar_out = fin_polar;
 
+            float4 e0 = t_e0_in[i];
+            float4 e1 = t_e1_in[i];
+            float4 e2 = t_e2_in[i];
+            float4 e3 = t_e3_in[i];
+
+            float4 ne0 = t_e0_in[i + 1];
+            float4 ne1 = t_e1_in[i + 1];
+            float4 ne2 = t_e2_in[i + 1];
+            float4 ne3 = t_e3_in[i + 1];
+
             float4 oe0 = mix(e0, ne0, dx);
             float4 oe1 = mix(e1, ne1, dx);
             float4 oe2 = mix(e2, ne2, dx);
@@ -2469,11 +2460,6 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
 
         current_time += dt;
         current_proper_time = next_proper_time;
-
-        e0 = ne0;
-        e1 = ne1;
-        e2 = ne2;
-        e3 = ne3;
     }
 
     *g_camera_polar_out = generic_to_spherical(geodesic_path[cnt - 1], cfg);
@@ -2481,13 +2467,21 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
 
     if(!parallel_transport_observer)
     {
+        float4 e0, e1, e2, e3;
         calculate_tetrads(generic_to_spherical(geodesic_path[cnt - 1], cfg), *geodesic_basis_speed, &e0, &e1, &e2, &e3, cfg, 1);
-    }
 
-    *e0_out = e0;
-    *e1_out = e1;
-    *e2_out = e2;
-    *e3_out = e3;
+        *e0_out = e0;
+        *e1_out = e1;
+        *e2_out = e2;
+        *e3_out = e3;
+    }
+    else
+    {
+        *e0_out = t_e0_in[cnt - 1];
+        *e1_out = t_e1_in[cnt - 1];
+        *e2_out = t_e2_in[cnt - 1];
+        *e3_out = t_e3_in[cnt - 1];
+    }
 }
 
 struct corrected_lightray
