@@ -847,17 +847,19 @@ int main()
     cl::buffer geodesic_count_buffer(clctx.ctx);
     geodesic_count_buffer.alloc(sizeof(cl_int));
 
+    int max_trace_length = 64000;
+
     cl::buffer geodesic_trace_buffer(clctx.ctx);
-    geodesic_trace_buffer.alloc(64000 * sizeof(cl_float4));
+    geodesic_trace_buffer.alloc(max_trace_length * sizeof(cl_float4));
 
     cl::buffer geodesic_vel_buffer(clctx.ctx);
-    geodesic_vel_buffer.alloc(64000 * sizeof(cl_float4));
+    geodesic_vel_buffer.alloc(max_trace_length * sizeof(cl_float4));
 
     cl::buffer geodesic_dT_dt_buffer(clctx.ctx);
-    geodesic_dT_dt_buffer.alloc(64000 * sizeof(cl_float));
+    geodesic_dT_dt_buffer.alloc(max_trace_length * sizeof(cl_float));
 
     cl::buffer geodesic_ds_buffer(clctx.ctx);
-    geodesic_ds_buffer.alloc(64000 * sizeof(cl_float));
+    geodesic_ds_buffer.alloc(max_trace_length * sizeof(cl_float));
 
     geodesic_count_buffer.set_to_zero(clctx.cqueue);
     geodesic_trace_buffer.set_to_zero(clctx.cqueue);
@@ -886,6 +888,14 @@ int main()
 
         geodesic_tetrad[i].alloc(sizeof(cl_float4));
         geodesic_tetrad[i].set_to_zero(clctx.cqueue);
+    }
+
+    std::array<cl::buffer, 4> parallel_transported_tetrads{clctx.ctx, clctx.ctx, clctx.ctx, clctx.ctx};
+
+    for(int i=0; i < 4; i++)
+    {
+        parallel_transported_tetrads[i].alloc(max_trace_length * sizeof(cl_float4));
+        parallel_transported_tetrads[i].set_to_zero(clctx.cqueue);
     }
 
     cl::buffer timelike_geodesic_pos{clctx.ctx};
@@ -1828,6 +1838,20 @@ int main()
                 for(int i=0; i < (int)tetrad.size(); i++)
                 {
                     cl::copy(clctx.cqueue, tetrad[i], geodesic_tetrad[i]);
+                }
+
+                for(int i=0; i < (int)parallel_transported_tetrads.size(); i++)
+                {
+                    cl::args pt_args;
+                    pt_args.push_back(geodesic_trace_buffer);
+                    pt_args.push_back(geodesic_vel_buffer);
+                    pt_args.push_back(geodesic_ds_buffer);
+                    pt_args.push_back(geodesic_tetrad[i]);
+                    pt_args.push_back(geodesic_count_buffer);
+                    pt_args.push_back(parallel_transported_tetrads[i]);
+                    pt_args.push_back(dynamic_config);
+
+                    clctx.cqueue.exec("parallel_transport_quantity", pt_args, {1}, {1});
                 }
             }
 
