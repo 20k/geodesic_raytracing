@@ -142,76 +142,6 @@ struct lightray
 
 #define GENERIC_METRIC
 
-vec4f interpolate_geodesic(const std::vector<cl_float4>& geodesic, const std::vector<cl_float>& geodesic_dT_dt, float coordinate_time)
-{
-    assert(geodesic.size() == geodesic_dT_dt.size());
-
-    float current_proper_time = 0;
-
-    for(int i=0; i < (int)geodesic.size() - 1; i++)
-    {
-        vec4f cur = {geodesic[i].s[0], geodesic[i].s[1], geodesic[i].s[2], geodesic[i].s[3]};
-        vec4f next = {geodesic[i + 1].s[0], geodesic[i + 1].s[1], geodesic[i + 1].s[2], geodesic[i + 1].s[3]};
-
-        if(next.x() < cur.x())
-            std::swap(next, cur);
-
-        float dt = next.x() - cur.x();
-
-        float next_proper_time = current_proper_time + geodesic_dT_dt[i] * dt;
-
-        #ifdef COORDINATE_TIME_GEODESICS
-        if(coordinate_time >= cur.x() && coordinate_time < next.x())
-        #else
-        if(coordinate_time >= current_proper_time && coordinate_time < next_proper_time)
-        #endif
-        {
-            vec3f as_cart1 = polar_to_cartesian<float>({fabs(cur.y()), cur.z(), cur.w()});
-            vec3f as_cart2 = polar_to_cartesian<float>({fabs(next.y()), next.z(), next.w()});
-
-            float r1 = cur.y();
-            float r2 = next.y();
-
-            ///this might be why things bug out, the division here could easily be singular
-            #ifdef COORDINATE_TIME_GEODESICS
-            float dx = (coordinate_time - cur.x()) / (next.x() - cur.x());
-            #else
-            float dx = (coordinate_time - current_proper_time) / (next_proper_time - current_proper_time);
-            #endif
-
-            vec3f next_cart = cartesian_to_polar(mix(as_cart1, as_cart2, dx));
-            float next_r = mix(r1, r2, dx);
-
-            next_cart.x() = next_r;
-
-            float resulting_coordinate_time = mix(cur.x(), next.x(), dx);
-
-            return {resulting_coordinate_time, next_cart.x(), next_cart.y(), next_cart.z()};
-        }
-
-        current_proper_time = next_proper_time;
-    }
-
-    if(geodesic.size() == 0)
-        return {0,0,0,0};
-
-    cl_float4 selected_geodesic = {0,0,0,0};
-
-    #ifdef COORDINATE_TIME_GEODESICS
-    if(coordinate_time >= geodesic.back().s[0])
-        selected_geodesic = geodesic.back();
-    else
-        selected_geodesic = geodesic.front();
-    #else
-    if(coordinate_time >= current_proper_time)
-        selected_geodesic = geodesic.back();
-    else
-        selected_geodesic = geodesic.front();
-    #endif
-
-    return {selected_geodesic.s[0], selected_geodesic.s[1], selected_geodesic.s[2], selected_geodesic.s[3]};
-}
-
 cl::image load_mipped_image(const std::string& fname, opencl_context& clctx)
 {
     sf::Image img;
@@ -1501,25 +1431,6 @@ int main()
                 clctx.cqueue.exec("init_basis_speed", args, {1}, {1});
             }
 
-            /*vec4f scamera = cartesian_to_schwarz(camera);
-
-            if(flip_sign)
-                scamera.y() = -scamera.y();
-
-            if(camera_on_geodesic)
-            {
-                scamera = interpolate_geodesic(current_geodesic_path, current_geodesic_dT_dt, current_geodesic_time);
-
-                if(metric_manage.current_metric)
-                {
-                    base_angle = get_geodesic_intersection(*metric_manage.current_metric, current_geodesic_path, current_geodesic_dT_dt);
-                }
-            }
-            else
-            {
-                base_angle = {M_PI/2, 0.f};
-            }*/
-
             if(camera_on_geodesic)
             {
                 cl::buffer next_geodesic_velocity = geodesic_q.get_buffer(clctx.ctx);
@@ -1532,8 +1443,6 @@ int main()
                 interpolate_args.push_back(geodesic_dT_dt_buffer);
                 interpolate_args.push_back(geodesic_ds_buffer);
                 interpolate_args.push_back(g_camera_pos_polar);
-
-                //for(auto& i : geodesic_tetrad)
 
                 for(auto& i : parallel_transported_tetrads)
                 {
