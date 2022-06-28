@@ -2285,6 +2285,7 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
                                    __global int* count_in,
                                    int parallel_transport_observer,
                                    __global float3* geodesic_basis_speed,
+                                   __global float4* interpolated_geodesic_velocity,
                                    dynamic_config_space struct dynamic_config* cfg)
 {
     if(get_global_id(0) != 0)
@@ -2314,6 +2315,7 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
     float current_proper_time = 0;
 
     *g_camera_polar_out = generic_to_spherical(start_generic, cfg);
+    *interpolated_geodesic_velocity = geodesic_velocity[0];
 
     *e0_out = e0;
     *e1_out = e1;
@@ -2411,6 +2413,8 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
                 calculate_tetrads(fin_polar, *geodesic_basis_speed, &oe0, &oe1, &oe2, &oe3, cfg, 1);
             }
 
+            *interpolated_geodesic_velocity = mix(geodesic_velocity[i], geodesic_velocity[i + 1], dx);
+
             *e0_out = oe0;
             *e1_out = oe1;
             *e2_out = oe2;
@@ -2432,6 +2436,7 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
     }
 
     *g_camera_polar_out = generic_to_spherical(geodesic_path[cnt - 1], cfg);
+    *interpolated_geodesic_velocity = geodesic_velocity[cnt - 1];
 
     if(!parallel_transport_observer)
     {
@@ -4173,6 +4178,15 @@ void camera_cart_to_polar(__global float4* g_camera_pos_polar_out, __global floa
         polar.x = -polar.x;
 
     *g_camera_pos_polar_out = (float4)(g_camera_pos_cart->x, polar.xyz);
+}
+
+__kernel
+void camera_polar_to_generic(__global float4* g_camera_pos_polar, __global float4* g_camera_pos_generic, dynamic_config_space struct dynamic_config* cfg)
+{
+    if(get_global_id(0) != 0)
+        return;
+
+    *g_camera_pos_generic = spherical_to_generic(*g_camera_pos_polar, cfg);
 }
 
 __kernel
