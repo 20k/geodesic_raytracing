@@ -3307,7 +3307,9 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
     acceleration.z = 0;
     #endif // IS_CONSTANT_THETA
 
+    #ifdef ADAPTIVE_PRECISION
     float max_accel = min(0.00001000f, MAX_ACCELERATION_CHANGE);
+    #endif // ADAPTIVE_PRECISION
 
     float next_ds = 0.00001;
 

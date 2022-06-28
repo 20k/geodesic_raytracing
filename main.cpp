@@ -1402,6 +1402,8 @@ int main()
 
                         if(has_geodesic)
                         {
+                            ImGui::Separator();
+
                             if(!current_settings.no_gpu_reads)
                             {
                                 if(last_camera_pos.has_value())
