@@ -3385,8 +3385,35 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
         if(fabs(velocity.x) > 1000 + f_in_x && fabs(acceleration.x) > 100)
             return;
         #endif // UNCONDITIONALLY_NONSINGULAR
+        float4 out_position = position;
 
-        path_out[i * ray_num + id] = position;
+        #if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC) || defined(DEBUG_CONSTANT_THETA)
+        {
+            float4 pos_spherical = generic_to_spherical(position, cfg);
+
+            float fsign = sign(pos_spherical.y);
+            pos_spherical.y = fabs(pos_spherical.y);
+
+            float3 pos_cart = polar_to_cartesian(pos_spherical.yzw);
+
+            float4 quat = ray->initial_quat;
+
+            pos_cart = rot_quat(pos_cart, quat);
+
+            float3 next_pos_spherical = cartesian_to_polar(pos_cart);
+
+            if(fsign < 0)
+            {
+                next_pos_spherical.x = -next_pos_spherical.x;
+            }
+
+            float4 next_pos_generic = spherical_to_generic((float4)(pos_spherical.x, next_pos_spherical), cfg);
+
+            out_position = next_pos_generic;
+        }
+        #endif
+
+        path_out[i * ray_num + id] = out_position;
         counts_out[id] = i + 1;
 
         position = next_position;
@@ -4442,11 +4469,6 @@ void render_tris(__global struct triangle* tris, int tri_count,
 
                 float3 ray_pos = mix(next_pos.yzw, pos.yzw, dx);
                 float3 ray_dir = next_pos.yzw - pos.yzw;
-
-                if(sx == width/2 && sy == height/2)
-                {
-                    printf("Pos %f %f %f\n", ray_pos.x, ray_pos.y, ray_pos.z);
-                }
 
                 if(ray_intersects_triangle(ray_pos, ray_dir, v0_pos, v1_pos, v2_pos))
                 {
