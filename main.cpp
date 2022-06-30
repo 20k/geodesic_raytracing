@@ -997,15 +997,91 @@ int main(int argc, char* argv[])
     std::vector<triangle> tris;
 
     {
-        triangle t;
+        float d = 0.5f;
 
-        t.time = 0;
+        {
+            triangle& t = tris.emplace_back();
+            t.set_vert(0, {7, 0, 0});
+            t.set_vert(1, {7 + d, 0, 0});
+            t.set_vert(2, {7, 0, d});
+        }
 
-        t.set_vert(0, {7, 0, 0});
-        t.set_vert(1, {7.5, 0, 0});
-        t.set_vert(2, {7.25, 0, 0.5});
+        {
+            triangle& t = tris.emplace_back();
+            t.set_vert(0, {7, 0, d});
+            t.set_vert(1, {7 + d, 0, 0});
+            t.set_vert(2, {7 + d, 0, d});
+        }
 
-        tris.push_back(t);
+        {
+            triangle& t = tris.emplace_back();
+            t.set_vert(0, {7,     d, 0});
+            t.set_vert(1, {7 + d, d, 0});
+            t.set_vert(2, {7,     d, d});
+        }
+
+        {
+            triangle& t = tris.emplace_back();
+            t.set_vert(0, {7,     d, d});
+            t.set_vert(1, {7 + d, d, 0});
+            t.set_vert(2, {7 + d, d, d});
+        }
+
+        {
+            triangle& t = tris.emplace_back();
+            t.set_vert(0, {7, 0, 0});
+            t.set_vert(1, {7, 0, d});
+            t.set_vert(2, {7, d, 0});
+        }
+
+        {
+            triangle& t = tris.emplace_back();
+            t.set_vert(0, {7, d, d});
+            t.set_vert(1, {7, 0, d});
+            t.set_vert(2, {7, d, 0});
+        }
+
+        {
+            triangle& t = tris.emplace_back();
+            t.set_vert(0, {7+d, d, d});
+            t.set_vert(1, {7+d, 0, d});
+            t.set_vert(2, {7+d, d, 0});
+        }
+
+        {
+            triangle& t = tris.emplace_back();
+            t.set_vert(0, {7+d, 0, 0});
+            t.set_vert(1, {7+d, 0, d});
+            t.set_vert(2, {7+d, d, 0});
+        }
+
+        {
+            triangle& t = tris.emplace_back();
+            t.set_vert(0, {7, 0, 0});
+            t.set_vert(1, {7+d, 0, 0});
+            t.set_vert(2, {7, d, 0});
+        }
+
+        {
+            triangle& t = tris.emplace_back();
+            t.set_vert(0, {7+d, d, 0});
+            t.set_vert(1, {7+d, 0, 0});
+            t.set_vert(2, {7, d, 0});
+        }
+
+        {
+            triangle& t = tris.emplace_back();
+            t.set_vert(0, {7, 0, d});
+            t.set_vert(1, {7+d, 0, d});
+            t.set_vert(2, {7, d, d});
+        }
+
+        {
+            triangle& t = tris.emplace_back();
+            t.set_vert(0, {7+d, d, d});
+            t.set_vert(1, {7+d, 0, d});
+            t.set_vert(2, {7, d, d});
+        }
     }
 
     int tri_count = tris.size();
