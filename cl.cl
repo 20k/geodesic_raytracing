@@ -3401,58 +3401,6 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
             return;
         #endif // CYLINDRICAL_SINGULARITY
 
-        if(should_terminate)
-        {
-            int out_id = atomic_inc(finished_count_out);
-
-            float4 polar_velocity = generic_velocity_to_spherical_velocity(position, velocity, cfg);
-
-            struct lightray out_ray;
-            out_ray.sx = sx;
-            out_ray.sy = sy;
-            out_ray.position = polar_position;
-            out_ray.velocity = polar_velocity;
-            out_ray.initial_quat = ray->initial_quat;
-            out_ray.acceleration = 0;
-            out_ray.ku_uobsu = ray->ku_uobsu;
-            out_ray.early_terminate = 0;
-
-            finished_rays[out_id] = out_ray;
-            return;
-        }
-
-        #ifdef EULER_INTEGRATION_GENERIC
-
-        float4 next_position;
-        float4 next_velocity;
-
-        step_euler(position, velocity, ds, &next_position, &next_velocity, cfg);
-
-        position = next_position;
-        velocity = next_velocity;
-
-        #endif // EULER_INTEGRATsION
-
-        #ifdef VERLET_INTEGRATION_GENERIC
-
-        float4 next_position, next_velocity, next_acceleration;
-
-        step_verlet(position, velocity, acceleration, true, ds, &next_position, &next_velocity, &next_acceleration, 0, cfg);
-
-        #ifdef ADAPTIVE_PRECISION
-
-        if(fabs(r_value) < new_max)
-        {
-            int res = calculate_ds_error(ds, next_acceleration, acceleration, MAX_ACCELERATION_CHANGE, &next_ds);
-
-            if(res == DS_RETURN)
-                return;
-
-            if(res == DS_SKIP)
-                continue;
-        }
-        #endif // ADAPTIVE_PRECISION
-
         #ifndef UNCONDITIONALLY_NONSINGULAR
         if(fabs(velocity.x) > 1000 + f_in_x && fabs(acceleration.x) > 100)
             return;
@@ -3478,9 +3426,9 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
         bool checked = false;
 
-        float max_permissable_angle = cos(5 * 2 * M_PI/360.f);
+        float max_permissable_angle = cos(10 * 2 * M_PI/360.f);
 
-        if(i > 0)
+        if(i > 0 || should_terminate)
         {
             bool should_check = false;
 
@@ -3488,18 +3436,24 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
             float4 rt_pos = last_pos;
             float4 next_rt_pos = out_position;
 
-            /*if(has_llp)
+            if(has_llp)
             {
                 float4 vel = last_pos - last_last_pos;
 
-                float4 cvel = next_rt_pos - last_last_pos;
+                float4 cvel = next_rt_pos - last_pos;
 
-                float angle = dot(vel, )
-            }*/
+                float angle = dot(fast_normalize(vel), fast_normalize(cvel));
 
-            should_check = true;
+                if(fabs(angle) <= fabs(max_permissable_angle))
+                {
+                    should_check = true;
+                }
+            }
 
-            if(should_check)
+            if(fast_length(next_rt_pos - rt_pos) > 1)
+                should_check = true;
+
+            if(should_check || should_terminate)
             {
                 checked = true;
 
@@ -3551,7 +3505,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
         //path_out[i * ray_num + id] = out_position;
         //counts_out[id] = i + 1;
 
-        if(checked || i == 0)
+        if(checked || i == 0 || !has_llp)
         {
             last_last_pos = last_pos;
             last_pos = out_position;
@@ -3561,6 +3515,59 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                 has_llp = true;
             }
         }
+
+        if(should_terminate)
+        {
+            int out_id = atomic_inc(finished_count_out);
+
+            float4 polar_velocity = generic_velocity_to_spherical_velocity(position, velocity, cfg);
+
+            struct lightray out_ray;
+            out_ray.sx = sx;
+            out_ray.sy = sy;
+            out_ray.position = polar_position;
+            out_ray.velocity = polar_velocity;
+            out_ray.initial_quat = ray->initial_quat;
+            out_ray.acceleration = 0;
+            out_ray.ku_uobsu = ray->ku_uobsu;
+            out_ray.early_terminate = 0;
+
+            finished_rays[out_id] = out_ray;
+            return;
+        }
+
+        #ifdef EULER_INTEGRATION_GENERIC
+
+        float4 next_position;
+        float4 next_velocity;
+
+        step_euler(position, velocity, ds, &next_position, &next_velocity, cfg);
+
+        position = next_position;
+        velocity = next_velocity;
+
+        #endif // EULER_INTEGRATsION
+
+        #ifdef VERLET_INTEGRATION_GENERIC
+
+        float4 next_position, next_velocity, next_acceleration;
+
+        step_verlet(position, velocity, acceleration, true, ds, &next_position, &next_velocity, &next_acceleration, 0, cfg);
+
+        #ifdef ADAPTIVE_PRECISION
+
+        if(fabs(r_value) < new_max)
+        {
+            int res = calculate_ds_error(ds, next_acceleration, acceleration, MAX_ACCELERATION_CHANGE, &next_ds);
+
+            if(res == DS_RETURN)
+                return;
+
+            if(res == DS_SKIP)
+                continue;
+        }
+
+        #endif // ADAPTIVE_PRECISION
 
         position = next_position;
         //velocity = fix_light_velocity2(next_velocity, g_metric);
