@@ -4393,6 +4393,9 @@ void render_tris(__global struct triangle* tris, int tri_count,
     if(id >= *finished_count_in)
         return;
 
+    int sx = finished_rays[id].sx;
+    int sy = finished_rays[id].sy;
+
     int cnt = traced_positions_count[id];
 
     for(int kk=0; kk < tri_count; kk++)
@@ -4419,6 +4422,12 @@ void render_tris(__global struct triangle* tris, int tri_count,
 
                 float3 ray_pos = mix(next_pos.yzw, pos.yzw, dx);
                 float3 ray_dir = next_pos.yzw - pos.yzw;
+
+                if(ray_intersects_triangle(ray_pos, ray_dir, v0_pos, v1_pos, v2_pos))
+                {
+                    write_imagef(screen, (int2){sx, sy}, (float4)(1, 0, 0, 1));
+                    return;
+                }
             }
         }
     }
