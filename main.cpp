@@ -241,7 +241,7 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
                                                cl::buffer& rays_finished,
                                                cl::buffer& count_in, cl::buffer& count_out,
                                                cl::buffer& count_finished,
-                                               cl::buffer& visual_path,
+                                               cl::buffer& visual_path, cl::buffer& visual_ray_counts,
                                                int num_rays,
                                                bool use_device_side_enqueue,
                                                cl::buffer& dynamic_config)
@@ -276,6 +276,7 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
         run_args.push_back(count_out);
         run_args.push_back(count_finished);
         run_args.push_back(visual_path);
+        run_args.push_back(visual_ray_counts);
         run_args.push_back(dynamic_config);
 
         cqueue.exec("do_generic_rays", run_args, {num_rays}, {256});
@@ -903,6 +904,8 @@ int main(int argc, char* argv[])
     cl::buffer visual_ray_path(clctx.ctx);
     visual_ray_path.alloc(sizeof(cl_float4) * start_width * start_height * max_visual_trace_count);
 
+    cl::buffer visual_ray_counts(clctx.ctx);
+    visual_ray_counts.alloc(sizeof(cl_int) * start_width * start_height);
 
     std::vector<cl_float4> current_geodesic_path;
     std::vector<cl_float> current_geodesic_dT_ds;
@@ -998,6 +1001,12 @@ int main(int argc, char* argv[])
 
         tris.push_back(t);
     }
+
+    int tri_count = tris.size();
+
+    cl::buffer gpu_tris(clctx.ctx);
+    gpu_tris.alloc(sizeof(triangle) * tri_count);
+    gpu_tris.write(clctx.cqueue, tris);
 
     bool reset_camera = true;
 
@@ -1290,6 +1299,7 @@ int main(int argc, char* argv[])
                 texture_coordinates.set_to_zero(clctx.cqueue);
 
                 visual_ray_path.alloc(sizeof(cl_float4) * ray_count * max_visual_trace_count);
+                visual_ray_counts.alloc(sizeof(cl_int) * ray_count);
 
                 last_supersample = current_settings.supersample;
                 last_supersample_mult = current_settings.supersample_factor;
@@ -1717,7 +1727,7 @@ int main(int argc, char* argv[])
 
                     int rays_num = calculate_ray_count(prepass_width, prepass_height);
 
-                    execute_kernel(clctx.cqueue, schwarzs_prepass, schwarzs_scratch, finished_1, schwarzs_count_prepass, schwarzs_count_scratch, finished_count_1, visual_ray_path, rays_num, cfg.use_device_side_enqueue, dynamic_config);
+                    execute_kernel(clctx.cqueue, schwarzs_prepass, schwarzs_scratch, finished_1, schwarzs_count_prepass, schwarzs_count_scratch, finished_count_1, visual_ray_path, visual_ray_counts, rays_num, cfg.use_device_side_enqueue, dynamic_config);
 
                     cl::args singular_args;
                     singular_args.push_back(finished_1);
@@ -1752,7 +1762,7 @@ int main(int argc, char* argv[])
 
                 int rays_num = calculate_ray_count(width, height);
 
-                execute_kernel(clctx.cqueue, schwarzs_1, schwarzs_scratch, finished_1, schwarzs_count_1, schwarzs_count_scratch, finished_count_1, visual_ray_path, rays_num, cfg.use_device_side_enqueue, dynamic_config);
+                execute_kernel(clctx.cqueue, schwarzs_1, schwarzs_scratch, finished_1, schwarzs_count_1, schwarzs_count_scratch, finished_count_1, visual_ray_path, visual_ray_counts, rays_num, cfg.use_device_side_enqueue, dynamic_config);
 
                 cl::args texture_args;
                 texture_args.push_back(finished_1);

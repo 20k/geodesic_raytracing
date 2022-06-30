@@ -3214,7 +3214,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                       __global struct lightray* restrict finished_rays,
                       __global int* restrict generic_count_in, __global int* restrict generic_count_out,
                       __global int* restrict finished_count_out,
-                      __global float4* path_out, dynamic_config_space struct dynamic_config* cfg)
+                      __global float4* path_out, __global int* counts_out, dynamic_config_space struct dynamic_config* cfg)
 {
     int id = get_global_id(0);
 
@@ -3224,6 +3224,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
     int ray_num = *generic_count_in;
 
     __global struct lightray* ray = &generic_rays_in[id];
+
+    counts_out[id] = 0;
 
     if(ray->early_terminate)
         return;
@@ -3385,6 +3387,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
         #endif // UNCONDITIONALLY_NONSINGULAR
 
         path_out[i * ray_num + id] = position;
+        counts_out[id] = i + 1;
 
         position = next_position;
         //velocity = fix_light_velocity2(next_velocity, g_metric);
@@ -4318,6 +4321,40 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
     #endif // LINEAR_FRAMEBUFFER
 
     write_imagef(out, (int2){sx, sy}, end_result);
+}
+
+struct triangle
+{
+    float time;
+    float v0x, v0y, v0z;
+    float v1x, v1y, v1z;
+    float v2x, v2y, v2z;
+};
+
+__kernel
+void render_tris(__global struct triangle* tris, int tri_count,
+                 __global struct lightray* finished_rays, __global int* finished_count_in,
+                 __global float4* traced_positions, __global int* traced_positions_count,
+                 int width, int height,
+                 __write_only image2d_t screen)
+{
+    int id = get_global_id(0);
+
+    if(id >= *finished_count_in)
+        return;
+
+    int cnt = traced_positions_count[id];
+
+    for(int kk=0; kk < tri_count; kk++)
+    {
+        __global struct triangle* ctri = &tris[kk];
+
+        for(int i=0; i < cnt - 1; i++)
+        {
+            float4 pos = traced_positions[i * width * height + id];
+            float4 next_pos = traced_positions[(i + 1) * width * height + id];
+        }
+    }
 }
 
 __kernel
