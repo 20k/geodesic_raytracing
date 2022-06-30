@@ -3213,12 +3213,15 @@ __kernel
 void do_generic_rays (__global struct lightray* restrict generic_rays_in, __global struct lightray* restrict generic_rays_out,
                       __global struct lightray* restrict finished_rays,
                       __global int* restrict generic_count_in, __global int* restrict generic_count_out,
-                      __global int* restrict finished_count_out, dynamic_config_space struct dynamic_config* cfg)
+                      __global int* restrict finished_count_out,
+                      __global float4* path_out, dynamic_config_space struct dynamic_config* cfg)
 {
     int id = get_global_id(0);
 
     if(id >= *generic_count_in)
         return;
+
+    int ray_num = *generic_count_in;
 
     __global struct lightray* ray = &generic_rays_in[id];
 
@@ -3269,7 +3272,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
     float uniform_coordinate_precision_divisor = max(max(W_V1, W_V2), max(W_V3, W_V4));
 
-    int loop_limit = 64000;
+    int loop_limit = 128;
 
     #ifdef DEVICE_SIDE_ENQUEUE
     loop_limit /= 125;
@@ -3380,6 +3383,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
         if(fabs(velocity.x) > 1000 + f_in_x && fabs(acceleration.x) > 100)
             return;
         #endif // UNCONDITIONALLY_NONSINGULAR
+
+        path_out[i * ray_num + id] = position;
 
         position = next_position;
         //velocity = fix_light_velocity2(next_velocity, g_metric);
