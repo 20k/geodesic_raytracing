@@ -4336,7 +4336,8 @@ void render_tris(__global struct triangle* tris, int tri_count,
                  __global struct lightray* finished_rays, __global int* finished_count_in,
                  __global float4* traced_positions, __global int* traced_positions_count,
                  int width, int height,
-                 __write_only image2d_t screen)
+                 __write_only image2d_t screen,
+                 dynamic_config_space struct dynamic_config* cfg)
 {
     int id = get_global_id(0);
 
@@ -4351,10 +4352,14 @@ void render_tris(__global struct triangle* tris, int tri_count,
 
         float tri_time = ctri->time;
 
+        float3 v0_pos = {ctri->v0x, ctri->v0y, ctri->v0z};
+        float3 v1_pos = {ctri->v1x, ctri->v1y, ctri->v1z};
+        float3 v2_pos = {ctri->v2x, ctri->v2y, ctri->v2z};
+
         for(int i=0; i < cnt - 1; i++)
         {
-            float4 pos = traced_positions[i * width * height + id];
-            float4 next_pos = traced_positions[(i + 1) * width * height + id];
+            float4 pos = generic_to_cartesian(traced_positions[i * width * height + id], cfg);
+            float4 next_pos = generic_to_cartesian(traced_positions[(i + 1) * width * height + id], cfg);
 
             float time = pos.x;
             float next_time = next_pos.x;
