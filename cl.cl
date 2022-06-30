@@ -3483,8 +3483,12 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
         }
         #endif
 
-        if(i > 0)
+        bool checked = false;
+
+        if(i > 0 && (i % 4) == 0)
         {
+            checked = true;
+
             for(int kk=0; kk < tri_count; kk++)
             {
                 __global struct triangle* ctri = &tris[kk];
@@ -3534,6 +3538,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
         //path_out[i * ray_num + id] = out_position;
         //counts_out[id] = i + 1;
 
+        if(checked || i == 0)
         last_pos = out_position;
 
         position = next_position;
