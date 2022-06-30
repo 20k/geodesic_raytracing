@@ -4363,7 +4363,8 @@ void render_tris(__global struct triangle* tris, int tri_count,
             {
                 float dx = (tri_time - time) / (next_time - time);
 
-                float3 ray_dir = mix(next_pos.yzw, pos.yzw, dx);
+                float3 ray_pos = mix(next_pos.yzw, pos.yzw, dx);
+                float3 ray_dir = next_pos.yzw - pos.yzw;
             }
         }
     }
