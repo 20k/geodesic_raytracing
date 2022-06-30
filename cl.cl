@@ -4331,6 +4331,55 @@ struct triangle
     float v2x, v2y, v2z;
 };
 
+bool ray_intersects_triangle(float3 origin, float3 direction, float3 vertex0, float3 vertex1, float3 vertex2)
+{
+    direction = fast_normalize(direction);
+
+    float eps = 0.0000001;
+    float3 edge1, edge2, h, s, q;
+    float a,f,u,v;
+    edge1 = vertex1 - vertex0;
+    edge2 = vertex2 - vertex0;
+    //h = rayVector.crossProduct(edge2);
+    h = cross(direction, edge2);
+    //a = edge1.dotProduct(h);
+
+    a = dot(edge1, h);
+
+    if (a > -eps && a < eps)
+        return false;    // This ray is parallel to this triangle.
+    f = 1.0/a;
+    s = origin - vertex0;
+    //u = f * s.dotProduct(h);
+
+    u = f * dot(s, h);
+
+    if (u < 0.0 || u > 1.0)
+        return false;
+    //q = s.crossProduct(edge1);
+
+    q = cross(s, edge1);
+
+    //v = f * rayVector.dotProduct(q);
+
+    v = f * dot(direction, q);
+
+    if (v < 0.0 || u + v > 1.0)
+        return false;
+    // At this stage we can compute t to find out where the intersection point is on the line.
+    //float t = f * edge2.dotProduct(q);
+
+    float t = f * dot(edge2, q);
+
+    if (t > eps) // ray intersection
+    {
+        //outIntersectionPoint = rayOrigin + rayVector * t;
+        return true;
+    }
+    else // This means that there is a line intersection but not a ray intersection.
+        return false;
+}
+
 __kernel
 void render_tris(__global struct triangle* tris, int tri_count,
                  __global struct lightray* finished_rays, __global int* finished_count_in,
