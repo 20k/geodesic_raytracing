@@ -4349,10 +4349,22 @@ void render_tris(__global struct triangle* tris, int tri_count,
     {
         __global struct triangle* ctri = &tris[kk];
 
+        float tri_time = ctri->time;
+
         for(int i=0; i < cnt - 1; i++)
         {
             float4 pos = traced_positions[i * width * height + id];
             float4 next_pos = traced_positions[(i + 1) * width * height + id];
+
+            float time = pos.x;
+            float next_time = next_pos.x;
+
+            if(time >= tri_time && time < next_time)
+            {
+                float dx = (tri_time - time) / (next_time - time);
+
+                float3 ray_dir = mix(next_pos.yzw, pos.yzw, dx);
+            }
         }
     }
 }
