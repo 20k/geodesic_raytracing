@@ -4333,7 +4333,7 @@ struct triangle
 
 bool ray_intersects_triangle(float3 origin, float3 direction, float3 vertex0, float3 vertex1, float3 vertex2)
 {
-    direction = fast_normalize(direction);
+    //direction = fast_normalize(direction);
 
     float eps = 0.0000001;
     float3 edge1, edge2, h, s, q;
@@ -4371,6 +4371,9 @@ bool ray_intersects_triangle(float3 origin, float3 direction, float3 vertex0, fl
 
     float t = f * dot(edge2, q);
 
+    if(t > 1)
+        return false;
+
     if (t > eps) // ray intersection
     {
         //outIntersectionPoint = rayOrigin + rayVector * t;
@@ -4388,7 +4391,7 @@ void render_tris(__global struct triangle* tris, int tri_count,
                  __write_only image2d_t screen,
                  dynamic_config_space struct dynamic_config* cfg)
 {
-    int id = get_global_id(0);
+    /*int id = get_global_id(0);
 
     if(id >= *finished_count_in)
         return;
@@ -4396,7 +4399,22 @@ void render_tris(__global struct triangle* tris, int tri_count,
     int sx = finished_rays[id].sx;
     int sy = finished_rays[id].sy;
 
-    int cnt = traced_positions_count[id];
+    int big_id = sy * width + sx;*/
+
+    int sx = get_global_id(0);
+    int sy = get_global_id(1);
+
+    if(sx >= width || sy >= height)
+        return;
+
+    int big_id = sy * width + sx;
+
+    int cnt = traced_positions_count[big_id];
+
+    if(sx == width/2 && sy == height/2)
+    {
+        //printf("ello %i\n", tri_count);
+    }
 
     for(int kk=0; kk < tri_count; kk++)
     {
@@ -4410,18 +4428,25 @@ void render_tris(__global struct triangle* tris, int tri_count,
 
         for(int i=0; i < cnt - 1; i++)
         {
-            float4 pos = generic_to_cartesian(traced_positions[i * width * height + id], cfg);
-            float4 next_pos = generic_to_cartesian(traced_positions[(i + 1) * width * height + id], cfg);
+            float4 pos = generic_to_cartesian(traced_positions[i * width * height + big_id], cfg);
+            float4 next_pos = generic_to_cartesian(traced_positions[(i + 1) * width * height + big_id], cfg);
 
             float time = pos.x;
             float next_time = next_pos.x;
 
-            if(time >= tri_time && time < next_time)
+            //if(time >= tri_time && time < next_time)
             {
-                float dx = (tri_time - time) / (next_time - time);
+                //float dx = (tri_time - time) / (next_time - time);
+
+                float dx = 0;
 
                 float3 ray_pos = mix(next_pos.yzw, pos.yzw, dx);
                 float3 ray_dir = next_pos.yzw - pos.yzw;
+
+                if(sx == width/2 && sy == height/2)
+                {
+                    printf("Pos %f %f %f\n", ray_pos.x, ray_pos.y, ray_pos.z);
+                }
 
                 if(ray_intersects_triangle(ray_pos, ray_dir, v0_pos, v1_pos, v2_pos))
                 {
