@@ -559,6 +559,41 @@ struct read_queue_pool
     }
 };
 
+///so: core assumption, triangles are not smeared across diferent times
+///when objects come, each object will have its own unique time coordinate
+struct triangle
+{
+    float time = 0;
+
+    float v0x = 0, v0y = 0, v0z = 0;
+    float v1x = 0, v1y = 0, v1z = 0;
+    float v2x = 0, v2y = 0, v2z = 0;
+
+    void set_vert(int which, vec3f pos)
+    {
+        if(which == 0)
+        {
+            v0x = pos.x();
+            v0y = pos.y();
+            v0z = pos.z();
+        }
+
+        if(which == 1)
+        {
+            v1x = pos.x();
+            v1y = pos.y();
+            v1z = pos.z();
+        }
+
+        if(which == 2)
+        {
+            v2x = pos.x();
+            v2y = pos.y();
+            v2z = pos.z();
+        }
+    }
+};
+
 ///i need the ability to have dynamic parameters
 int main(int argc, char* argv[])
 {
@@ -949,6 +984,20 @@ int main(int argc, char* argv[])
     current_settings.fullscreen = win.backend->is_maximised();
 
     print("Pre main\n");
+
+    std::vector<triangle> tris;
+
+    {
+        triangle t;
+
+        t.time = 0;
+
+        t.set_vert(0, {3, 0, 0});
+        t.set_vert(1, {3.5, 0, 0});
+        t.set_vert(2, {3.25, 0, 0.5});
+
+        tris.push_back(t);
+    }
 
     bool reset_camera = true;
 
