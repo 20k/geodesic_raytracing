@@ -995,9 +995,9 @@ int main(int argc, char* argv[])
 
         t.time = 0;
 
-        t.set_vert(0, {3, 0, 0});
-        t.set_vert(1, {3.5, 0, 0});
-        t.set_vert(2, {3.25, 0, 0.5});
+        t.set_vert(0, {7, 0, 0});
+        t.set_vert(1, {7.5, 0, 0});
+        t.set_vert(2, {7.25, 0, 0.5});
 
         tris.push_back(t);
     }
@@ -1787,6 +1787,22 @@ int main(int argc, char* argv[])
                 render_args.push_back(current_settings.anisotropy);
 
                 clctx.cqueue.exec("render", render_args, {width * height}, {256});
+            }
+
+            {
+                cl::args tri_args;
+                tri_args.push_back(gpu_tris);
+                tri_args.push_back(tri_count);
+                tri_args.push_back(finished_1);
+                tri_args.push_back(finished_count_1);
+                tri_args.push_back(visual_ray_path);
+                tri_args.push_back(visual_ray_counts);
+                tri_args.push_back(width);
+                tri_args.push_back(height);
+                tri_args.push_back(rtex);
+                tri_args.push_back(dynamic_config);
+
+                clctx.cqueue.exec("render_tris", tri_args, {width, height}, {16, 16});
             }
 
             if(should_snapshot_geodesic)
