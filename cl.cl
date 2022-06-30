@@ -3436,7 +3436,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
             float4 rt_pos = last_pos;
             float4 next_rt_pos = out_position;
 
-            if(has_llp)
+            /*if(has_llp)
             {
                 float4 vel = last_pos - last_last_pos;
 
@@ -3448,7 +3448,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                 {
                     should_check = true;
                 }
-            }
+            }*/
 
             if(fast_length(next_rt_pos - rt_pos) > 1)
                 should_check = true;

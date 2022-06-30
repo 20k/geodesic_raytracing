@@ -601,6 +601,114 @@ struct triangle
     }
 };
 
+std::vector<triangle> make_cube(vec3f pos)
+{
+    std::vector<triangle> tris;
+
+    float d = 0.5f;
+
+    {
+        triangle& t = tris.emplace_back();
+        t.set_vert(0, {0, 0, 0});
+        t.set_vert(1, {0+d, 0, 0});
+        t.set_vert(2, {0, 0, d});
+    }
+
+    {
+        triangle& t = tris.emplace_back();
+        t.set_vert(0, {0, 0, d});
+        t.set_vert(1, {0+d, 0, 0});
+        t.set_vert(2, {0+d, 0, d});
+    }
+
+    {
+        triangle& t = tris.emplace_back();
+        t.set_vert(0, {0,     d, 0});
+        t.set_vert(1, {0+d, d, 0});
+        t.set_vert(2, {0,     d, d});
+    }
+
+    {
+        triangle& t = tris.emplace_back();
+        t.set_vert(0, {0,     d, d});
+        t.set_vert(1, {0+d, d, 0});
+        t.set_vert(2, {0+d, d, d});
+    }
+
+    {
+        triangle& t = tris.emplace_back();
+        t.set_vert(0, {0, 0, 0});
+        t.set_vert(1, {0, 0, d});
+        t.set_vert(2, {0, d, 0});
+    }
+
+    {
+        triangle& t = tris.emplace_back();
+        t.set_vert(0, {0, d, d});
+        t.set_vert(1, {0, 0, d});
+        t.set_vert(2, {0, d, 0});
+    }
+
+    {
+        triangle& t = tris.emplace_back();
+        t.set_vert(0, {0+d, d, d});
+        t.set_vert(1, {0+d, 0, d});
+        t.set_vert(2, {0+d, d, 0});
+    }
+
+    {
+        triangle& t = tris.emplace_back();
+        t.set_vert(0, {0+d, 0, 0});
+        t.set_vert(1, {0+d, 0, d});
+        t.set_vert(2, {0+d, d, 0});
+    }
+
+    {
+        triangle& t = tris.emplace_back();
+        t.set_vert(0, {0, 0, 0});
+        t.set_vert(1, {0+d, 0, 0});
+        t.set_vert(2, {0, d, 0});
+    }
+
+    {
+        triangle& t = tris.emplace_back();
+        t.set_vert(0, {0+d, d, 0});
+        t.set_vert(1, {0+d, 0, 0});
+        t.set_vert(2, {0, d, 0});
+    }
+
+    {
+        triangle& t = tris.emplace_back();
+        t.set_vert(0, {0, 0, d});
+        t.set_vert(1, {0+d, 0, d});
+        t.set_vert(2, {0, d, d});
+    }
+
+    {
+        triangle& t = tris.emplace_back();
+        t.set_vert(0, {0+d, d, d});
+        t.set_vert(1, {0+d, 0, d});
+        t.set_vert(2, {0, d, d});
+    }
+
+    for(triangle& t : tris)
+    {
+        t.v0x += pos.x();
+        t.v1x += pos.x();
+        t.v2x += pos.x();
+
+        t.v0y += pos.y();
+        t.v1y += pos.y();
+        t.v2y += pos.y();
+
+        t.v0z += pos.z();
+        t.v1z += pos.z();
+        t.v2z += pos.z();
+    }
+
+    return tris;
+}
+
 ///i need the ability to have dynamic parameters
 int main(int argc, char* argv[])
 {
@@ -997,91 +1105,15 @@ int main(int argc, char* argv[])
     std::vector<triangle> tris;
 
     {
-        float d = 0.5f;
+        auto t1 = make_cube({5, 0, 0});
+        auto t2 = make_cube({-5, 4, 0});
+        auto t3 = make_cube({0, 0, 5});
+        auto t4 = make_cube({0, 0, -5});
 
-        {
-            triangle& t = tris.emplace_back();
-            t.set_vert(0, {7, 0, 0});
-            t.set_vert(1, {7 + d, 0, 0});
-            t.set_vert(2, {7, 0, d});
-        }
-
-        {
-            triangle& t = tris.emplace_back();
-            t.set_vert(0, {7, 0, d});
-            t.set_vert(1, {7 + d, 0, 0});
-            t.set_vert(2, {7 + d, 0, d});
-        }
-
-        {
-            triangle& t = tris.emplace_back();
-            t.set_vert(0, {7,     d, 0});
-            t.set_vert(1, {7 + d, d, 0});
-            t.set_vert(2, {7,     d, d});
-        }
-
-        {
-            triangle& t = tris.emplace_back();
-            t.set_vert(0, {7,     d, d});
-            t.set_vert(1, {7 + d, d, 0});
-            t.set_vert(2, {7 + d, d, d});
-        }
-
-        {
-            triangle& t = tris.emplace_back();
-            t.set_vert(0, {7, 0, 0});
-            t.set_vert(1, {7, 0, d});
-            t.set_vert(2, {7, d, 0});
-        }
-
-        {
-            triangle& t = tris.emplace_back();
-            t.set_vert(0, {7, d, d});
-            t.set_vert(1, {7, 0, d});
-            t.set_vert(2, {7, d, 0});
-        }
-
-        {
-            triangle& t = tris.emplace_back();
-            t.set_vert(0, {7+d, d, d});
-            t.set_vert(1, {7+d, 0, d});
-            t.set_vert(2, {7+d, d, 0});
-        }
-
-        {
-            triangle& t = tris.emplace_back();
-            t.set_vert(0, {7+d, 0, 0});
-            t.set_vert(1, {7+d, 0, d});
-            t.set_vert(2, {7+d, d, 0});
-        }
-
-        {
-            triangle& t = tris.emplace_back();
-            t.set_vert(0, {7, 0, 0});
-            t.set_vert(1, {7+d, 0, 0});
-            t.set_vert(2, {7, d, 0});
-        }
-
-        {
-            triangle& t = tris.emplace_back();
-            t.set_vert(0, {7+d, d, 0});
-            t.set_vert(1, {7+d, 0, 0});
-            t.set_vert(2, {7, d, 0});
-        }
-
-        {
-            triangle& t = tris.emplace_back();
-            t.set_vert(0, {7, 0, d});
-            t.set_vert(1, {7+d, 0, d});
-            t.set_vert(2, {7, d, d});
-        }
-
-        {
-            triangle& t = tris.emplace_back();
-            t.set_vert(0, {7+d, d, d});
-            t.set_vert(1, {7+d, 0, d});
-            t.set_vert(2, {7, d, d});
-        }
+        tris.insert(tris.end(), t1.begin(), t1.end());
+        tris.insert(tris.end(), t2.begin(), t2.end());
+        tris.insert(tris.end(), t3.begin(), t3.end());
+        tris.insert(tris.end(), t4.begin(), t4.end());
     }
 
     int tri_count = tris.size();
