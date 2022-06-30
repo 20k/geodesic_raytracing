@@ -643,6 +643,8 @@ namespace metrics
             print("Metric is spherically symmetric\n");
         }
 
+        //is_polar_spherically_symmetric = false;
+
         if(derivatives.size() == 16)
         {
             for(int j=0; j < 4; j++)
