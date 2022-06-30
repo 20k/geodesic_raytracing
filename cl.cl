@@ -3209,12 +3209,80 @@ int calculate_ds_error(float current_ds, float4 next_acceleration, float4 accele
 }
 #endif // ADAPTIVE_PRECISION
 
+struct triangle
+{
+    float time;
+    float v0x, v0y, v0z;
+    float v1x, v1y, v1z;
+    float v2x, v2y, v2z;
+};
+
+struct intersection
+{
+    int sx, sy;
+};
+
+bool ray_intersects_triangle(float3 origin, float3 direction, float3 vertex0, float3 vertex1, float3 vertex2)
+{
+    //direction = fast_normalize(direction);
+
+    float eps = 0.0000001;
+    float3 edge1, edge2, h, s, q;
+    float a,f,u,v;
+    edge1 = vertex1 - vertex0;
+    edge2 = vertex2 - vertex0;
+    //h = rayVector.crossProduct(edge2);
+    h = cross(direction, edge2);
+    //a = edge1.dotProduct(h);
+
+    a = dot(edge1, h);
+
+    if (a > -eps && a < eps)
+        return false;    // This ray is parallel to this triangle.
+    f = 1.0/a;
+    s = origin - vertex0;
+    //u = f * s.dotProduct(h);
+
+    u = f * dot(s, h);
+
+    if (u < 0.0 || u > 1.0)
+        return false;
+    //q = s.crossProduct(edge1);
+
+    q = cross(s, edge1);
+
+    //v = f * rayVector.dotProduct(q);
+
+    v = f * dot(direction, q);
+
+    if (v < 0.0 || u + v > 1.0)
+        return false;
+    // At this stage we can compute t to find out where the intersection point is on the line.
+    //float t = f * edge2.dotProduct(q);
+
+    float t = f * dot(edge2, q);
+
+    if(t > 1)
+        return false;
+
+    if (t > eps) // ray intersection
+    {
+        //outIntersectionPoint = rayOrigin + rayVector * t;
+        return true;
+    }
+    else // This means that there is a line intersection but not a ray intersection.
+        return false;
+}
+
+
 __kernel
 void do_generic_rays (__global struct lightray* restrict generic_rays_in, __global struct lightray* restrict generic_rays_out,
                       __global struct lightray* restrict finished_rays,
                       __global int* restrict generic_count_in, __global int* restrict generic_count_out,
                       __global int* restrict finished_count_out,
-                      __global float4* path_out, __global int* counts_out, dynamic_config_space struct dynamic_config* cfg)
+                      //__global float4* path_out, __global int* counts_out,
+                      __global struct triangle* tris, int tri_count, __global struct intersection* intersections_out, __global int* intersection_count,
+                      dynamic_config_space struct dynamic_config* cfg)
 {
     int id = get_global_id(0);
 
@@ -3225,7 +3293,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
     __global struct lightray* ray = &generic_rays_in[id];
 
-    counts_out[id] = 0;
+    //counts_out[id] = 0;
 
     if(ray->early_terminate)
         return;
@@ -3274,11 +3342,13 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
     float uniform_coordinate_precision_divisor = max(max(W_V1, W_V2), max(W_V3, W_V4));
 
-    int loop_limit = 128;
+    int loop_limit = 1024;
 
     #ifdef DEVICE_SIDE_ENQUEUE
     loop_limit /= 125;
     #endif // DEVICE_SIDE_ENQUEUE
+
+    float4 last_pos = (float4)(0,0,0,0);
 
     //#pragma unroll
     for(int i=0; i < loop_limit; i++)
@@ -3413,8 +3483,58 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
         }
         #endif
 
-        path_out[i * ray_num + id] = out_position;
-        counts_out[id] = i + 1;
+        if(i > 0)
+        {
+            for(int kk=0; kk < tri_count; kk++)
+            {
+                __global struct triangle* ctri = &tris[kk];
+
+                float tri_time = ctri->time;
+
+                float3 v0_pos = {ctri->v0x, ctri->v0y, ctri->v0z};
+                float3 v1_pos = {ctri->v1x, ctri->v1y, ctri->v1z};
+                float3 v2_pos = {ctri->v2x, ctri->v2y, ctri->v2z};
+
+                //for(int i=0; i < cnt - 1; i++)
+                {
+                    float4 pos = generic_to_cartesian(last_pos, cfg);
+                    float4 next_pos = generic_to_cartesian(out_position, cfg);
+
+                    float time = pos.x;
+                    float next_time = next_pos.x;
+
+                    //if(time >= tri_time && time < next_time)
+                    {
+                        //float dx = (tri_time - time) / (next_time - time);
+
+                        float dx = 0;
+
+                        float3 ray_pos = mix(next_pos.yzw, pos.yzw, dx);
+                        float3 ray_dir = next_pos.yzw - pos.yzw;
+
+                        if(ray_intersects_triangle(ray_pos, ray_dir, v0_pos, v1_pos, v2_pos))
+                        {
+                            int isect = atomic_inc(intersection_count);
+
+                            struct intersection out;
+                            out.sx = sx;
+                            out.sy = sy;
+
+                            intersections_out[isect] = out;
+                            return;
+
+                            //write_imagef(screen, (int2){sx, sy}, (float4)(1, 0, 0, 1));
+                            //return;
+                        }
+                    }
+                }
+            }
+        }
+
+        //path_out[i * ray_num + id] = out_position;
+        //counts_out[id] = i + 1;
+
+        last_pos = out_position;
 
         position = next_position;
         //velocity = fix_light_velocity2(next_velocity, g_metric);
@@ -4350,66 +4470,6 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
     write_imagef(out, (int2){sx, sy}, end_result);
 }
 
-struct triangle
-{
-    float time;
-    float v0x, v0y, v0z;
-    float v1x, v1y, v1z;
-    float v2x, v2y, v2z;
-};
-
-bool ray_intersects_triangle(float3 origin, float3 direction, float3 vertex0, float3 vertex1, float3 vertex2)
-{
-    //direction = fast_normalize(direction);
-
-    float eps = 0.0000001;
-    float3 edge1, edge2, h, s, q;
-    float a,f,u,v;
-    edge1 = vertex1 - vertex0;
-    edge2 = vertex2 - vertex0;
-    //h = rayVector.crossProduct(edge2);
-    h = cross(direction, edge2);
-    //a = edge1.dotProduct(h);
-
-    a = dot(edge1, h);
-
-    if (a > -eps && a < eps)
-        return false;    // This ray is parallel to this triangle.
-    f = 1.0/a;
-    s = origin - vertex0;
-    //u = f * s.dotProduct(h);
-
-    u = f * dot(s, h);
-
-    if (u < 0.0 || u > 1.0)
-        return false;
-    //q = s.crossProduct(edge1);
-
-    q = cross(s, edge1);
-
-    //v = f * rayVector.dotProduct(q);
-
-    v = f * dot(direction, q);
-
-    if (v < 0.0 || u + v > 1.0)
-        return false;
-    // At this stage we can compute t to find out where the intersection point is on the line.
-    //float t = f * edge2.dotProduct(q);
-
-    float t = f * dot(edge2, q);
-
-    if(t > 1)
-        return false;
-
-    if (t > eps) // ray intersection
-    {
-        //outIntersectionPoint = rayOrigin + rayVector * t;
-        return true;
-    }
-    else // This means that there is a line intersection but not a ray intersection.
-        return false;
-}
-
 __kernel
 void render_tris(__global struct triangle* tris, int tri_count,
                  __global struct lightray* finished_rays, __global int* finished_count_in,
@@ -4478,6 +4538,21 @@ void render_tris(__global struct triangle* tris, int tri_count,
             }
         }
     }
+}
+
+__kernel
+void render_intersections(__global struct intersection* in, __global int* cnt, __write_only image2d_t screen)
+{
+    int id = get_global_id(0);
+
+    if(id >= *cnt)
+        return;
+
+    __global struct intersection* mine = &in[id];
+
+    int2 pos = (int2)(mine->sx, mine->sy);
+
+    write_imagef(screen, pos, (float4)(1, 0, 0, 1));
 }
 
 __kernel
