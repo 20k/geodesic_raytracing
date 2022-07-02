@@ -3347,6 +3347,7 @@ void generate_acceleration_counts(__global struct sub_point* sp, int sp_count, _
     }
 }
 
+///resets offset_counts
 __kernel
 void alloc_acceleration(__global int* offset_map, __global int* offset_counts, int width_num, __global int* mem_count)
 {
@@ -3360,10 +3361,55 @@ void alloc_acceleration(__global int* offset_map, __global int* offset_counts, i
     int idx = z * width_num * width_num + y * width_num + x;
 
     int my_count = offset_counts[idx];
+    offset_counts[idx] = 0;
 
     int offset = atomic_add(mem_count, my_count);
 
     offset_map[idx] = offset;
+}
+
+__kernel
+void generate_acceleration_ddata(__global struct sub_point* sp, int sp_count, __global int* offset_map, __global int* offset_counts, __global int* mem_count, float width, int width_num)
+{
+    int id = get_global_id(0);
+
+    if(id >= sp_count)
+        return;
+
+    float voxel_cube_size = width / width_num;
+
+    struct sub_point mine = sp[id];
+
+    float3 pos = (float3)(mine.x, mine.y, mine.z);
+    int w_id = mine.parent;
+
+    float3 grid_pos = floor(pos / voxel_cube_size);
+
+    int3 int_grid_pos = (int3)(grid_pos.x, grid_pos.y, grid_pos.z);
+
+    for(int z=-1; z <= 1; z++)
+    {
+        for(int y=-1; y <= 1; y++)
+        {
+            for(int x=-1; x <= 1; x++)
+            {
+                int3 off = (int3)(x, y, z);
+                int3 fin = int_grid_pos + off;
+
+                fin.x = mod(fin.x, width_num);
+                fin.y = mod(fin.y, width_num);
+                fin.z = mod(fin.z, width_num);
+
+                int oid = fin.z * width_num * width_num + fin.y * width_num + fin.x;
+
+                int lid = atomic_inc(&offset_counts[oid]);
+
+                int mem_start = offset_map[oid];
+
+                mem_count[mem_start + lid] = w_id;
+            }
+        }
+    }
 }
 
 __kernel
