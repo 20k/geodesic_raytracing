@@ -1222,8 +1222,11 @@ int main(int argc, char* argv[])
     accel_counts.alloc(sizeof(cl_int) * offset_size.x() * offset_size.y() * offset_size.z());
     accel_counts.set_to_zero(clctx.cqueue);
 
-    cl::buffer accel_tris(clctx.ctx);
-    accel_tris.alloc(accel_cell_mem);
+    cl::buffer accel_generic_buffer(clctx.ctx);
+    accel_generic_buffer.alloc(accel_cell_mem);
+
+    cl::buffer accel_mem_counter(clctx.ctx);
+    accel_mem_counter.alloc(sizeof(cl_int));
 
     cl::buffer accel_points(clctx.ctx);
     accel_points.alloc(1024 * 1024 * sizeof(cl_float4));
@@ -2029,6 +2032,52 @@ int main(int argc, char* argv[])
             clr.push_back(rtex);
 
             clctx.cqueue.exec("clear", clr, {width, height}, {16, 16});
+
+            {
+                {
+                    cl::args aclear;
+                    aclear.push_back(accel_counts);
+                    aclear.push_back(offset_size.x());
+
+                    clctx.cqueue.exec("clear_accel_counts", aclear, {offset_size.x(), offset_size.y(), offset_size.z()}, {8, 8, 1});
+                }
+
+                {
+                    cl::args count_args;
+                    count_args.push_back(accel_points);
+                    count_args.push_back(accel_point_count);
+                    count_args.push_back(accel_counts);
+                    count_args.push_back(offset_width);
+                    count_args.push_back(offset_size.x());
+
+                    clctx.cqueue.exec("generate_acceleration_counts", count_args, {accel_point_count}, {256});
+                }
+
+                {
+                    accel_mem_counter.set_to_zero(clctx.cqueue);
+
+                    cl::args accel;
+                    accel.push_back(accel_offsets);
+                    accel.push_back(accel_counts);
+                    accel.push_back(offset_size.x());
+                    accel.push_back(accel_mem_counter);
+
+                    clctx.cqueue.exec("alloc_acceleration", accel, {offset_size.x(), offset_size.y(), offset_size.z()}, {8, 8, 1});
+                }
+
+                {
+                    cl::args gen;
+                    gen.push_back(accel_points);
+                    gen.push_back(accel_point_count);
+                    gen.push_back(accel_offsets);
+                    gen.push_back(accel_counts);
+                    gen.push_back(accel_generic_buffer);
+                    gen.push_back(offset_width);
+                    gen.push_back(offset_size.x());
+
+                    clctx.cqueue.exec("generate_acceleration_data", gen, {accel_point_count}, {256});
+                }
+            }
 
             {
                 ///should invert geodesics is unused for the moment
