@@ -3673,15 +3673,11 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                 __global struct triangle* ctri = &tris[idx];
 
                                 float3 v0_pos = {ctri->v0x, ctri->v0y, ctri->v0z};
-
-                                if(fast_length(v0_pos - rt_pos.yzw) > 5)
-                                    continue;
-
                                 float3 v1_pos = {ctri->v1x, ctri->v1y, ctri->v1z};
                                 float3 v2_pos = {ctri->v2x, ctri->v2y, ctri->v2z};
 
-                                float dx = 0;
-                                //float3 ray_pos = mix(next_rt_pos.yzw, rt_pos.yzw, dx);
+                                if(fast_length(v0_pos - rt_pos.yzw) > 5)
+                                    continue;
 
                                 float3 ray_pos = rt_pos.yzw;
                                 float3 ray_dir = next_rt_pos.yzw - rt_pos.yzw;
