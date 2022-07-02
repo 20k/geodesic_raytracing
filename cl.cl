@@ -3301,10 +3301,26 @@ void generate_acceleration_structure(__global struct triangle* tris, int tri_cou
 }
 #endif // 0
 
+float3 world_to_voxel(float3 world, float width, int width_num)
+{
+    float scale = width / width_num;
+
+    return world / scale;
+}
+
 int mod(int a, int b)
 {
     int r = a % b;
     return r < 0 ? r + b : r;
+}
+
+int3 loop_voxel(int3 in, int width_num)
+{
+    in.x = mod(in.x, width_num);
+    in.y = mod(in.y, width_num);
+    in.z = mod(in.z, width_num);
+
+    return in;
 }
 
 __kernel
@@ -3429,6 +3445,14 @@ void generate_acceleration_data(__global struct sub_point* sp, int sp_count, __g
     }
 }
 
+void swap3f(float3* i1, float3* i2)
+{
+    float3 v = *i1;
+
+    *i1 = *i2;
+    *i2 = v;
+}
+
 __kernel
 void do_generic_rays (__global struct lightray* restrict generic_rays_in, __global struct lightray* restrict generic_rays_out,
                       __global struct lightray* restrict finished_rays,
@@ -3436,6 +3460,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                       __global int* restrict finished_count_out,
                       //__global float4* path_out, __global int* counts_out,
                       __global struct triangle* tris, int tri_count, __global struct intersection* intersections_out, __global int* intersection_count,
+                      __global int* counts, float accel_width, int accel_width_num,
                       dynamic_config_space struct dynamic_config* cfg)
 {
     int id = get_global_id(0);
@@ -3611,6 +3636,64 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
             {
                 checked = true;
 
+                float3 current_pos = (world_to_voxel(rt_pos.yzw, accel_width, accel_width_num));
+                float3 next_pos = (world_to_voxel(next_rt_pos.yzw, accel_width, accel_width_num));
+
+                float3 diff = next_pos - current_pos;
+                float3 adiff = fabs(adiff);
+
+                float max_len = max(max(adiff.x, adiff.y), adiff.z);
+
+                int3 start_pos = (int3)(current_pos.x, current_pos.y, current_pos.z);
+
+                if(max_len == adiff.x && current_pos.x > next_pos.x)
+                    swap3f(&current_pos, &next_pos);
+
+                if(max_len == adiff.y && current_pos.y > next_pos.y)
+                    swap3f(&current_pos, &next_pos);
+
+                if(max_len == adiff.z && current_pos.z > next_pos.z)
+                    swap3f(&current_pos, &next_pos);
+
+                current_pos = floor(current_pos);
+                next_pos = ceil(next_pos);
+
+                float3 diff2 = next_pos - current_pos;
+                float3 adiff2 = fabs(diff2);
+
+                float max_len2 = max(max(adiff2.x, adiff2.y), adiff2.z);
+
+                float3 step = diff2 / max_len2;
+
+                for(int i=0; i <= max_len2; i++)
+                {
+                    float3 floordf = floor(current_pos);
+
+                    int3 ifloor = (int3)(floordf.x, floordf.y, floordf.z);
+
+                    ifloor = loop_voxel(ifloor, accel_width_num);
+
+                    int bidx = ifloor.z * accel_width_num * accel_width_num + ifloor.y * accel_width_num + ifloor.x;
+
+                    int cnt = counts[bidx];
+
+                    if(cnt > 0)
+                    {
+                        int isect = atomic_inc(intersection_count);
+
+                        struct intersection out;
+                        out.sx = sx;
+                        out.sy = sy;
+
+                        intersections_out[isect] = out;
+                        return;
+                    }
+
+                    current_pos += step;
+                }
+
+
+                #if 0
                 for(int kk=0; kk < tri_count; kk++)
                 {
                     __global struct triangle* ctri = &tris[kk];
@@ -3653,6 +3736,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                         }
                     }
                 }
+                #endif // 0
             }
         }
 
