@@ -3274,6 +3274,12 @@ bool ray_intersects_triangle(float3 origin, float3 direction, float3 vertex0, fl
         return false;
 }
 
+struct sub_point
+{
+    float x, y, z;
+    int parent;
+};
+
 __kernel
 void generate_acceleration_structure(__global struct triangle* tris, int tri_count, __global int* offset_map, __global int* offset_counts, __global int* pool, float width, int width_num)
 {

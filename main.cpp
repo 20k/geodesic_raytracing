@@ -867,6 +867,12 @@ std::vector<subtriangle> triangulate_those_bigger_than(const std::vector<triangl
     return triangulate_those_bigger_than(ret, size);
 }
 
+struct sub_point
+{
+    cl_float x, y, z;
+    int parent;
+};
+
 ///i need the ability to have dynamic parameters
 int main(int argc, char* argv[])
 {
@@ -1219,6 +1225,10 @@ int main(int argc, char* argv[])
     cl::buffer accel_tris(clctx.ctx);
     accel_tris.alloc(accel_cell_mem);
 
+    cl::buffer accel_points(clctx.ctx);
+    accel_points.alloc(1024 * 1024 * sizeof(cl_float4));
+
+    int accel_point_count = 0;
     read_queue_pool<cl_float4> camera_q;
     read_queue_pool<cl_float4> geodesic_q;
 
@@ -1290,9 +1300,43 @@ int main(int argc, char* argv[])
         tris.insert(tris.end(), t4.begin(), t4.end());
     }
 
-    std::vector<subtriangle> subtriangulated = triangulate_those_bigger_than(tris, offset_width / offset_size.x());
+    {
+        std::vector<subtriangle> subtriangulated = triangulate_those_bigger_than(tris, offset_width / offset_size.x());
 
-    std::cout << "SUBTRID " << subtriangulated.size() << std::endl;
+        std::vector<std::pair<vec3f, int>> subtri_as_points;
+
+        for(subtriangle& t : subtriangulated)
+        {
+            subtri_as_points.push_back({t.get_vert(0), t.parent});
+            subtri_as_points.push_back({t.get_vert(1), t.parent});
+            subtri_as_points.push_back({t.get_vert(2), t.parent});
+        }
+
+        std::sort(subtri_as_points.begin(), subtri_as_points.end(), [](auto& i1, auto& i2)
+        {
+            return std::tie(i1.first.x(), i1.first.y(), i1.first.z(), i1.second) < std::tie(i2.first.x(), i2.first.y(), i2.first.z(), i2.second);
+        });
+
+        subtri_as_points.erase(std::unique(subtri_as_points.begin(), subtri_as_points.end()), subtri_as_points.end());
+
+        std::cout << "FIN POINTS " << subtri_as_points.size() << std::endl;
+
+        std::vector<sub_point> gpu;
+
+        for(auto& p : subtri_as_points)
+        {
+            sub_point point;
+            point.x = p.first.x();
+            point.y = p.first.y();
+            point.z = p.first.z();
+            point.parent = p.second;
+
+            gpu.push_back(point);
+        }
+
+        accel_point_count = gpu.size();
+        accel_points.write(clctx.cqueue, gpu);
+    }
 
     int tri_count = tris.size();
 
