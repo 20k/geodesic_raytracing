@@ -3636,6 +3636,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
             {
                 checked = true;
 
+
+                #if 0
                 float3 current_pos = (world_to_voxel(rt_pos.yzw, accel_width, accel_width_num));
                 float3 next_pos = (world_to_voxel(next_rt_pos.yzw, accel_width, accel_width_num));
 
@@ -3673,6 +3675,11 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                     ifloor = loop_voxel(ifloor, accel_width_num);
 
+                    /*if(any(ifloor < 0) || any(ifloor >= accel_width_num))
+                    {
+                        printf("Crit error\n");
+                    }*/
+
                     int bidx = ifloor.z * accel_width_num * accel_width_num + ifloor.y * accel_width_num + ifloor.x;
 
                     int cnt = counts[bidx];
@@ -3690,6 +3697,29 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                     }
 
                     current_pos += step;
+                }
+                #endif // 0
+
+                float3 floord = floor(world_to_voxel(rt_pos.yzw, accel_width, accel_width_num));
+
+                int3 ipos = (int3)(floord.x, floord.y, floord.z);
+
+                ipos = loop_voxel(ipos, accel_width_num);
+
+                int bidx = ipos.z * accel_width_num * accel_width_num + ipos.y * accel_width_num + ipos.x;
+
+                int cnt = counts[bidx];
+
+                if(cnt > 0)
+                {
+                    int isect = atomic_inc(intersection_count);
+
+                    struct intersection out;
+                    out.sx = sx;
+                    out.sy = sy;
+
+                    intersections_out[isect] = out;
+                    return;
                 }
 
 
@@ -4818,6 +4848,11 @@ void render_intersections(__global struct intersection* in, __global int* cnt, _
 
     if(id >= *cnt)
         return;
+
+    /*if(id == 0)
+    {
+        printf("CNT %i\n", *cnt);
+    }*/
 
     __global struct intersection* mine = &in[id];
 
