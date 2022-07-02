@@ -1305,6 +1305,7 @@ int main(int argc, char* argv[])
 
         std::vector<std::pair<vec3f, int>> subtri_as_points;
 
+        ///todo: round verts to world coords
         for(subtriangle& t : subtriangulated)
         {
             subtri_as_points.push_back({t.get_vert(0), t.parent});

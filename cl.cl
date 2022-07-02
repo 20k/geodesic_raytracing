@@ -3280,6 +3280,7 @@ struct sub_point
     int parent;
 };
 
+#if 0
 __kernel
 void generate_acceleration_structure(__global struct triangle* tris, int tri_count, __global int* offset_map, __global int* offset_counts, __global int* pool, float width, int width_num)
 {
@@ -3297,6 +3298,72 @@ void generate_acceleration_structure(__global struct triangle* tris, int tri_cou
     float3 maximum = (float3)(MAX3(tri->v0x, tri->v1x, tri->v2x), MAX3(tri->v0y, tri->v1y, tri->v2y), MAX3(tri->v0z, tri->v1z, tri->v2z));
 
     float voxel_cube_size = width / width_num;
+}
+#endif // 0
+
+int mod(int a, int b)
+{
+    int r = a % b;
+    return r < 0 ? r + b : r;
+}
+
+__kernel
+void generate_acceleration_counts(__global struct sub_point* sp, int sp_count, __global int* offset_counts, float width, int width_num)
+{
+    int id = get_global_id(0);
+
+    if(id >= sp_count)
+        return;
+
+    float voxel_cube_size = width / width_num;
+
+    struct sub_point mine = sp[id];
+
+    float3 pos = (float3)(mine.x, mine.y, mine.z);
+    int w_id = mine.parent;
+
+    float3 grid_pos = floor(pos / voxel_cube_size);
+
+    int3 int_grid_pos = (int3)(grid_pos.x, grid_pos.y, grid_pos.z);
+
+    for(int z=-1; z <= 1; z++)
+    {
+        for(int y=-1; y <= 1; y++)
+        {
+            for(int x=-1; x <= 1; x++)
+            {
+                int3 off = (int3)(x, y, z);
+                int3 fin = int_grid_pos + off;
+
+                fin.x = mod(fin.x, width_num);
+                fin.y = mod(fin.y, width_num);
+                fin.z = mod(fin.z, width_num);
+
+                int oid = fin.z * width_num * width_num + fin.y * width_num + fin.x;
+
+                atomic_inc(&offset_counts[oid]);
+            }
+        }
+    }
+}
+
+__kernel
+void alloc_acceleration(__global int* offset_map, __global int* offset_counts, int width_num, __global int* mem_count)
+{
+    int x = get_global_id(0);
+    int y = get_global_id(1);
+    int z = get_global_id(2);
+
+    if(x >= width_num || y >= width_num || z >= width_num)
+        return;
+
+    int idx = z * width_num * width_num + y * width_num + x;
+
+    int my_count = offset_counts[idx];
+
+    int offset = atomic_add(mem_count, my_count);
+
+    offset_map[idx] = offset;
 }
 
 __kernel
