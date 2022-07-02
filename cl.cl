@@ -3536,8 +3536,6 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
     #endif // DEVICE_SIDE_ENQUEUE
 
     float4 last_pos = (float4)(0,0,0,0);
-    float4 last_last_pos = (float4)(0,0,0,0);
-    bool has_llp = false;
 
     //#pragma unroll
     for(int i=0; i < loop_limit; i++)
@@ -3593,56 +3591,44 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
             return;
         #endif // UNCONDITIONALLY_NONSINGULAR
         float4 out_position = generic_to_cartesian(position, cfg);
-
-        #if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC) || defined(DEBUG_CONSTANT_THETA)
-        {
-            float4 pos_spherical = generic_to_spherical(position, cfg);
-
-            float fsign = sign(pos_spherical.y);
-            pos_spherical.y = fabs(pos_spherical.y);
-
-            float3 pos_cart = polar_to_cartesian(pos_spherical.yzw);
-
-            float4 quat = ray->initial_quat;
-
-            pos_cart = rot_quat(pos_cart, quat);
-
-            out_position = (float4)(position.x, pos_cart);
-        }
-        #endif
-
-        bool checked = false;
-
         float max_permissable_angle = cos(10 * 2 * M_PI/360.f);
 
-        if((i > 0 || should_terminate) && (i % 8) == 0)
+        if((i % 8) == 0)
         {
+            float4 out_position = generic_to_cartesian(position, cfg);
+
+            #if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC) || defined(DEBUG_CONSTANT_THETA)
+            {
+                float4 pos_spherical = generic_to_spherical(position, cfg);
+
+                float fsign = sign(pos_spherical.y);
+                pos_spherical.y = fabs(pos_spherical.y);
+
+                float3 pos_cart = polar_to_cartesian(pos_spherical.yzw);
+
+                float4 quat = ray->initial_quat;
+
+                pos_cart = rot_quat(pos_cart, quat);
+
+                out_position = (float4)(position.x, pos_cart);
+            }
+            #endif
+
+            if(i == 0)
+                last_pos = out_position;
+
             bool should_check = false;
 
             ///we could evaluate some of this with the metric tensor, ie angles
             float4 rt_pos = last_pos;
             float4 next_rt_pos = out_position;
 
-            /*if(has_llp)
-            {
-                float4 vel = last_pos - last_last_pos;
-
-                float4 cvel = next_rt_pos - last_pos;
-
-                float angle = dot(fast_normalize(vel), fast_normalize(cvel));
-
-                if(fabs(angle) <= fabs(max_permissable_angle))
-                {
-                    should_check = true;
-                }
-            }*/
-
             if(fast_length(next_rt_pos - rt_pos) > 1)
                 should_check = true;
 
             if(should_check || should_terminate)
             {
-                checked = true;
+                last_pos = next_rt_pos;
 
                 #if 1
                 float3 current_pos = world_to_voxel(rt_pos.yzw, accel_width, accel_width_num);
@@ -3715,118 +3701,6 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                         current_pos += step;
                     }
                 }
-
-                #ifdef TRY_COMPENSATION
-                float3 diff = next_pos - current_pos;
-                float3 adiff = fabs(adiff);
-
-                //float max_len = max(max(adiff.x, adiff.y), adiff.z);
-
-                int which = 0;
-
-                if(adiff.x > adiff.y && adiff.x > adiff.z)
-                {
-                    which = 0;
-                }
-
-                if(adiff.y > adiff.x && adiff.y > adiff.z)
-                {
-                    which = 1;
-                }
-
-                if(adiff.z > adiff.x && adiff.z > adiff.y)
-                {
-                    which = 2;
-                }
-
-                if(which == 0 && current_pos.x > next_pos.x)
-                    swap3f(&current_pos, &next_pos);
-
-                if(which == 1 && current_pos.y > next_pos.y)
-                    swap3f(&current_pos, &next_pos);
-
-                if(which == 2 && current_pos.z > next_pos.z)
-                    swap3f(&current_pos, &next_pos);
-
-                /*if(max_len == adiff.x && current_pos.x > next_pos.x)
-                    swap3f(&current_pos, &next_pos);
-
-                if(max_len == adiff.y && current_pos.y > next_pos.y)
-                    swap3f(&current_pos, &next_pos);
-
-                if(max_len == adiff.z && current_pos.z > next_pos.z)
-                    swap3f(&current_pos, &next_pos);*/
-                #endif // TRY_COMPENSATION
-
-                current_pos = round(current_pos);
-                next_pos = round(next_pos);
-
-                float3 diff2 = next_pos - current_pos;
-                float3 adiff2 = fabs(diff2);
-
-                float max_len2 = max(max(adiff2.x, adiff2.y), adiff2.z);
-
-                float3 step = diff2 / max_len2;
-
-                #if 0
-                bool any_intersect = false;
-
-                for(int i=0; i <= max_len2; i++)
-                {
-                    float3 floordf = floor(current_pos);
-
-                    int3 ifloor = (int3)(floordf.x, floordf.y, floordf.z);
-
-                    ifloor = loop_voxel(ifloor, accel_width_num);
-
-                    int bidx = ifloor.z * accel_width_num * accel_width_num + ifloor.y * accel_width_num + ifloor.x;
-
-                    int cnt = counts[bidx];
-
-                    if(cnt > 0)
-                    {
-                        /*int isect = atomic_inc(intersection_count);
-
-                        struct intersection out;
-                        out.sx = sx;
-                        out.sy = sy;
-
-                        intersections_out[isect] = out;
-                        return;*/
-                        any_intersect = true;
-                    }
-
-                    current_pos += step;
-                }
-
-                if(any_intersect)
-                {
-                    struct potential_intersection isect;
-                    isect.cx = sx;
-                    isect.cy = sy;
-
-                    isect.st = rt_pos.x;
-                    isect.sx = rt_pos.y;
-                    isect.sy = rt_pos.z;
-                    isect.sz = rt_pos.w;
-
-                    isect.et = next_rt_pos.x;
-                    isect.ex = next_rt_pos.y;
-                    isect.ey = next_rt_pos.z;
-                    isect.ez = next_rt_pos.w;
-
-                    int oid = atomic_inc(intersection_count_p);
-
-                    if(oid >= 1024 * 1024 * 80)
-                    {
-                        printf("Fucked\n");
-                        return;
-                    }
-
-                    intersections_p[oid] = isect;
-                }
-
-                #endif // 0
                 #endif // 0
 
                 #ifdef VOX_SAMP
@@ -3852,65 +3726,6 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                     return;
                 }
                 #endif // VOX_SAMP
-
-                #if 0
-                for(int kk=0; kk < tri_count; kk++)
-                {
-                    __global struct triangle* ctri = &tris[kk];
-
-                    float tri_time = ctri->time;
-
-                    float3 v0_pos = {ctri->v0x, ctri->v0y, ctri->v0z};
-                    float3 v1_pos = {ctri->v1x, ctri->v1y, ctri->v1z};
-                    float3 v2_pos = {ctri->v2x, ctri->v2y, ctri->v2z};
-
-                    //for(int i=0; i < cnt - 1; i++)
-                    {
-
-                        float time = rt_pos.x;
-                        float next_time = next_rt_pos.x;
-
-                        //if(time >= tri_time && time < next_time)
-                        {
-                            //float dx = (tri_time - time) / (next_time - time);
-
-                            float dx = 0;
-
-                            float3 ray_pos = mix(next_rt_pos.yzw, rt_pos.yzw, dx);
-                            float3 ray_dir = next_rt_pos.yzw - rt_pos.yzw;
-
-                            if(ray_intersects_triangle(ray_pos, ray_dir, v0_pos, v1_pos, v2_pos))
-                            {
-                                int isect = atomic_inc(intersection_count);
-
-                                struct intersection out;
-                                out.sx = sx;
-                                out.sy = sy;
-
-                                intersections_out[isect] = out;
-                                return;
-
-                                //write_imagef(screen, (int2){sx, sy}, (float4)(1, 0, 0, 1));
-                                //return;
-                            }
-                        }
-                    }
-                }
-                #endif // 0
-            }
-        }
-
-        //path_out[i * ray_num + id] = out_position;
-        //counts_out[id] = i + 1;
-
-        if(checked || i == 0 || !has_llp)
-        {
-            last_last_pos = last_pos;
-            last_pos = out_position;
-
-            if(i != 0)
-            {
-                has_llp = true;
             }
         }
 
