@@ -1240,7 +1240,7 @@ int main(int argc, char* argv[])
     int potential_intersection_size = 10;
 
     cl::buffer potential_intersections(clctx.ctx);
-    potential_intersections.alloc(potential_intersection_size * 1024 * 1024 * 80);
+    potential_intersections.alloc(potential_intersection_size * 1024 * 1024 * 160);
 
     cl::buffer potential_intersection_count(clctx.ctx);
     potential_intersection_count.alloc(sizeof(cl_int));
@@ -1325,7 +1325,7 @@ int main(int argc, char* argv[])
                 {
                     float adist = fabs(x) + fabs(y) + fabs(z);
 
-                    if(adist <= 3)
+                    if(adist <= 10)
                         continue;
 
                     in_tris.push_back(make_cube({x, y, z}));
@@ -2228,7 +2228,7 @@ int main(int argc, char* argv[])
                 clctx.cqueue.exec("render", render_args, {width * height}, {256});
             }
 
-            #if 0
+            #if 1
             {
                 cl::args intersect_args;
                 intersect_args.push_back(potential_intersections);
