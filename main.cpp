@@ -1211,9 +1211,8 @@ int main(int argc, char* argv[])
     schwarzs_count_prepass.alloc(sizeof(int));
     finished_count_1.alloc(sizeof(int));
 
-    print("Alloc rays and counts\n");
-    vec3i offset_size = {300, 300, 300};
-    float offset_width = 10;
+    vec3i offset_size = {256, 256, 256};
+    float offset_width = 20;
 
     int accel_cell_mem = 1024 * 1024 * 128 * sizeof(cl_int);
     int ray_storage = 1024 * 1024 * 128 * sizeof(cl_int);
