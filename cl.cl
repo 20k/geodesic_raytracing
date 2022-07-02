@@ -3617,7 +3617,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
             if(i == 0)
                 last_pos = out_position;
 
-            bool should_check = false;
+            bool should_check = true;
 
             ///we could evaluate some of this with the metric tensor, ie angles
             float4 rt_pos = last_pos;
@@ -3643,9 +3643,11 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                     float max_len2 = max(max(adiff2.x, adiff2.y), adiff2.z);
 
+                    max_len2 = max(max_len2, 1.f);
+
                     float3 step = diff2 / max_len2;
 
-                    for(int i=0; i <= max_len2; i++)
+                    for(int i=0; i < max_len2; i++)
                     {
                         float3 floordf = floor(current_pos);
 
