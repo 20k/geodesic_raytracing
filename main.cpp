@@ -601,6 +601,78 @@ struct triangle
     }
 };
 
+struct subtriangle
+{
+    subtriangle(){}
+
+    subtriangle(int p, const triangle& t)
+    {
+        parent = p;
+
+        v0x = t.v0x;
+        v0y = t.v0y;
+        v0z = t.v0z;
+
+        v1x = t.v1x;
+        v1y = t.v1y;
+        v1z = t.v1z;
+
+        v2x = t.v2x;
+        v2y = t.v2y;
+        v2z = t.v2z;
+    }
+
+    void set_vert(int which, vec3f pos)
+    {
+        if(which == 0)
+        {
+            v0x = pos.x();
+            v0y = pos.y();
+            v0z = pos.z();
+        }
+
+        if(which == 1)
+        {
+            v1x = pos.x();
+            v1y = pos.y();
+            v1z = pos.z();
+        }
+
+        if(which == 2)
+        {
+            v2x = pos.x();
+            v2y = pos.y();
+            v2z = pos.z();
+        }
+    }
+
+    vec3f get_vert(int which) const
+    {
+        if(which == 0)
+        {
+            return {v0x, v0y, v0z};
+        }
+
+        if(which == 1)
+        {
+            return {v1x, v1y, v1z};
+        }
+
+        if(which == 2)
+        {
+            return {v2x, v2y, v2z};
+        }
+
+        assert(false);
+    }
+
+    int parent = 0;
+
+    float v0x = 0, v0y = 0, v0z = 0;
+    float v1x = 0, v1y = 0, v1z = 0;
+    float v2x = 0, v2y = 0, v2z = 0;
+};
+
 std::vector<triangle> make_cube(vec3f pos)
 {
     std::vector<triangle> tris;
@@ -707,6 +779,85 @@ std::vector<triangle> make_cube(vec3f pos)
     }
 
     return tris;
+}
+
+std::array<subtriangle, 4> subtriangulate(const subtriangle& t)
+{
+    vec3f v0 = t.get_vert(0);
+    vec3f v1 = t.get_vert(1);
+    vec3f v2 = t.get_vert(2);
+
+    vec3f h01 = (v0 + v1)/2;
+    vec3f h12 = (v1 + v2)/2;
+    vec3f h20 = (v2 + v0)/2;
+
+    std::array<subtriangle, 4> res;
+
+    for(subtriangle& o : res)
+    {
+        o.parent = t.parent;
+    }
+
+    std::vector<vec3f> st0 = {v0, h01, h20};
+    std::vector<vec3f> st1 = {v1, h12, h01};
+    std::vector<vec3f> st2 = {v2, h20, h12};
+    std::vector<vec3f> st3 = {h01, h12, h20};
+
+    for(int i=0; i < 3; i++)
+    {
+        res[0].set_vert(i, st0[i]);
+        res[1].set_vert(i, st1[i]);
+        res[2].set_vert(i, st2[i]);
+        res[3].set_vert(i, st3[i]);
+    }
+
+    return res;
+}
+
+std::vector<subtriangle> triangulate_those_bigger_than(const std::vector<subtriangle>& in, float size)
+{
+    std::vector<subtriangle> ret;
+
+    for(const subtriangle& t : in)
+    {
+        vec3f v0 = t.get_vert(0);
+        vec3f v1 = t.get_vert(1);
+        vec3f v2 = t.get_vert(2);
+
+        float l0 = (v1 - v0).length();
+        float l1 = (v2 - v1).length();
+        float l2 = (v0 - v2).length();
+
+        if(l0 >= size || l1 >= size || l2 >= size)
+        {
+            auto res = subtriangulate(t);
+
+            for(auto& i : res)
+            {
+                ret.push_back(i);
+            }
+        }
+        else
+        {
+            ret.push_back(t);
+        }
+    }
+
+    return ret;
+}
+
+std::vector<subtriangle> triangulate_those_bigger_than(const std::vector<triangle>& in, float size)
+{
+    std::vector<subtriangle> ret;
+
+    for(int i=0; i < (int)in.size(); i++)
+    {
+        subtriangle stri(i, in[i]);
+
+        ret.push_back(stri);
+    }
+
+    return triangulate_those_bigger_than(ret, size);
 }
 
 ///i need the ability to have dynamic parameters
@@ -1044,6 +1195,22 @@ int main(int argc, char* argv[])
     finished_count_1.alloc(sizeof(int));
 
     print("Alloc rays and counts\n");
+    vec3i offset_size = {300, 300, 300};
+    float offset_width = 10;
+
+    int accel_cell_mem = 1024 * 1024 * 128 * sizeof(cl_int);
+    int ray_storage = 1024 * 1024 * 128 * sizeof(cl_int);
+
+    cl::buffer accel_offsets(clctx.ctx);
+    accel_offsets.alloc(sizeof(cl_int) * offset_size.x() * offset_size.y() * offset_size.z());
+    accel_offsets.set_to_zero(clctx.cqueue);
+
+    cl::buffer accel_counts(clctx.ctx);
+    accel_counts.alloc(sizeof(cl_int) * offset_size.x() * offset_size.y() * offset_size.z());
+    accel_counts.set_to_zero(clctx.cqueue);
+
+    cl::buffer accel_tris(clctx.ctx);
+    accel_tris.alloc(accel_cell_mem);
 
     read_queue_pool<cl_float4> camera_q;
     read_queue_pool<cl_float4> geodesic_q;

@@ -3274,6 +3274,24 @@ bool ray_intersects_triangle(float3 origin, float3 direction, float3 vertex0, fl
         return false;
 }
 
+__kernel
+void generate_acceleration_structure(__global struct triangle* tris, int tri_count, __global int* offset_map, __global int* offset_counts, __global int* pool, float width, int width_num)
+{
+    int id = get_global_id(0);
+
+    if(id >= tri_count)
+        return;
+
+    __global struct triangle* tri = &tris[id];
+
+    #define MIN3(x, y, z) min(min(x, y), z)
+    #define MAX3(x, y, z) max(max(x, y), z)
+
+    float3 minimum = (float3)(MIN3(tri->v0x, tri->v1x, tri->v2x), MIN3(tri->v0y, tri->v1y, tri->v2y), MIN3(tri->v0z, tri->v1z, tri->v2z));
+    float3 maximum = (float3)(MAX3(tri->v0x, tri->v1x, tri->v2x), MAX3(tri->v0y, tri->v1y, tri->v2y), MAX3(tri->v0z, tri->v1z, tri->v2z));
+
+    float voxel_cube_size = width / width_num;
+}
 
 __kernel
 void do_generic_rays (__global struct lightray* restrict generic_rays_in, __global struct lightray* restrict generic_rays_out,
