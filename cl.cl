@@ -3458,7 +3458,6 @@ struct potential_intersection
     int cx, cy;
     float st, sx, sy, sz;
     float et, ex, ey, ez;
-    int x, y, z;
 };
 
 __kernel
@@ -3701,6 +3700,9 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                 float3 step = diff2 / max_len2;
 
+                #if 1
+                bool any_intersect = false;
+
                 for(int i=0; i <= max_len2; i++)
                 {
                     float3 floordf = floor(current_pos);
@@ -3723,32 +3725,40 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                         intersections_out[isect] = out;
                         return;*/
-
-                        struct potential_intersection isect;
-                        isect.cx = sx;
-                        isect.cy = sy;
-
-                        isect.st = rt_pos.x;
-                        isect.sx = rt_pos.y;
-                        isect.sy = rt_pos.z;
-                        isect.sz = rt_pos.w;
-
-                        isect.et = next_rt_pos.x;
-                        isect.ex = next_rt_pos.y;
-                        isect.ey = next_rt_pos.z;
-                        isect.ez = next_rt_pos.w;
-
-                        isect.x = ifloor.x;
-                        isect.y = ifloor.y;
-                        isect.z = ifloor.z;
-
-                        int oid = atomic_inc(intersection_count_p);
-
-                        intersections_p[oid] = isect;
+                        any_intersect = true;
                     }
 
                     current_pos += step;
                 }
+
+                if(any_intersect)
+                {
+                    struct potential_intersection isect;
+                    isect.cx = sx;
+                    isect.cy = sy;
+
+                    isect.st = rt_pos.x;
+                    isect.sx = rt_pos.y;
+                    isect.sy = rt_pos.z;
+                    isect.sz = rt_pos.w;
+
+                    isect.et = next_rt_pos.x;
+                    isect.ex = next_rt_pos.y;
+                    isect.ey = next_rt_pos.z;
+                    isect.ez = next_rt_pos.w;
+
+                    int oid = atomic_inc(intersection_count_p);
+
+                    if(oid >= 1024 * 1024 * 80)
+                    {
+                        printf("Fucked\n");
+                        return;
+                    }
+
+                    intersections_p[oid] = isect;
+                }
+
+                #endif // 0
                 #endif // 0
 
                 #ifdef VOX_SAMP
@@ -4895,52 +4905,9 @@ void render_tris(__global struct triangle* tris, int tri_count,
 
 __kernel
 void render_potential_intersections(__global struct potential_intersection* in, __global int* cnt,
-                                    __global int* counts, __global int* offsets, __global int* linear_mem, int width_num,
+                                    __global int* counts, __global int* offsets, __global int* linear_mem, float accel_width, int accel_width_num,
                                     __global struct triangle* tris, __write_only image2d_t screen)
 {
-    /*for(int kk=0; kk < tri_count; kk++)
-    {
-        __global struct triangle* ctri = &tris[kk];
-
-        float tri_time = ctri->time;
-
-        float3 v0_pos = {ctri->v0x, ctri->v0y, ctri->v0z};
-        float3 v1_pos = {ctri->v1x, ctri->v1y, ctri->v1z};
-        float3 v2_pos = {ctri->v2x, ctri->v2y, ctri->v2z};
-
-        //for(int i=0; i < cnt - 1; i++)
-        {
-
-            float time = rt_pos.x;
-            float next_time = next_rt_pos.x;
-
-            //if(time >= tri_time && time < next_time)
-            {
-                //float dx = (tri_time - time) / (next_time - time);
-
-                float dx = 0;
-
-                float3 ray_pos = mix(next_rt_pos.yzw, rt_pos.yzw, dx);
-                float3 ray_dir = next_rt_pos.yzw - rt_pos.yzw;
-
-                if(ray_intersects_triangle(ray_pos, ray_dir, v0_pos, v1_pos, v2_pos))
-                {
-                    int isect = atomic_inc(intersection_count);
-
-                    struct intersection out;
-                    out.sx = sx;
-                    out.sy = sy;
-
-                    intersections_out[isect] = out;
-                    return;
-
-                    //write_imagef(screen, (int2){sx, sy}, (float4)(1, 0, 0, 1));
-                    //return;
-                }
-            }
-        }
-    }*/
-
     int id = get_global_id(0);
 
     if(id >= *cnt)
@@ -4950,37 +4917,67 @@ void render_potential_intersections(__global struct potential_intersection* in, 
     int cx = mine.cx;
     int cy = mine.cy;
 
-    int voxel_id = mine.z * width_num * width_num + mine.y * width_num + mine.x;
+    float4 rt_pos = {mine.st, mine.sx, mine.sy, mine.sz};
+    float4 next_rt_pos = {mine.et, mine.ex, mine.ey, mine.ez};
 
-    int tri_count = counts[voxel_id];
-    int base_offset = offsets[voxel_id];
+    float3 current_pos = world_to_voxel(rt_pos.yzw, accel_width, accel_width_num);
+    float3 next_pos = world_to_voxel(next_rt_pos.yzw, accel_width, accel_width_num);
 
-    __global int* tri_indices = &linear_mem[base_offset];
+    current_pos = round(current_pos);
+    next_pos = round(next_pos);
 
-    for(int i=0; i < tri_count; i++)
+    float3 diff2 = next_pos - current_pos;
+    float3 adiff2 = fabs(diff2);
+
+    float max_len2 = max(max(adiff2.x, adiff2.y), adiff2.z);
+
+    float3 step = diff2 / max_len2;
+
+    for(int i=0; i <= max_len2; i++)
     {
-        int idx = tri_indices[i];
+        float3 floordf = floor(current_pos);
 
-        __global struct triangle* ctri = &tris[idx];
+        int3 ifloor = (int3)(floordf.x, floordf.y, floordf.z);
 
-        float3 v0_pos = {ctri->v0x, ctri->v0y, ctri->v0z};
-        float3 v1_pos = {ctri->v1x, ctri->v1y, ctri->v1z};
-        float3 v2_pos = {ctri->v2x, ctri->v2y, ctri->v2z};
+        ifloor = loop_voxel(ifloor, accel_width_num);
 
-        float dx = 0;
+        int voxel_id = ifloor.z * accel_width_num * accel_width_num + ifloor.y * accel_width_num + ifloor.x;
 
-        float4 rt_pos = {mine.st, mine.sx, mine.sy, mine.sz};
-        float4 next_rt_pos = {mine.et, mine.ex, mine.ey, mine.ez};
+        int cnt = counts[voxel_id];
 
-        float3 ray_pos = mix(next_rt_pos.yzw, rt_pos.yzw, dx);
-        float3 ray_dir = next_rt_pos.yzw - rt_pos.yzw;
-
-        ///ehhhh need to take closest
-        if(ray_intersects_triangle(ray_pos, ray_dir, v0_pos, v1_pos, v2_pos))
+        if(cnt > 0)
         {
-            write_imagef(screen, (int2){cx, cy}, (float4)(1, 0, 0, 1));
-            return;
+            int tri_count = counts[voxel_id];
+            int base_offset = offsets[voxel_id];
+
+            __global int* tri_indices = &linear_mem[base_offset];
+
+            for(int i=0; i < tri_count; i++)
+            {
+                int idx = tri_indices[i];
+
+                __global struct triangle* ctri = &tris[idx];
+
+                float3 v0_pos = {ctri->v0x, ctri->v0y, ctri->v0z};
+                float3 v1_pos = {ctri->v1x, ctri->v1y, ctri->v1z};
+                float3 v2_pos = {ctri->v2x, ctri->v2y, ctri->v2z};
+
+                float dx = 0;
+                //float3 ray_pos = mix(next_rt_pos.yzw, rt_pos.yzw, dx);
+
+                float3 ray_pos = rt_pos.yzw;
+                float3 ray_dir = next_rt_pos.yzw - rt_pos.yzw;
+
+                ///ehhhh need to take closest
+                if(ray_intersects_triangle(ray_pos, ray_dir, v0_pos, v1_pos, v2_pos))
+                {
+                    write_imagef(screen, (int2){cx, cy}, (float4)(1, 0, 0, 1));
+                    return;
+                }
+            }
         }
+
+        current_pos += step;
     }
 }
 
