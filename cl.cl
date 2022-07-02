@@ -3615,7 +3615,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
         float max_permissable_angle = cos(10 * 2 * M_PI/360.f);
 
-        if((i > 0 || should_terminate) && (i % 2) == 0)
+        if((i > 0 || should_terminate) && (i % 8) == 0)
         {
             bool should_check = false;
 
@@ -3687,6 +3687,9 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                 float3 v0_pos = {ctri->v0x, ctri->v0y, ctri->v0z};
                                 float3 v1_pos = {ctri->v1x, ctri->v1y, ctri->v1z};
                                 float3 v2_pos = {ctri->v2x, ctri->v2y, ctri->v2z};
+
+                                if(fast_length(v0_pos - rt_pos.yzw) > 5)
+                                    continue;
 
                                 float dx = 0;
                                 //float3 ray_pos = mix(next_rt_pos.yzw, rt_pos.yzw, dx);

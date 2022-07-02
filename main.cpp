@@ -1327,7 +1327,7 @@ int main(int argc, char* argv[])
                 {
                     float adist = fabs(x) + fabs(y) + fabs(z);
 
-                    if(adist <= 10)
+                    if(adist <= 7)
                         continue;
 
                     in_tris.push_back(make_cube({x, y, z}));
