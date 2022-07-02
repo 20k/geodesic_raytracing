@@ -3308,6 +3308,19 @@ int mod(int a, int b)
 }
 
 __kernel
+void clear_accel_counts(__global int* offset_counts, int width_num)
+{
+    int x = get_global_id(0);
+    int y = get_global_id(1);
+    int z = get_global_id(2);
+
+    if(x >= width_num || y >= width_num || z >= width_num)
+        return;
+
+    offset_counts[z * width_num * width_num + y * width_num + x] = 0;
+}
+
+__kernel
 void generate_acceleration_counts(__global struct sub_point* sp, int sp_count, __global int* offset_counts, float width, int width_num)
 {
     int id = get_global_id(0);
@@ -3361,15 +3374,19 @@ void alloc_acceleration(__global int* offset_map, __global int* offset_counts, i
     int idx = z * width_num * width_num + y * width_num + x;
 
     int my_count = offset_counts[idx];
+
     offset_counts[idx] = 0;
 
-    int offset = atomic_add(mem_count, my_count);
+    int offset = 0;
+
+    if(my_count > 0)
+        offset = atomic_add(mem_count, my_count);
 
     offset_map[idx] = offset;
 }
 
 __kernel
-void generate_acceleration_data(__global struct sub_point* sp, int sp_count, __global int* offset_map, __global int* offset_counts, __global int* mem_count, float width, int width_num)
+void generate_acceleration_data(__global struct sub_point* sp, int sp_count, __global int* offset_map, __global int* offset_counts, __global int* mem_buffer, float width, int width_num)
 {
     int id = get_global_id(0);
 
@@ -3406,7 +3423,7 @@ void generate_acceleration_data(__global struct sub_point* sp, int sp_count, __g
 
                 int mem_start = offset_map[oid];
 
-                mem_count[mem_start + lid] = w_id;
+                mem_buffer[mem_start + lid] = w_id;
             }
         }
     }
