@@ -3468,7 +3468,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                       //__global float4* path_out, __global int* counts_out,
                       __global struct triangle* tris, int tri_count, __global struct intersection* intersections_out, __global int* intersection_count,
                       __global struct potential_intersection* intersections_p, __global int* intersection_count_p,
-                      __global int* counts, float accel_width, int accel_width_num,
+                      __global int* counts, __global int* offsets, __global int* linear_mem, float accel_width, int accel_width_num,
                       dynamic_config_space struct dynamic_config* cfg)
 {
     int id = get_global_id(0);
@@ -3615,7 +3615,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
         float max_permissable_angle = cos(10 * 2 * M_PI/360.f);
 
-        if(i > 0 || should_terminate)
+        if((i > 0 || should_terminate) && (i % 2) == 0)
         {
             bool should_check = false;
 
@@ -3647,6 +3647,71 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                 #if 1
                 float3 current_pos = world_to_voxel(rt_pos.yzw, accel_width, accel_width_num);
                 float3 next_pos = world_to_voxel(next_rt_pos.yzw, accel_width, accel_width_num);
+
+                {
+                    current_pos = round(current_pos);
+                    next_pos = round(next_pos);
+
+                    float3 diff2 = next_pos - current_pos;
+                    float3 adiff2 = fabs(diff2);
+
+                    float max_len2 = max(max(adiff2.x, adiff2.y), adiff2.z);
+
+                    float3 step = diff2 / max_len2;
+
+                    for(int i=0; i <= max_len2; i++)
+                    {
+                        float3 floordf = floor(current_pos);
+
+                        int3 ifloor = (int3)(floordf.x, floordf.y, floordf.z);
+
+                        ifloor = loop_voxel(ifloor, accel_width_num);
+
+                        int voxel_id = ifloor.z * accel_width_num * accel_width_num + ifloor.y * accel_width_num + ifloor.x;
+
+                        int cnt = counts[voxel_id];
+
+                        if(cnt > 0)
+                        {
+                            int tri_count = counts[voxel_id];
+                            int base_offset = offsets[voxel_id];
+
+                            __global int* tri_indices = &linear_mem[base_offset];
+
+                            for(int i=0; i < tri_count; i++)
+                            {
+                                int idx = tri_indices[i];
+
+                                __global struct triangle* ctri = &tris[idx];
+
+                                float3 v0_pos = {ctri->v0x, ctri->v0y, ctri->v0z};
+                                float3 v1_pos = {ctri->v1x, ctri->v1y, ctri->v1z};
+                                float3 v2_pos = {ctri->v2x, ctri->v2y, ctri->v2z};
+
+                                float dx = 0;
+                                //float3 ray_pos = mix(next_rt_pos.yzw, rt_pos.yzw, dx);
+
+                                float3 ray_pos = rt_pos.yzw;
+                                float3 ray_dir = next_rt_pos.yzw - rt_pos.yzw;
+
+                                ///ehhhh need to take closest
+                                if(ray_intersects_triangle(ray_pos, ray_dir, v0_pos, v1_pos, v2_pos))
+                                {
+                                    struct intersection out;
+                                    out.sx = sx;
+                                    out.sy = sy;
+
+                                    int isect = atomic_inc(intersection_count);
+
+                                    intersections_out[isect] = out;
+                                    return;
+                                }
+                            }
+                        }
+
+                        current_pos += step;
+                    }
+                }
 
                 #ifdef TRY_COMPENSATION
                 float3 diff = next_pos - current_pos;
@@ -3700,7 +3765,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                 float3 step = diff2 / max_len2;
 
-                #if 1
+                #if 0
                 bool any_intersect = false;
 
                 for(int i=0; i <= max_len2; i++)
