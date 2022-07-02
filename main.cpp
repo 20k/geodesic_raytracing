@@ -1215,7 +1215,7 @@ int main(int argc, char* argv[])
     schwarzs_count_prepass.alloc(sizeof(int));
     finished_count_1.alloc(sizeof(int));
 
-    vec3i offset_size = {256, 256, 256};
+    vec3i offset_size = {128, 128, 128};
     float offset_width = 20;
 
     int accel_cell_mem = 1024 * 1024 * 128 * sizeof(cl_int);
@@ -1235,12 +1235,12 @@ int main(int argc, char* argv[])
     accel_mem_counter.alloc(sizeof(cl_int));
 
     cl::buffer accel_points(clctx.ctx);
-    accel_points.alloc(1024 * 1024 * sizeof(cl_float4));
+    accel_points.alloc(1024 * 1024 * sizeof(cl_float4) * 10);
 
-    int potential_intersection_size = 13;
+    int potential_intersection_size = 10;
 
     cl::buffer potential_intersections(clctx.ctx);
-    potential_intersections.alloc(potential_intersection_size * 1024 * 1024 * 20);
+    potential_intersections.alloc(potential_intersection_size * 1024 * 1024 * 80);
 
     cl::buffer potential_intersection_count(clctx.ctx);
     potential_intersection_count.alloc(sizeof(cl_int));
@@ -1306,16 +1306,40 @@ int main(int argc, char* argv[])
     std::vector<triangle> tris;
 
     {
-        auto t1 = make_cube({5, 0, 0});
-        auto t2 = make_cube({-5, 4, 0});
-        auto t3 = make_cube({0, 0, 5});
-        auto t4 = make_cube({0, 0, -5});
+        std::vector<std::vector<triangle>> in_tris;
 
-        tris.insert(tris.end(), t1.begin(), t1.end());
-        tris.insert(tris.end(), t2.begin(), t2.end());
-        tris.insert(tris.end(), t3.begin(), t3.end());
-        tris.insert(tris.end(), t4.begin(), t4.end());
+        /*in_tris.push_back(make_cube({5, 0, 0}));
+        in_tris.push_back(make_cube({-5, 4, 0}));
+        in_tris.push_back(make_cube({0, 0, 5}));
+        in_tris.push_back(make_cube({0, 0, -5}));
+        in_tris.push_back(make_cube({0, -4, -5}));
+        in_tris.push_back(make_cube({0, 4, -5}));
+        in_tris.push_back(make_cube({1, 4, -5}));
+        in_tris.push_back(make_cube({3, 4, -5}));*/
+
+        for(int z=-5; z <= 5; z++)
+        {
+            for(int y=-5; y <= 5; y++)
+            {
+                for(int x=-5; x <= 5; x++)
+                {
+                    float adist = fabs(x) + fabs(y) + fabs(z);
+
+                    if(adist <= 3)
+                        continue;
+
+                    in_tris.push_back(make_cube({x, y, z}));
+                }
+            }
+        }
+
+        for(auto& i : in_tris)
+        {
+            tris.insert(tris.end(), i.begin(), i.end());
+        }
     }
+
+    std::cout << "Raw tri count " << tris.size() << std::endl;
 
     {
         std::vector<subtriangle> subtriangulated = triangulate_those_bigger_than(tris, offset_width / offset_size.x());
@@ -1351,6 +1375,8 @@ int main(int argc, char* argv[])
 
             gpu.push_back(point);
         }
+
+        std::cout << "GPU SUBPIXEL " << gpu.size() << std::endl;
 
         accel_point_count = gpu.size();
         accel_points.write(clctx.cqueue, gpu);
@@ -2202,6 +2228,7 @@ int main(int argc, char* argv[])
                 clctx.cqueue.exec("render", render_args, {width * height}, {256});
             }
 
+            #if 0
             {
                 cl::args intersect_args;
                 intersect_args.push_back(potential_intersections);
@@ -2209,12 +2236,14 @@ int main(int argc, char* argv[])
                 intersect_args.push_back(accel_counts);
                 intersect_args.push_back(accel_offsets);
                 intersect_args.push_back(accel_generic_buffer);
+                intersect_args.push_back(offset_width);
                 intersect_args.push_back(offset_size.x());
                 intersect_args.push_back(gpu_tris);
                 intersect_args.push_back(rtex);
 
                 clctx.cqueue.exec("render_potential_intersections", intersect_args, {1920 * 1080 * 10}, {256});
             }
+            #endif // 0
 
             /*{
                 cl::args intersect_args;
