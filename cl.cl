@@ -3369,7 +3369,7 @@ void alloc_acceleration(__global int* offset_map, __global int* offset_counts, i
 }
 
 __kernel
-void generate_acceleration_ddata(__global struct sub_point* sp, int sp_count, __global int* offset_map, __global int* offset_counts, __global int* mem_count, float width, int width_num)
+void generate_acceleration_data(__global struct sub_point* sp, int sp_count, __global int* offset_map, __global int* offset_counts, __global int* mem_count, float width, int width_num)
 {
     int id = get_global_id(0);
 
