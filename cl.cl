@@ -3647,7 +3647,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                     float3 step = diff2 / max_len2;
 
-                    for(int i=0; i < max_len2; i++)
+                    for(int kk=0; kk < max_len2; kk++)
                     {
                         float3 floordf = floor(current_pos);
 
@@ -3666,18 +3666,19 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                             __global int* tri_indices = &linear_mem[base_offset];
 
-                            for(int i=0; i < tri_count; i++)
+                            for(int t_off=0; t_off < tri_count; t_off++)
                             {
-                                int idx = tri_indices[i];
+                                int idx = tri_indices[t_off];
 
                                 __global struct triangle* ctri = &tris[idx];
 
                                 float3 v0_pos = {ctri->v0x, ctri->v0y, ctri->v0z};
-                                float3 v1_pos = {ctri->v1x, ctri->v1y, ctri->v1z};
-                                float3 v2_pos = {ctri->v2x, ctri->v2y, ctri->v2z};
 
                                 if(fast_length(v0_pos - rt_pos.yzw) > 5)
                                     continue;
+
+                                float3 v1_pos = {ctri->v1x, ctri->v1y, ctri->v1z};
+                                float3 v2_pos = {ctri->v2x, ctri->v2y, ctri->v2z};
 
                                 float dx = 0;
                                 //float3 ray_pos = mix(next_rt_pos.yzw, rt_pos.yzw, dx);
