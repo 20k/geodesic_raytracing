@@ -3636,29 +3636,54 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
             {
                 checked = true;
 
+                #if 1
+                float3 current_pos = world_to_voxel(rt_pos.yzw, accel_width, accel_width_num);
+                float3 next_pos = world_to_voxel(next_rt_pos.yzw, accel_width, accel_width_num);
 
-                #if 0
-                float3 current_pos = (world_to_voxel(rt_pos.yzw, accel_width, accel_width_num));
-                float3 next_pos = (world_to_voxel(next_rt_pos.yzw, accel_width, accel_width_num));
-
+                #ifdef TRY_COMPENSATION
                 float3 diff = next_pos - current_pos;
                 float3 adiff = fabs(adiff);
 
-                float max_len = max(max(adiff.x, adiff.y), adiff.z);
+                //float max_len = max(max(adiff.x, adiff.y), adiff.z);
 
-                int3 start_pos = (int3)(current_pos.x, current_pos.y, current_pos.z);
+                int which = 0;
 
-                if(max_len == adiff.x && current_pos.x > next_pos.x)
+                if(adiff.x > adiff.y && adiff.x > adiff.z)
+                {
+                    which = 0;
+                }
+
+                if(adiff.y > adiff.x && adiff.y > adiff.z)
+                {
+                    which = 1;
+                }
+
+                if(adiff.z > adiff.x && adiff.z > adiff.y)
+                {
+                    which = 2;
+                }
+
+                if(which == 0 && current_pos.x > next_pos.x)
+                    swap3f(&current_pos, &next_pos);
+
+                if(which == 1 && current_pos.y > next_pos.y)
+                    swap3f(&current_pos, &next_pos);
+
+                if(which == 2 && current_pos.z > next_pos.z)
+                    swap3f(&current_pos, &next_pos);
+
+                /*if(max_len == adiff.x && current_pos.x > next_pos.x)
                     swap3f(&current_pos, &next_pos);
 
                 if(max_len == adiff.y && current_pos.y > next_pos.y)
                     swap3f(&current_pos, &next_pos);
 
                 if(max_len == adiff.z && current_pos.z > next_pos.z)
-                    swap3f(&current_pos, &next_pos);
+                    swap3f(&current_pos, &next_pos);*/
+                #endif // TRY_COMPENSATION
 
-                current_pos = floor(current_pos);
-                next_pos = ceil(next_pos);
+                current_pos = round(current_pos);
+                next_pos = round(next_pos);
 
                 float3 diff2 = next_pos - current_pos;
                 float3 adiff2 = fabs(diff2);
@@ -3674,11 +3699,6 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                     int3 ifloor = (int3)(floordf.x, floordf.y, floordf.z);
 
                     ifloor = loop_voxel(ifloor, accel_width_num);
-
-                    /*if(any(ifloor < 0) || any(ifloor >= accel_width_num))
-                    {
-                        printf("Crit error\n");
-                    }*/
 
                     int bidx = ifloor.z * accel_width_num * accel_width_num + ifloor.y * accel_width_num + ifloor.x;
 
@@ -3700,6 +3720,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                 }
                 #endif // 0
 
+                #ifdef VOX_SAMP
                 float3 floord = floor(world_to_voxel(rt_pos.yzw, accel_width, accel_width_num));
 
                 int3 ipos = (int3)(floord.x, floord.y, floord.z);
@@ -3721,7 +3742,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                     intersections_out[isect] = out;
                     return;
                 }
-
+                #endif // VOX_SAMP
 
                 #if 0
                 for(int kk=0; kk < tri_count; kk++)
