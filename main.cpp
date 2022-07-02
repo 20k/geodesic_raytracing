@@ -1363,6 +1363,8 @@ int main(int argc, char* argv[])
     std::optional<cl_float4> last_camera_pos;
     std::optional<cl_float4> last_geodesic_velocity;
 
+    bool once = false;
+
     while(!win.should_close() && !menu.should_quit && fullscreen.open)
     {
         if(menu.dirty_settings)
@@ -2037,7 +2039,10 @@ int main(int argc, char* argv[])
 
             clctx.cqueue.exec("clear", clr, {width, height}, {16, 16});
 
+            if(!once)
             {
+                printf("Gen\n");
+
                 {
                     cl::args aclear;
                     aclear.push_back(accel_counts);
@@ -2400,6 +2405,8 @@ int main(int argc, char* argv[])
 
         win.display();
 
+
+        once = true;
         if(should_print_frametime)
         {
             float frametime_ms = frametime_s * 1000;
