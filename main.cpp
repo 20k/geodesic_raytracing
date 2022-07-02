@@ -818,6 +818,8 @@ std::vector<subtriangle> triangulate_those_bigger_than(const std::vector<subtria
 {
     std::vector<subtriangle> ret;
 
+    bool any = false;
+
     for(const subtriangle& t : in)
     {
         vec3f v0 = t.get_vert(0);
@@ -834,6 +836,8 @@ std::vector<subtriangle> triangulate_those_bigger_than(const std::vector<subtria
 
             for(auto& i : res)
             {
+                any = true;
+
                 ret.push_back(i);
             }
         }
@@ -842,6 +846,9 @@ std::vector<subtriangle> triangulate_those_bigger_than(const std::vector<subtria
             ret.push_back(t);
         }
     }
+
+    if(any)
+        return triangulate_those_bigger_than(ret, size);
 
     return ret;
 }
@@ -1282,6 +1289,10 @@ int main(int argc, char* argv[])
         tris.insert(tris.end(), t3.begin(), t3.end());
         tris.insert(tris.end(), t4.begin(), t4.end());
     }
+
+    std::vector<subtriangle> subtriangulated = triangulate_those_bigger_than(tris, offset_width / offset_size.x());
+
+    std::cout << "SUBTRID " << subtriangulated.size() << std::endl;
 
     int tri_count = tris.size();
 
