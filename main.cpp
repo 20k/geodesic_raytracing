@@ -1356,6 +1356,17 @@ int main(int argc, char* argv[])
             subtri_as_points.push_back({t.get_vert(2), t.parent});
         }
 
+        for(auto& [point, p] : subtri_as_points)
+        {
+            float scale = offset_width / offset_size.x();
+
+            vec3f vox = point / scale;
+
+            vox = floor(vox);
+
+            point = vox * scale;
+        }
+
         std::sort(subtri_as_points.begin(), subtri_as_points.end(), [](auto& i1, auto& i2)
         {
             return std::tie(i1.first.z(), i1.first.y(), i1.first.x(), i1.second) < std::tie(i2.first.z(), i2.first.y(), i2.first.x(), i2.second);
