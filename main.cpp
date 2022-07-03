@@ -1358,7 +1358,7 @@ int main(int argc, char* argv[])
 
         std::sort(subtri_as_points.begin(), subtri_as_points.end(), [](auto& i1, auto& i2)
         {
-            return std::tie(i1.first.x(), i1.first.y(), i1.first.z(), i1.second) < std::tie(i2.first.x(), i2.first.y(), i2.first.z(), i2.second);
+            return std::tie(i1.first.z(), i1.first.y(), i1.first.x(), i1.second) < std::tie(i2.first.z(), i2.first.y(), i2.first.x(), i2.second);
         });
 
         subtri_as_points.erase(std::unique(subtri_as_points.begin(), subtri_as_points.end()), subtri_as_points.end());
