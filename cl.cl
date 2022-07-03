@@ -3635,8 +3635,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                 float3 next_pos = world_to_voxel(next_rt_pos.yzw, accel_width, accel_width_num);
 
                 {
-                    current_pos = round(current_pos);
-                    next_pos = round(next_pos);
+                    current_pos = floor(current_pos);
+                    next_pos = floor(next_pos);
 
                     float3 diff2 = next_pos - current_pos;
                     float3 adiff2 = fabs(diff2);
@@ -3666,6 +3666,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                             __global int* tri_indices = &linear_mem[base_offset];
 
+                            #if 1
                             for(int t_off=0; t_off < tri_count; t_off++)
                             {
                                 int idx = tri_indices[t_off];
@@ -3695,6 +3696,16 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                     return;
                                 }
                             }
+                            #endif // 0
+
+                            /*struct intersection out;
+                            out.sx = sx;
+                            out.sy = sy;
+
+                            int isect = atomic_inc(intersection_count);
+
+                            intersections_out[isect] = out;
+                            return;*/
                         }
 
                         current_pos += step;
