@@ -1859,49 +1859,7 @@ int main(int argc, char* argv[])
             {
                 printf("Gen\n");
 
-                {
-                    cl::args aclear;
-                    aclear.push_back(accel_counts);
-                    aclear.push_back(offset_size.x());
 
-                    clctx.cqueue.exec("clear_accel_counts", aclear, {offset_size.x(), offset_size.y(), offset_size.z()}, {8, 8, 1});
-                }
-
-                {
-                    cl::args count_args;
-                    count_args.push_back(tris.fill_points);
-                    count_args.push_back(tris.fill_point_count);
-                    count_args.push_back(accel_counts);
-                    count_args.push_back(offset_width);
-                    count_args.push_back(offset_size.x());
-
-                    clctx.cqueue.exec("generate_acceleration_counts", count_args, {tris.fill_point_count}, {256});
-                }
-
-                {
-                    accel_mem_counter.set_to_zero(clctx.cqueue);
-
-                    cl::args accel;
-                    accel.push_back(accel_offsets);
-                    accel.push_back(accel_counts);
-                    accel.push_back(offset_size.x());
-                    accel.push_back(accel_mem_counter);
-
-                    clctx.cqueue.exec("alloc_acceleration", accel, {offset_size.x(), offset_size.y(), offset_size.z()}, {8, 8, 1});
-                }
-
-                {
-                    cl::args gen;
-                    gen.push_back(tris.fill_points);
-                    gen.push_back(tris.fill_point_count);
-                    gen.push_back(accel_offsets);
-                    gen.push_back(accel_counts);
-                    gen.push_back(accel_generic_buffer);
-                    gen.push_back(offset_width);
-                    gen.push_back(offset_size.x());
-
-                    clctx.cqueue.exec("generate_acceleration_data", gen, {tris.fill_point_count}, {256});
-                }
             }
 
             {
