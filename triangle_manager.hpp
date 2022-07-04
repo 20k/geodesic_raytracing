@@ -12,7 +12,6 @@ namespace triangle_rendering
 {
     namespace impl
     {
-
         std::array<subtriangle, 4> subtriangulate(const subtriangle& t)
         {
             vec3f v0 = t.get_vert(0);
@@ -112,6 +111,8 @@ namespace triangle_rendering
     {
         vec4f pos;
         std::vector<triangle> tris;
+
+        int gpu_offset = -1;
     };
 
     struct gpu_object
@@ -146,14 +147,23 @@ namespace triangle_rendering
 
         void build(cl::command_queue& cqueue, float acceleration_voxel_size)
         {
-            objects.alloc(sizeof(gpu_object) * cpu_objects.size());
-
             std::vector<triangle> linear_tris;
+            std::vector<gpu_object> gpu_objects;
 
             for(auto& i : cpu_objects)
             {
                 linear_tris.insert(linear_tris.end(), i->tris.begin(), i->tris.end());
+
+                gpu_object obj;
+                obj.pos = i->pos;
+
+                i->gpu_offset = gpu_objects.size();
+
+                gpu_objects.push_back(obj);
             }
+
+            objects.alloc(sizeof(gpu_object) * gpu_objects.size());
+            objects.write(cqueue, gpu_objects);
 
             tri_count = linear_tris.size();
 
