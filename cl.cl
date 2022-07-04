@@ -3211,7 +3211,7 @@ int calculate_ds_error(float current_ds, float4 next_acceleration, float4 accele
 
 struct triangle
 {
-    float time;
+    int parent;
     float v0x, v0y, v0z;
     float v1x, v1y, v1z;
     float v2x, v2y, v2z;
@@ -3460,6 +3460,11 @@ struct potential_intersection
     float et, ex, ey, ez;
 };
 
+struct object
+{
+    float4 pos;
+};
+
 __kernel
 void do_generic_rays (__global struct lightray* restrict generic_rays_in, __global struct lightray* restrict generic_rays_out,
                       __global struct lightray* restrict finished_rays,
@@ -3469,6 +3474,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                       __global struct triangle* tris, int tri_count, __global struct intersection* intersections_out, __global int* intersection_count,
                       __global struct potential_intersection* intersections_p, __global int* intersection_count_p,
                       __global int* counts, __global int* offsets, __global int* linear_mem, float accel_width, int accel_width_num,
+                      __global struct object* objs,
                       dynamic_config_space struct dynamic_config* cfg)
 {
     int id = get_global_id(0);
@@ -4763,7 +4769,7 @@ void render_tris(__global struct triangle* tris, int tri_count,
     {
         __global struct triangle* ctri = &tris[kk];
 
-        float tri_time = ctri->time;
+        //float tri_time = ctri->time;
 
         float3 v0_pos = {ctri->v0x, ctri->v0y, ctri->v0z};
         float3 v1_pos = {ctri->v1x, ctri->v1y, ctri->v1z};
