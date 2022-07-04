@@ -5,7 +5,7 @@
 ///when objects come, each object will have its own unique time coordinate
 struct triangle
 {
-    float time = 0;
+    int parent = -1;
 
     float v0x = 0, v0y = 0, v0z = 0;
     float v1x = 0, v1y = 0, v1z = 0;
