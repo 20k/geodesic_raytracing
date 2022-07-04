@@ -25,6 +25,7 @@
 #include "input_manager.hpp"
 #include "print.hpp"
 #include "triangle.hpp"
+#include "triangle_manager.hpp"
 //#include "dual_complex.hpp"
 
 /**
@@ -243,7 +244,7 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
                                                cl::buffer& count_in, cl::buffer& count_out,
                                                cl::buffer& count_finished,
                                                //cl::buffer& visual_path, cl::buffer& visual_ray_counts,
-                                               cl::buffer& gpu_tris, int tri_count, cl::buffer& intersections, cl::buffer& intersections_count,
+                                               triangle_rendering::manager& manage, cl::buffer& intersections, cl::buffer& intersections_count,
                                                cl::buffer& potential_intersections, cl::buffer& potential_intersections_count,
                                                cl::buffer& accel_counts, cl::buffer& accel_offsets, cl::buffer& accel_mem, float accel_width, int accel_width_num,
                                                int num_rays,
@@ -283,8 +284,8 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
         run_args.push_back(count_finished);
         //run_args.push_back(visual_path);
         //run_args.push_back(visual_ray_counts);
-        run_args.push_back(gpu_tris);
-        run_args.push_back(tri_count);
+        run_args.push_back(manage.tris);
+        run_args.push_back(manage.tri_count);
         run_args.push_back(intersections);
         run_args.push_back(intersections_count);
         run_args.push_back(potential_intersections);
@@ -718,59 +719,6 @@ std::array<subtriangle, 4> subtriangulate(const subtriangle& t)
     return res;
 }
 
-std::vector<subtriangle> triangulate_those_bigger_than(const std::vector<subtriangle>& in, float size)
-{
-    std::vector<subtriangle> ret;
-
-    bool any = false;
-
-    for(const subtriangle& t : in)
-    {
-        vec3f v0 = t.get_vert(0);
-        vec3f v1 = t.get_vert(1);
-        vec3f v2 = t.get_vert(2);
-
-        float l0 = (v1 - v0).length();
-        float l1 = (v2 - v1).length();
-        float l2 = (v0 - v2).length();
-
-        if(l0 >= size || l1 >= size || l2 >= size)
-        {
-            auto res = subtriangulate(t);
-
-            for(auto& i : res)
-            {
-                any = true;
-
-                ret.push_back(i);
-            }
-        }
-        else
-        {
-            ret.push_back(t);
-        }
-    }
-
-    if(any)
-        return triangulate_those_bigger_than(ret, size);
-
-    return ret;
-}
-
-std::vector<subtriangle> triangulate_those_bigger_than(const std::vector<triangle>& in, float size)
-{
-    std::vector<subtriangle> ret;
-
-    for(int i=0; i < (int)in.size(); i++)
-    {
-        subtriangle stri(i, in[i]);
-
-        ret.push_back(stri);
-    }
-
-    return triangulate_those_bigger_than(ret, size);
-}
-
 struct sub_point
 {
     cl_float x, y, z;
@@ -1130,9 +1078,6 @@ int main(int argc, char* argv[])
     cl::buffer accel_mem_counter(clctx.ctx);
     accel_mem_counter.alloc(sizeof(cl_int));
 
-    cl::buffer accel_points(clctx.ctx);
-    accel_points.alloc(1024 * 1024 * sizeof(cl_float4) * 10);
-
     int potential_intersection_size = 10;
 
     cl::buffer potential_intersections(clctx.ctx);
@@ -1141,7 +1086,7 @@ int main(int argc, char* argv[])
     cl::buffer potential_intersection_count(clctx.ctx);
     potential_intersection_count.alloc(sizeof(cl_int));
 
-    int accel_point_count = 0;
+
     read_queue_pool<cl_float4> camera_q;
     read_queue_pool<cl_float4> geodesic_q;
 
@@ -1199,101 +1144,29 @@ int main(int argc, char* argv[])
 
     print("Pre main\n");
 
-    std::vector<triangle> tris;
+    triangle_rendering::manager tris(clctx.ctx);
 
+    for(int z=-5; z <= 5; z++)
     {
-        std::vector<std::vector<triangle>> in_tris;
-
-        /*in_tris.push_back(make_cube({5, 0, 0}));
-        in_tris.push_back(make_cube({-5, 4, 0}));
-        in_tris.push_back(make_cube({0, 0, 5}));
-        in_tris.push_back(make_cube({0, 0, -5}));
-        in_tris.push_back(make_cube({0, -4, -5}));
-        in_tris.push_back(make_cube({0, 4, -5}));
-        in_tris.push_back(make_cube({1, 4, -5}));
-        in_tris.push_back(make_cube({3, 4, -5}));*/
-
-        for(int z=-5; z <= 5; z++)
+        for(int y=-5; y <= 5; y++)
         {
-            for(int y=-5; y <= 5; y++)
+            for(int x=-5; x <= 5; x++)
             {
-                for(int x=-5; x <= 5; x++)
-                {
-                    float adist = fabs(x) + fabs(y) + fabs(z);
+                float adist = fabs(x) + fabs(y) + fabs(z);
 
-                    if(adist <= 7)
-                        continue;
+                if(adist <= 7)
+                    continue;
 
-                    in_tris.push_back(make_cube({x, y, z}));
-                }
+                std::shared_ptr<triangle_rendering::object> obj = tris.make_new();
+
+                obj->tris = make_cube({x, y, z});
             }
         }
-
-        for(auto& i : in_tris)
-        {
-            tris.insert(tris.end(), i.begin(), i.end());
-        }
     }
 
-    std::cout << "Raw tri count " << tris.size() << std::endl;
+    tris.build(clctx.cqueue, offset_width / offset_size.x());
 
-    {
-        std::vector<subtriangle> subtriangulated = triangulate_those_bigger_than(tris, offset_width / offset_size.x());
-
-        std::vector<std::pair<vec3f, int>> subtri_as_points;
-
-        ///todo: round verts to world coords
-        for(subtriangle& t : subtriangulated)
-        {
-            subtri_as_points.push_back({t.get_vert(0), t.parent});
-            subtri_as_points.push_back({t.get_vert(1), t.parent});
-            subtri_as_points.push_back({t.get_vert(2), t.parent});
-        }
-
-        for(auto& [point, p] : subtri_as_points)
-        {
-            float scale = offset_width / offset_size.x();
-
-            vec3f vox = point / scale;
-
-            vox = floor(vox);
-
-            point = vox * scale;
-        }
-
-        std::sort(subtri_as_points.begin(), subtri_as_points.end(), [](auto& i1, auto& i2)
-        {
-            return std::tie(i1.first.z(), i1.first.y(), i1.first.x(), i1.second) < std::tie(i2.first.z(), i2.first.y(), i2.first.x(), i2.second);
-        });
-
-        subtri_as_points.erase(std::unique(subtri_as_points.begin(), subtri_as_points.end()), subtri_as_points.end());
-
-        std::cout << "FIN POINTS " << subtri_as_points.size() << std::endl;
-
-        std::vector<sub_point> gpu;
-
-        for(auto& p : subtri_as_points)
-        {
-            sub_point point;
-            point.x = p.first.x();
-            point.y = p.first.y();
-            point.z = p.first.z();
-            point.parent = p.second;
-
-            gpu.push_back(point);
-        }
-
-        std::cout << "GPU SUBPIXEL " << gpu.size() << std::endl;
-
-        accel_point_count = gpu.size();
-        accel_points.write(clctx.cqueue, gpu);
-    }
-
-    int tri_count = tris.size();
-
-    cl::buffer gpu_tris(clctx.ctx);
-    gpu_tris.alloc(sizeof(triangle) * tri_count);
-    gpu_tris.write(clctx.cqueue, tris);
+    printf("Pre main\n");
 
     cl::buffer gpu_intersections(clctx.ctx);
     gpu_intersections.alloc(sizeof(cl_int2) * start_width * start_height * 10);
@@ -1996,13 +1869,13 @@ int main(int argc, char* argv[])
 
                 {
                     cl::args count_args;
-                    count_args.push_back(accel_points);
-                    count_args.push_back(accel_point_count);
+                    count_args.push_back(tris.fill_points);
+                    count_args.push_back(tris.fill_point_count);
                     count_args.push_back(accel_counts);
                     count_args.push_back(offset_width);
                     count_args.push_back(offset_size.x());
 
-                    clctx.cqueue.exec("generate_acceleration_counts", count_args, {accel_point_count}, {256});
+                    clctx.cqueue.exec("generate_acceleration_counts", count_args, {tris.fill_point_count}, {256});
                 }
 
                 {
@@ -2019,15 +1892,15 @@ int main(int argc, char* argv[])
 
                 {
                     cl::args gen;
-                    gen.push_back(accel_points);
-                    gen.push_back(accel_point_count);
+                    gen.push_back(tris.fill_points);
+                    gen.push_back(tris.fill_point_count);
                     gen.push_back(accel_offsets);
                     gen.push_back(accel_counts);
                     gen.push_back(accel_generic_buffer);
                     gen.push_back(offset_width);
                     gen.push_back(offset_size.x());
 
-                    clctx.cqueue.exec("generate_acceleration_data", gen, {accel_point_count}, {256});
+                    clctx.cqueue.exec("generate_acceleration_data", gen, {tris.fill_point_count}, {256});
                 }
             }
 
@@ -2073,7 +1946,7 @@ int main(int argc, char* argv[])
 
                     int rays_num = calculate_ray_count(prepass_width, prepass_height);
 
-                    execute_kernel(clctx.cqueue, schwarzs_prepass, schwarzs_scratch, finished_1, schwarzs_count_prepass, schwarzs_count_scratch, finished_count_1, gpu_tris, tri_count, gpu_intersections, gpu_intersections_count, potential_intersections, potential_intersection_count, accel_counts, accel_offsets, accel_generic_buffer, offset_width, offset_size.x(), rays_num, cfg.use_device_side_enqueue, dynamic_config);
+                    execute_kernel(clctx.cqueue, schwarzs_prepass, schwarzs_scratch, finished_1, schwarzs_count_prepass, schwarzs_count_scratch, finished_count_1, tris, gpu_intersections, gpu_intersections_count, potential_intersections, potential_intersection_count, accel_counts, accel_offsets, accel_generic_buffer, offset_width, offset_size.x(), rays_num, cfg.use_device_side_enqueue, dynamic_config);
 
                     cl::args singular_args;
                     singular_args.push_back(finished_1);
@@ -2108,7 +1981,7 @@ int main(int argc, char* argv[])
 
                 int rays_num = calculate_ray_count(width, height);
 
-                execute_kernel(clctx.cqueue, schwarzs_1, schwarzs_scratch, finished_1, schwarzs_count_1, schwarzs_count_scratch, finished_count_1, gpu_tris, tri_count, gpu_intersections, gpu_intersections_count, potential_intersections, potential_intersection_count, accel_counts, accel_offsets, accel_generic_buffer, offset_width, offset_size.x(), rays_num, cfg.use_device_side_enqueue, dynamic_config);
+                execute_kernel(clctx.cqueue, schwarzs_1, schwarzs_scratch, finished_1, schwarzs_count_1, schwarzs_count_scratch, finished_count_1, tris, gpu_intersections, gpu_intersections_count, potential_intersections, potential_intersection_count, accel_counts, accel_offsets, accel_generic_buffer, offset_width, offset_size.x(), rays_num, cfg.use_device_side_enqueue, dynamic_config);
 
                 cl::args texture_args;
                 texture_args.push_back(finished_1);
