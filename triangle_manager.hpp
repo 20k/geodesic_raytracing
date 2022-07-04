@@ -118,6 +118,11 @@ namespace triangle_rendering
     struct gpu_object
     {
         vec4f pos;
+
+        gpu_object(const object& o)
+        {
+            pos = o.pos;
+        }
     };
 
     struct manager
@@ -154,8 +159,7 @@ namespace triangle_rendering
             {
                 linear_tris.insert(linear_tris.end(), i->tris.begin(), i->tris.end());
 
-                gpu_object obj;
-                obj.pos = i->pos;
+                gpu_object obj(*i);
 
                 i->gpu_offset = gpu_objects.size();
 
@@ -219,6 +223,19 @@ namespace triangle_rendering
             fill_point_count = gpu.size();
             fill_points.alloc(sizeof(sub_point) * gpu.size());
             fill_points.write(cqueue, gpu);
+        }
+
+        void update_objects(cl::command_queue& cqueue)
+        {
+            for(std::shared_ptr<object>& obj : cpu_objects)
+            {
+                gpu_object gobj(*obj);
+
+                if(obj->gpu_offset == -1)
+                    continue;
+
+                objects.write(cqueue, (const char*)&gobj, sizeof(gpu_object), sizeof(gpu_object) * obj->gpu_offset);
+            }
         }
     };
 
