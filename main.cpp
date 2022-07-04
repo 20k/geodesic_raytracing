@@ -1032,12 +1032,6 @@ int main(int argc, char* argv[])
     print("Alloc trace buffer\n");
     int max_visual_trace_count = 128;
 
-    cl::buffer visual_ray_path(clctx.ctx);
-    visual_ray_path.alloc(sizeof(cl_float4) * start_width * start_height * max_visual_trace_count);
-
-    cl::buffer visual_ray_counts(clctx.ctx);
-    visual_ray_counts.alloc(sizeof(cl_int) * start_width * start_height);
-
     std::vector<cl_float4> current_geodesic_path;
     std::vector<cl_float> current_geodesic_dT_ds;
 
@@ -1449,9 +1443,6 @@ int main(int argc, char* argv[])
 
                 texture_coordinates.alloc(width * height * sizeof(float) * 2);
                 texture_coordinates.set_to_zero(clctx.cqueue);
-
-                visual_ray_path.alloc(sizeof(cl_float4) * ray_count * max_visual_trace_count);
-                visual_ray_counts.alloc(sizeof(cl_int) * ray_count);
 
                 gpu_intersections.alloc(sizeof(cl_int) * ray_count * 10);
 
