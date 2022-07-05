@@ -2243,7 +2243,7 @@ void calculate_tetrads(float4 polar_camera, float3 cartesian_basis_speed,
 
 __kernel
 void init_basis_vectors(__global float4* g_polar_camera_in, __global float4* g_camera_quat,
-                        float3 cartesian_basis_speed,
+                        __global float3* geodesic_basis_speed,
                         __global float4* e0_out, __global float4* e1_out, __global float4* e2_out, __global float4* e3_out,
                         dynamic_config_space struct dynamic_config* cfg)
 {
@@ -2257,7 +2257,7 @@ void init_basis_vectors(__global float4* g_polar_camera_in, __global float4* g_c
     float4 e2;
     float4 e3;
 
-    calculate_tetrads(polar_camera_in, cartesian_basis_speed, &e0, &e1, &e2, &e3, cfg, 1);
+    calculate_tetrads(polar_camera_in, *geodesic_basis_speed, &e0, &e1, &e2, &e3, cfg, 1);
 
     *e0_out = e0;
     *e1_out = e1;

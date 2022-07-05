@@ -1423,96 +1423,6 @@ int main()
                 should_update_camera_time = false;
             }
 
-            //if(should_set_observer_velocity)
-            {
-                cl::args args;
-                args.push_back(g_camera_quat);
-                args.push_back(linear_basis_speed);
-                args.push_back(g_geodesic_basis_speed);
-
-                clctx.cqueue.exec("init_basis_speed", args, {1}, {1});
-            }
-
-            if(camera_on_geodesic)
-            {
-                cl::buffer next_geodesic_velocity = geodesic_q.get_buffer(clctx.ctx);
-
-                cl_int transport = parallel_transport_observer;
-
-                cl::args interpolate_args;
-                interpolate_args.push_back(geodesic_trace_buffer);
-                interpolate_args.push_back(geodesic_vel_buffer);
-                interpolate_args.push_back(geodesic_dT_dt_buffer);
-                interpolate_args.push_back(geodesic_ds_buffer);
-                interpolate_args.push_back(g_camera_pos_polar);
-
-                for(auto& i : parallel_transported_tetrads)
-                {
-                    interpolate_args.push_back(i);
-                }
-
-                for(auto& i : tetrad)
-                {
-                    interpolate_args.push_back(i);
-                }
-
-                interpolate_args.push_back(current_geodesic_time);
-                interpolate_args.push_back(geodesic_count_buffer);
-                interpolate_args.push_back(transport);
-                interpolate_args.push_back(g_geodesic_basis_speed);
-                interpolate_args.push_back(next_geodesic_velocity);
-                interpolate_args.push_back(dynamic_config);
-
-                cl::event evt = clctx.cqueue.exec("handle_interpolating_geodesic", interpolate_args, {1}, {1});
-
-                geodesic_q.start_read(clctx.ctx, async_queue, std::move(next_geodesic_velocity), evt);
-            }
-
-            if(!camera_on_geodesic)
-            {
-                {
-                    cl::args args;
-
-                    args.push_back(g_camera_pos_polar);
-                    args.push_back(g_camera_pos_cart);
-
-                    cl_float clflip = flip_sign;
-
-                    args.push_back(clflip);
-
-                    clctx.cqueue.exec("camera_cart_to_polar", args, {1}, {1});
-                }
-
-                {
-                    cl::args tetrad_args;
-                    tetrad_args.push_back(g_camera_pos_polar);
-                    tetrad_args.push_back(g_camera_quat);
-                    tetrad_args.push_back(cartesian_basis_speed);
-
-                    for(int i=0; i < 4; i++)
-                    {
-                        tetrad_args.push_back(tetrad[i]);
-                    }
-
-                    tetrad_args.push_back(dynamic_config);
-
-                    clctx.cqueue.exec("init_basis_vectors", tetrad_args, {1}, {1});
-                }
-            }
-
-            {
-                cl::buffer next_generic_camera = camera_q.get_buffer(clctx.ctx);
-
-                cl::args args;
-                args.push_back(g_camera_pos_polar);
-                args.push_back(next_generic_camera);
-                args.push_back(dynamic_config);
-
-                cl::event evt = clctx.cqueue.exec("camera_polar_to_generic", args, {1}, {1});
-
-                camera_q.start_read(clctx.ctx, async_queue, std::move(next_generic_camera), evt);
-            }
-
             float speed = 0.1;
 
             if(!menu.is_open && !ImGui::GetIO().WantCaptureKeyboard)
@@ -1581,6 +1491,96 @@ int main()
                 controls_args.push_back(dynamic_config);
 
                 clctx.cqueue.exec("handle_controls_free", controls_args, {1}, {1});
+            }
+
+            //if(should_set_observer_velocity)
+            {
+                cl::args args;
+                args.push_back(g_camera_quat);
+                args.push_back(linear_basis_speed);
+                args.push_back(g_geodesic_basis_speed);
+
+                clctx.cqueue.exec("init_basis_speed", args, {1}, {1});
+            }
+
+            if(camera_on_geodesic)
+            {
+                cl::buffer next_geodesic_velocity = geodesic_q.get_buffer(clctx.ctx);
+
+                cl_int transport = parallel_transport_observer;
+
+                cl::args interpolate_args;
+                interpolate_args.push_back(geodesic_trace_buffer);
+                interpolate_args.push_back(geodesic_vel_buffer);
+                interpolate_args.push_back(geodesic_dT_dt_buffer);
+                interpolate_args.push_back(geodesic_ds_buffer);
+                interpolate_args.push_back(g_camera_pos_polar);
+
+                for(auto& i : parallel_transported_tetrads)
+                {
+                    interpolate_args.push_back(i);
+                }
+
+                for(auto& i : tetrad)
+                {
+                    interpolate_args.push_back(i);
+                }
+
+                interpolate_args.push_back(current_geodesic_time);
+                interpolate_args.push_back(geodesic_count_buffer);
+                interpolate_args.push_back(transport);
+                interpolate_args.push_back(g_geodesic_basis_speed);
+                interpolate_args.push_back(next_geodesic_velocity);
+                interpolate_args.push_back(dynamic_config);
+
+                cl::event evt = clctx.cqueue.exec("handle_interpolating_geodesic", interpolate_args, {1}, {1});
+
+                geodesic_q.start_read(clctx.ctx, async_queue, std::move(next_geodesic_velocity), evt);
+            }
+
+            if(!camera_on_geodesic)
+            {
+                {
+                    cl::args args;
+
+                    args.push_back(g_camera_pos_polar);
+                    args.push_back(g_camera_pos_cart);
+
+                    cl_float clflip = flip_sign;
+
+                    args.push_back(clflip);
+
+                    clctx.cqueue.exec("camera_cart_to_polar", args, {1}, {1});
+                }
+
+                {
+                    cl::args tetrad_args;
+                    tetrad_args.push_back(g_camera_pos_polar);
+                    tetrad_args.push_back(g_camera_quat);
+                    tetrad_args.push_back(g_geodesic_basis_speed);
+
+                    for(int i=0; i < 4; i++)
+                    {
+                        tetrad_args.push_back(tetrad[i]);
+                    }
+
+                    tetrad_args.push_back(dynamic_config);
+
+                    clctx.cqueue.exec("init_basis_vectors", tetrad_args, {1}, {1});
+                }
+            }
+
+            {
+                cl::buffer next_generic_camera = camera_q.get_buffer(clctx.ctx);
+
+                cl::args args;
+                args.push_back(g_camera_pos_polar);
+                args.push_back(next_generic_camera);
+                args.push_back(dynamic_config);
+
+                cl::event evt = clctx.cqueue.exec("camera_polar_to_generic", args, {1}, {1});
+
+                camera_q.start_read(clctx.ctx, async_queue, std::move(next_generic_camera), evt);
             }
 
             int width = rtex.size<2>().x();
