@@ -2959,8 +2959,7 @@ float4 rk4_f(float t, float4 position, float4 velocity)
 ///this is actually regular velocity verlet with no modifications https://en.wikipedia.org/wiki/Verlet_integration#Velocity_Verlet
 void step_verlet(float4 position, float4 velocity, float4 acceleration, bool always_lightlike, float ds, float4* position_out, float4* velocity_out, float4* acceleration_out, float* g_00_out, dynamic_config_space struct dynamic_config* cfg)
 {
-
-    #if 0
+    #ifdef OLD_METRIC_STEP
     #ifndef GENERIC_BIG_METRIC
     float g_metric[4] = {};
     float g_partials[16] = {};
@@ -3006,6 +3005,7 @@ void step_verlet(float4 position, float4 velocity, float4 acceleration, bool alw
 
     float4 next_acceleration;
 
+    ///handles always_lightlike on the cpu side
     {
         float p1 = next_position.x;
         float p2 = next_position.y;
@@ -3021,6 +3021,11 @@ void step_verlet(float4 position, float4 velocity, float4 acceleration, bool alw
         next_acceleration.y = GEO_ACCEL1;
         next_acceleration.z = GEO_ACCEL2;
         next_acceleration.w = GEO_ACCEL3;
+
+        if(g_00_out)
+        {
+            *g_00_out = METRIC_TIME_G00;
+        }
     }
 
     float4 next_velocity = velocity + 0.5f * (acceleration + next_acceleration) * ds;
@@ -3028,7 +3033,6 @@ void step_verlet(float4 position, float4 velocity, float4 acceleration, bool alw
     *position_out = next_position;
     *velocity_out = next_velocity;
     *acceleration_out = next_acceleration;
-
 }
 
 void step_euler(float4 position, float4 velocity, float ds, float4* position_out, float4* velocity_out, dynamic_config_space struct dynamic_config* cfg)

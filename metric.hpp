@@ -63,28 +63,92 @@ namespace metrics
         return {raw_eq, raw_derivatives};
     }
 
-    template<typename Func>
-    inline
-    tensor<value, 4> calculate_acceleration(Func&& f)
+    struct metric_info
     {
-        auto [v_met, partials] = evaluate_metric2D(f, "p1", "p2", "p3", "p4");
+        metric<value, 4, 4> met;
+        tensor<value, 4, 4, 4> partials;
 
+        bool is_diagonal()
+        {
+            for(int i=0; i < 4; i++)
+            {
+                for(int j=0; j < 4; j++)
+                {
+                    if(i == j)
+                        continue;
+
+                    if(type_to_string(met.idx(i, j)) != "0" && type_to_string(met.idx(i, j)) != "0.0")
+                        return false;
+                }
+            }
+
+            return true;
+        }
+
+        template<typename Func>
+        metric_info(Func&& f)
+        {
+            auto [v_met, v_partials] = evaluate_metric2D(f, "p1", "p2", "p3", "p4");
+
+            assert(v_met.size() == 16);
+            assert(v_partials.size() == 64);
+
+            for(int i=0; i < 4; i++)
+            {
+                for(int j=0; j < 4; j++)
+                {
+                    met.idx(i,j) = v_met[i * 4 + j];
+                }
+            }
+
+            for(int i=0; i < 4; i++)
+            {
+                for(int j=0; j < 4; j++)
+                {
+                    for(int k=0; k < 4; k++)
+                    {
+                        partials.idx(i, j, k) = v_partials[i * 16 + j * 4 + k];
+                    }
+                }
+            }
+        }
+    };
+
+    inline
+    tensor<value, 4> fix_light_velocity(metric_info& inf, const tensor<value, 4>& v)
+    {
+        tensor<value, 3> spatial_v = {v.y(), v.z(), v.w()};
+        tensor<value, 3> spatial_m = {inf.met.idx(1, 1), inf.met.idx(2, 2), inf.met.idx(3, 3)};
+
+        value tvl_2 = sum_multiply(spatial_m, spatial_v * spatial_v) / -inf.met.idx(0, 0);
+
+        value sign = dual_types::if_v(v.x() < 0, -1.f, 1.f);
+
+        tensor<value, 4> ret = v;
+
+        ret.x() = sign * sqrt(tvl_2);
+
+        return ret;
+    }
+
+    inline
+    tensor<value, 4> calculate_acceleration(metric_info& inf)
+    {
         tensor<value, 4> velocity = {"v1", "v2", "v3", "v4"};
 
-        assert(v_met.size() == 16);
-        assert(partials.size() == 64);
-
-        metric<value, 4, 4> met;
-
-        for(int i=0; i < 4; i++)
+        if(inf.is_diagonal())
         {
-            for(int j=0; j < 4; j++)
+            value is_lightlike = "always_lightlike";
+
+            tensor<value, 4> fixed = fix_light_velocity(inf, velocity);
+
+            for(int i=0; i < 4; i++)
             {
-                met.idx(i,j) = v_met[i * 4 + j];
+                velocity.idx(i) = dual_types::if_v(is_lightlike, fixed.idx(i), velocity.idx(i));
             }
         }
 
-        inverse_metric<value, 4, 4> inv = met.invert();
+        inverse_metric<value, 4, 4> inv = inf.met.invert();
 
         tensor<value, 4, 4, 4> christoff2;
 
@@ -98,9 +162,9 @@ namespace metrics
 
                     for(int m=0; m < 4; m++)
                     {
-                        sum += inv.idx(i, m) * partials[l * 16 + m * 4 + k];
-                        sum += inv.idx(i, m) * partials[k * 16 + m * 4 + l];
-                        sum += -inv.idx(i, m) * partials[m * 16 + k * 4 + l];
+                        sum += inv.idx(i, m) * inf.partials.idx(l, m, k);
+                        sum += inv.idx(i, m) * inf.partials.idx(k, m, l);
+                        sum += -inv.idx(i, m) * inf.partials.idx(m, k, l);
                     }
 
                     christoff2.idx(i, k, l) = 0.5f * sum;
@@ -391,7 +455,9 @@ namespace metrics
         template<typename T, typename U, typename V, typename W>
         void load(T& func, U& func1, V& func2, W& func3)
         {
-            tensor<value, 4> accel_as_tensor = calculate_acceleration(func);
+            metric_info inf(func);
+
+            tensor<value, 4> accel_as_tensor = calculate_acceleration(inf);
 
             raw.accel = {accel_as_tensor.x(), accel_as_tensor.y(), accel_as_tensor.z(), accel_as_tensor.w()};
 
@@ -702,6 +768,8 @@ namespace metrics
         {
             argument_string += " -DGEO_ACCEL" + std::to_string(i) + "=" + impl.accel[i];
         }
+
+        argument_string += " -DMETRIC_TIME_G00=" + real_eq[0];
 
         {
             std::string extra_string;
