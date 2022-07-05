@@ -10,6 +10,14 @@
 
 namespace triangle_rendering
 {
+    struct object
+    {
+        vec4f pos;
+        std::vector<triangle> tris;
+
+        int gpu_offset = -1;
+    };
+
     namespace impl
     {
         std::array<subtriangle, 4> subtriangulate(const subtriangle& t)
@@ -92,7 +100,7 @@ namespace triangle_rendering
         }
 
         inline
-        std::vector<subtriangle> triangulate_those_bigger_than(const std::vector<triangle>& in, float size)
+        std::vector<subtriangle> triangulate_those_bigger_than(const std::vector<std::shared_ptr<object>>& objs, const std::vector<triangle>& in, float size)
         {
             std::vector<subtriangle> ret;
 
@@ -100,20 +108,26 @@ namespace triangle_rendering
             {
                 subtriangle stri(i, in[i]);
 
+                vec4f parent_pos = objs[in[i].parent]->pos;
+
+                stri.v0x += parent_pos.y();
+                stri.v0y += parent_pos.z();
+                stri.v0z += parent_pos.w();
+
+                stri.v1x += parent_pos.y();
+                stri.v1y += parent_pos.z();
+                stri.v1z += parent_pos.w();
+
+                stri.v2x += parent_pos.y();
+                stri.v2y += parent_pos.z();
+                stri.v2z += parent_pos.w();
+
                 ret.push_back(stri);
             }
 
             return triangulate_those_bigger_than(ret, size);
         }
     }
-
-    struct object
-    {
-        vec4f pos;
-        std::vector<triangle> tris;
-
-        int gpu_offset = -1;
-    };
 
     struct gpu_object
     {
@@ -157,11 +171,18 @@ namespace triangle_rendering
 
             for(auto& i : cpu_objects)
             {
+                int parent = gpu_objects.size();
+
+                for(triangle& t : i->tris)
+                {
+                    t.parent = parent;
+                }
+
                 linear_tris.insert(linear_tris.end(), i->tris.begin(), i->tris.end());
 
                 gpu_object obj(*i);
 
-                i->gpu_offset = gpu_objects.size();
+                i->gpu_offset = parent;
 
                 gpu_objects.push_back(obj);
             }
@@ -173,7 +194,7 @@ namespace triangle_rendering
 
             using namespace impl;
 
-            std::vector<subtriangle> stris = triangulate_those_bigger_than(linear_tris, acceleration_voxel_size);
+            std::vector<subtriangle> stris = triangulate_those_bigger_than(cpu_objects, linear_tris, acceleration_voxel_size);
 
             std::vector<std::pair<vec3f, int>> subtri_as_points;
 
