@@ -187,7 +187,7 @@ namespace triangle_rendering
 
             for(auto& i : cpu_objects)
             {
-                std::vector<subtriangle> sub = triangulate_those_bigger_than(*i, i->tris, acceleration_voxel_size);
+                std::vector<subtriangle> sub = triangulate_those_bigger_than(i->tris, acceleration_voxel_size);
 
                 std::vector<std::pair<vec3f, int>> local_subtri_as_points;
 
