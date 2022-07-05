@@ -409,6 +409,8 @@ namespace metrics
 
         void debiggen()
         {
+            return;
+
             if(raw.real_eq.size() == 4)
                 return;
 
