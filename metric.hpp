@@ -86,7 +86,7 @@ namespace metrics
 
         inverse_metric<value, 4, 4> inv = met.invert();
 
-        tensor<value, 3, 3, 3> christoff2;
+        tensor<value, 4, 4, 4> christoff2;
 
         for(int i=0; i < 4; i++)
         {
@@ -486,6 +486,8 @@ namespace metrics
 
         auto real_eq = impl.real_eq;
         auto derivatives = impl.derivatives;
+
+        std::cout << "REAL EQ SIZE " << real_eq.size() << std::endl;
 
         for(int i=0; i < (int)real_eq.size(); i++)
         {
