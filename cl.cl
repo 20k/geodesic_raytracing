@@ -3017,9 +3017,20 @@ void step_verlet(float4 position, float4 velocity, float4 acceleration, bool alw
         float v3 = intermediate_next_velocity.z;
         float v4 = intermediate_next_velocity.w;
 
+        #ifdef GENERIC_CONSTANT_THETA
+        p3 = M_PI/2;
+        v3 = 0;
+        #endif // GENERIC_CONSTANT_THETA
+
         next_acceleration.x = GEO_ACCEL0;
         next_acceleration.y = GEO_ACCEL1;
+
+        #ifndef GENERIC_CONSTANT_THETA
         next_acceleration.z = GEO_ACCEL2;
+        #else
+        next_acceleration.z = 0;
+        #endif // GENERIC_CONSTANT_THETA
+
         next_acceleration.w = GEO_ACCEL3;
 
         if(g_00_out)
