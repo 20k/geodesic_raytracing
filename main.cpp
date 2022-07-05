@@ -1132,7 +1132,7 @@ int main(int argc, char* argv[])
             {
                 float adist = fabs(x) + fabs(y) + fabs(z);
 
-                if(adist <= 7)
+                if(adist <= 10)
                     continue;
 
                 std::shared_ptr<triangle_rendering::object> obj = tris.make_new();
@@ -1843,7 +1843,7 @@ int main(int argc, char* argv[])
                 cl_int prepass_width = width/16;
                 cl_int prepass_height = height/16;
 
-                if(metric_manage.current_metric->metric_cfg.use_prepass)
+                if(metric_manage.current_metric->metric_cfg.use_prepass && tris.cpu_objects.size() == 0)
                 {
                     cl::args clear_args;
                     clear_args.push_back(termination_buffer);

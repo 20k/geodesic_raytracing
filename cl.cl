@@ -3536,7 +3536,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
     float uniform_coordinate_precision_divisor = max(max(W_V1, W_V2), max(W_V3, W_V4));
 
-    int loop_limit = 1024;
+    int loop_limit = 4096;
 
     #ifdef DEVICE_SIDE_ENQUEUE
     loop_limit /= 125;
@@ -3630,7 +3630,9 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
             float4 rt_pos = last_pos;
             float4 next_rt_pos = out_position;
 
-            if(fast_length(next_rt_pos - rt_pos) > 1)
+            float4 rt_diff = next_rt_pos - rt_pos;
+
+            if(dot(rt_diff, rt_diff) > 1)
                 should_check = true;
 
             if(should_check || should_terminate)
@@ -3684,7 +3686,9 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                                 float4 parent_pos = parent->pos;
 
-                                if(fast_length(parent_pos.yzw - rt_pos.yzw) > 5)
+                                float3 pdiff = parent_pos.yzw - rt_pos.yzw;
+
+                                if(dot(pdiff, pdiff) > 5)
                                     continue;
 
                                 float3 v0_pos = {ctri->v0x, ctri->v0y, ctri->v0z};
