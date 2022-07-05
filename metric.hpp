@@ -5,6 +5,7 @@
 #include "dual_value.hpp"
 #include <nlohmann/json.hpp>
 #include "js_interop.hpp"
+#include <vec/tensor.hpp>
 
 namespace metrics
 {
@@ -61,6 +62,72 @@ namespace metrics
 
         return {raw_eq, raw_derivatives};
     }
+
+    template<typename Func>
+    inline
+    tensor<value, 4> calculate_acceleration(Func&& f)
+    {
+        auto [v_met, partials] = evaluate_metric2D(f, "p1", "p2", "p3", "p4");
+
+        tensor<value, 4> velocity = {"v1", "v2", "v3", "v4"};
+
+        assert(v_met.size() == 16);
+        assert(partials.size() == 64);
+
+        metric<value, 4, 4> met;
+
+        for(int i=0; i < 4; i++)
+        {
+            for(int j=0; j < 4; j++)
+            {
+                met.idx(i,j) = v_met[i * 4 + j];
+            }
+        }
+
+        inverse_metric<value, 4, 4> inv = met.invert();
+
+        tensor<value, 3, 3, 3> christoff2;
+
+        for(int i=0; i < 4; i++)
+        {
+            for(int k=0; k < 4; k++)
+            {
+                for(int l=0; l < 4; l++)
+                {
+                    value sum = 0;
+
+                    for(int m=0; m < 4; m++)
+                    {
+                        sum += inv.idx(i, m) * partials[l * 16 + m * 4 + k];
+                        sum += inv.idx(i, m) * partials[k * 16 + m * 4 + l];
+                        sum += inv.idx(i, m) * partials[m * 16 + k * 4 + l];
+                    }
+
+                    christoff2.idx(i, k, l) = 0.5f * sum;
+                }
+            }
+        }
+
+        tensor<value, 4> accel;
+
+        for(int uu=0; uu < 4; uu++)
+        {
+            value sum = 0;
+
+            for(int aa = 0; aa < 4; aa++)
+            {
+                for(int bb = 0; bb < 4; bb++)
+                {
+                    sum += velocity[aa] * velocity[bb] * christoff2.idx(uu, aa, bb);
+                }
+            }
+
+            accel[uu] = -sum;
+        }
+
+        return accel;
+    }
+
 
     template<typename Func, typename... T>
     inline
@@ -222,6 +289,8 @@ namespace metrics
     template<typename T>
     struct metric_impl
     {
+        std::vector<T> accel;
+
         std::vector<T> real_eq;
         std::vector<T> derivatives;
 
@@ -252,6 +321,8 @@ namespace metrics
     {
         metric_impl<std::string> ret;
 
+        ret.accel = stringify_vector(raw.accel);
+
         ret.real_eq = stringify_vector(raw.real_eq);
         ret.derivatives = stringify_vector(raw.derivatives);
 
@@ -270,6 +341,11 @@ namespace metrics
     metric_impl<std::string> build_concrete(const std::map<std::string, std::string>& mapping, const metric_impl<value>& raw)
     {
         metric_impl<value> raw_copy = raw;
+
+        for(value& v : raw_copy.accel)
+        {
+            v.substitute(mapping);
+        }
 
         for(value& v : raw_copy.real_eq)
         {
@@ -315,6 +391,10 @@ namespace metrics
         template<typename T, typename U, typename V, typename W>
         void load(T& func, U& func1, V& func2, W& func3)
         {
+            tensor<value, 4> accel_as_tensor = calculate_acceleration(func);
+
+            raw.accel = {accel_as_tensor.x(), accel_as_tensor.y(), accel_as_tensor.z(), accel_as_tensor.w()};
+
             std::tie(raw.real_eq, raw.derivatives) = evaluate_metric2D(func, "v1", "v2", "v3", "v4");
 
             std::tie(raw.to_polar, raw.dt_to_spherical) = total_diff(func1, "v1", "v2", "v3", "v4");
