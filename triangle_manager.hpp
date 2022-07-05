@@ -56,7 +56,8 @@ namespace triangle_rendering
         struct sub_point
         {
             cl_float x, y, z;
-            int parent;
+            cl_int parent;
+            cl_int object_parent;
         };
 
         inline
@@ -194,8 +195,6 @@ namespace triangle_rendering
 
             using namespace impl;
 
-            //std::vector<std::vector<subtriangle>> stris;
-
             std::vector<std::pair<vec3f, int>> global_subtri_as_points;
 
             int global_running_tri_index = 0;
@@ -247,6 +246,7 @@ namespace triangle_rendering
                 point.y = p.first.y();
                 point.z = p.first.z();
                 point.parent = p.second;
+                point.object_parent = linear_tris[point.parent].parent;
 
                 gpu.push_back(point);
             }

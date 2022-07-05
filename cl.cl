@@ -3278,6 +3278,7 @@ struct sub_point
 {
     float x, y, z;
     int parent;
+    int object_parent;
 };
 
 #if 0
