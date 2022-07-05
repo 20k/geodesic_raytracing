@@ -1137,7 +1137,8 @@ int main(int argc, char* argv[])
 
                 std::shared_ptr<triangle_rendering::object> obj = tris.make_new();
 
-                obj->tris = make_cube({x, y, z});
+                obj->tris = make_cube({0, 0, 0});
+                obj->pos = {0, x, y, z};
             }
         }
     }
