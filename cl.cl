@@ -2959,6 +2959,8 @@ float4 rk4_f(float t, float4 position, float4 velocity)
 ///this is actually regular velocity verlet with no modifications https://en.wikipedia.org/wiki/Verlet_integration#Velocity_Verlet
 void step_verlet(float4 position, float4 velocity, float4 acceleration, bool always_lightlike, float ds, float4* position_out, float4* velocity_out, float4* acceleration_out, float* g_00_out, dynamic_config_space struct dynamic_config* cfg)
 {
+
+    #if 0
     #ifndef GENERIC_BIG_METRIC
     float g_metric[4] = {};
     float g_partials[16] = {};
@@ -2997,6 +2999,29 @@ void step_verlet(float4 position, float4 velocity, float4 acceleration, bool alw
     //intermediate_next_velocity = fix_light_velocity_big(intermediate_next_velocity, g_metric_big);
     float4 next_acceleration = calculate_acceleration_big(intermediate_next_velocity, g_metric_big, g_partials_big);
     #endif // GENERIC_BIG_METRIC
+    #endif // 0
+
+    float4 next_position = position + velocity * ds + 0.5f * acceleration * ds * ds;
+    float4 intermediate_next_velocity = velocity + acceleration * ds;
+
+    float4 next_acceleration;
+
+    {
+        float p1 = next_position.x;
+        float p2 = next_position.y;
+        float p3 = next_position.z;
+        float p4 = next_position.w;
+
+        float v1 = intermediate_next_velocity.x;
+        float v2 = intermediate_next_velocity.y;
+        float v3 = intermediate_next_velocity.z;
+        float v4 = intermediate_next_velocity.w;
+
+        next_acceleration.x = GEO_ACCEL0;
+        next_acceleration.y = GEO_ACCEL1;
+        next_acceleration.z = GEO_ACCEL2;
+        next_acceleration.w = GEO_ACCEL3;
+    }
 
     float4 next_velocity = velocity + 0.5f * (acceleration + next_acceleration) * ds;
 

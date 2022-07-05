@@ -100,7 +100,7 @@ namespace metrics
                     {
                         sum += inv.idx(i, m) * partials[l * 16 + m * 4 + k];
                         sum += inv.idx(i, m) * partials[k * 16 + m * 4 + l];
-                        sum += inv.idx(i, m) * partials[m * 16 + k * 4 + l];
+                        sum += -inv.idx(i, m) * partials[m * 16 + k * 4 + l];
                     }
 
                     christoff2.idx(i, k, l) = 0.5f * sum;
@@ -122,7 +122,7 @@ namespace metrics
                 }
             }
 
-            accel[uu] = -sum;
+            accel.idx(uu) = -sum;
         }
 
         return accel;
@@ -696,6 +696,11 @@ namespace metrics
         for(int i=0; i < 4; i++)
         {
             argument_string += " -DCART_TO_POL_D" + std::to_string(i) + "=" + type_to_string(cart_to_polar_derivs[i]);
+        }
+
+        for(int i=0; i < 4; i++)
+        {
+            argument_string += " -DGEO_ACCEL" + std::to_string(i) + "=" + impl.accel[i];
         }
 
         {
