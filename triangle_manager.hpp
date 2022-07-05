@@ -16,6 +16,15 @@ namespace triangle_rendering
         std::vector<triangle> tris;
 
         int gpu_offset = -1;
+
+        void set_pos(vec4f in)
+        {
+            pos = in;
+
+            dirty = true;
+        }
+
+        bool dirty = false;
     };
 
     namespace impl
@@ -137,6 +146,8 @@ namespace triangle_rendering
         int fill_point_count = 0;
         cl::buffer fill_points;
 
+        bool acceleration_needs_rebuild = false;
+
         manager(cl::context& ctx) : objects(ctx), tris(ctx), fill_points(ctx)
         {
 
@@ -153,6 +164,8 @@ namespace triangle_rendering
 
         void build(cl::command_queue& cqueue, float acceleration_voxel_size)
         {
+            acceleration_needs_rebuild = true;
+
             std::vector<triangle> linear_tris;
             std::vector<gpu_object> gpu_objects;
 
@@ -254,7 +267,14 @@ namespace triangle_rendering
                 if(obj->gpu_offset == -1)
                     continue;
 
+                if(!obj->dirty)
+                    continue;
+
                 objects.write(cqueue, (const char*)&gobj, sizeof(gpu_object), sizeof(gpu_object) * obj->gpu_offset);
+
+                obj->dirty = false;
+
+                acceleration_needs_rebuild = true;
             }
         }
     };
@@ -282,6 +302,11 @@ namespace triangle_rendering
 
         void build(cl::command_queue& cqueue, manager& tris)
         {
+            if(!tris.acceleration_needs_rebuild)
+                return;
+
+            tris.acceleration_needs_rebuild = false;
+
             memory_count.set_to_zero(cqueue);
 
             {
