@@ -101,27 +101,13 @@ namespace triangle_rendering
         }
 
         inline
-        std::vector<subtriangle> triangulate_those_bigger_than(const object& obj, const std::vector<triangle>& in, float size)
+        std::vector<subtriangle> triangulate_those_bigger_than(const std::vector<triangle>& in, float size)
         {
             std::vector<subtriangle> ret;
 
             for(int i=0; i < (int)in.size(); i++)
             {
                 subtriangle stri(i, in[i]);
-
-                vec4f parent_pos = obj.pos;
-
-                stri.v0x += parent_pos.y();
-                stri.v0y += parent_pos.z();
-                stri.v0z += parent_pos.w();
-
-                stri.v1x += parent_pos.y();
-                stri.v1y += parent_pos.z();
-                stri.v1z += parent_pos.w();
-
-                stri.v2x += parent_pos.y();
-                stri.v2y += parent_pos.z();
-                stri.v2z += parent_pos.w();
 
                 ret.push_back(stri);
             }
@@ -310,6 +296,7 @@ namespace triangle_rendering
                 cl::args count_args;
                 count_args.push_back(tris.fill_points);
                 count_args.push_back(tris.fill_point_count);
+                count_args.push_back(tris.objects);
                 count_args.push_back(counts);
                 count_args.push_back(offset_width);
                 count_args.push_back(offset_size.x());
@@ -331,6 +318,7 @@ namespace triangle_rendering
                 cl::args gen;
                 gen.push_back(tris.fill_points);
                 gen.push_back(tris.fill_point_count);
+                gen.push_back(tris.objects);
                 gen.push_back(offsets);
                 gen.push_back(counts);
                 gen.push_back(memory);

@@ -3324,6 +3324,11 @@ int3 loop_voxel(int3 in, int width_num)
     return in;
 }
 
+struct object
+{
+    float4 pos;
+};
+
 __kernel
 void clear_accel_counts(__global int* offset_counts, int width_num)
 {
@@ -3338,7 +3343,7 @@ void clear_accel_counts(__global int* offset_counts, int width_num)
 }
 
 __kernel
-void generate_acceleration_counts(__global struct sub_point* sp, int sp_count, __global int* offset_counts, float width, int width_num)
+void generate_acceleration_counts(__global struct sub_point* sp, int sp_count, __global struct object* objs, __global int* offset_counts, float width, int width_num)
 {
     int id = get_global_id(0);
 
@@ -3349,7 +3354,7 @@ void generate_acceleration_counts(__global struct sub_point* sp, int sp_count, _
 
     struct sub_point mine = sp[id];
 
-    float3 pos = (float3)(mine.x, mine.y, mine.z);
+    float3 pos = (float3)(mine.x, mine.y, mine.z) + objs[mine.object_parent].pos.yzw;
     int w_id = mine.parent;
 
     float3 grid_pos = floor(pos / voxel_cube_size);
@@ -3403,7 +3408,7 @@ void alloc_acceleration(__global int* offset_map, __global int* offset_counts, i
 }
 
 __kernel
-void generate_acceleration_data(__global struct sub_point* sp, int sp_count, __global int* offset_map, __global int* offset_counts, __global int* mem_buffer, float width, int width_num)
+void generate_acceleration_data(__global struct sub_point* sp, int sp_count, __global struct object* objs, __global int* offset_map, __global int* offset_counts, __global int* mem_buffer, float width, int width_num)
 {
     int id = get_global_id(0);
 
@@ -3414,7 +3419,7 @@ void generate_acceleration_data(__global struct sub_point* sp, int sp_count, __g
 
     struct sub_point mine = sp[id];
 
-    float3 pos = (float3)(mine.x, mine.y, mine.z);
+    float3 pos = (float3)(mine.x, mine.y, mine.z) + objs[mine.object_parent].pos.yzw;
     int w_id = mine.parent;
 
     float3 grid_pos = floor(pos / voxel_cube_size);
@@ -3459,11 +3464,6 @@ struct potential_intersection
     int cx, cy;
     float st, sx, sy, sz;
     float et, ex, ey, ez;
-};
-
-struct object
-{
-    float4 pos;
 };
 
 __kernel
