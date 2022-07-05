@@ -7,7 +7,7 @@
 ///so. This is never going to be a full on 3d renderer
 ///highest tri count we might get is 100k tris
 ///each object represents something that is on the same time coordinate, and also may follow a geodesic
-
+///need to subtriangulate and deduplicate individually
 namespace triangle_rendering
 {
     struct object
@@ -100,7 +100,7 @@ namespace triangle_rendering
         }
 
         inline
-        std::vector<subtriangle> triangulate_those_bigger_than(const std::vector<std::shared_ptr<object>>& objs, const std::vector<triangle>& in, float size)
+        std::vector<subtriangle> triangulate_those_bigger_than(const object& obj, const std::vector<triangle>& in, float size)
         {
             std::vector<subtriangle> ret;
 
@@ -108,7 +108,7 @@ namespace triangle_rendering
             {
                 subtriangle stri(i, in[i]);
 
-                vec4f parent_pos = objs[in[i].parent]->pos;
+                vec4f parent_pos = obj.pos;
 
                 stri.v0x += parent_pos.y();
                 stri.v0y += parent_pos.z();
@@ -194,40 +194,53 @@ namespace triangle_rendering
 
             using namespace impl;
 
-            std::vector<subtriangle> stris = triangulate_those_bigger_than(cpu_objects, linear_tris, acceleration_voxel_size);
+            //std::vector<std::vector<subtriangle>> stris;
 
-            std::vector<std::pair<vec3f, int>> subtri_as_points;
+            std::vector<std::pair<vec3f, int>> global_subtri_as_points;
 
-            for(subtriangle& t : stris)
+            int global_running_tri_index = 0;
+
+            for(auto& i : cpu_objects)
             {
-                subtri_as_points.push_back({t.get_vert(0), t.parent});
-                subtri_as_points.push_back({t.get_vert(1), t.parent});
-                subtri_as_points.push_back({t.get_vert(2), t.parent});
+                std::vector<subtriangle> sub = triangulate_those_bigger_than(*i, i->tris, acceleration_voxel_size);
+
+                std::vector<std::pair<vec3f, int>> local_subtri_as_points;
+
+                for(subtriangle& t : sub)
+                {
+                    local_subtri_as_points.push_back({t.get_vert(0), t.parent + global_running_tri_index});
+                    local_subtri_as_points.push_back({t.get_vert(1), t.parent + global_running_tri_index});
+                    local_subtri_as_points.push_back({t.get_vert(2), t.parent + global_running_tri_index});
+                }
+
+                global_running_tri_index += i->tris.size();
+
+                for(auto& [point, p] : local_subtri_as_points)
+                {
+                    float scale = acceleration_voxel_size;
+
+                    vec3f vox = point / scale;
+
+                    vox = floor(vox);
+
+                    point = vox * scale;
+                }
+
+                std::sort(local_subtri_as_points.begin(), local_subtri_as_points.end(), [](auto& i1, auto& i2)
+                {
+                    return std::tie(i1.first.z(), i1.first.y(), i1.first.x(), i1.second) < std::tie(i2.first.z(), i2.first.y(), i2.first.x(), i2.second);
+                });
+
+                local_subtri_as_points.erase(std::unique(local_subtri_as_points.begin(), local_subtri_as_points.end()), local_subtri_as_points.end());
+
+                global_subtri_as_points.insert(global_subtri_as_points.end(), local_subtri_as_points.begin(), local_subtri_as_points.end());
             }
 
-            for(auto& [point, p] : subtri_as_points)
-            {
-                float scale = acceleration_voxel_size;
-
-                vec3f vox = point / scale;
-
-                vox = floor(vox);
-
-                point = vox * scale;
-            }
-
-            std::sort(subtri_as_points.begin(), subtri_as_points.end(), [](auto& i1, auto& i2)
-            {
-                return std::tie(i1.first.z(), i1.first.y(), i1.first.x(), i1.second) < std::tie(i2.first.z(), i2.first.y(), i2.first.x(), i2.second);
-            });
-
-            subtri_as_points.erase(std::unique(subtri_as_points.begin(), subtri_as_points.end()), subtri_as_points.end());
-
-            std::cout << "FIN POINTS " << subtri_as_points.size() << std::endl;
+            std::cout << "FIN POINTS " << global_subtri_as_points.size() << std::endl;
 
             std::vector<sub_point> gpu;
 
-            for(auto& p : subtri_as_points)
+            for(auto& p : global_subtri_as_points)
             {
                 sub_point point;
                 point.x = p.first.x();
