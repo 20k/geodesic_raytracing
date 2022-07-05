@@ -1158,8 +1158,6 @@ int main(int argc, char* argv[])
     std::optional<cl_float4> last_camera_pos;
     std::optional<cl_float4> last_geodesic_velocity;
 
-    bool once = false;
-
     while(!win.should_close() && !menu.should_quit && fullscreen.open)
     {
         if(menu.dirty_settings)
@@ -1831,10 +1829,8 @@ int main(int argc, char* argv[])
 
             clctx.cqueue.exec("clear", clr, {width, height}, {16, 16});
 
-            if(!once)
             {
-                printf("Gen\n");
-
+                tris.update_objects(clctx.cqueue);
                 accel.build(clctx.cqueue, tris);
             }
 
@@ -2171,8 +2167,6 @@ int main(int argc, char* argv[])
         ImGui::PopAllowKeyboardFocus();
 
         win.display();
-
-
         once = true;
         if(should_print_frametime)
         {
