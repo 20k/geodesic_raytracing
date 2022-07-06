@@ -1703,6 +1703,10 @@ int main()
                 has_geodesic = true;
                 camera_on_geodesic = true;
 
+                ///lorentz boost tetrad by the basis speed
+                ///g_geodesic_basis_speed is defined locally
+                ///so first i calculate a timelike vector from the existing tetrad from the speed
+                ///and then interpret this is an observer velocity, and boost the tetrads
                 {
                     cl::args lorentz;
                     lorentz.push_back(g_camera_pos_polar);
@@ -1718,7 +1722,6 @@ int main()
                     clctx.cqueue.exec("boost_tetrad", lorentz, {1}, {1});
                 }
 
-                ///need to lorentz boost tetrad!
                 {
                     generic_geodesic_count.set_to_zero(clctx.cqueue);
 

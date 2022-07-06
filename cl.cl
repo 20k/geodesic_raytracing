@@ -2265,7 +2265,7 @@ void boost_tetrad(__global float4* polar_position, __global float3* geodesic_bas
     calculate_metric_generic(at_metric, g_metric, cfg);
     calculate_lorentz_boost(e0, observer_velocity, g_metric, lorentz);
     #else
-    float g_metric_big[16] = {0};
+    float g_metric_big[16] = {};
     calculate_metric_generic_big(at_metric, g_metric_big, cfg);
     calculate_lorentz_boost_big(e0, observer_velocity, g_metric_big, lorentz);
     #endif // GENERIC_METRIC
