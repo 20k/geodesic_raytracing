@@ -493,7 +493,7 @@ namespace metrics
                 }
             }
 
-            std::cout << "Offdiagonal reduction" << std::endl;
+            printj("Offdiagonal reduction");
 
             std::vector<value> diagonal_equations;
             std::vector<value> diagonal_derivatives;
@@ -553,7 +553,7 @@ namespace metrics
         auto real_eq = impl.real_eq;
         auto derivatives = impl.derivatives;
 
-        std::cout << "REAL EQ SIZE " << real_eq.size() << std::endl;
+        printj("REAL EQ SIZE ", real_eq.size());
 
         for(int i=0; i < (int)real_eq.size(); i++)
         {
@@ -739,7 +739,7 @@ namespace metrics
 
             vars += dynamic_vars.names.back();
 
-            std::cout << "Dynamic variables " << vars << std::endl;
+            printj("Dynamic variables ", vars);
 
             argument_string += " -DDYNVARS=" + vars;
         }

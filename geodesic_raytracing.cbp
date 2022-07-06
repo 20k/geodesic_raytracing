@@ -40,6 +40,19 @@
 					<Add option="-s" />
 				</Linker>
 			</Target>
+			<Target title="TestBench">
+				<Option output="bin/TestBench/geodesic_raytracing" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/TestBench/" />
+				<Option type="1" />
+				<Option compiler="gcc-msys2-mingw64" />
+				<Option parameters="-bench kerr_ingoing_ef" />
+				<Compiler>
+					<Add option="-O2" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+				</Linker>
+			</Target>
 		</Build>
 		<Compiler>
 			<Add option="-Wall" />
@@ -161,6 +174,7 @@
 		<Unit filename="number.js">
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>
+		<Unit filename="print.hpp" />
 		<Unit filename="raw_input.cpp" />
 		<Unit filename="raw_input.hpp" />
 		<Unit filename="scripts/alcubierre.js">
