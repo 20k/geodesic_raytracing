@@ -1145,7 +1145,7 @@ int main(int argc, char* argv[])
 
     tris.build(clctx.cqueue, accel.offset_width / accel.offset_size.x());
 
-    printf("Pre main\n");
+    print("Pre main\n");
 
     cl::buffer gpu_intersections(clctx.ctx);
     gpu_intersections.alloc(sizeof(cl_int2) * start_width * start_height * 10);
@@ -2167,7 +2167,7 @@ int main(int argc, char* argv[])
         ImGui::PopAllowKeyboardFocus();
 
         win.display();
-        once = true;
+
         if(should_print_frametime)
         {
             float frametime_ms = frametime_s * 1000;
