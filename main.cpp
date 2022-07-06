@@ -785,8 +785,8 @@ int main()
     cl::buffer geodesic_vel_buffer(clctx.ctx);
     geodesic_vel_buffer.alloc(max_trace_length * sizeof(cl_float4));
 
-    cl::buffer geodesic_dT_dt_buffer(clctx.ctx);
-    geodesic_dT_dt_buffer.alloc(max_trace_length * sizeof(cl_float));
+    cl::buffer geodesic_dT_ds_buffer(clctx.ctx);
+    geodesic_dT_ds_buffer.alloc(max_trace_length * sizeof(cl_float));
 
     cl::buffer geodesic_ds_buffer(clctx.ctx);
     geodesic_ds_buffer.alloc(max_trace_length * sizeof(cl_float));
@@ -794,7 +794,7 @@ int main()
     geodesic_count_buffer.set_to_zero(clctx.cqueue);
     geodesic_trace_buffer.set_to_zero(clctx.cqueue);
     geodesic_vel_buffer.set_to_zero(clctx.cqueue);
-    geodesic_dT_dt_buffer.set_to_zero(clctx.cqueue);
+    geodesic_dT_ds_buffer.set_to_zero(clctx.cqueue);
     geodesic_ds_buffer.set_to_zero(clctx.cqueue);
 
     cl::buffer generic_geodesic_buffer(clctx.ctx);
@@ -847,7 +847,7 @@ int main()
     printf("Alloc trace buffer\n");
 
     std::vector<cl_float4> current_geodesic_path;
-    std::vector<cl_float> current_geodesic_dT_dt;
+    std::vector<cl_float> current_geodesic_dT_ds;
 
     printf("Pre texture coordinates\n");
 
@@ -1512,7 +1512,7 @@ int main()
                 cl::args interpolate_args;
                 interpolate_args.push_back(geodesic_trace_buffer);
                 interpolate_args.push_back(geodesic_vel_buffer);
-                interpolate_args.push_back(geodesic_dT_dt_buffer);
+                interpolate_args.push_back(geodesic_dT_ds_buffer);
                 interpolate_args.push_back(geodesic_ds_buffer);
                 interpolate_args.push_back(g_camera_pos_polar);
 
@@ -1744,7 +1744,7 @@ int main()
                 int idx = 0;
 
                 geodesic_trace_buffer.set_to_zero(clctx.cqueue);
-                geodesic_dT_dt_buffer.set_to_zero(clctx.cqueue);
+                geodesic_dT_ds_buffer.set_to_zero(clctx.cqueue);
                 geodesic_count_buffer.set_to_zero(clctx.cqueue);
                 geodesic_vel_buffer.set_to_zero(clctx.cqueue);
                 geodesic_ds_buffer.set_to_zero(clctx.cqueue);
@@ -1753,7 +1753,7 @@ int main()
                 snapshot_args.push_back(generic_geodesic_buffer);
                 snapshot_args.push_back(geodesic_trace_buffer);
                 snapshot_args.push_back(geodesic_vel_buffer);
-                snapshot_args.push_back(geodesic_dT_dt_buffer);
+                snapshot_args.push_back(geodesic_dT_ds_buffer);
                 snapshot_args.push_back(geodesic_ds_buffer);
                 snapshot_args.push_back(generic_geodesic_count);
                 snapshot_args.push_back(idx);

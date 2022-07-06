@@ -2372,7 +2372,7 @@ void parallel_transport_quantity(__global float4* geodesic_path, __global float4
 }
 
 __kernel
-void handle_interpolating_geodesic(__global float4* geodesic_path, __global float4* geodesic_velocity, __global float* dT_dt, __global float* ds_in,
+void handle_interpolating_geodesic(__global float4* geodesic_path, __global float4* geodesic_velocity, __global float* dT_ds, __global float* ds_in,
                                    __global float4* g_camera_polar_out,
                                    __global float4* t_e0_in, __global float4* t_e1_in, __global float4* t_e2_in, __global float4* t_e3_in,
                                    __global float4* e0_out, __global float4* e1_out, __global float4* e2_out, __global float4* e3_out,
@@ -2411,7 +2411,7 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
 
     int cnt = *count_in;
 
-    float current_time = geodesic_path[0].x;
+    //float current_time = geodesic_path[0].x;
     float current_proper_time = 0;
 
     *g_camera_polar_out = generic_to_spherical(start_generic, cfg);
@@ -2449,8 +2449,10 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
             next_pos = im;
         }
 
-        float dt = next_pos.x - current_pos.x;
-        float next_proper_time = current_proper_time + dT_dt[i] * dt;
+        //float dt = next_pos.x - current_pos.x;
+        //float next_proper_time = current_proper_time + dT_dt[i] * dt;
+
+        float next_proper_time = current_proper_time + dT_ds[i] * ds_in[i];
 
         #ifdef INTERPOLATE_USE_COORDINATE_TIME
         if(target_time >= current_pos.x && target_time < next_pos.x || target_time < current_pos.x)
@@ -2512,7 +2514,7 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
             return;
         }
 
-        current_time += dt;
+        //current_time += dt;
         current_proper_time = next_proper_time;
     }
 
@@ -2997,7 +2999,7 @@ float4 rk4_f(float t, float4 position, float4 velocity)
 ///it would be useful to be able to combine data from multiple ticks which are separated by some delta, but where I don't have control over that delta
 ///I wonder if a taylor series expansion of F(y + dt) might be helpful
 ///this is actually regular velocity verlet with no modifications https://en.wikipedia.org/wiki/Verlet_integration#Velocity_Verlet
-void step_verlet(float4 position, float4 velocity, float4 acceleration, bool always_lightlike, float ds, float4* position_out, float4* velocity_out, float4* acceleration_out, float* g_00_out, dynamic_config_space struct dynamic_config* cfg)
+void step_verlet(float4 position, float4 velocity, float4 acceleration, bool always_lightlike, float ds, float4* position_out, float4* velocity_out, float4* acceleration_out, float* dT_ds, dynamic_config_space struct dynamic_config* cfg)
 {
     #ifdef OLD_METRIC_STEP
     #ifndef GENERIC_BIG_METRIC
@@ -3040,19 +3042,17 @@ void step_verlet(float4 position, float4 velocity, float4 acceleration, bool alw
     #endif // GENERIC_BIG_METRIC
     #endif // 0
 
-    if(g_00_out)
+    if(dT_ds)
     {
-        float p1 = position.x;
-        float p2 = position.y;
-        float p3 = position.z;
-        float p4 = position.w;
+        #ifndef GENERIC_BIG_METRIC
+        float g_metric[4] = {};
+        calculate_metric_generic(position, g_metric, cfg);
+        #else
+        float g_metric[16] = {};
+        calculate_metric_generic_big(position, g_metric, cfg);
+        #endif // GENERIC_BIG_METRIC
 
-        float v1 = velocity.x;
-        float v2 = velocity.y;
-        float v3 = velocity.z;
-        float v4 = velocity.w;
-
-        *g_00_out = METRIC_TIME_G00;
+        *dT_ds = native_sqrt(fabs(dot_product_generic(velocity, velocity, g_metric)));
     }
 
     float4 next_position = position + velocity * ds + 0.5f * acceleration * ds * ds;
@@ -3408,7 +3408,7 @@ __kernel
 void get_geodesic_path(__global struct lightray* generic_rays_in,
                        __global float4* positions_out,
                        __global float4* velocities_out,
-                       __global float* dT_dt_out,
+                       __global float* dT_ds_out,
                        __global float* ds_out,
                        __global int* generic_count_in, int geodesic_start, int width, int height,
                        __global float4* g_polar_camera_pos, __global float4* g_camera_quat,
@@ -3512,12 +3512,9 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         }
 
         float4 next_position, next_velocity, next_acceleration;
-        float g00 = 0;
+        float dT_ds = 0;
 
-        step_verlet(position, velocity, acceleration, false, ds, &next_position, &next_velocity, &next_acceleration, &g00, cfg);
-
-        ///https://en.wikipedia.org/wiki/Coordinate_time#Mathematics
-        float dT_dt = native_sqrt(fabs(g00));
+        step_verlet(position, velocity, acceleration, false, ds, &next_position, &next_velocity, &next_acceleration, &dT_ds, cfg);
 
         #ifdef ADAPTIVE_PRECISION
         if(fabs(r_value) < new_max)
@@ -3578,7 +3575,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
 
         positions_out[bufc] = generic_position_out;
         velocities_out[bufc] = generic_velocity_out;
-        dT_dt_out[bufc] = dT_dt;
+        dT_ds_out[bufc] = dT_ds;
         ds_out[bufc] = ds;
         bufc++;
 
