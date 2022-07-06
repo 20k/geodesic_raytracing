@@ -3040,6 +3040,21 @@ void step_verlet(float4 position, float4 velocity, float4 acceleration, bool alw
     #endif // GENERIC_BIG_METRIC
     #endif // 0
 
+    if(g_00_out)
+    {
+        float p1 = position.x;
+        float p2 = position.y;
+        float p3 = position.z;
+        float p4 = position.w;
+
+        float v1 = velocity.x;
+        float v2 = velocity.y;
+        float v3 = velocity.z;
+        float v4 = velocity.w;
+
+        *g_00_out = METRIC_TIME_G00;
+    }
+
     float4 next_position = position + velocity * ds + 0.5f * acceleration * ds * ds;
     float4 intermediate_next_velocity = velocity + acceleration * ds;
 
@@ -3072,11 +3087,6 @@ void step_verlet(float4 position, float4 velocity, float4 acceleration, bool alw
         #endif // GENERIC_CONSTANT_THETA
 
         next_acceleration.w = GEO_ACCEL3;
-
-        if(g_00_out)
-        {
-            *g_00_out = METRIC_TIME_G00;
-        }
     }
 
     float4 next_velocity = velocity + 0.5f * (acceleration + next_acceleration) * ds;
