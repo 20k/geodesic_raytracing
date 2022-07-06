@@ -1557,7 +1557,7 @@ int main()
                     cl::args tetrad_args;
                     tetrad_args.push_back(g_camera_pos_polar);
                     tetrad_args.push_back(g_camera_quat);
-                    tetrad_args.push_back(g_geodesic_basis_speed);
+                    tetrad_args.push_back(cartesian_basis_speed);
 
                     for(int i=0; i < 4; i++)
                     {
@@ -1703,6 +1703,22 @@ int main()
                 has_geodesic = true;
                 camera_on_geodesic = true;
 
+                {
+                    cl::args lorentz;
+                    lorentz.push_back(g_camera_pos_polar);
+                    lorentz.push_back(g_geodesic_basis_speed);
+
+                    for(auto& i : tetrad)
+                    {
+                        lorentz.push_back(i);
+                    }
+
+                    lorentz.push_back(dynamic_config);
+
+                    clctx.cqueue.exec("boost_tetrad", lorentz, {1}, {1});
+                }
+
+                ///need to lorentz boost tetrad!
                 {
                     generic_geodesic_count.set_to_zero(clctx.cqueue);
 

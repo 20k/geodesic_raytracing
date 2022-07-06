@@ -2242,8 +2242,48 @@ void calculate_tetrads(float4 polar_camera, float3 cartesian_basis_speed,
 }
 
 __kernel
+void boost_tetrad(__global float4* polar_position, __global float3* geodesic_basis_speed,
+                  __global float4* e0_io, __global float4* e1_io, __global float4* e2_io, __global float4* e3_io,
+                  dynamic_config_space struct dynamic_config* cfg)
+{
+    if(get_global_id(0) != 0)
+        return;
+
+    float4 at_metric = spherical_to_generic(*polar_position, cfg);
+
+    float4 e0 = *e0_io;
+    float4 e1 = *e1_io;
+    float4 e2 = *e2_io;
+    float4 e3 = *e3_io;
+
+    float4 observer_velocity = get_timelike_vector(*geodesic_basis_speed, 1, e0, e1, e2, e3);
+
+    float lorentz[16] = {};
+
+    #ifndef GENERIC_BIG_METRIC
+    float g_metric[4] = {};
+    calculate_metric_generic(at_metric, g_metric, cfg);
+    calculate_lorentz_boost(e0, observer_velocity, g_metric, lorentz);
+    #else
+    float g_metric_big[16] = {0};
+    calculate_metric_generic_big(at_metric, g_metric_big, cfg);
+    calculate_lorentz_boost_big(e0, observer_velocity, g_metric_big, lorentz);
+    #endif // GENERIC_METRIC
+
+    e0 = observer_velocity;
+    e1 = tensor_contract(lorentz, e1);
+    e2 = tensor_contract(lorentz, e2);
+    e3 = tensor_contract(lorentz, e3);
+
+    *e0_io = e0;
+    *e1_io = e1;
+    *e2_io = e2;
+    *e3_io = e3;
+}
+
+__kernel
 void init_basis_vectors(__global float4* g_polar_camera_in, __global float4* g_camera_quat,
-                        __global float3* geodesic_basis_speed,
+                        float3 cartesian_basis_speed,
                         __global float4* e0_out, __global float4* e1_out, __global float4* e2_out, __global float4* e3_out,
                         dynamic_config_space struct dynamic_config* cfg)
 {
@@ -2257,7 +2297,7 @@ void init_basis_vectors(__global float4* g_polar_camera_in, __global float4* g_c
     float4 e2;
     float4 e3;
 
-    calculate_tetrads(polar_camera_in, *geodesic_basis_speed, &e0, &e1, &e2, &e3, cfg, 1);
+    calculate_tetrads(polar_camera_in, cartesian_basis_speed, &e0, &e1, &e2, &e3, cfg, 1);
 
     *e0_out = e0;
     *e1_out = e1;
