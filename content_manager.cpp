@@ -35,11 +35,11 @@ metrics::metric* load_metric_from_script(content_manager& all_content, std::file
     js_function func_from_polar(met->sand, file::read(from_polar_file.value().string(), file::mode::TEXT));
     js_single_function fun_origin_distance(met->sand, file::read(origin_file.value().string(), file::mode::TEXT));
 
-    std::cout << "loading " << sname << std::endl;
+    printj("loading ", sname);
 
     met->desc.load(jfunc, func_to_polar, func_from_polar, fun_origin_distance);
 
-    printf("Finished loading script\n");
+    printj("Finished loading script\n");
 
     return met;
 }
@@ -107,7 +107,7 @@ metrics::metric* metric_cache::lazy_fetch(content_manager& manage, content& c, c
 {
     if(met == nullptr)
     {
-        std::cout << "Serving up " << friendly_name << std::endl;
+        printj("Serving up ", friendly_name);
 
         std::optional<std::filesystem::path> path = c.lookup_path_to_metric_file(friendly_name);
 
@@ -118,7 +118,7 @@ metrics::metric* metric_cache::lazy_fetch(content_manager& manage, content& c, c
             return nullptr;
         }
 
-        std::cout << "Found path " << path.value().string() << std::endl;
+        printj("Found path ", path.value().string());
 
         try
         {

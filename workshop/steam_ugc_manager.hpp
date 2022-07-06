@@ -150,13 +150,8 @@ struct steam_info
 
     steam_info()
     {
-        printf("Initialising steam api\n");
-
         if(!SteamAPI_Init())
-        {
-            printf("Could not initialise steam api\n");
             return;
-        }
 
         enabled = true;
 
@@ -172,8 +167,6 @@ struct steam_info
 
     ~steam_info()
     {
-        printf("Destroying steam api\n");
-
         if(enabled)
             SteamAPI_Shutdown();
     }
@@ -218,8 +211,6 @@ struct ugc_view
             ISteamUGC* ugc = SteamAPI_SteamUGC();
 
             SteamAPI_ISteamUGC_ReleaseQueryUGCRequest(ugc, raw_ugc_handle);
-
-            printf("Completed and released query\n");
 
             on_complete();
         });

@@ -35,7 +35,7 @@ struct metric_manager
 
             if(next == nullptr)
             {
-                std::cout << "Broken metric " << metric_names[selected_idx] << std::endl;
+                printj("Broken metric ", metric_names[selected_idx]);
             }
             else
             {
@@ -46,7 +46,7 @@ struct metric_manager
 
             cfg.error_override = current_metric->metric_cfg.max_acceleration_change;
 
-            std::cout << "ALLOCATING DYNCONFIG " << current_metric->sand.cfg.default_values.size() << std::endl;
+            printj("ALLOCATING DYNCONFIG ", current_metric->sand.cfg.default_values.size());
 
             int dyn_config_bytes = current_metric->sand.cfg.default_values.size() * sizeof(cl_float);
 
@@ -80,7 +80,7 @@ struct metric_manager
         {
             using_swapped = false;
 
-            printf("Building\n");
+            printj("Building");
             std::string dynamic_argument_string = argument_string_prefix + build_argument_string(*current_metric, current_metric->desc.abstract, cfg, {});
 
             file::write("./argument_string.txt", dynamic_argument_string, file::mode::TEXT);
@@ -175,7 +175,7 @@ struct metric_manager
 
             if(pending.is_built())
             {
-                printf("Swapped\n");
+                printj("Swapped\n");
 
                 if(ctx.programs.size() > 0)
                     ctx.deregister_program(0);

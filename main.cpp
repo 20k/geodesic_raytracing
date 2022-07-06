@@ -23,6 +23,7 @@
 #include "graphics_settings.hpp"
 #include <networking/serialisable.hpp>
 #include "input_manager.hpp"
+#include "print.hpp"
 //#include "dual_complex.hpp"
 
 /**
@@ -557,8 +558,24 @@ struct read_queue_pool
 };
 
 ///i need the ability to have dynamic parameters
-int main()
+int main(int argc, char* argv[])
 {
+    std::optional<std::string> start_metric;
+    bool should_print_frametime = false;
+
+    for(int i=1; i < argc - 1; i++)
+    {
+        std::string current = argv[i];
+        std::string next = argv[i + 1];
+
+        if(current == "-bench")
+        {
+            start_metric = next;
+            should_debug = false;
+            should_print_frametime = true;
+        }
+    }
+
     bool has_new_content = false;
 
     steam_info steam;
@@ -627,8 +644,7 @@ int main()
 
     assert(win.clctx);
 
-
-    std::cout << "extensions " << cl::get_extensions(win.clctx->ctx) << std::endl;
+    //std::cout << "extensions " << cl::get_extensions(win.clctx->ctx) << std::endl;
 
     ImFontAtlas* atlas = ImGui::GetIO().Fonts;
     atlas->FontBuilderFlags = ImGuiFreeTypeBuilderFlags_LCD | ImGuiFreeTypeBuilderFlags_FILTER_DEFAULT | ImGuiFreeTypeBuilderFlags_LoadColor;
@@ -676,7 +692,7 @@ int main()
 
     metrics::config current_cfg = cfg;
 
-    //printf("WLs %f %f %f\n", chromaticity::srgb_to_wavelength({1, 0, 0}), chromaticity::srgb_to_wavelength({0, 1, 0}), chromaticity::srgb_to_wavelength({0, 0, 1}));
+    //print("WLs %f %f %f\n", chromaticity::srgb_to_wavelength({1, 0, 0}), chromaticity::srgb_to_wavelength({0, 1, 0}), chromaticity::srgb_to_wavelength({0, 0, 1}));
 
     int last_supersample_mult = 2;
 
@@ -699,11 +715,11 @@ int main()
     cl::image background_mipped2 = load_mipped_image("background2.png", clctx);
 
     #ifdef USE_DEVICE_SIDE_QUEUE
-    printf("Pre dqueue\n");
+    print("Pre dqueue\n");
 
     cl::device_command_queue dqueue(clctx.ctx);
 
-    printf("Post dqueue\n");
+    print("Post dqueue\n");
     #endif // USE_DEVICE_SIDE_QUEUE
 
     /*
@@ -748,7 +764,7 @@ int main()
 
     int ray_count = start_width * start_height;
 
-    printf("Pre buffer declarations\n");
+    print("Pre buffer declarations\n");
 
     cl::buffer schwarzs_1(clctx.ctx);
     cl::buffer schwarzs_scratch(clctx.ctx);
@@ -764,15 +780,15 @@ int main()
 
     cl::buffer dynamic_config(clctx.ctx);
 
-    printf("Post buffer declarations\n");
+    print("Post buffer declarations\n");
 
     termination_buffer.alloc(start_width * start_height * sizeof(cl_int));
 
-    printf("Allocated termination buffer\n");
+    print("Allocated termination buffer\n");
 
     termination_buffer.set_to_zero(clctx.cqueue);
 
-    printf("Zero termination buffer\n");
+    print("Zero termination buffer\n");
 
     cl::buffer geodesic_count_buffer(clctx.ctx);
     geodesic_count_buffer.alloc(sizeof(cl_int));
@@ -844,19 +860,19 @@ int main()
         i.set_to_zero(clctx.cqueue);
     }
 
-    printf("Alloc trace buffer\n");
+    print("Alloc trace buffer\n");
 
     std::vector<cl_float4> current_geodesic_path;
     std::vector<cl_float> current_geodesic_dT_dt;
 
-    printf("Pre texture coordinates\n");
+    print("Pre texture coordinates\n");
 
     cl::buffer texture_coordinates{clctx.ctx};
 
     texture_coordinates.alloc(start_width * start_height * sizeof(float) * 2);
     texture_coordinates.set_to_zero(clctx.cqueue);
 
-    printf("Post texture coordinates\n");
+    print("Post texture coordinates\n");
 
     schwarzs_1.alloc(sizeof(lightray) * ray_count);
     schwarzs_scratch.alloc(sizeof(lightray) * ray_count);
@@ -868,16 +884,16 @@ int main()
     schwarzs_count_prepass.alloc(sizeof(int));
     finished_count_1.alloc(sizeof(int));
 
-    printf("Alloc rays and counts\n");
+    print("Alloc rays and counts\n");
 
     read_queue_pool<cl_float4> camera_q;
     read_queue_pool<cl_float4> geodesic_q;
 
-    printf("Finished async read queue init\n");
+    print("Finished async read queue init\n");
 
     std::optional<cl::event> last_event;
 
-    std::cout << "Supports shared events? " << cl::supports_extension(clctx.ctx, "cl_khr_gl_event") << std::endl;
+    printj("Supports shared events? ", cl::supports_extension(clctx.ctx, "cl_khr_gl_event"));
 
     bool last_supersample = false;
     bool should_take_screenshot = false;
@@ -895,7 +911,7 @@ int main()
 
     bool has_geodesic = false;
 
-    printf("Pre fullscreen\n");
+    print("Pre fullscreen\n");
 
     steady_timer workshop_poll;
     steady_timer frametime_timer;
@@ -927,7 +943,7 @@ int main()
     current_settings.vsync_enabled = win.backend->is_vsync();
     current_settings.fullscreen = win.backend->is_maximised();
 
-    printf("Pre main\n");
+    print("Pre main\n");
 
     bool reset_camera = true;
 
@@ -1048,6 +1064,23 @@ int main()
                 metric_names.push_back(friendly_name);
                 parent_directories.push_back(&c);
             }
+        }
+
+        if(start_metric && metric_manage.selected_idx == -1)
+        {
+            for(int selected = 0; selected < (int)metric_names.size(); selected++)
+            {
+                std::string name = metric_names[selected];
+
+                if(name == start_metric.value())
+                {
+                    metric_manage.selected_idx = selected;
+                    should_recompile = true;
+                    break;
+                }
+            }
+
+            start_metric = std::nullopt;
         }
 
         if(!hide_ui)
@@ -1772,14 +1805,14 @@ int main()
 
             if(taking_screenshot)
             {
-                printf("Taking screenie\n");
+                print("Taking screenie\n");
 
                 clctx.cqueue.block();
 
                 int high_width = current_settings.screenshot_width * current_settings.supersample_factor;
                 int high_height = current_settings.screenshot_height * current_settings.supersample_factor;
 
-                printf("Blocked\n");
+                print("Blocked\n");
 
                 std::cout << "WIDTH " << high_width << " HEIGHT "<< high_height << std::endl;
 
@@ -1871,6 +1904,14 @@ int main()
 
         win.display();
         clctx.cqueue.block();
+
+        if(should_print_frametime)
+        {
+            float frametime_ms = frametime_s * 1000;
+
+            ///Don't replace this printf
+            printf("Frametime Elapsed: %f\n", frametime_ms);
+        }
     }
 
     last_event = std::nullopt;

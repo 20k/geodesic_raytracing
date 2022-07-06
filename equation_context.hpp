@@ -6,6 +6,7 @@
 #include <utility>
 #include <string>
 #include <vec/vec.hpp>
+#include "print.hpp"
 
 struct equation_context
 {
@@ -103,7 +104,7 @@ struct equation_context
 
         int new_length = argument_string.size();
 
-        std::cout << "EXTRA LENGTH " << (new_length - old_length) << " " << str << std::endl;
+        printj("EXTRA LENGTH ", (new_length - old_length), " ", str);
     }
 
     void build(std::string& argument_string, int idx, const std::map<std::string, std::string>& substitution_map) const

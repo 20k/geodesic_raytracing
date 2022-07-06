@@ -727,7 +727,7 @@ js::value extract_function(js::value_context& vctx, const std::string& script_da
 
     js::value result = js::eval(vctx, wrapper);
 
-    std::cout << (std::string)result << std::endl;
+    printj((std::string)result);
 
     return js::eval(vctx, script_data);
 }
