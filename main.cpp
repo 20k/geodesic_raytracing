@@ -264,20 +264,34 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
     else
     {
         count_in.write_async(cqueue, (const char*)&num_rays, sizeof(int));
-        count_out.set_to_zero(cqueue);
         count_finished.set_to_zero(cqueue);
 
-        cl::args run_args;
-        run_args.push_back(rays_in);
-        run_args.push_back(rays_out);
-        run_args.push_back(rays_finished);
-        run_args.push_back(count_in);
-        run_args.push_back(count_out);
-        run_args.push_back(count_finished);
-        run_args.push_back(dynamic_config);
+        int loop = 128;
 
-        cqueue.exec("do_generic_rays", run_args, {num_rays}, {256});
+        for(int i=0; i < loop; i++)
+        {
+            count_out.set_to_zero(cqueue);
+
+            cl::args run_args;
+            run_args.push_back(rays_in);
+            run_args.push_back(rays_out);
+            run_args.push_back(rays_finished);
+            run_args.push_back(count_in);
+            run_args.push_back(count_out);
+            run_args.push_back(count_finished);
+            run_args.push_back(dynamic_config);
+
+            cqueue.exec("do_generic_rays", run_args, {num_rays}, {256});
+
+            std::swap(rays_in, rays_out);
+            std::swap(count_in, count_out);
+        }
     }
+
+    cl_int val = count_finished.read<cl_int>(cqueue)[0];
+    cl_int in_val = num_rays;
+
+    print("In %i out %i\n", in_val, val);
 }
 
 int calculate_ray_count(int width, int height)

@@ -3271,6 +3271,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
     loop_limit /= 125;
     #endif // DEVICE_SIDE_ENQUEUE
 
+    loop_limit = 32;
+
     //#pragma unroll
     for(int i=0; i < loop_limit; i++)
     {
