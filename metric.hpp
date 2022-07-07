@@ -456,9 +456,6 @@ namespace metrics
 
         bool is_polar_spherically_symmetric(const std::vector<value>& met)
         {
-            if(met.size() == 16)
-                return false;
-
             int sin_count = 0;
 
             ///theta
@@ -480,8 +477,39 @@ namespace metrics
                 return std::nullopt;
             };
 
-            value theta = met[2];
-            value phi = met[3];
+            value theta;
+            value phi;
+
+            if(met.size() == 4)
+            {
+                theta = met[2];
+                phi = met[3];
+            }
+            else if(met.size() == 16)
+            {
+                ///so, if there are dtdr components that's fine, but otherwise its borked
+                ///that means the metric must be in the following form
+
+                /**
+                [dt, dtdr, 0,           0,
+                     dr,   0,           0,
+                           X*r*r*dtheta,
+                                        X*r*r*sin(t)*sin(t)*dphi
+                */
+
+                std::vector<int> bad_offdiagonals{0 * 4 + 2, 0 * 4 + 3, 1 * 4 + 2, 1 * 4 + 3};
+
+                for(int idx : bad_offdiagonals)
+                {
+                    if(!equivalent(met[idx], value{0}))
+                    {
+                        return false;
+                    }
+                }
+
+                theta = met[2 * 4 + 2];
+                phi = met[3 * 4 + 3];
+            }
 
             phi.substitute_generic(substitute);
 
