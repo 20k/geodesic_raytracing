@@ -560,6 +560,13 @@ namespace metrics
             argument_string += "-DF" + std::to_string(i + 1) + "_I=" + real_eq[i] + " ";
         }
 
+        ///ok so
+        ///this is not how you detect spherical symmetry
+        ///the real way to do it is that the last two terms must be proportional to the equation on a sphere
+        ///https://en.wikipedia.org/wiki/Spherically_symmetric_spacetime
+        ///ie, given dtheta + (sin^2 theta) dphi
+        ///so, if we find the sin^2 term phi, and substitute it for 1
+        ///then theoretically, we can just check if dtheta == dphi
         ///only polar
         bool is_polar_spherically_symmetric = false;
 
