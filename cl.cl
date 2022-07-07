@@ -3162,7 +3162,7 @@ float acceleration_to_precision(float4 acceleration, float max_acceleration, flo
     float err = max_acceleration;
 
     //#define MIN_STEP 0.00001f
-    #define MIN_STEP 0.000001f
+    #define MIN_STEP 0.001f
 
     float max_timestep = 100000;
 
@@ -3196,7 +3196,7 @@ int calculate_ds_error(float current_ds, float4 next_acceleration, float4 accele
     float err = max_acceleration;
 
     #ifdef SINGULARITY_DETECTION
-    if(next_ds == MIN_STEP && (diff/I_HATE_COMPUTERS) > err * 10000)
+    if(next_ds == MIN_STEP && (diff/I_HATE_COMPUTERS) > err)
         return DS_RETURN;
     #endif // SINGULARITY_DETECTION
 
