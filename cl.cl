@@ -3227,6 +3227,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
     float4 velocity = ray->velocity;
     float4 acceleration = ray->acceleration;
 
+    float f_in_x = fabs(velocity.x);
+
     int sx = ray->sx;
     int sy = ray->sy;
 
@@ -3372,10 +3374,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
         }
         #endif // ADAPTIVE_PRECISION
 
-        //if(dot(velocity, velocity) > 1000)
-        //    return;
-
-        if(fabs(velocity.x) > 1000)
+        if(fabs(velocity.x) > 1000 + f_in_x && fabs(acceleration.x) > 100)
             return;
 
         position = next_position;
