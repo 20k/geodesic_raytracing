@@ -3268,11 +3268,11 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
     int loop_limit = 64000;
 
     #ifdef DEVICE_SIDE_ENQUEUE
-    loop_limit /= 125;
+    loop_limit /= 1024;
     #endif // DEVICE_SIDE_ENQUEUE
 
-    //#pragma unroll
-    for(int i=0; i < loop_limit; i++)
+    #pragma unroll
+    for(int i=0; i < 256; i++)
     {
         #ifdef IS_CONSTANT_THETA
         position.z = M_PIf/2;
@@ -3598,6 +3598,31 @@ void relauncher_generic(__global struct lightray* generic_rays_in, __global stru
                         int fallback,
                         dynamic_config_space struct dynamic_config* cfg)
 {
+    int generic_count = *generic_count_in;
+
+    int offset = 0;
+    int loffset = 256;
+
+    enqueue_kernel(get_default_queue(), CLK_ENQUEUE_FLAGS_WAIT_KERNEL,
+                   ndrange_1D(offset, generic_count, loffset),
+                   0, NULL, NULL,
+                   ^{
+                        do_generic_rays (generic_rays_in, generic_rays_out,
+                                         finished_rays,
+                                         generic_count_in, generic_count_out,
+                                         finished_count_out, cfg);
+                   });
+}
+
+#if 0
+__kernel
+void relauncher_generic(__global struct lightray* generic_rays_in, __global struct lightray* generic_rays_out,
+                        __global struct lightray* finished_rays,
+                        __global int* restrict generic_count_in, __global int* restrict generic_count_out,
+                        __global int* finished_count_out,
+                        int fallback,
+                        dynamic_config_space struct dynamic_config* cfg)
+{
     ///failed to converge
     if(fallback > 125)
         return;
@@ -3642,6 +3667,7 @@ void relauncher_generic(__global struct lightray* generic_rays_in, __global stru
 
     release_event(f3);
 }
+#endif // 0
 #endif // DEVICE_SIDE_ENQUEUE
 
 __kernel
