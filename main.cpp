@@ -247,6 +247,10 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
 {
     if(use_device_side_enqueue)
     {
+        count_in.write_async(cqueue, (const char*)&num_rays, sizeof(int));
+        count_out.set_to_zero(cqueue);
+        count_finished.set_to_zero(cqueue);
+
         int fallback = 0;
 
         cl::args run_args;
@@ -683,7 +687,7 @@ int main(int argc, char* argv[])
     metrics::config cfg;
     ///necessary for double schwarzs
     cfg.universe_size = 20;
-    cfg.use_device_side_enqueue = false;
+    cfg.use_device_side_enqueue = true;
     //cfg.error_override = 100.f;
     //cfg.error_override = 0.000001f;
     //cfg.error_override = 0.000001f;
@@ -714,13 +718,24 @@ int main(int argc, char* argv[])
     cl::image background_mipped = load_mipped_image("background.png", clctx);
     cl::image background_mipped2 = load_mipped_image("background2.png", clctx);
 
-    #ifdef USE_DEVICE_SIDE_QUEUE
+    /*#ifdef USE_DEVICE_SIDE_QUEUE
     print("Pre dqueue\n");
 
     cl::device_command_queue dqueue(clctx.ctx);
 
     print("Post dqueue\n");
-    #endif // USE_DEVICE_SIDE_QUEUE
+    #endif // USE_DEVICE_SIDE_QUEUE*/
+
+    std::optional<cl::device_command_queue> dqueue_opt;
+
+    if(cfg.use_device_side_enqueue)
+    {
+        print("Pre dqueue\n");
+
+        dqueue_opt.emplace(clctx.ctx);
+
+        print("Post dqueue\n");
+    }
 
     /*
     ///t, x, y, z
@@ -1431,7 +1446,7 @@ int main(int argc, char* argv[])
 
             metric_manage.check_recompile(should_recompile, should_soft_recompile, parent_directories,
                                           all_content, metric_names, dynamic_config, clctx.cqueue, cfg,
-                                          sett, clctx.ctx, termination_buffer);
+                                          sett, clctx.ctx, termination_buffer, cfg.use_device_side_enqueue);
 
             metric_manage.check_substitution(clctx.ctx);
 
