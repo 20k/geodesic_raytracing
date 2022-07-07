@@ -631,42 +631,6 @@ namespace metrics
             argument_string += "-DF" + std::to_string(i + 1) + "_I=" + real_eq[i] + " ";
         }
 
-        ///ok so
-        ///this is not how you detect spherical symmetry
-        ///the real way to do it is that the last two terms must be proportional to the equation on a sphere
-        ///https://en.wikipedia.org/wiki/Spherically_symmetric_spacetime
-        ///ie, given dtheta + (sin^2 theta) dphi
-        ///so, if we find the sin^2 term phi, and substitute it for 1
-        ///then theoretically, we can just check if dtheta == dphi
-        ///only polar
-       /* bool is_polar_spherically_symmetric = false;
-
-        if(real_eq.size() == 4)
-            is_polar_spherically_symmetric = in.metric_cfg.system == X_Y_THETA_PHI;
-
-        if(real_eq.size() == 16)
-        {
-            bool no_offdiagonal_phi_components = true;
-
-            for(int i=0; i < 4; i++)
-            {
-                ///phi
-                int j = 3;
-
-                if(j == i)
-                    continue;
-
-                bool is_zero = real_eq[j * 4 + i] == "0" || real_eq[j * 4 + i] == "0.0";
-
-                if(!is_zero)
-                    no_offdiagonal_phi_components = false;
-            }
-
-            is_polar_spherically_symmetric = no_offdiagonal_phi_components && in.metric_cfg.system == X_Y_THETA_PHI;
-        }*/
-
-        //is_polar_spherically_symmetric = false;
-
         bool is_polar_spherically_symmetric = in.metric_cfg.system == X_Y_THETA_PHI && in.desc.is_spherical;
 
         if(derivatives.size() == 16)
