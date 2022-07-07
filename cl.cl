@@ -3267,9 +3267,9 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
     int loop_limit = 64000;
 
-    /*#ifdef DEVICE_SIDE_ENQUEUE
+    #ifdef DEVICE_SIDE_ENQUEUE
     loop_limit /= 125;
-    #endif // DEVICE_SIDE_ENQUEUE*/
+    #endif // DEVICE_SIDE_ENQUEUE
 
     //#pragma unroll
     for(int i=0; i < loop_limit; i++)
@@ -3598,39 +3598,6 @@ void relauncher_generic(__global struct lightray* generic_rays_in, __global stru
                         int fallback,
                         dynamic_config_space struct dynamic_config* cfg)
 {
-    if((*generic_count_in) == 0)
-        return;
-
-    if(fallback == 0)
-        *finished_count_out = 0;
-
-    int generic_count = *generic_count_in;
-
-    int offset = 0;
-    int loffset = 256;
-
-    *generic_count_out = 0;
-
-    enqueue_kernel(get_default_queue(), CLK_ENQUEUE_FLAGS_WAIT_KERNEL,
-                   ndrange_1D(offset, generic_count, loffset),
-                   0, NULL, NULL,
-                   ^{
-                        do_generic_rays (generic_rays_in, generic_rays_out,
-                                         finished_rays,
-                                         generic_count_in, generic_count_out,
-                                         finished_count_out, cfg);
-                   });
-}
-
-#if DOESNT_WORK
-__kernel
-void relauncher_generic(__global struct lightray* generic_rays_in, __global struct lightray* generic_rays_out,
-                        __global struct lightray* finished_rays,
-                        __global int* restrict generic_count_in, __global int* restrict generic_count_out,
-                        __global int* finished_count_out,
-                        int fallback,
-                        dynamic_config_space struct dynamic_config* cfg)
-{
     ///failed to converge
     if(fallback > 125)
         return;
@@ -3675,7 +3642,6 @@ void relauncher_generic(__global struct lightray* generic_rays_in, __global stru
 
     release_event(f3);
 }
-#endif // DOESNT_WORK
 #endif // DEVICE_SIDE_ENQUEUE
 
 __kernel
