@@ -891,8 +891,6 @@ int main(int argc, char* argv[])
 
     print("Finished async read queue init\n");
 
-    std::optional<cl::event> last_event;
-
     printj("Supports shared events? ", cl::supports_extension(clctx.ctx, "cl_khr_gl_event"));
 
     bool last_supersample = false;
@@ -1190,11 +1188,6 @@ int main(int argc, char* argv[])
 
             if((vec2i){super_adjusted_width.x(), super_adjusted_width.y()} != win.get_window_size() || taking_screenshot || last_supersample != current_settings.supersample || last_supersample_mult != current_settings.supersample_factor || menu.dirty_settings)
             {
-                if(last_event.has_value())
-                    last_event.value().block();
-
-                last_event = std::nullopt;
-
                 int width = 16;
                 int height = 16;
 
@@ -1624,8 +1617,6 @@ int main(int argc, char* argv[])
 
             clctx.cqueue.exec("clear", clr, {width, height}, {16, 16});
 
-            cl::event next;
-
             {
                 ///should invert geodesics is unused for the moment
                 int isnap = 0;
@@ -1727,7 +1718,7 @@ int main(int argc, char* argv[])
                 render_args.push_back(texture_coordinates);
                 render_args.push_back(current_settings.anisotropy);
 
-                next = clctx.cqueue.exec("render", render_args, {width * height}, {256});
+                clctx.cqueue.exec("render", render_args, {width * height}, {256});
             }
 
             if(should_snapshot_geodesic)
@@ -1890,11 +1881,6 @@ int main(int argc, char* argv[])
                     SteamAPI_ISteamScreenshots_WriteScreenshot(iss, as_rgb.data(), sizeof(vec<3, char>) * as_rgb.size(), high_width, high_height);
                }
             }
-
-            if(last_event.has_value())
-                last_event.value().block();
-
-            last_event = next;
         }
 
         {
@@ -1922,7 +1908,6 @@ int main(int argc, char* argv[])
         ImGui::PopAllowKeyboardFocus();
 
         win.display();
-        clctx.cqueue.block();
 
         if(should_print_frametime)
         {
@@ -1934,7 +1919,6 @@ int main(int argc, char* argv[])
         }
     }
 
-    last_event = std::nullopt;
 
     clctx.cqueue.block();
 
