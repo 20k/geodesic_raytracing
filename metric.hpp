@@ -452,6 +452,47 @@ namespace metrics
         metric_impl<std::string> abstract;
         metric_impl<std::string> concrete;
 
+        bool is_spherical = false;
+
+        bool is_polar_spherically_symmetric(const std::vector<value>& met)
+        {
+            if(met.size() == 16)
+                return false;
+
+            int sin_count = 0;
+
+            ///theta
+            value var = "v3";
+            value sin_theta = sin(var);
+
+            auto substitute = [&](const value& in) -> std::optional<value>
+            {
+                if(sin_count >= 2)
+                    return std::nullopt;
+
+                if(equivalent(sin_theta, in))
+                {
+                    sin_count++;
+
+                    return value{1};
+                }
+
+                return std::nullopt;
+            };
+
+            value theta = met[2];
+            value phi = met[3];
+
+            phi.substitute_generic(substitute);
+
+            if(sin_count < 2)
+                return false;
+
+            phi = phi.flatten(true);
+
+            return equivalent(theta, phi);
+        }
+
         template<typename T, typename U, typename V, typename W>
         void load(T& func, U& func1, V& func2, W& func3)
         {
@@ -471,6 +512,8 @@ namespace metrics
             debiggen();
 
             abstract = stringify(raw);
+
+            is_spherical = is_polar_spherically_symmetric(raw.real_eq);
         }
 
         void debiggen()
@@ -568,7 +611,7 @@ namespace metrics
         ///so, if we find the sin^2 term phi, and substitute it for 1
         ///then theoretically, we can just check if dtheta == dphi
         ///only polar
-        bool is_polar_spherically_symmetric = false;
+       /* bool is_polar_spherically_symmetric = false;
 
         if(real_eq.size() == 4)
             is_polar_spherically_symmetric = in.metric_cfg.system == X_Y_THETA_PHI;
@@ -592,9 +635,11 @@ namespace metrics
             }
 
             is_polar_spherically_symmetric = no_offdiagonal_phi_components && in.metric_cfg.system == X_Y_THETA_PHI;
-        }
+        }*/
 
         //is_polar_spherically_symmetric = false;
+
+        bool is_polar_spherically_symmetric = in.metric_cfg.system == X_Y_THETA_PHI && in.desc.is_spherical;
 
         if(derivatives.size() == 16)
         {
