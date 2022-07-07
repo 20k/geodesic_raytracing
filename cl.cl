@@ -3370,8 +3370,13 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
             if(res == DS_SKIP)
                 continue;
         }
-
         #endif // ADAPTIVE_PRECISION
+
+        //if(dot(velocity, velocity) > 1000)
+        //    return;
+
+        if(fabs(velocity.x) > 1000)
+            return;
 
         position = next_position;
         //velocity = fix_light_velocity2(next_velocity, g_metric);
@@ -3382,6 +3387,11 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
         #ifdef RK4_GENERIC
         rk4_generic_big(&position, &velocity, &ds);
         #endif // RK4_GENERIC
+
+        /*if(sx == 1920/2 && sy == 1080/2)
+        {
+            printf("Pos %f %f %f %f vel %f %f %f %f\n", position.x, position.y, position.z, position.w, velocity.x, velocity.y, velocity.z, velocity.w);
+        }*/
 
         if(any(isnan(position)) || any(isnan(velocity)) || any(isnan(acceleration)))
         {
