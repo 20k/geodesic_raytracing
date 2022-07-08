@@ -1975,8 +1975,11 @@ int main(int argc, char* argv[])
                 {
                     generic_geodesic_count.set_to_zero(clctx.cqueue);
 
+                    int count_in = 1;
+
                     cl::args args;
                     args.push_back(g_camera_pos_polar);
+                    args.push_back(count_in);
                     args.push_back(generic_geodesic_buffer);
                     args.push_back(generic_geodesic_count);
 
@@ -1988,7 +1991,7 @@ int main(int argc, char* argv[])
                     args.push_back(g_geodesic_basis_speed);
                     args.push_back(dynamic_config);
 
-                    clctx.cqueue.exec("init_inertial_ray", args, {1}, {1});
+                    clctx.cqueue.exec("init_inertial_ray", args, {count_in}, {1});
                 }
 
                 geodesic_trace_buffer.set_to_zero(clctx.cqueue);

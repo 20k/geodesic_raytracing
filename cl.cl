@@ -2714,23 +2714,26 @@ struct lightray geodesic_to_trace_ray(float4 position, float4 velocity, dynamic_
 };
 
 __kernel
-void init_inertial_ray(__global float4* g_polar_camera_in,
+void init_inertial_ray(__global float4* g_polar_position_in, int ray_count,
                        __global struct lightray* metric_rays, __global int* metric_ray_count,
                        __global float4* e0, __global float4* e1, __global float4* e2, __global float4* e3,
                        __global float3* geodesic_basis_speed,
                        dynamic_config_space struct dynamic_config* cfg)
 {
-    if(get_global_id(0) != 0)
+    int id = get_global_id(0);
+
+    if(id >= ray_count)
         return;
 
-    float4 velocity = get_timelike_vector(*geodesic_basis_speed, 1, *e0, *e1, *e2, *e3);
+    float4 velocity = get_timelike_vector(geodesic_basis_speed[id], 1, e0[id], e1[id], e2[id], e3[id]);
 
-    float4 position = spherical_to_generic(*g_polar_camera_in, cfg);
+    float4 position = spherical_to_generic(g_polar_position_in[id], cfg);
 
     struct lightray trace = geodesic_to_trace_ray(position, velocity, cfg);
 
-    metric_rays[0] = trace;
-    *metric_ray_count = 1;
+    metric_rays[id] = trace;
+
+    atomic_inc(metric_ray_count);
 }
 
 __kernel
