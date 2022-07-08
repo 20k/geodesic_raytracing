@@ -229,6 +229,8 @@ void triangle_rendering::manager::build(cl::command_queue& cqueue, float acceler
     objects.alloc(sizeof(gpu_object) * gpu_objects.size());
     objects.write(cqueue, gpu_objects);
 
+    gpu_object_count = gpu_objects.size();
+
     tri_count = linear_tris.size();
 
     std::vector<std::pair<vec3f, int>> global_subtri_as_points;

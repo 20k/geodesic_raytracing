@@ -69,6 +69,7 @@ namespace triangle_rendering
         std::vector<std::shared_ptr<object>> cpu_objects;
 
         int tri_count = 0;
+        int gpu_object_count = 0;
         cl::buffer objects;
         cl::buffer tris;
 
