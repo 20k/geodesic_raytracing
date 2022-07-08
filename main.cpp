@@ -1086,7 +1086,7 @@ int main(int argc, char* argv[])
 
     triangle_rendering::manager tris(clctx.ctx);
 
-    for(int z=-5; z <= 5; z++)
+    /*for(int z=-5; z <= 5; z++)
     {
         for(int y=-5; y <= 5; y++)
         {
@@ -1103,7 +1103,10 @@ int main(int argc, char* argv[])
                 obj->pos = {0, x, y, z};
             }
         }
-    }
+    }*/
+
+    auto obj = tris.make_new("./models/newell_teaset/teapot.obj");
+    obj->pos = {0, -5, 0, 0};
 
     tris.build(clctx.cqueue, accel.offset_width / accel.offset_size.x());
 
