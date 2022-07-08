@@ -1,6 +1,13 @@
 #include "triangle_manager.hpp"
 #include "print.hpp"
 
+struct sub_point
+{
+    cl_float x, y, z;
+    cl_int parent;
+    cl_int object_parent;
+};
+
 std::array<subtriangle, 4> subtriangulate(const subtriangle& t)
 {
     vec3f v0 = t.get_vert(0);
@@ -125,8 +132,6 @@ void triangle_rendering::manager::build(cl::command_queue& cqueue, float acceler
     objects.write(cqueue, gpu_objects);
 
     tri_count = linear_tris.size();
-
-    using namespace impl;
 
     std::vector<std::pair<vec3f, int>> global_subtri_as_points;
 
