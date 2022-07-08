@@ -4926,20 +4926,23 @@ void render_intersections(__global struct intersection* in, __global int* cnt, _
     write_imagef(screen, pos, (float4)(1, 0, 0, 1));
 }
 
+///todo: make flip global
 __kernel
-void camera_cart_to_polar(__global float4* g_camera_pos_polar_out, __global float4* g_camera_pos_cart, float flip)
+void cart_to_polar_kernel(__global float4* position_cart_in, __global float4* position_polar_out, int count, float flip)
 {
-    if(get_global_id(0) != 0)
+    int id = get_global_id(0);
+
+    if(id >= count)
         return;
 
-    float3 cart = g_camera_pos_cart->yzw;
+    float3 cart = position_cart_in[id].yzw;
 
     float3 polar = cartesian_to_polar(cart);
 
     if(flip > 0)
         polar.x = -polar.x;
 
-    *g_camera_pos_polar_out = (float4)(g_camera_pos_cart->x, polar.xyz);
+    position_polar_out[id] = (float4)(position_cart_in[id].x, polar.xyz);
 }
 
 __kernel
