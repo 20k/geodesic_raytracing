@@ -3686,10 +3686,10 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                                 float4 parent_pos = parent->pos;
 
-                                float3 pdiff = parent_pos.yzw - rt_pos.yzw;
+                                /*float3 pdiff = parent_pos.yzw - rt_pos.yzw;
 
                                 if(dot(pdiff, pdiff) > 5)
-                                    continue;
+                                    continue;*/
 
                                 float3 v0_pos = {ctri->v0x, ctri->v0y, ctri->v0z};
                                 float3 v1_pos = {ctri->v1x, ctri->v1y, ctri->v1z};
