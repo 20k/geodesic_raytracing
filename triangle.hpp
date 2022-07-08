@@ -1,6 +1,8 @@
 #ifndef TRIANGLE_HPP_INCLUDED
 #define TRIANGLE_HPP_INCLUDED
 
+#include <vec/vec.hpp>
+
 ///so: core assumption, triangles are not smeared across diferent times
 ///when objects come, each object will have its own unique time coordinate
 struct triangle

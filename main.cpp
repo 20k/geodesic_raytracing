@@ -687,44 +687,6 @@ std::vector<triangle> make_cube(vec3f pos)
     return tris;
 }
 
-std::array<subtriangle, 4> subtriangulate(const subtriangle& t)
-{
-    vec3f v0 = t.get_vert(0);
-    vec3f v1 = t.get_vert(1);
-    vec3f v2 = t.get_vert(2);
-
-    vec3f h01 = (v0 + v1)/2;
-    vec3f h12 = (v1 + v2)/2;
-    vec3f h20 = (v2 + v0)/2;
-
-    std::array<subtriangle, 4> res;
-
-    for(subtriangle& o : res)
-    {
-        o.parent = t.parent;
-    }
-
-    std::vector<vec3f> st0 = {v0, h01, h20};
-    std::vector<vec3f> st1 = {v1, h12, h01};
-    std::vector<vec3f> st2 = {v2, h20, h12};
-    std::vector<vec3f> st3 = {h01, h12, h20};
-
-    for(int i=0; i < 3; i++)
-    {
-        res[0].set_vert(i, st0[i]);
-        res[1].set_vert(i, st1[i]);
-        res[2].set_vert(i, st2[i]);
-        res[3].set_vert(i, st3[i]);
-    }
-
-    return res;
-}
-
-struct sub_point
-{
-    cl_float x, y, z;
-    int parent;
-};
 
 ///i need the ability to have dynamic parameters
 int main(int argc, char* argv[])

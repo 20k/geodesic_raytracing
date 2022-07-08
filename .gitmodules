@@ -19,3 +19,6 @@
 [submodule "deps/imgui"]
 	path = deps/imgui
 	url = https://github.com/20k/imgui-fork
+[submodule "deps/tinyobjloader"]
+	path = deps/tinyobjloader
+	url = https://github.com/tinyobjloader/tinyobjloader
