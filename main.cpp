@@ -1107,6 +1107,7 @@ int main(int argc, char* argv[])
 
     auto obj = tris.make_new("./models/newell_teaset/teapot.obj");
     obj->pos = {0, -5, 0, 0};
+    obj->scale = 0.25f;
 
     tris.build(clctx.cqueue, accel.offset_width / accel.offset_size.x());
 
