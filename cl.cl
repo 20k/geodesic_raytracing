@@ -1,5 +1,10 @@
 #define M_PIf ((float)M_PI)
 
+struct object
+{
+    float4 pos;
+};
+
 float3 cartesian_to_polar(float3 in)
 {
     float r = length(in);
@@ -2542,6 +2547,61 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
     }
 }
 
+__kernel void push_object_positions(__global float4* geodesics_in, __global int* counts_in, __global struct object* pos_out, float target_time, int object_count, dynamic_config_space struct dynamic_config* cfg)
+{
+    int id = get_global_id(0);
+
+    if(id >= object_count)
+        return;
+
+    int path_length = counts_in[id];
+
+    if(path_length == 0)
+        return;
+
+    __global struct object* my_obj = &pos_out[id];
+
+    my_obj->pos = generic_to_cartesian(geodesics_in[id], cfg);
+
+    if(path_length == 1)
+        return;
+
+    for(int i=0; i < path_length - 1; i++)
+    {
+        float4 current_pos = geodesics_in[i * object_count + id];
+        float4 next_pos = geodesics_in[(i + 1) * object_count + id];
+
+        if(next_pos.x < current_pos.x)
+        {
+            float4 im = current_pos;
+            current_pos = next_pos;
+            next_pos = im;
+        }
+
+        if(target_time >= current_pos.x && target_time < next_pos.x || target_time < current_pos.x)
+        {
+            float dx = (target_time - current_pos.x) / (next_pos.x - current_pos.x);
+
+            if(target_time < current_pos.x)
+                dx = 0;
+
+            float4 spherical1 = generic_to_spherical(current_pos, cfg);
+            float4 spherical2 = generic_to_spherical(next_pos, cfg);
+
+            float4 fin_polar = mix_spherical(spherical1, spherical2, dx);
+
+            float3 fin_cart = cartesian_to_polar(fin_polar.yzw);
+
+            float4 out_pos = (float4)(fin_polar.x, fin_cart.xyz);
+
+            my_obj->pos = out_pos;
+            return;
+        }
+    }
+
+    my_obj->pos = generic_to_cartesian(geodesics_in[(path_length - 1) * object_count + id], cfg);
+}
+
 struct corrected_lightray
 {
     float4 position;
@@ -3328,11 +3388,6 @@ int3 loop_voxel(int3 in, int width_num)
 
     return in;
 }
-
-struct object
-{
-    float4 pos;
-};
 
 __kernel void pull_to_geodesics(__global struct object* current_pos, __global float4* geodesic_out, int max_path_length, int object_count)
 {
