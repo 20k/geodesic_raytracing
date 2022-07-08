@@ -139,6 +139,8 @@
 		</Unit>
 		<Unit filename="deps/quickjs_cpp/quickjs_cpp.cpp" />
 		<Unit filename="deps/quickjs_cpp/quickjs_cpp.hpp" />
+		<Unit filename="deps/tinyobjloader/tiny_obj_loader.cc" />
+		<Unit filename="deps/tinyobjloader/tiny_obj_loader.h" />
 		<Unit filename="deps/toolkit/base_serialisables.cpp" />
 		<Unit filename="deps/toolkit/base_serialisables.hpp" />
 		<Unit filename="deps/toolkit/clipboard.cpp" />
