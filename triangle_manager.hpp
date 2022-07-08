@@ -18,6 +18,7 @@ namespace triangle_rendering
         float scale = 1;
 
         int gpu_offset = -1;
+        int physics_offset = -1;
 
         void set_pos(vec4f in)
         {
