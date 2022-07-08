@@ -1747,15 +1747,13 @@ int main(int argc, char* argv[])
             {
                 {
                     int count = 1;
+                    cl_float clflip = flip_sign;
 
                     cl::args args;
 
                     args.push_back(g_camera_pos_cart);
                     args.push_back(g_camera_pos_polar);
                     args.push_back(count);
-
-                    cl_float clflip = flip_sign;
-
                     args.push_back(clflip);
 
                     clctx.cqueue.exec("cart_to_polar_kernel", args, {1}, {1});
