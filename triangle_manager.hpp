@@ -83,6 +83,7 @@ namespace triangle_rendering
         }
 
         std::shared_ptr<object> make_new();
+        ///split into dir and name
         std::shared_ptr<object> make_new(const std::string& model_name);
 
         void build(cl::command_queue& cqueue, float acceleration_voxel_size);
