@@ -1961,7 +1961,7 @@ int main(int argc, char* argv[])
                 intersect_args.push_back(gpu_intersections_count);
                 intersect_args.push_back(rtex);
 
-                next = clctx.cqueue.exec("render_intersections", intersect_args, {width * height}, {256});
+                clctx.cqueue.exec("render_intersections", intersect_args, {width * height}, {256});
             }
 
             /*{
