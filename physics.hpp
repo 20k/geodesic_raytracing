@@ -25,7 +25,7 @@ __kernel void pull(__global struct object* current_pos, __global float4* geodesi
 struct physics
 {
     int max_path_length = 16000;
-    cl::buffer geodesics;
+    cl::buffer geodesic_paths;
     cl::buffer positions;
     cl::buffer counts;
     cl::buffer basis_speeds;
@@ -41,7 +41,7 @@ struct physics
 
     int object_count = 0;
 
-    physics(cl::context& ctx) : geodesics(ctx), positions(ctx), counts(ctx), basis_speeds(ctx),
+    physics(cl::context& ctx) : geodesic_paths(ctx), positions(ctx), counts(ctx), basis_speeds(ctx),
                                 gpu_object_count(ctx),
                                 tetrads{ctx, ctx, ctx, ctx}, polar_positions(ctx), timelike_vectors(ctx),
                                 prog(ctx, pull_kernel, false)
@@ -56,7 +56,7 @@ struct physics
         object_count = manage.gpu_object_count;
 
         ///need to pull geodesic initial position from gpu tris
-        geodesics.alloc(manage.gpu_object_count * sizeof(cl_float4) * max_path_length);
+        geodesic_paths.alloc(manage.gpu_object_count * sizeof(cl_float4) * max_path_length);
         positions.alloc(manage.gpu_object_count * sizeof(cl_float4));
         counts.alloc(manage.gpu_object_count * sizeof(cl_int));
         basis_speeds.alloc(manage.gpu_object_count * sizeof(cl_float3));
@@ -137,6 +137,21 @@ struct physics
             args.push_back(dynamic_config);
 
             cqueue.exec("init_inertial_ray", args, {object_count}, {256});
+        }
+
+        {
+            cl::args snapshot_args;
+            snapshot_args.push_back(timelike_vectors);
+            snapshot_args.push_back(geodesic_paths);
+            snapshot_args.push_back(nullptr); // velocity
+            snapshot_args.push_back(nullptr); // dT_ds
+            snapshot_args.push_back(nullptr); // ds
+            snapshot_args.push_back(gpu_object_count);
+            snapshot_args.push_back(max_path_length);
+            snapshot_args.push_back(dynamic_config);
+            snapshot_args.push_back(counts);
+
+            cqueue.exec("get_geodesic_path", snapshot_args, {object_count}, {256});
         }
     }
 };
