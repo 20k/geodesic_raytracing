@@ -4026,9 +4026,16 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         acceleration = next_acceleration;
 
         positions_out[bufc * stride_out + id] = generic_position_out;
-        velocities_out[bufc * stride_out + id] = generic_velocity_out;
-        dT_ds_out[bufc * stride_out + id] = dT_ds;
-        ds_out[bufc * stride_out + id] = ds;
+
+        if(velocities_out)
+            velocities_out[bufc * stride_out + id] = generic_velocity_out;
+
+        if(dT_ds_out)
+            dT_ds_out[bufc * stride_out + id] = dT_ds;
+
+        if(ds_out)
+            ds_out[bufc * stride_out + id] = ds;
+
         bufc++;
 
         if(should_break)
