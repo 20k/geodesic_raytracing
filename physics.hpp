@@ -35,7 +35,7 @@ struct physics
         ctx.register_program(prog);
     }
 
-    void setup(cl::command_queue, triangle_rendering::manager& manage)
+    void setup(cl::command_queue& cqueue, triangle_rendering::manager& manage)
     {
         ///need to pull geodesic initial position from gpu tris
         geodesics.alloc(manage.gpu_object_count * sizeof(cl_float4) * max_path_length);
