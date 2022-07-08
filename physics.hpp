@@ -18,7 +18,7 @@ __kernel void pull(__global struct object* current_pos, __global float4* geodesi
     if(id >= object_count)
         return;
 
-    geodesic_out[0 * max_path_length + id] = current_pos[id].pos;
+    geodesic_out[0 * object_count + id] = current_pos[id].pos;
 }
 )";
 
