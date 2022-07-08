@@ -1991,8 +1991,6 @@ int main(int argc, char* argv[])
                     clctx.cqueue.exec("init_inertial_ray", args, {1}, {1});
                 }
 
-                int idx = 0;
-
                 geodesic_trace_buffer.set_to_zero(clctx.cqueue);
                 geodesic_dT_ds_buffer.set_to_zero(clctx.cqueue);
                 geodesic_count_buffer.set_to_zero(clctx.cqueue);
@@ -2006,9 +2004,6 @@ int main(int argc, char* argv[])
                 snapshot_args.push_back(geodesic_dT_ds_buffer);
                 snapshot_args.push_back(geodesic_ds_buffer);
                 snapshot_args.push_back(generic_geodesic_count);
-                snapshot_args.push_back(idx);
-                snapshot_args.push_back(width);
-                snapshot_args.push_back(height);
                 snapshot_args.push_back(g_camera_pos_polar);
                 snapshot_args.push_back(g_camera_quat);
 
