@@ -3376,8 +3376,10 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
         }
         #endif // ADAPTIVE_PRECISION
 
+        #ifndef UNCONDITIONALLY_NONSINGULAR
         if(fabs(velocity.x) > 1000 + f_in_x && fabs(acceleration.x) > 100)
             return;
+        #endif // UNCONDITIONALLY_NONSINGULAR
 
         position = next_position;
         //velocity = fix_light_velocity2(next_velocity, g_metric);

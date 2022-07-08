@@ -278,6 +278,8 @@ namespace metrics
 
         std::string inherit_settings;
 
+        bool unconditionally_nonsingular = false;
+
         void load(nlohmann::json& js)
         {
             for(auto& [key, value] : js.items())
@@ -343,6 +345,9 @@ namespace metrics
 
                 else if(key == "cylindrical_terminator")
                     cylindrical_terminator = value;
+
+                else if(key == "unconditionally_nonsingular")
+                    unconditionally_nonsingular = value;
 
                 else
                     std::cout << "Warning, unknown key name " << key << std::endl;
@@ -633,6 +638,11 @@ namespace metrics
 
         bool is_polar_spherically_symmetric = in.metric_cfg.system == X_Y_THETA_PHI && in.desc.is_spherical;
 
+        if(is_polar_spherically_symmetric)
+        {
+            print("Metric is spherically symmetric\n");
+        }
+
         if(derivatives.size() == 16)
         {
             for(int j=0; j < 4; j++)
@@ -757,6 +767,11 @@ namespace metrics
         {
             argument_string += " -DHAS_CYLINDRICAL_SINGULARITY";
             argument_string += " -DCYLINDRICAL_TERMINATOR=" + std::to_string(in.metric_cfg.cylindrical_terminator);
+        }
+
+        if(in.metric_cfg.unconditionally_nonsingular)
+        {
+            argument_string += " -DUNCONDITIONALLY_NONSINGULAR";
         }
 
         if(cfg.redshift)

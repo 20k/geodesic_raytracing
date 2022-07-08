@@ -5,5 +5,6 @@
 	"max_acceleration_change": 0.00001,
 	"inherit_settings": "cartesian_base",
 	"origin_distance": "alcubierre_origin",
+	"unconditionally_nonsingular": true,
 	"description": "The alcubierre warp drive\nThis can be hard to find so try exploring with the camera, as well as changing the camera time\nIncreasing the universe size is also a good idea\nThe redshift option displays some unusual shifting"
 }
