@@ -2282,27 +2282,29 @@ void boost_tetrad(__global float4* polar_position, __global float3* geodesic_bas
 }
 
 __kernel
-void init_basis_vectors(__global float4* g_polar_camera_in, __global float4* g_camera_quat,
+void init_basis_vectors(__global float4* polar_in, int count,
                         float3 cartesian_basis_speed,
                         __global float4* e0_out, __global float4* e1_out, __global float4* e2_out, __global float4* e3_out,
                         dynamic_config_space struct dynamic_config* cfg)
 {
-    if(get_global_id(0) != 0)
+    int id = get_global_id(0);
+
+    if(id >= count)
         return;
 
-    float4 polar_camera_in = *g_polar_camera_in;
+    float4 polar = polar_in[id];
 
     float4 e0;
     float4 e1;
     float4 e2;
     float4 e3;
 
-    calculate_tetrads(polar_camera_in, cartesian_basis_speed, &e0, &e1, &e2, &e3, cfg, 1);
+    calculate_tetrads(polar, cartesian_basis_speed, &e0, &e1, &e2, &e3, cfg, 1);
 
-    *e0_out = e0;
-    *e1_out = e1;
-    *e2_out = e2;
-    *e3_out = e3;
+    e0_out[id] = e0;
+    e1_out[id] = e1;
+    e2_out[id] = e2;
+    e3_out[id] = e3;
 }
 
 float4 mix_spherical(float4 in1, float4 in2, float a)

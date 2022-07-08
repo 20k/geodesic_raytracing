@@ -1762,9 +1762,11 @@ int main(int argc, char* argv[])
                 }
 
                 {
+                    int count = 1;
+
                     cl::args tetrad_args;
                     tetrad_args.push_back(g_camera_pos_polar);
-                    tetrad_args.push_back(g_camera_quat);
+                    tetrad_args.push_back(count);
                     tetrad_args.push_back(cartesian_basis_speed);
 
                     for(int i=0; i < 4; i++)
