@@ -88,7 +88,7 @@ namespace metrics
         template<typename Func>
         metric_info(Func&& f)
         {
-            auto [v_met, v_partials] = evaluate_metric2D(f, "p1", "p2", "p3", "p4");
+            auto [v_met, v_partials] = evaluate_metric2D(f, "v1", "v2", "v3", "v4");
 
             assert(v_met.size() == 16);
             assert(v_partials.size() == 64);
@@ -134,7 +134,7 @@ namespace metrics
     inline
     tensor<value, 4> calculate_acceleration(metric_info& inf)
     {
-        tensor<value, 4> velocity = {"v1", "v2", "v3", "v4"};
+        tensor<value, 4> velocity = {"iv1", "iv2", "iv3", "iv4"};
 
         if(inf.is_diagonal())
         {

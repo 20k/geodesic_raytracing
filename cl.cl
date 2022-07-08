@@ -3062,19 +3062,21 @@ void step_verlet(float4 position, float4 velocity, float4 acceleration, bool alw
 
     ///handles always_lightlike on the cpu side
     {
-        float p1 = next_position.x;
-        float p2 = next_position.y;
-        float p3 = next_position.z;
-        float p4 = next_position.w;
+        float v1 = next_position.x;
+        float v2 = next_position.y;
+        float v3 = next_position.z;
+        float v4 = next_position.w;
 
-        float v1 = intermediate_next_velocity.x;
-        float v2 = intermediate_next_velocity.y;
-        float v3 = intermediate_next_velocity.z;
-        float v4 = intermediate_next_velocity.w;
+        float iv1 = intermediate_next_velocity.x;
+        float iv2 = intermediate_next_velocity.y;
+        float iv3 = intermediate_next_velocity.z;
+        float iv4 = intermediate_next_velocity.w;
+
+        float TEMPORARIES0;
 
         #ifdef GENERIC_CONSTANT_THETA
-        p3 = M_PI/2;
-        v3 = 0;
+        v3 = M_PI/2;
+        iv3 = 0;
         #endif // GENERIC_CONSTANT_THETA
 
         next_acceleration.x = GEO_ACCEL0;
