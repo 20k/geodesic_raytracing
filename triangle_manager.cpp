@@ -128,11 +128,11 @@ std::vector<triangle> load_tris_from_model(const std::string& model_name)
 
     auto& attrib = reader.GetAttrib();
     auto& shapes = reader.GetShapes();
-    auto& materials = reader.GetMaterials();
+    //auto& materials = reader.GetMaterials();
+
+    std::vector<triangle> ret;
 
     // Loop over shapes
-    //for(size_t s = 0; s < shapes.size(); s++)
-
     for(const tinyobj::shape_t& s : shapes)
     {
         // Loop over faces(polygon)
@@ -140,6 +140,11 @@ std::vector<triangle> load_tris_from_model(const std::string& model_name)
 
         for(size_t fv : s.mesh.num_face_vertices)
         {
+            if(fv != 3)
+                throw std::runtime_error("Must be used with triangulation");
+
+            triangle tri;
+
             // Loop over vertices in the face.
             for(size_t v = 0; v < fv; v++)
             {
@@ -148,6 +153,8 @@ std::vector<triangle> load_tris_from_model(const std::string& model_name)
                 tinyobj::real_t vx = attrib.vertices[3*size_t(idx.vertex_index)+0];
                 tinyobj::real_t vy = attrib.vertices[3*size_t(idx.vertex_index)+1];
                 tinyobj::real_t vz = attrib.vertices[3*size_t(idx.vertex_index)+2];
+
+                tri.set_vert(v, {vx, vy, vz});
 
                 // Check if `normal_index` is zero or positive. negative = no normal data
                 /*if(idx.normal_index >= 0)
@@ -170,17 +177,23 @@ std::vector<triangle> load_tris_from_model(const std::string& model_name)
                 // tinyobj::real_t blue  = attrib.colors[3*size_t(idx.vertex_index)+2];
             }
 
+            ret.push_back(tri);
+
             index_offset += fv;
 
             // per-face material
             //shapes[s].mesh.material_ids[f];
         }
     }
+
+    return ret;
 }
 
 std::shared_ptr<triangle_rendering::object> triangle_rendering::manager::make_new(const std::string& model_name)
 {
     std::shared_ptr<object> obj = std::make_shared<object>();
+
+    obj->tris = load_tris_from_model(model_name);
 
     cpu_objects.push_back(obj);
 
