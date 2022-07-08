@@ -28,18 +28,27 @@ struct physics
     cl::buffer geodesics;
     cl::buffer positions;
     cl::buffer counts;
+    cl::buffer basis_speeds;
+
+    cl::buffer gpu_object_count;
 
     std::array<cl::buffer, 4> tetrads;
     cl::buffer polar_positions;
+    cl::buffer timelike_vectors;
 
     cl::program prog;
     cl::kernel pull;
 
     int object_count = 0;
 
-    physics(cl::context& ctx) : geodesics(ctx), positions(ctx), counts(ctx), tetrads{ctx, ctx, ctx, ctx}, polar_positions(ctx), prog(ctx, pull_kernel, false)
+    physics(cl::context& ctx) : geodesics(ctx), positions(ctx), counts(ctx), basis_speeds(ctx),
+                                gpu_object_count(ctx),
+                                tetrads{ctx, ctx, ctx, ctx}, polar_positions(ctx), timelike_vectors(ctx),
+                                prog(ctx, pull_kernel, false)
     {
         ctx.register_program(prog);
+
+        gpu_object_count.alloc(sizeof(cl_int));
     }
 
     void setup(cl::command_queue& cqueue, triangle_rendering::manager& manage)
@@ -50,6 +59,8 @@ struct physics
         geodesics.alloc(manage.gpu_object_count * sizeof(cl_float4) * max_path_length);
         positions.alloc(manage.gpu_object_count * sizeof(cl_float4));
         counts.alloc(manage.gpu_object_count * sizeof(cl_int));
+        basis_speeds.alloc(manage.gpu_object_count * sizeof(cl_float3));
+        basis_speeds.set_to_zero(cqueue);
 
         for(int i=0; i < 4; i++)
         {
@@ -57,6 +68,7 @@ struct physics
         }
 
         polar_positions.alloc(manage.gpu_object_count * sizeof(cl_float4));
+        timelike_vectors.alloc(manage.gpu_object_count * 1024); ///approximate because don't want to import gpu lightray definition
 
         counts.set_to_zero(cqueue);
 
@@ -96,14 +108,35 @@ struct physics
             tetrad_args.push_back(polar_positions);
             tetrad_args.push_back(cartesian_basis_speed);
 
-            for(int i=0; i < 4; i++)
+            for(auto& i : tetrads)
             {
-                tetrad_args.push_back(tetrads[i]);
+                tetrad_args.push_back(i);
             }
 
             tetrad_args.push_back(dynamic_config);
 
             cqueue.exec("init_basis_vectors", tetrad_args, {object_count}, {256});
+        }
+
+        ///would boost here if we were going to
+        {
+            gpu_object_count.set_to_zero(cqueue);
+
+            cl::args args;
+            args.push_back(polar_positions);
+            args.push_back(object_count);
+            args.push_back(timelike_vectors);
+            args.push_back(gpu_object_count);
+
+            for(auto& i : tetrads)
+            {
+                args.push_back(i);
+            }
+
+            args.push_back(basis_speeds);
+            args.push_back(dynamic_config);
+
+            cqueue.exec("init_inertial_ray", args, {object_count}, {256});
         }
     }
 };
