@@ -3911,6 +3911,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
 
     float rs = 1;
 
+    int stride_out = *generic_count_in;
     int bufc = 0;
 
     //#pragma unroll
@@ -4024,21 +4025,17 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         velocity = next_velocity;
         acceleration = next_acceleration;
 
-        ///need to array-ify
-        positions_out[bufc] = generic_position_out;
-        velocities_out[bufc] = generic_velocity_out;
-        dT_ds_out[bufc] = dT_ds;
-        ds_out[bufc] = ds;
+        positions_out[bufc * stride_out + id] = generic_position_out;
+        velocities_out[bufc * stride_out + id] = generic_velocity_out;
+        dT_ds_out[bufc * stride_out + id] = dT_ds;
+        ds_out[bufc * stride_out + id] = ds;
         bufc++;
 
         if(should_break)
-        {
-            *count_out = bufc;
-            return;
-        }
+            break;
     }
 
-    *count_out = bufc;
+    count_out[id] = bufc;
 }
 
 #ifdef DEVICE_SIDE_ENQUEUE
