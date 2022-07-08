@@ -28,16 +28,6 @@ namespace triangle_rendering
         bool dirty = false;
     };
 
-    namespace impl
-    {
-        struct sub_point
-        {
-            cl_float x, y, z;
-            cl_int parent;
-            cl_int object_parent;
-        };
-    }
-
     struct gpu_object
     {
         vec4f pos;
