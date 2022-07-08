@@ -11,14 +11,14 @@ struct object
     float4 pos;
 };
 
-__kernel void pull(__global struct object* current_pos, __global float4* geodesic_out, int max_path_length, int object_count)
+__kernel void pull(__global struct object* current_pos, __global float4* geodesic_out, int object_count)
 {
     int id = get_global_id(0);
 
     if(id >= object_count)
         return;
 
-    geodesic_out[0 * object_count + id] = current_pos[id].pos;
+    geodesic_out[id] = current_pos[id].pos;
 }
 )";
 
@@ -26,11 +26,13 @@ struct physics
 {
     int max_path_length = 16000;
     cl::buffer geodesics;
+    cl::buffer positions;
+    cl::buffer counts;
 
     cl::program prog;
     cl::kernel pull;
 
-    physics(cl::context& ctx) : geodesics(ctx), prog(ctx, pull_kernel, false)
+    physics(cl::context& ctx) : geodesics(ctx), positions(ctx), counts(ctx), prog(ctx, pull_kernel, false)
     {
         ctx.register_program(prog);
     }
@@ -39,6 +41,10 @@ struct physics
     {
         ///need to pull geodesic initial position from gpu tris
         geodesics.alloc(manage.gpu_object_count * sizeof(cl_float4) * max_path_length);
+        positions.alloc(manage.gpu_object_count * sizeof(cl_float4));
+        counts.alloc(manage.gpu_object_count * sizeof(cl_int));
+
+        counts.set_to_zero(cqueue);
 
         init_positions(cqueue, manage);
     }
@@ -47,8 +53,7 @@ struct physics
     {
         cl::args args;
         args.push_back(manage.objects);
-        args.push_back(geodesics);
-        args.push_back(max_path_length);
+        args.push_back(positions);
         args.push_back(manage.gpu_object_count);
 
         cqueue.exec("pull", args, {manage.gpu_object_count}, {256});
@@ -56,7 +61,7 @@ struct physics
 
     void trace(cl::command_queue& cqueue)
     {
-
+        counts.set_to_zero(cqueue);
     }
 };
 
