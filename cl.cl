@@ -4024,6 +4024,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         velocity = next_velocity;
         acceleration = next_acceleration;
 
+        ///need to array-ify
         positions_out[bufc] = generic_position_out;
         velocities_out[bufc] = generic_velocity_out;
         dT_ds_out[bufc] = dT_ds;
