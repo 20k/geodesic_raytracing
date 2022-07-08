@@ -3864,6 +3864,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
                        __global float* dT_ds_out,
                        __global float* ds_out,
                        __global int* generic_count_in,
+                       int max_path_length,
                        dynamic_config_space struct dynamic_config* cfg, __global int* count_out)
 {
     int id = get_global_id(0);
@@ -3910,7 +3911,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
     int bufc = 0;
 
     //#pragma unroll
-    for(int i=0; i < 64000; i++)
+    for(int i=0; i < max_path_length; i++)
     {
         #ifdef IS_CONSTANT_THETA
         position.z = M_PIf/2;

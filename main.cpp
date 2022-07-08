@@ -2005,6 +2005,7 @@ int main(int argc, char* argv[])
                 snapshot_args.push_back(geodesic_ds_buffer);
                 snapshot_args.push_back(generic_geodesic_count);
 
+                snapshot_args.push_back(max_trace_length);
                 snapshot_args.push_back(dynamic_config);
                 snapshot_args.push_back(geodesic_count_buffer);
 
