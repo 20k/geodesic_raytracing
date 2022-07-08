@@ -3864,7 +3864,6 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
                        __global float* dT_ds_out,
                        __global float* ds_out,
                        __global int* generic_count_in,
-                       __global float4* g_polar_camera_pos, __global float4* g_camera_quat,
                        dynamic_config_space struct dynamic_config* cfg, __global int* count_out)
 {
     int id = get_global_id(0);
@@ -3873,9 +3872,6 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         return;
 
     __global struct lightray* ray = &generic_rays_in[id];
-
-    float4 polar_camera_pos = *g_polar_camera_pos;
-    float4 camera_quat = *g_camera_quat;
 
     float4 position = ray->position;
     float4 velocity = ray->velocity;
