@@ -4012,6 +4012,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         }
         #endif
 
+        ///in the event that velocity and acceleration is 0, it'd be ideal to have a fast path
         if(any(isnan(next_position)) || any(isnan(next_velocity)) || any(isnan(next_acceleration)))
             break;
 
