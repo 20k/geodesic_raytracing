@@ -7,9 +7,9 @@ std::array<subtriangle, 4> subtriangulate(const subtriangle& t)
     vec3f v1 = t.get_vert(1);
     vec3f v2 = t.get_vert(2);
 
-    vec3f h01 = (v0 + v1)/2;
-    vec3f h12 = (v1 + v2)/2;
-    vec3f h20 = (v2 + v0)/2;
+    vec3f h01 = (v0 + v1)/2.f;
+    vec3f h12 = (v1 + v2)/2.f;
+    vec3f h20 = (v2 + v0)/2.f;
 
     std::array<subtriangle, 4> res;
 
@@ -209,5 +209,70 @@ void triangle_rendering::manager::update_objects(cl::command_queue& cqueue)
         obj->dirty = false;
 
         acceleration_needs_rebuild = true;
+    }
+}
+
+triangle_rendering::acceleration::acceleration(cl::context& ctx) : offsets(ctx), counts(ctx), memory(ctx), memory_count(ctx)
+{
+    memory_count.alloc(sizeof(cl_int));
+
+    int cells = offset_size.x() * offset_size.y() * offset_size.z();
+
+    offsets.alloc(sizeof(cl_int) * cells);
+    counts.alloc(sizeof(cl_int) * cells);
+    memory.alloc(1024 * 1024 * 128 * sizeof(cl_int));
+}
+
+void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager& tris)
+{
+    if(!tris.acceleration_needs_rebuild)
+        return;
+
+    tris.acceleration_needs_rebuild = false;
+
+    memory_count.set_to_zero(cqueue);
+
+    {
+        cl::args aclear;
+        aclear.push_back(counts);
+        aclear.push_back(offset_size.x());
+
+        cqueue.exec("clear_accel_counts", aclear, {offset_size.x(), offset_size.y(), offset_size.z()}, {8, 8, 1});
+    }
+
+    {
+        cl::args count_args;
+        count_args.push_back(tris.fill_points);
+        count_args.push_back(tris.fill_point_count);
+        count_args.push_back(tris.objects);
+        count_args.push_back(counts);
+        count_args.push_back(offset_width);
+        count_args.push_back(offset_size.x());
+
+        cqueue.exec("generate_acceleration_counts", count_args, {tris.fill_point_count}, {256});
+    }
+
+    {
+        cl::args accel;
+        accel.push_back(offsets);
+        accel.push_back(counts);
+        accel.push_back(offset_size.x());
+        accel.push_back(memory_count);
+
+        cqueue.exec("alloc_acceleration", accel, {offset_size.x(), offset_size.y(), offset_size.z()}, {8, 8, 1});
+    }
+
+    {
+        cl::args gen;
+        gen.push_back(tris.fill_points);
+        gen.push_back(tris.fill_point_count);
+        gen.push_back(tris.objects);
+        gen.push_back(offsets);
+        gen.push_back(counts);
+        gen.push_back(memory);
+        gen.push_back(offset_width);
+        gen.push_back(offset_size.x());
+
+        cqueue.exec("generate_acceleration_data", gen, {tris.fill_point_count}, {256});
     }
 }
