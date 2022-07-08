@@ -3329,6 +3329,16 @@ struct object
     float4 pos;
 };
 
+__kernel void pull_to_geodesics(__global struct object* current_pos, __global float4* geodesic_out, int max_path_length, int object_count)
+{
+    int id = get_global_id(0);
+
+    if(id >= object_count)
+        return;
+
+    geodesic_out[0 * max_path_length + id] = current_pos[id].pos;
+}
+
 __kernel
 void clear_accel_counts(__global int* offset_counts, int width_num)
 {

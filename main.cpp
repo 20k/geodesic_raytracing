@@ -26,6 +26,7 @@
 #include "print.hpp"
 #include "triangle.hpp"
 #include "triangle_manager.hpp"
+#include "physics.hpp"
 //#include "dual_complex.hpp"
 
 /**
