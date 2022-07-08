@@ -36,6 +36,26 @@ struct triangle
             v2z = pos.z();
         }
     }
+
+    vec3f get_vert(int which) const
+    {
+        if(which == 0)
+        {
+            return {v0x, v0y, v0z};
+        }
+
+        if(which == 1)
+        {
+            return {v1x, v1y, v1z};
+        }
+
+        if(which == 2)
+        {
+            return {v2x, v2y, v2z};
+        }
+
+        assert(false);
+    }
 };
 
 struct subtriangle

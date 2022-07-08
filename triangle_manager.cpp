@@ -216,7 +216,8 @@ void triangle_rendering::manager::build(cl::command_queue& cqueue, float acceler
             t.parent = parent;
         }
 
-        linear_tris.insert(linear_tris.end(), i->tris.begin(), i->tris.end());
+        auto with_scale = i->get_tris_with_scale();
+        linear_tris.insert(linear_tris.end(), with_scale.begin(), with_scale.end());
 
         gpu_object obj(*i);
 
@@ -236,7 +237,7 @@ void triangle_rendering::manager::build(cl::command_queue& cqueue, float acceler
 
     for(auto& i : cpu_objects)
     {
-        std::vector<subtriangle> sub = triangulate_those_bigger_than(i->tris, acceleration_voxel_size);
+        std::vector<subtriangle> sub = triangulate_those_bigger_than(i->get_tris_with_scale(), acceleration_voxel_size);
 
         std::vector<std::pair<vec3f, int>> local_subtri_as_points;
 

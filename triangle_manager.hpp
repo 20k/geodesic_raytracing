@@ -15,6 +15,7 @@ namespace triangle_rendering
     {
         vec4f pos;
         std::vector<triangle> tris;
+        float scale = 1;
 
         int gpu_offset = -1;
 
@@ -26,6 +27,31 @@ namespace triangle_rendering
         }
 
         bool dirty = false;
+
+        std::vector<triangle> get_tris_with_scale()
+        {
+            if(scale == 1)
+                return tris;
+
+            auto ret = tris;
+
+            for(triangle& t : ret)
+            {
+                vec3f v0 = t.get_vert(0);
+                vec3f v1 = t.get_vert(1);
+                vec3f v2 = t.get_vert(2);
+
+                v0 *= scale;
+                v1 *= scale;
+                v2 *= scale;
+
+                t.set_vert(0, v0);
+                t.set_vert(1, v1);
+                t.set_vert(2, v2);
+            }
+
+            return ret;
+        }
     };
 
     struct gpu_object
