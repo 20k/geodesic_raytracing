@@ -1112,6 +1112,9 @@ int main(int argc, char* argv[])
 
     tris.build(clctx.cqueue, accel.offset_width / accel.offset_size.x());
 
+    physics phys(clctx.ctx);
+    phys.setup(clctx.cqueue, tris);
+
     print("Pre main\n");
 
     cl::buffer gpu_intersections(clctx.ctx);
@@ -1801,6 +1804,10 @@ int main(int argc, char* argv[])
 
             {
                 tris.update_objects(clctx.cqueue);
+
+                phys.trace(clctx.cqueue, tris, dynamic_config);
+                phys.push_object_positions(clctx.cqueue, tris, dynamic_config, set_camera_time);
+
                 accel.build(clctx.cqueue, tris);
             }
 
