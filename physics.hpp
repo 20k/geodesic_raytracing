@@ -154,6 +154,19 @@ struct physics
             cqueue.exec("get_geodesic_path", snapshot_args, {object_count}, {256});
         }
     }
+
+    void push_object_positions(cl::command_queue& cqueue, triangle_rendering::manager& manage, cl::buffer& dynamic_config, float target_time)
+    {
+        cl::args args;
+        args.push_back(geodesic_paths);
+        args.push_back(counts);
+        args.push_back(manage.objects);
+        args.push_back(target_time);
+        args.push_back(object_count);
+        args.push_back(dynamic_config);
+
+        cqueue.exec("push_object_positions", args, {object_count}, {256});
+    }
 };
 
 #endif // PHYSICS_HPP_INCLUDED
