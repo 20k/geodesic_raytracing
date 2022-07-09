@@ -2547,6 +2547,16 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
     }
 }
 
+__kernel void pull_object_positions(__global struct object* current_pos, __global float4* geodesic_out, int object_count)
+{
+    int id = get_global_id(0);
+
+    if(id >= object_count)
+        return;
+
+    geodesic_out[id] = current_pos[id].pos;
+}
+
 __kernel void push_object_positions(__global float4* geodesics_in, __global int* counts_in, __global struct object* pos_out, float target_time, int object_count, dynamic_config_space struct dynamic_config* cfg)
 {
     int id = get_global_id(0);

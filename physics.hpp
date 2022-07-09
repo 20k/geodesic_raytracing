@@ -5,23 +5,6 @@
 #include <toolkit/opencl.hpp>
 #include "triangle_manager.hpp"
 
-std::string pull_kernel = R"(
-struct object
-{
-    float4 pos;
-};
-
-__kernel void pull(__global struct object* current_pos, __global float4* geodesic_out, int object_count)
-{
-    int id = get_global_id(0);
-
-    if(id >= object_count)
-        return;
-
-    geodesic_out[id] = current_pos[id].pos;
-}
-)";
-
 struct physics
 {
     int max_path_length = 16000;
@@ -36,18 +19,14 @@ struct physics
     cl::buffer polar_positions;
     cl::buffer timelike_vectors;
 
-    cl::program prog;
-    cl::kernel pull;
-
     int object_count = 0;
+
+    bool needs_trace = true;
 
     physics(cl::context& ctx) : geodesic_paths(ctx), positions(ctx), counts(ctx), basis_speeds(ctx),
                                 gpu_object_count(ctx),
-                                tetrads{ctx, ctx, ctx, ctx}, polar_positions(ctx), timelike_vectors(ctx),
-                                prog(ctx, pull_kernel, false)
+                                tetrads{ctx, ctx, ctx, ctx}, polar_positions(ctx), timelike_vectors(ctx)
     {
-        ctx.register_program(prog);
-
         gpu_object_count.alloc(sizeof(cl_int));
     }
 
@@ -71,8 +50,6 @@ struct physics
         timelike_vectors.alloc(manage.gpu_object_count * 1024); ///approximate because don't want to import gpu lightray definition
 
         counts.set_to_zero(cqueue);
-
-        init_positions(cqueue, manage);
     }
 
     void init_positions(cl::command_queue& cqueue, triangle_rendering::manager& manage)
@@ -82,11 +59,16 @@ struct physics
         args.push_back(positions);
         args.push_back(manage.gpu_object_count);
 
-        cqueue.exec("pull", args, {manage.gpu_object_count}, {256});
+        cqueue.exec("pull_object_positions", args, {manage.gpu_object_count}, {256});
     }
 
-    void trace(cl::command_queue& cqueue, cl::buffer& dynamic_config)
+    void trace(cl::command_queue& cqueue, triangle_rendering::manager& manage, cl::buffer& dynamic_config)
     {
+        if(!needs_trace)
+            return;
+
+        init_positions(cqueue, manage);
+
         counts.set_to_zero(cqueue);
 
         cl_float4 cartesian_basis_speed = {0,0,0,0};
@@ -106,6 +88,7 @@ struct physics
         {
             cl::args tetrad_args;
             tetrad_args.push_back(polar_positions);
+            tetrad_args.push_back(object_count);
             tetrad_args.push_back(cartesian_basis_speed);
 
             for(auto& i : tetrads)
@@ -153,6 +136,8 @@ struct physics
 
             cqueue.exec("get_geodesic_path", snapshot_args, {object_count}, {256});
         }
+
+        needs_trace = false;
     }
 
     void push_object_positions(cl::command_queue& cqueue, triangle_rendering::manager& manage, cl::buffer& dynamic_config, float target_time)

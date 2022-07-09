@@ -330,8 +330,8 @@ triangle_rendering::acceleration::acceleration(cl::context& ctx) : offsets(ctx),
 
 void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager& tris)
 {
-    if(!tris.acceleration_needs_rebuild)
-        return;
+    //if(!tris.acceleration_needs_rebuild)
+    //    return;
 
     tris.acceleration_needs_rebuild = false;
 
