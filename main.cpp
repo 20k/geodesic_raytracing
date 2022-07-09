@@ -1581,6 +1581,17 @@ int main(int argc, char* argv[])
                         ImGui::EndTabItem();
                     }
 
+                    if(ImGui::BeginTabItem("Physics"))
+                    {
+                        if(ImGui::Button("Rebuild"))
+                        {
+                            phys.needs_trace = true;
+                            phys.trace(clctx.cqueue, tris, dynamic_config);
+                        }
+
+                        ImGui::EndTabItem();
+                    }
+
                     ImGui::EndTabBar();
                 }
 
