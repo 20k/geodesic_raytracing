@@ -2600,7 +2600,7 @@ __kernel void push_object_positions(__global float4* geodesics_in, __global int*
 
             float4 fin_polar = mix_spherical(spherical1, spherical2, dx);
 
-            float3 fin_cart = cartesian_to_polar(fin_polar.yzw);
+            float3 fin_cart = polar_to_cartesian(fin_polar.yzw);
 
             float4 out_pos = (float4)(fin_polar.x, fin_cart.xyz);
 
