@@ -984,14 +984,6 @@ int main(int argc, char* argv[])
     timelike_geodesic_vel.alloc(sizeof(cl_float4));
     timelike_geodesic_vel.set_to_zero(clctx.cqueue);
 
-    std::array<cl::buffer, 4> reference_basis{clctx.ctx, clctx.ctx, clctx.ctx, clctx.ctx};
-
-    for(auto& i : reference_basis)
-    {
-        i.alloc(sizeof(cl_float4));
-        i.set_to_zero(clctx.cqueue);
-    }
-
     print("Alloc trace buffer\n");
 
     std::vector<cl_float4> current_geodesic_path;
