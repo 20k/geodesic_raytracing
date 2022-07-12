@@ -3531,6 +3531,34 @@ void generate_acceleration_data(__global struct sub_point* sp, int sp_count, __g
     }
 }
 
+__kernel
+void clean_acceleration_data(__global int* offset_map, __global int* offset_counts, __global int* mem_buffer, int width_num)
+{
+    int id = get_global_id(0);
+
+    if(id >= width_num * width_num * width_num)
+        return;
+
+    int cnt = offset_counts[id];
+
+    if(cnt == 0)
+        return;
+
+    int mem_start = offset_map[id];
+
+    for(int i1=mem_start; i1 < mem_start + cnt; i1++)
+    {
+        for(int i2=i1+1; i2 < mem_start + cnt; i2++)
+        {
+            if(mem_buffer[i1] == mem_buffer[i2])
+            {
+                mem_buffer[i1] = -1;
+                break;
+            }
+        }
+    }
+}
+
 void swap3f(float3* i1, float3* i2)
 {
     float3 v = *i1;
@@ -3759,6 +3787,9 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                             for(int t_off=0; t_off < tri_count; t_off++)
                             {
                                 int idx = tri_indices[t_off];
+
+                                if(idx == -1)
+                                    continue;
 
                                 __global struct triangle* ctri = &tris[idx];
 

@@ -330,8 +330,8 @@ triangle_rendering::acceleration::acceleration(cl::context& ctx) : offsets(ctx),
 
 void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager& tris)
 {
-    //if(!tris.acceleration_needs_rebuild)
-    //    return;
+    if(!tris.acceleration_needs_rebuild)
+        return;
 
     tris.acceleration_needs_rebuild = false;
 
@@ -379,5 +379,15 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         gen.push_back(offset_size.x());
 
         cqueue.exec("generate_acceleration_data", gen, {tris.fill_point_count}, {256});
+    }
+
+    {
+        cl::args clean;
+        clean.push_back(offsets);
+        clean.push_back(counts);
+        clean.push_back(memory);
+        clean.push_back(offset_size.x());
+
+        cqueue.exec("clean_acceleration_data", clean, {offset_size.x() * offset_size.x() * offset_size.x()}, {256});
     }
 }
