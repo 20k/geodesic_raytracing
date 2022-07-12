@@ -3462,6 +3462,117 @@ void generate_acceleration_counts(__global struct sub_point* sp, int sp_count, _
     }
 }
 
+struct line_draw
+{
+    float3 step;
+    float3 start;
+    int count;
+};
+
+struct line_draw make_line_draw(float3 v0, float3 v1)
+{
+    struct line_draw ret;
+
+    float3 to_v1 = v1 - v0;
+
+
+    float3 a_to_v1 = fabs(to_v1);
+
+    float lenv1 = max(max(a_to_v1.x, a_to_v1.y), a_to_v1.z);
+    lenv1 = max(lenv1, 1.f);
+
+    float3 step = to_v1 / lenv1;
+    float3 cur = v0;
+
+    ret.count = lenv1;
+    ret.step = step;
+    ret.start = cur;
+
+    return ret;
+};
+
+int float_idx(float3 in, float width, int width_num)
+{
+    float voxel_cube_size = width / width_num;
+
+    float3 grid_pos = floor(in / voxel_cube_size);
+
+    int3 int_grid_pos = (int3)(grid_pos.x, grid_pos.y, grid_pos.z);
+
+    int_grid_pos.x = mod(int_grid_pos.x, width_num);
+    int_grid_pos.y = mod(int_grid_pos.y, width_num);
+    int_grid_pos.z = mod(int_grid_pos.z, width_num);
+
+    int oid = int_grid_pos.z * width_num * width_num + int_grid_pos.y * width_num + int_grid_pos.x;
+
+    return oid;
+}
+
+__kernel
+void generate_acceleration_counts_tri(__global struct triangle* tris, int tri_count, __global struct object* objs, __global int* offset_counts, float width, int width_num)
+{
+    int id = get_global_id(0);
+
+    if(id >= tri_count)
+        return;
+
+    float voxel_cube_size = width / width_num;
+
+    struct triangle mine = tris[id];
+
+    float3 base_position = objs[mine.parent].pos.yzw;
+
+    float3 v0 = (float3)(mine.v0x, mine.v0y, mine.v0z);
+    float3 v1 = (float3)(mine.v1x, mine.v1y, mine.v1z);
+    float3 v2 = (float3)(mine.v2x, mine.v2y, mine.v2z);
+
+    v0 += base_position;
+    v1 += base_position;
+    v2 += base_position;
+
+    v0 = floor(v0);
+    v1 = floor(v1);
+    v2 = floor(v2);
+
+    float3 dir = normalize(v1 - v0);
+    float3 origin = v0;
+
+    float3 to_v2 = v0 + dot(v2 - v0, dir) * dir;
+
+    struct line_draw d2 = make_line_draw(v0, v0 + to_v2);
+
+    for(int jj=0; jj < d2.count; jj++)
+    {
+        float3 current = d2.start;
+        float3 next = current + (v1 - v0);
+
+        struct line_draw d1 = make_line_draw(current, next);
+
+        for(int kk=0; kk < d1.count; kk++)
+        {
+            float3 current = floor(d1.start);
+
+            for(int z=-1; z <= 1; z++)
+            {
+                for(int y=-1; y <= 1; y++)
+                {
+                    for(int x=-1; x <= 1; x++)
+                    {
+                        int oid = float_idx(current + (float3)(x, y, z), width, width_num);
+
+                        atomic_inc(&offset_counts[oid]);
+                    }
+                }
+            }
+
+            d1.start += d1.step;
+        }
+
+        d2.start += d2.step;
+    }
+
+}
+
 ///resets offset_counts
 __kernel
 void alloc_acceleration(__global int* offset_map, __global int* offset_counts, int width_num, __global int* mem_count)

@@ -345,7 +345,7 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         cqueue.exec("clear_accel_counts", aclear, {offset_size.x(), offset_size.y(), offset_size.z()}, {8, 8, 1});
     }
 
-    {
+    /*{
         cl::args count_args;
         count_args.push_back(tris.fill_points);
         count_args.push_back(tris.fill_point_count);
@@ -355,6 +355,18 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         count_args.push_back(offset_size.x());
 
         cqueue.exec("generate_acceleration_counts", count_args, {tris.fill_point_count}, {256});
+    }*/
+
+    {
+        cl::args count_args;
+        count_args.push_back(tris.tris);
+        count_args.push_back(tris.tri_count);
+        count_args.push_back(tris.objects);
+        count_args.push_back(counts);
+        count_args.push_back(offset_width);
+        count_args.push_back(offset_size.x());
+
+        cqueue.exec("generate_acceleration_counts_tri", count_args, {tris.tri_count}, {256});
     }
 
     {
@@ -367,7 +379,7 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         cqueue.exec("alloc_acceleration", accel, {offset_size.x(), offset_size.y(), offset_size.z()}, {8, 8, 1});
     }
 
-    {
+    /*{
         cl::args gen;
         gen.push_back(tris.fill_points);
         gen.push_back(tris.fill_point_count);
@@ -379,5 +391,19 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         gen.push_back(offset_size.x());
 
         cqueue.exec("generate_acceleration_data", gen, {tris.fill_point_count}, {256});
+    }*/
+
+    {
+        cl::args gen;
+        gen.push_back(tris.tris);
+        gen.push_back(tris.tri_count);
+        gen.push_back(tris.objects);
+        gen.push_back(offsets);
+        gen.push_back(counts);
+        gen.push_back(memory);
+        gen.push_back(offset_width);
+        gen.push_back(offset_size.x());
+
+        cqueue.exec("generate_acceleration_data_tri", gen, {tris.tri_count}, {256});
     }
 }
