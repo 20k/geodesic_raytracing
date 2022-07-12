@@ -3471,11 +3471,12 @@ struct line_draw
 
 struct line_draw make_line_draw(float3 v0, float3 v1)
 {
+    v0 = floor(v0);
+    v1 = floor(v1);
+
     struct line_draw ret;
 
     float3 to_v1 = v1 - v0;
-
-
     float3 a_to_v1 = fabs(to_v1);
 
     float lenv1 = max(max(a_to_v1.x, a_to_v1.y), a_to_v1.z);
@@ -3535,11 +3536,16 @@ void generate_acceleration_counts_tri(__global struct triangle* tris, int tri_co
     v2 = floor(v2);
 
     float3 dir = normalize(v1 - v0);
-    float3 origin = v0;
 
-    float3 to_v2 = v0 + dot(v2 - v0, dir) * dir;
+    float3 v0_to_v2 = v2 - (v0 + dot(v2 - v0, dir) * dir);
+    float3 v1_to_v2 = v2 - (v1 + dot(v2 - v1, dir) * dir);
 
-    struct line_draw d2 = make_line_draw(v0, v0 + to_v2);
+    struct line_draw d2;
+
+    if(length(v1_to_v2) > length(v0_to_v2))
+        d2 = make_line_draw(v1, v1 + v1_to_v2);
+    else
+        d2 = make_line_draw(v0, v0 + v0_to_v2);
 
     for(int jj=0; jj < d2.count; jj++)
     {
@@ -3668,11 +3674,16 @@ void generate_acceleration_data_tri(__global struct triangle* tris, int tri_coun
     v2 = floor(v2);
 
     float3 dir = normalize(v1 - v0);
-    float3 origin = v0;
 
-    float3 to_v2 = v0 + dot(v2 - v0, dir) * dir;
+    float3 v0_to_v2 = v2 - (v0 + dot(v2 - v0, dir) * dir);
+    float3 v1_to_v2 = v2 - (v1 + dot(v2 - v1, dir) * dir);
 
-    struct line_draw d2 = make_line_draw(v0, v0 + to_v2);
+    struct line_draw d2;
+
+    if(length(v1_to_v2) > length(v0_to_v2))
+        d2 = make_line_draw(v1, v1 + v1_to_v2);
+    else
+        d2 = make_line_draw(v0, v0 + v0_to_v2);
 
     for(int jj=0; jj < d2.count; jj++)
     {
