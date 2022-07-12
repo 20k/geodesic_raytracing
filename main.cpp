@@ -1097,6 +1097,7 @@ int main(int argc, char* argv[])
         }
     }*/
 
+    //#define INDIVIDUAL_GEODESICS
     #ifndef INDIVIDUAL_GEODESICS
     auto obj = tris.make_new("./models/newell_teaset/teapot.obj");
     obj->pos = {0, -5, 0, 0};
@@ -1104,12 +1105,29 @@ int main(int argc, char* argv[])
     #else
     std::vector<triangle> teapot_tris = triangle_rendering::load_tris_from_model("./models/newell_teaset/teapot.obj");
 
-    for(const triangle& t : teapot_tris)
+    for(triangle t : teapot_tris)
     {
+        float scale = 0.45f;
+
+        vec3f v0 = t.get_vert(0) * scale;
+        vec3f v1 = t.get_vert(1) * scale;
+        vec3f v2 = t.get_vert(2) * scale;
+
+        vec3f centre = (v0 + v1 + v2) / 3.f;
+
+        t.set_vert(0, v0 - centre);
+        t.set_vert(1, v1 - centre);
+        t.set_vert(2, v2 - centre);
+
         auto obj = tris.make_new();
         obj->tris = {t};
         obj->pos = {0, -5, 0, 0};
-        obj->scale = 0.05f;
+
+        obj->pos.y() += centre.x();
+        obj->pos.z() += centre.y();
+        obj->pos.w() += centre.z();
+
+        //obj->scale = 0.45f;
     }
     #endif // INDIVIDUAL_GEODESICS
 
