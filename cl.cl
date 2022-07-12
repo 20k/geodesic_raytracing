@@ -3570,7 +3570,6 @@ void generate_acceleration_counts_tri(__global struct triangle* tris, int tri_co
 
         d2.start += d2.step;
     }
-
 }
 
 ///resets offset_counts
@@ -3639,6 +3638,74 @@ void generate_acceleration_data(__global struct sub_point* sp, int sp_count, __g
                 mem_buffer[mem_start + lid] = w_id;
             }
         }
+    }
+}
+
+__kernel
+void generate_acceleration_data_tri(__global struct triangle* tris, int tri_count, __global struct object* objs, __global int* offset_map, __global int* offset_counts, __global int* mem_buffer, float width, int width_num)
+{
+    int id = get_global_id(0);
+
+    if(id >= tri_count)
+        return;
+
+    float voxel_cube_size = width / width_num;
+
+    struct triangle mine = tris[id];
+
+    float3 base_position = objs[mine.parent].pos.yzw;
+
+    float3 v0 = (float3)(mine.v0x, mine.v0y, mine.v0z);
+    float3 v1 = (float3)(mine.v1x, mine.v1y, mine.v1z);
+    float3 v2 = (float3)(mine.v2x, mine.v2y, mine.v2z);
+
+    v0 += base_position;
+    v1 += base_position;
+    v2 += base_position;
+
+    v0 = floor(v0);
+    v1 = floor(v1);
+    v2 = floor(v2);
+
+    float3 dir = normalize(v1 - v0);
+    float3 origin = v0;
+
+    float3 to_v2 = v0 + dot(v2 - v0, dir) * dir;
+
+    struct line_draw d2 = make_line_draw(v0, v0 + to_v2);
+
+    for(int jj=0; jj < d2.count; jj++)
+    {
+        float3 current = d2.start;
+        float3 next = current + (v1 - v0);
+
+        struct line_draw d1 = make_line_draw(current, next);
+
+        for(int kk=0; kk < d1.count; kk++)
+        {
+            float3 current = floor(d1.start);
+
+            for(int z=-1; z <= 1; z++)
+            {
+                for(int y=-1; y <= 1; y++)
+                {
+                    for(int x=-1; x <= 1; x++)
+                    {
+                        int oid = float_idx(current + (float3)(x, y, z), width, width_num);
+
+                        int lid = atomic_inc(&offset_counts[oid]);
+
+                        int mem_start = offset_map[oid];
+
+                        mem_buffer[mem_start + lid] = id;
+                    }
+                }
+            }
+
+            d1.start += d1.step;
+        }
+
+        d2.start += d2.step;
     }
 }
 
