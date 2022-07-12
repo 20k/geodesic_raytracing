@@ -993,7 +993,6 @@ int main(int argc, char* argv[])
     }
 
     print("Alloc trace buffer\n");
-    int max_visual_trace_count = 128;
 
     std::vector<cl_float4> current_geodesic_path;
     std::vector<cl_float> current_geodesic_dT_ds;
