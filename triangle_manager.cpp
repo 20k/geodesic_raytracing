@@ -104,7 +104,7 @@ std::shared_ptr<triangle_rendering::object> triangle_rendering::manager::make_ne
     return obj;
 }
 
-std::vector<triangle> load_tris_from_model(const std::string& model_name)
+std::vector<triangle> triangle_rendering::load_tris_from_model(const std::string& model_name)
 {
     tinyobj::ObjReaderConfig reader_config;
     reader_config.mtl_search_path = "./"; // Path to material files
