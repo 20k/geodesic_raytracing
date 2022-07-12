@@ -1097,9 +1097,21 @@ int main(int argc, char* argv[])
         }
     }*/
 
+    #ifndef INDIVIDUAL_GEODESICS
     auto obj = tris.make_new("./models/newell_teaset/teapot.obj");
     obj->pos = {0, -5, 0, 0};
     obj->scale = 0.05f;
+    #else
+    std::vector<triangle> teapot_tris = triangle_rendering::load_tris_from_model("./models/newell_teaset/teapot.obj");
+
+    for(const triangle& t : teapot_tris)
+    {
+        auto obj = tris.make_new();
+        obj->tris = {t};
+        obj->pos = {0, -5, 0, 0};
+        obj->scale = 0.05f;
+    }
+    #endif // INDIVIDUAL_GEODESICS
 
     tris.build(clctx.cqueue, accel.offset_width / accel.offset_size.x());
 

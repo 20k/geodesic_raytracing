@@ -11,6 +11,8 @@
 ///need to subtriangulate and deduplicate individually
 namespace triangle_rendering
 {
+    std::vector<triangle> load_tris_from_model(const std::string& model_name);
+
     struct object
     {
         vec4f pos;
