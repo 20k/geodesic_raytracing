@@ -2247,21 +2247,23 @@ void calculate_tetrads(float4 polar_camera, float3 cartesian_basis_speed,
 }
 
 __kernel
-void boost_tetrad(__global float4* polar_position, __global float3* geodesic_basis_speed,
+void boost_tetrad(__global float4* polar_in, int count, __global float3* geodesic_basis_speed,
                   __global float4* e0_io, __global float4* e1_io, __global float4* e2_io, __global float4* e3_io,
                   dynamic_config_space struct dynamic_config* cfg)
 {
-    if(get_global_id(0) != 0)
+    int id = get_global_id(0);
+
+    if(id >= count)
         return;
 
-    float4 at_metric = spherical_to_generic(*polar_position, cfg);
+    float4 at_metric = spherical_to_generic(polar_in[id], cfg);
 
-    float4 e0 = *e0_io;
-    float4 e1 = *e1_io;
-    float4 e2 = *e2_io;
-    float4 e3 = *e3_io;
+    float4 e0 = e0_io[id];
+    float4 e1 = e1_io[id];
+    float4 e2 = e2_io[id];
+    float4 e3 = e3_io[id];
 
-    float4 observer_velocity = get_timelike_vector(*geodesic_basis_speed, 1, e0, e1, e2, e3);
+    float4 observer_velocity = get_timelike_vector(geodesic_basis_speed[id], 1, e0, e1, e2, e3);
 
     float lorentz[16] = {};
 
@@ -2280,10 +2282,10 @@ void boost_tetrad(__global float4* polar_position, __global float3* geodesic_bas
     e2 = tensor_contract(lorentz, e2);
     e3 = tensor_contract(lorentz, e3);
 
-    *e0_io = e0;
-    *e1_io = e1;
-    *e2_io = e2;
-    *e3_io = e3;
+    e0_io[id] = e0;
+    e1_io[id] = e1;
+    e2_io[id] = e2;
+    e3_io[id] = e3;
 }
 
 __kernel

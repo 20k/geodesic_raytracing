@@ -1101,6 +1101,7 @@ int main(int argc, char* argv[])
     #ifndef INDIVIDUAL_GEODESICS
     auto obj = tris.make_new("./models/newell_teaset/teapot.obj");
     obj->pos = {0, -5, 0, 0};
+    obj->velocity = {0, 0.35f, 0};
     obj->scale = 0.05f;
     #else
     std::vector<triangle> teapot_tris = triangle_rendering::load_tris_from_model("./models/newell_teaset/teapot.obj");
@@ -2000,8 +2001,11 @@ int main(int argc, char* argv[])
                 ///so first i calculate a timelike vector from the existing tetrad from the speed
                 ///and then interpret this is an observer velocity, and boost the tetrads
                 {
+                    int count_in = 1;
+
                     cl::args lorentz;
                     lorentz.push_back(g_camera_pos_polar);
+                    lorentz.push_back(count_in);
                     lorentz.push_back(g_geodesic_basis_speed);
 
                     for(auto& i : tetrad)

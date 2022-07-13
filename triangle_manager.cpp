@@ -206,6 +206,7 @@ void triangle_rendering::manager::build(cl::command_queue& cqueue, float acceler
 
     std::vector<triangle> linear_tris;
     std::vector<gpu_object> gpu_objects;
+    std::vector<cl_float3> gpu_velocities;
 
     for(auto& i : cpu_objects)
     {
@@ -224,10 +225,14 @@ void triangle_rendering::manager::build(cl::command_queue& cqueue, float acceler
         i->gpu_offset = parent;
 
         gpu_objects.push_back(obj);
+        gpu_velocities.push_back({i->velocity.x(), i->velocity.y(), i->velocity.z()});
     }
 
     objects.alloc(sizeof(gpu_object) * gpu_objects.size());
     objects.write(cqueue, gpu_objects);
+
+    objects_velocity.alloc(sizeof(cl_float3) * gpu_objects.size());
+    objects_velocity.write(cqueue, gpu_velocities);
 
     gpu_object_count = gpu_objects.size();
 
