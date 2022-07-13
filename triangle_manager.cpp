@@ -330,7 +330,7 @@ triangle_rendering::acceleration::acceleration(cl::context& ctx) : offsets(ctx),
 
     offsets.alloc(sizeof(cl_int) * cells);
     counts.alloc(sizeof(cl_int) * cells);
-    memory.alloc(1024 * 1024 * 128 * sizeof(cl_int));
+    memory.alloc(max_memory_size);
 }
 
 void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager& tris)
@@ -368,6 +368,7 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         accel.push_back(counts);
         accel.push_back(offset_size.x());
         accel.push_back(memory_count);
+        accel.push_back(max_memory_size);
 
         cqueue.exec("alloc_acceleration", accel, {offset_size.x(), offset_size.y(), offset_size.z()}, {8, 8, 1});
     }
