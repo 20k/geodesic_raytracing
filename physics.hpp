@@ -103,6 +103,22 @@ struct physics
 
         ///would boost here if we were going to
         {
+            cl::args lorentz;
+            lorentz.push_back(polar_positions);
+            lorentz.push_back(object_count);
+            lorentz.push_back(manage.objects_velocity);
+
+            for(auto& i : tetrads)
+            {
+                lorentz.push_back(i);
+            }
+
+            lorentz.push_back(dynamic_config);
+
+            cqueue.exec("boost_tetrad", lorentz, {object_count}, {256});
+        }
+
+        {
             gpu_object_count.set_to_zero(cqueue);
 
             cl::args args;

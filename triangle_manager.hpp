@@ -16,6 +16,7 @@ namespace triangle_rendering
     struct object
     {
         vec4f pos;
+        vec3f velocity;
         std::vector<triangle> tris;
         float scale = 1;
 
@@ -74,6 +75,7 @@ namespace triangle_rendering
         int tri_count = 0;
         int gpu_object_count = 0;
         cl::buffer objects;
+        cl::buffer objects_velocity;
         cl::buffer tris;
 
         int fill_point_count = 0;
@@ -81,7 +83,7 @@ namespace triangle_rendering
 
         bool acceleration_needs_rebuild = false;
 
-        manager(cl::context& ctx) : objects(ctx), tris(ctx), fill_points(ctx)
+        manager(cl::context& ctx) : objects(ctx), objects_velocity(ctx), tris(ctx), fill_points(ctx)
         {
 
         }
