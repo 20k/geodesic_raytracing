@@ -1030,6 +1030,7 @@ int main(int argc, char* argv[])
     bool should_take_screenshot = false;
 
     bool time_progresses = false;
+    float time_progression_factor = 1.f;
     bool flip_sign = false;
     float current_geodesic_time = 0;
     bool camera_on_geodesic = false;
@@ -1489,6 +1490,8 @@ int main(int argc, char* argv[])
 
                         ImGui::Checkbox("Time Progresses", &time_progresses);
 
+                        ImGui::SliderFloat("Time Progression Factor", &time_progression_factor, 0.01f, 10.f);
+
                         ImGui::Checkbox("Put Camera into negative space", &flip_sign);
 
                         if(ImGui::Button("Screenshot"))
@@ -1645,7 +1648,7 @@ int main(int argc, char* argv[])
 
             if(time_progresses)
             {
-                set_camera_time += time / 1000.f;
+                set_camera_time += time_progression_factor * time / 1000.f;
 
                 cl::args args;
                 args.push_back(g_camera_pos_cart);
