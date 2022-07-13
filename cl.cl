@@ -3497,7 +3497,7 @@ void alloc_acceleration(__global int* offset_map, __global int* offset_counts, i
 }
 
 __kernel
-void generate_acceleration_data(__global struct sub_point* sp, int sp_count, __global struct object* objs, __global int* offset_map, __global int* offset_counts, __global int* mem_buffer, float width, int width_num)
+void generate_acceleration_data(__global struct sub_point* sp, int sp_count, __global struct object* objs, __global struct triangle* reference_tris, __global int* offset_map, __global int* offset_counts, __global struct triangle* mem_buffer, float width, int width_num)
 {
     int id = get_global_id(0);
 
@@ -3510,6 +3510,22 @@ void generate_acceleration_data(__global struct sub_point* sp, int sp_count, __g
 
     float3 pos = (float3)(mine.x, mine.y, mine.z) + objs[mine.object_parent].pos.yzw;
     int w_id = mine.parent;
+
+    struct triangle my_tri = reference_tris[w_id];
+
+    struct object my_object = objs[my_tri.parent];
+
+    my_tri.v0x += my_object.pos.y;
+    my_tri.v0y += my_object.pos.z;
+    my_tri.v0z += my_object.pos.w;
+
+    my_tri.v1x += my_object.pos.y;
+    my_tri.v1y += my_object.pos.z;
+    my_tri.v1z += my_object.pos.w;
+
+    my_tri.v2x += my_object.pos.y;
+    my_tri.v2y += my_object.pos.z;
+    my_tri.v2z += my_object.pos.w;
 
     float3 grid_pos = floor(pos / voxel_cube_size);
 
@@ -3534,7 +3550,7 @@ void generate_acceleration_data(__global struct sub_point* sp, int sp_count, __g
 
                 int mem_start = offset_map[oid];
 
-                mem_buffer[mem_start + lid] = w_id;
+                mem_buffer[mem_start + lid] = my_tri;
             }
         }
     }
@@ -3563,7 +3579,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                       //__global float4* path_out, __global int* counts_out,
                       __global struct triangle* tris, int tri_count, __global struct intersection* intersections_out, __global int* intersection_count,
                       __global struct potential_intersection* intersections_p, __global int* intersection_count_p,
-                      __global int* counts, __global int* offsets, __global int* linear_mem, float accel_width, int accel_width_num,
+                      __global int* counts, __global int* offsets, __global struct triangle* linear_mem, float accel_width, int accel_width_num,
                       __global struct object* objs,
                       dynamic_config_space struct dynamic_config* cfg)
 {
@@ -3762,18 +3778,21 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                             int tri_count = counts[voxel_id];
                             int base_offset = offsets[voxel_id];
 
-                            __global int* tri_indices = &linear_mem[base_offset];
+                            __global struct triangle* base_tri = &linear_mem[base_offset];
+                            //__global int* tri_indices = &linear_mem[base_offset];
 
                             #if 1
                             for(int t_off=0; t_off < tri_count; t_off++)
                             {
-                                int idx = tri_indices[t_off];
+                                //int idx = tri_indices[t_off];
 
-                                __global struct triangle* ctri = &tris[idx];
+                                //__global struct triangle* ctri = &tris[idx];
 
-                                __global struct object* parent = &objs[ctri->parent];
+                                __global struct triangle* ctri = &linear_mem[base_offset + t_off];
 
-                                float4 parent_pos = parent->pos;
+                                //__global struct object* parent = &objs[ctri->parent];
+
+                                //float4 parent_pos = parent->pos;
 
                                 /*float3 pdiff = parent_pos.yzw - rt_pos.yzw;
 
@@ -3784,9 +3803,9 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                 float3 v1_pos = {ctri->v1x, ctri->v1y, ctri->v1z};
                                 float3 v2_pos = {ctri->v2x, ctri->v2y, ctri->v2z};
 
-                                v0_pos += parent_pos.yzw;
-                                v1_pos += parent_pos.yzw;
-                                v2_pos += parent_pos.yzw;
+                                //v0_pos += parent_pos.yzw;
+                                //v1_pos += parent_pos.yzw;
+                                //v2_pos += parent_pos.yzw;
 
                                 float3 ray_pos = rt_pos.yzw;
                                 float3 ray_dir = next_rt_pos.yzw - rt_pos.yzw;
