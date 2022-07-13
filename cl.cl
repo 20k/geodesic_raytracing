@@ -1718,50 +1718,6 @@ float4 get_theta_adjustment_quat(float3 pixel_direction, float4 polar_camera_in,
     return aa_to_quat(normalize(cross(plane_n, (float3)(0, 0, 1))), angle_to_flat * angle_sign);
 }
 
-void adjust_pixel_direction_and_camera_theta(float3 pixel_direction, float4 polar_camera_in, float3* pixel_direction_out, float4* polar_camera_out, bool debug)
-{
-    float4 theta_quat = get_theta_adjustment_quat(pixel_direction, polar_camera_in, 1, debug);
-
-    float3 apolar = polar_camera_in.yzw;
-    apolar.x = fabs(apolar.x);
-
-    float3 cartesian_camera =  polar_to_cartesian(apolar);
-
-    pixel_direction = rot_quat(pixel_direction, theta_quat);
-    cartesian_camera = rot_quat(cartesian_camera, theta_quat);
-
-    float3 polar_camera = cartesian_to_polar(cartesian_camera);
-
-    if(polar_camera_in.y < 0)
-    {
-        polar_camera.x = -polar_camera.x;
-    }
-
-    *pixel_direction_out = pixel_direction;
-    *polar_camera_out = (float4)(polar_camera_in.x, polar_camera);
-}
-
-float3 get_texture_constant_theta_rotation(float3 pixel_direction, float4 polar_camera_in, float4 final_position)
-{
-    float4 theta_quat = get_theta_adjustment_quat(pixel_direction, polar_camera_in, -1, false);
-
-    float3 afinal_position = final_position.yzw;
-    afinal_position.x = fabs(afinal_position.x);
-
-    float3 cartesian_position = polar_to_cartesian(afinal_position);
-
-    cartesian_position = rot_quat(cartesian_position, theta_quat);
-
-    float3 polar_position = cartesian_to_polar(cartesian_position);
-
-    if(final_position.y < 0)
-    {
-        polar_position.x = -polar_position.x;
-    }
-
-	return polar_position;
-}
-
 float3 calculate_pixel_direction(int cx, int cy, float width, float height, float4 polar_camera, float4 camera_quat)
 {
     #define FOV 90
