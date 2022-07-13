@@ -1129,6 +1129,8 @@ int main(int argc, char* argv[])
         obj->pos.z() += centre.y();
         obj->pos.w() += centre.z();
 
+        obj->velocity = {0, 0.05f, 0};
+
         //obj->scale = 0.45f;
     }
     #endif // INDIVIDUAL_GEODESICS

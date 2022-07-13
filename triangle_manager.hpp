@@ -105,6 +105,7 @@ namespace triangle_rendering
 
         vec3i offset_size = {128, 128, 128};
         float offset_width = 20;
+        int max_memory_size = 1024 * 1024 * 1024; ///1GB
 
         acceleration(cl::context& ctx);
 

@@ -3466,7 +3466,7 @@ void generate_acceleration_counts(__global struct sub_point* sp, int sp_count, _
 
 ///resets offset_counts
 __kernel
-void alloc_acceleration(__global int* offset_map, __global int* offset_counts, int width_num, __global int* mem_count)
+void alloc_acceleration(__global int* offset_map, __global int* offset_counts, int width_num, __global int* mem_count, int max_memory_size)
 {
     int x = get_global_id(0);
     int y = get_global_id(1);
@@ -3485,6 +3485,13 @@ void alloc_acceleration(__global int* offset_map, __global int* offset_counts, i
 
     if(my_count > 0)
         offset = atomic_add(mem_count, my_count);
+
+    if(offset + my_count >= max_memory_size)
+    {
+        offset = max_memory_size - my_count;
+
+        printf("Error in alloc acceleration\n");
+    }
 
     offset_map[idx] = offset;
 }
