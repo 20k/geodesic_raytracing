@@ -3486,7 +3486,7 @@ void alloc_acceleration(__global int* offset_map, __global int* offset_counts, i
     if(my_count > 0)
         offset = atomic_add(mem_count, my_count);
 
-    if(offset + my_count >= max_memory_size)
+    if(offset + my_count > max_memory_size)
     {
         offset = max_memory_size - my_count;
 
