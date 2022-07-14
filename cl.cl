@@ -3744,21 +3744,13 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                             int base_offset = offsets[voxel_id];
 
                             __global struct triangle* base_tri = &linear_mem[base_offset];
-                            //__global int* tri_indices = &linear_mem[base_offset];
 
                             #if 1
                             for(int t_off=0; t_off < tri_count; t_off++)
                             {
-                                //int idx = tri_indices[t_off];
-
-                                //__global struct triangle* ctri = &tris[idx];
-
                                 __global struct triangle* ctri = &linear_mem[base_offset + t_off];
 
-                                //__global struct object* parent = &objs[ctri->parent];
-
-                                //float4 parent_pos = parent->pos;
-
+                                ///use dot current_pos tri centre pos (?) as distance metric
                                 /*float3 pdiff = parent_pos.yzw - rt_pos.yzw;
 
                                 if(dot(pdiff, pdiff) > 5)
