@@ -3368,16 +3368,14 @@ __kernel void pull_to_geodesics(__global struct object* current_pos, __global fl
 }
 
 __kernel
-void clear_accel_counts(__global int* offset_counts, int width_num)
+void clear_accel_counts(__global int* offset_counts, int size)
 {
     int x = get_global_id(0);
-    int y = get_global_id(1);
-    int z = get_global_id(2);
 
-    if(x >= width_num || y >= width_num || z >= width_num)
+    if(x >= size)
         return;
 
-    offset_counts[z * width_num * width_num + y * width_num + x] = 0;
+    offset_counts[x] = 0;
 }
 
 __kernel
@@ -3419,6 +3417,9 @@ void generate_acceleration_counts(__global struct sub_point* sp, int sp_count, _
         }
     }
 }
+
+//__kernel
+//void generate_smeared_acceleration_counts()
 
 ///so
 ///need a generate_smeared_acceleration_counts

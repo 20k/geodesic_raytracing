@@ -326,7 +326,7 @@ triangle_rendering::acceleration::acceleration(cl::context& ctx) : offsets(ctx),
 {
     memory_count.alloc(sizeof(cl_int));
 
-    int cells = offset_size.x() * offset_size.y() * offset_size.z();
+    int cells = offset_size.x() * offset_size.y() * offset_size.z() * offset_size.w();
 
     offsets.alloc(sizeof(cl_int) * cells);
     counts.alloc(sizeof(cl_int) * cells);
@@ -343,11 +343,13 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
     memory_count.set_to_zero(cqueue);
 
     {
+        int count = counts.alloc_size / sizeof(cl_int);
+
         cl::args aclear;
         aclear.push_back(counts);
-        aclear.push_back(offset_size.x());
+        aclear.push_back(count);
 
-        cqueue.exec("clear_accel_counts", aclear, {offset_size.x(), offset_size.y(), offset_size.z()}, {8, 8, 1});
+        cqueue.exec("clear_accel_counts", aclear, {count}, {256});
     }
 
     {
