@@ -3420,6 +3420,15 @@ void generate_acceleration_counts(__global struct sub_point* sp, int sp_count, _
     }
 }
 
+///so
+///need a generate_smeared_acceleration_counts
+///will take in a start coordinate time, and an end coordinate time. End coordinate time can be camera coordinate time, as rays
+///go strictly backwards in time (?) (????)
+///then, step along the ray for a particular tri, calculating its interpolated position at constant steps along the coordinate time
+///at every step, dump it into the acceleration structure, which *could* be 3d but more likely will want to be 4d for perf
+///then in step_verlet, look up in the correct chunk by time, skip any tris with an incorrect time coordinate (ie loop), then
+///do a constant time approximation. This latter part may be very problematic, so could assume a constant velocity and interpolate in time
+
 ///resets offset_counts
 __kernel
 void alloc_acceleration(__global int* offset_map, __global int* offset_counts, int width_num, __global int* mem_count, int max_memory_size)
