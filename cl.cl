@@ -11,9 +11,12 @@ struct triangle
 struct computed_triangle
 {
     float time;
+    float end_time;
     float v0x, v0y, v0z;
     float v1x, v1y, v1z;
     float v2x, v2y, v2z;
+
+    float4 velocity;
 };
 
 struct object
@@ -3548,6 +3551,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                                 struct computed_triangle local_tri;
 
                                 local_tri.time = ray_current.x;
+                                local_tri.end_time = (next.x - current.x) * max_ds_step + ray_current.x;
 
                                 local_tri.v0x = my_tri.v0x + ray_current.y;
                                 local_tri.v0y = my_tri.v0y + ray_current.z;
@@ -3560,6 +3564,8 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                                 local_tri.v2x = my_tri.v2x + ray_current.y;
                                 local_tri.v2y = my_tri.v2y + ray_current.z;
                                 local_tri.v2z = my_tri.v2z + ray_current.w;
+
+                                local_tri.velocity = (next - current);
 
                                 int mem_start = offset_map[oid];
 
