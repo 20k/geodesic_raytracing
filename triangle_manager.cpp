@@ -1,6 +1,7 @@
 #include "triangle_manager.hpp"
-#include "print.hpp"
 #include <tinyobjloader/tiny_obj_loader.h>
+#include "print.hpp"
+#include "physics.hpp"
 
 struct sub_point
 {
@@ -333,7 +334,7 @@ triangle_rendering::acceleration::acceleration(cl::context& ctx) : offsets(ctx),
     memory.alloc(max_memory_size);
 }
 
-void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager& tris)
+void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager& tris, physics& phys)
 {
     //if(!tris.acceleration_needs_rebuild)
     //    return;
@@ -352,6 +353,72 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         cqueue.exec("clear_accel_counts", aclear, {count}, {256});
     }
 
+    #define SMEARED
+    #ifdef SMEARED
+
+    float start_ds = 0.f;
+    float end_ds = 1.f;
+
+    {
+        int should_store = 0;
+
+        cl::args accel;
+        accel.push_back(tris.fill_points);
+        accel.push_back(tris.fill_point_count);
+        accel.push_back(tris.objects);
+        accel.push_back(tris.gpu_object_count);
+        accel.push_back(tris.tris);
+        accel.push_back(offsets);
+        accel.push_back(counts);
+        accel.push_back(memory);
+        accel.push_back(phys.geodesic_paths);
+        accel.push_back(phys.counts);
+        accel.push_back(phys.geodesic_ds);
+        accel.push_back(start_ds);
+        accel.push_back(end_ds);
+        accel.push_back(offset_width);
+        accel.push_back(offset_size.x());
+        accel.push_back(should_store);
+
+        cqueue.exec("generate_smeared_acceleration", accel, {tris.fill_point_count}, {256});
+    }
+
+    {
+        cl::args accel;
+        accel.push_back(offsets);
+        accel.push_back(counts);
+        accel.push_back(offset_size.x());
+        accel.push_back(memory_count);
+        accel.push_back(max_memory_size);
+
+        cqueue.exec("alloc_acceleration", accel, {offset_size.x(), offset_size.y(), offset_size.z()}, {8, 8, 1});
+    }
+
+    {
+        int should_store = 1;
+
+        cl::args accel;
+        accel.push_back(tris.fill_points);
+        accel.push_back(tris.fill_point_count);
+        accel.push_back(tris.objects);
+        accel.push_back(tris.gpu_object_count);
+        accel.push_back(tris.tris);
+        accel.push_back(offsets);
+        accel.push_back(counts);
+        accel.push_back(memory);
+        accel.push_back(phys.geodesic_paths);
+        accel.push_back(phys.counts);
+        accel.push_back(phys.geodesic_ds);
+        accel.push_back(start_ds);
+        accel.push_back(end_ds);
+        accel.push_back(offset_width);
+        accel.push_back(offset_size.x());
+        accel.push_back(should_store);
+
+        cqueue.exec("generate_smeared_acceleration", accel, {tris.fill_point_count}, {256});
+    }
+
+    #else
     {
         cl::args count_args;
         count_args.push_back(tris.fill_points);
@@ -389,4 +456,5 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
 
         cqueue.exec("generate_acceleration_data", gen, {tris.fill_point_count}, {256});
     }
+    #endif // SMEARED
 }
