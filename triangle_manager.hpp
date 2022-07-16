@@ -111,7 +111,7 @@ namespace triangle_rendering
 
         acceleration(cl::context& ctx);
 
-        void build(cl::command_queue& cqueue, manager& tris, physics& phys);
+        void build(cl::command_queue& cqueue, manager& tris, physics& phys, cl::buffer& dynamic_config);
     };
 }
 

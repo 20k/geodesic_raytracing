@@ -334,7 +334,7 @@ triangle_rendering::acceleration::acceleration(cl::context& ctx) : offsets(ctx),
     memory.alloc(max_memory_size);
 }
 
-void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager& tris, physics& phys)
+void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager& tris, physics& phys, cl::buffer& dynamic_config)
 {
     //if(!tris.acceleration_needs_rebuild)
     //    return;
@@ -365,7 +365,6 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         cl::args accel;
         accel.push_back(tris.fill_points);
         accel.push_back(tris.fill_point_count);
-        accel.push_back(tris.objects);
         accel.push_back(tris.gpu_object_count);
         accel.push_back(tris.tris);
         accel.push_back(offsets);
@@ -379,6 +378,7 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         accel.push_back(offset_width);
         accel.push_back(offset_size.x());
         accel.push_back(should_store);
+        accel.push_back(dynamic_config);
 
         cqueue.exec("generate_smeared_acceleration", accel, {tris.fill_point_count}, {256});
     }
@@ -400,7 +400,6 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         cl::args accel;
         accel.push_back(tris.fill_points);
         accel.push_back(tris.fill_point_count);
-        accel.push_back(tris.objects);
         accel.push_back(tris.gpu_object_count);
         accel.push_back(tris.tris);
         accel.push_back(offsets);
@@ -414,6 +413,7 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         accel.push_back(offset_width);
         accel.push_back(offset_size.x());
         accel.push_back(should_store);
+        accel.push_back(dynamic_config);
 
         cqueue.exec("generate_smeared_acceleration", accel, {tris.fill_point_count}, {256});
     }
