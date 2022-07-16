@@ -3461,7 +3461,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
     ///this is super suboptimal in regions of high curvature
     ///to future james: you cannot parameterise these curves by coordinate time, especially due to CTCs
-    float max_ds_step = 1.f;
+    float max_ds_step = 4.f;
     float ds_error = 0;
 
     float voxel_cube_size = width / width_num;
@@ -3915,15 +3915,28 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                 #define OBSERVER_DEPENDENCE
                                 #ifdef OBSERVER_DEPENDENCE
                                 float tri_time = ctri->time;
+                                float next_tri_time = ctri->end_time;
 
-                                float ray_time = mix(rt_pos.x, next_rt_pos.x, (float)kk / max_len2);
+                                float interpolate_frac = (float)kk / max_len2;
 
-                                if(tri_time < ray_time + 0.5f && tri_time >= ray_time - 0.5f)
+                                float ray_time = mix(rt_pos.x, next_rt_pos.x, interpolate_frac);
+
+                                //if(tri_time < ray_time + 0.5f && tri_time >= ray_time - 0.5f)
+
+                                if(ray_time >= tri_time && ray_time < next_tri_time)
                                 #endif // OBSERVER_DEPENDENCE
                                 {
+                                    float time_elapsed = (ray_time - tri_time);
+
                                     float3 v0_pos = {ctri->v0x, ctri->v0y, ctri->v0z};
                                     float3 v1_pos = {ctri->v1x, ctri->v1y, ctri->v1z};
                                     float3 v2_pos = {ctri->v2x, ctri->v2y, ctri->v2z};
+
+                                    //printf("Elapsed %f velocity %f %f %f\n", time_elapsed, ctri->velocity.y, ctri->velocity.z, ctri->velocity.w);
+
+                                    /*v0_pos += ctri->velocity.yzw * time_elapsed;
+                                    v1_pos += ctri->velocity.yzw * time_elapsed;
+                                    v2_pos += ctri->velocity.yzw * time_elapsed;*/
 
                                     //v0_pos += parent_pos.yzw;
                                     //v1_pos += parent_pos.yzw;
