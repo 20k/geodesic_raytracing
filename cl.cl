@@ -3245,6 +3245,7 @@ int calculate_ds_error(float current_ds, float4 next_acceleration, float4 accele
 struct triangle
 {
     int parent;
+    float time;
     float v0x, v0y, v0z;
     float v1x, v1y, v1z;
     float v2x, v2y, v2z;
@@ -3418,8 +3419,120 @@ void generate_acceleration_counts(__global struct sub_point* sp, int sp_count, _
     }
 }
 
-//__kernel
-//void generate_smeared_acceleration_counts()
+__kernel
+void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
+                                          __global struct object* objs, int obj_count,
+                                          __global struct triangle* reference_tris,
+                                          __global int* offset_map, __global int* offset_counts, __global struct triangle* mem_buffer,
+                                          __global float4* object_geodesics, __global int* object_geodesic_counts,
+                                          __global float* object_geodesic_ds,
+                                          float start_ds, float end_ds,
+                                          float width, int width_num,
+                                          int should_store)
+{
+    int id = get_global_id(0);
+
+    if(id >= sp_count)
+        return;
+
+    struct sub_point mine = sp[id];
+
+    ///number of geodesics == objs.size()
+    int stride = obj_count;
+
+    //__global struct object* obj = objs[mine.object_parent];
+
+    int count = object_geodesic_counts[mine.object_parent];
+
+    float last_output_ds = -10;
+    float ds_accum = 0;
+    //float current_dt = object_geodesics[0 * stride + mine.object_parent];
+
+    ///this is super suboptimal in regions of high curvature
+    ///to future james: you cannot parameterise these curves by coordinate time, especially due to CTCs
+    float max_ds_step = 0.5f;
+
+    float voxel_cube_size = width / width_num;
+
+    struct triangle my_tri = reference_tris[mine.parent];
+
+    for(int cc=0; cc < count - 1; cc++)
+    {
+        float ds = object_geodesic_ds[cc * stride + mine.object_parent];
+
+        float current_ds = ds_accum;
+        float next_ds = ds_accum + ds;
+
+        if(current_ds < start_ds)
+            continue;
+
+        if(current_ds > end_ds)
+            return;
+
+        float4 current = object_geodesics[cc * stride + mine.object_parent];
+        float4 next = object_geodesics[(cc + 1) * stride + mine.object_parent];
+
+        float num = ceil(min((next_ds - current_ds) / max_ds_step, 1.f));
+
+        float4 ray_current = current;
+        float4 step = (next - current) / num;
+
+        for(int kk=0; kk < (int)num; kk++)
+        {
+            float4 pos = ray_current + (float4)(0.f, mine.x, mine.y, mine.z);
+
+            float4 grid_pos = floor(pos / voxel_cube_size);
+
+            int3 int_grid_pos = (int3)(grid_pos.y, grid_pos.z, grid_pos.w);
+
+            ///todo: use 4d grid
+            for(int z=-1; z <= 1; z++)
+            {
+                for(int y=-1; y <= 1; y++)
+                {
+                    for(int x=-1; x <= 1; x++)
+                    {
+                        int3 off = (int3)(x, y, z);
+                        int3 fin = int_grid_pos + off;
+
+                        fin.x = mod(fin.x, width_num);
+                        fin.y = mod(fin.y, width_num);
+                        fin.z = mod(fin.z, width_num);
+
+                        int oid = fin.z * width_num * width_num + fin.y * width_num + fin.x;
+
+                        int lid = atomic_inc(&offset_counts[oid]);
+
+                        if(should_store)
+                        {
+                            struct triangle local_tri = my_tri;
+
+                            local_tri.time = ray_current.x;
+
+                            local_tri.v0x += ray_current.y;
+                            local_tri.v0y += ray_current.z;
+                            local_tri.v0z += ray_current.w;
+
+                            local_tri.v1x += ray_current.y;
+                            local_tri.v1y += ray_current.z;
+                            local_tri.v1z += ray_current.w;
+
+                            local_tri.v2x += ray_current.y;
+                            local_tri.v2y += ray_current.z;
+                            local_tri.v2z += ray_current.w;
+
+                            int mem_start = offset_map[oid];
+
+                            mem_buffer[mem_start + lid] = local_tri;
+                        }
+                    }
+                }
+            }
+
+            ray_current += step;
+        }
+    }
+}
 
 ///so
 ///need a generate_smeared_acceleration_counts
