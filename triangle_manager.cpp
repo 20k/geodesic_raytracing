@@ -357,7 +357,7 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
     #ifdef SMEARED
 
     float start_ds = 0.f;
-    float end_ds = 1.f;
+    float end_ds = 32.f;
 
     {
         int should_store = 0;
