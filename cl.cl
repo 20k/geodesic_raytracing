@@ -3459,12 +3459,13 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
     ///this is super suboptimal in regions of high curvature
     ///to future james: you cannot parameterise these curves by coordinate time, especially due to CTCs
     float max_ds_step = 1.f;
+    float ds_error = 0;
 
     float voxel_cube_size = width / width_num;
 
     struct triangle my_tri = reference_tris[mine.parent];
 
-    for(int cc=0; cc < count - 1; cc++)
+    for(int cc=0; cc < count - 1;)
     {
         float ds = object_geodesic_ds[cc * stride + mine.object_parent];
 
@@ -3479,67 +3480,96 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         if(current_ds > end_ds)
             return;
 
-        float4 current = generic_to_cartesian(object_geodesics[cc * stride + mine.object_parent], cfg);
-        float4 next = generic_to_cartesian(object_geodesics[(cc + 1) * stride + mine.object_parent], cfg);
+        ds_error += ds;
 
-        float num = ceil(min((next_ds - current_ds) / max_ds_step, 1.f));
-
-        float4 ray_current = current;
-        float4 step = (next - current) / num;
-
-        for(int kk=0; kk < (int)num; kk++)
+        if(ds_error < max_ds_step)
         {
-            float4 pos = ray_current + (float4)(0.f, mine.x, mine.y, mine.z);
+            cc++;
+            continue;
+        }
 
-            float4 grid_pos = floor(pos / voxel_cube_size);
+        while(ds_error >= max_ds_step)
+        {
+            ds_error -= max_ds_step;
 
-            int3 int_grid_pos = (int3)(grid_pos.y, grid_pos.z, grid_pos.w);
+            ///must be < 1 by construction
+            float ds_frac = ds_error / ds;
 
-            ///todo: use 4d grid
-            for(int z=-1; z <= 1; z++)
+            if(ds_frac > 1)
             {
-                for(int y=-1; y <= 1; y++)
+                printf("Error in generate smeared\n");
+            }
+
+            ds_frac = clamp(ds_frac, 0.f, 1.f);
+
+            float4 current = generic_to_cartesian(object_geodesics[cc * stride + mine.object_parent], cfg);
+            float4 next = generic_to_cartesian(object_geodesics[(cc + 1) * stride + mine.object_parent], cfg);
+
+            float4 ray_current = mix(current, next, ds_frac);
+
+            #if 0
+            float num = ceil(min((next_ds - current_ds) / max_ds_step, 1.f));
+
+            float4 ray_current = current;
+            float4 step = (next - current) / num;
+
+            for(int kk=0; kk < (int)num; kk++)
+            {
+                float4 pos = ray_current + (float4)(0.f, mine.x, mine.y, mine.z);
+
+                #endif // 0
+            {
+                float4 pos = ray_current + (float4)(0.f, mine.x, mine.y, mine.z);
+
+                float4 grid_pos = floor(pos / voxel_cube_size);
+
+                int3 int_grid_pos = (int3)(grid_pos.y, grid_pos.z, grid_pos.w);
+
+                ///todo: use 4d grid
+                for(int z=-1; z <= 1; z++)
                 {
-                    for(int x=-1; x <= 1; x++)
+                    for(int y=-1; y <= 1; y++)
                     {
-                        int3 off = (int3)(x, y, z);
-                        int3 fin = int_grid_pos + off;
-
-                        fin.x = mod(fin.x, width_num);
-                        fin.y = mod(fin.y, width_num);
-                        fin.z = mod(fin.z, width_num);
-
-                        int oid = fin.z * width_num * width_num + fin.y * width_num + fin.x;
-
-                        int lid = atomic_inc(&offset_counts[oid]);
-
-                        if(should_store)
+                        for(int x=-1; x <= 1; x++)
                         {
-                            struct computed_triangle local_tri;
+                            int3 off = (int3)(x, y, z);
+                            int3 fin = int_grid_pos + off;
 
-                            local_tri.time = ray_current.x;
+                            fin.x = mod(fin.x, width_num);
+                            fin.y = mod(fin.y, width_num);
+                            fin.z = mod(fin.z, width_num);
 
-                            local_tri.v0x = my_tri.v0x + ray_current.y;
-                            local_tri.v0y = my_tri.v0y + ray_current.z;
-                            local_tri.v0z = my_tri.v0z + ray_current.w;
+                            int oid = fin.z * width_num * width_num + fin.y * width_num + fin.x;
 
-                            local_tri.v1x = my_tri.v1x + ray_current.y;
-                            local_tri.v1y = my_tri.v1y + ray_current.z;
-                            local_tri.v1z = my_tri.v1z + ray_current.w;
+                            int lid = atomic_inc(&offset_counts[oid]);
 
-                            local_tri.v2x = my_tri.v2x + ray_current.y;
-                            local_tri.v2y = my_tri.v2y + ray_current.z;
-                            local_tri.v2z = my_tri.v2z + ray_current.w;
+                            if(should_store)
+                            {
+                                struct computed_triangle local_tri;
 
-                            int mem_start = offset_map[oid];
+                                local_tri.time = ray_current.x;
 
-                            mem_buffer[mem_start + lid] = local_tri;
+                                local_tri.v0x = my_tri.v0x + ray_current.y;
+                                local_tri.v0y = my_tri.v0y + ray_current.z;
+                                local_tri.v0z = my_tri.v0z + ray_current.w;
+
+                                local_tri.v1x = my_tri.v1x + ray_current.y;
+                                local_tri.v1y = my_tri.v1y + ray_current.z;
+                                local_tri.v1z = my_tri.v1z + ray_current.w;
+
+                                local_tri.v2x = my_tri.v2x + ray_current.y;
+                                local_tri.v2y = my_tri.v2y + ray_current.z;
+                                local_tri.v2z = my_tri.v2z + ray_current.w;
+
+                                int mem_start = offset_map[oid];
+
+                                mem_buffer[mem_start + lid] = local_tri;
+                            }
                         }
                     }
                 }
+                //ray_current += step;
             }
-
-            ray_current += step;
         }
     }
 }
