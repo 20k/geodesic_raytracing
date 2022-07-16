@@ -1846,7 +1846,7 @@ int main(int argc, char* argv[])
                 phys.trace(clctx.cqueue, tris, dynamic_config);
                 phys.push_object_positions(clctx.cqueue, tris, dynamic_config, set_camera_time);
 
-                accel.build(clctx.cqueue, tris, phys);
+                accel.build(clctx.cqueue, tris, phys, dynamic_config);
             }
 
             {

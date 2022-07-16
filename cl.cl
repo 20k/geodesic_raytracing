@@ -3421,14 +3421,15 @@ void generate_acceleration_counts(__global struct sub_point* sp, int sp_count, _
 
 __kernel
 void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
-                                          __global struct object* objs, int obj_count,
+                                          int obj_count,
                                           __global struct triangle* reference_tris,
                                           __global int* offset_map, __global int* offset_counts, __global struct triangle* mem_buffer,
                                           __global float4* object_geodesics, __global int* object_geodesic_counts,
                                           __global float* object_geodesic_ds,
                                           float start_ds, float end_ds,
                                           float width, int width_num,
-                                          int should_store)
+                                          int should_store,
+                                          dynamic_config_space struct dynamic_config* cfg)
 {
     int id = get_global_id(0);
 
@@ -3471,8 +3472,8 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         if(current_ds > end_ds)
             return;
 
-        float4 current = object_geodesics[cc * stride + mine.object_parent];
-        float4 next = object_geodesics[(cc + 1) * stride + mine.object_parent];
+        float4 current = generic_to_cartesian(object_geodesics[cc * stride + mine.object_parent], cfg);
+        float4 next = generic_to_cartesian(object_geodesics[(cc + 1) * stride + mine.object_parent], cfg);
 
         float num = ceil(min((next_ds - current_ds) / max_ds_step, 1.f));
 
