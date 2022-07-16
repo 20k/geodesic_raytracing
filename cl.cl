@@ -3450,7 +3450,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
     ///this is super suboptimal in regions of high curvature
     ///to future james: you cannot parameterise these curves by coordinate time, especially due to CTCs
-    float max_ds_step = 0.5f;
+    float max_ds_step = 1.f;
 
     float voxel_cube_size = width / width_num;
 
@@ -3462,6 +3462,8 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
         float current_ds = ds_accum;
         float next_ds = ds_accum + ds;
+
+        ds_accum += ds;
 
         if(current_ds < start_ds)
             continue;
