@@ -3461,7 +3461,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
     ///this is super suboptimal in regions of high curvature
     ///to future james: you cannot parameterise these curves by coordinate time, especially due to CTCs
-    float max_ds_step = 4.f;
+    float max_ds_step = 1.f;
     float ds_error = 0;
 
     float voxel_cube_size = width / width_num;
@@ -3923,7 +3923,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                                 //if(tri_time < ray_time + 0.5f && tri_time >= ray_time - 0.5f)
 
-                                if(ray_time >= tri_time && ray_time < next_tri_time)
+                                //if(ray_time >= tri_time && ray_time < next_tri_time)
                                 #endif // OBSERVER_DEPENDENCE
                                 {
                                     float time_elapsed = (ray_time - tri_time);
