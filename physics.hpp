@@ -9,6 +9,7 @@ struct physics
 {
     int max_path_length = 16000;
     cl::buffer geodesic_paths;
+    cl::buffer geodesic_ds;
     cl::buffer positions;
     cl::buffer counts;
     cl::buffer basis_speeds;
@@ -23,7 +24,7 @@ struct physics
 
     bool needs_trace = true;
 
-    physics(cl::context& ctx) : geodesic_paths(ctx), positions(ctx), counts(ctx), basis_speeds(ctx),
+    physics(cl::context& ctx) : geodesic_paths(ctx), geodesic_ds(ctx), positions(ctx), counts(ctx), basis_speeds(ctx),
                                 gpu_object_count(ctx),
                                 tetrads{ctx, ctx, ctx, ctx}, polar_positions(ctx), timelike_vectors(ctx)
     {
@@ -36,6 +37,7 @@ struct physics
 
         ///need to pull geodesic initial position from gpu tris
         geodesic_paths.alloc(manage.gpu_object_count * sizeof(cl_float4) * max_path_length);
+        geodesic_ds.alloc(manage.gpu_object_count * sizeof(cl_float) * max_path_length);
         positions.alloc(manage.gpu_object_count * sizeof(cl_float4));
         counts.alloc(manage.gpu_object_count * sizeof(cl_int));
         basis_speeds.alloc(manage.gpu_object_count * sizeof(cl_float3));
@@ -141,10 +143,10 @@ struct physics
         {
             cl::args snapshot_args;
             snapshot_args.push_back(timelike_vectors);
-            snapshot_args.push_back(geodesic_paths);
-            snapshot_args.push_back(nullptr); // velocity
-            snapshot_args.push_back(nullptr); // dT_ds
-            snapshot_args.push_back(nullptr); // ds
+            snapshot_args.push_back(geodesic_paths); // position
+            snapshot_args.push_back(nullptr);        // velocity
+            snapshot_args.push_back(nullptr);        // dT_ds
+            snapshot_args.push_back(geodesic_ds);    // ds
             snapshot_args.push_back(gpu_object_count);
             snapshot_args.push_back(max_path_length);
             snapshot_args.push_back(dynamic_config);
