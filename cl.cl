@@ -3784,8 +3784,6 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
         if(fabs(velocity.x) > 1000 + f_in_x && fabs(acceleration.x) > 100)
             return;
         #endif // UNCONDITIONALLY_NONSINGULAR
-        float4 out_position = generic_to_cartesian(position, cfg);
-        float max_permissable_angle = cos(10 * 2 * M_PI/360.f);
 
         if((i % 8) == 0)
         {
@@ -3873,29 +3871,37 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                 if(dot(pdiff, pdiff) > 5)
                                     continue;*/
 
-                                float3 v0_pos = {ctri->v0x, ctri->v0y, ctri->v0z};
-                                float3 v1_pos = {ctri->v1x, ctri->v1y, ctri->v1z};
-                                float3 v2_pos = {ctri->v2x, ctri->v2y, ctri->v2z};
+                                float tri_time = ctri->time;
 
-                                //v0_pos += parent_pos.yzw;
-                                //v1_pos += parent_pos.yzw;
-                                //v2_pos += parent_pos.yzw;
+                                float ray_time = mix(rt_pos.x, next_rt_pos.x, (float)kk / max_len2);
 
-                                float3 ray_pos = rt_pos.yzw;
-                                float3 ray_dir = next_rt_pos.yzw - rt_pos.yzw;
-
-                                ///ehhhh need to take closest
-                                if(ray_intersects_triangle(ray_pos, ray_dir, v0_pos, v1_pos, v2_pos))
+                                if(tri_time < ray_time + 0.5f && tri_time >= ray_time - 0.5f)
                                 {
-                                    struct intersection out;
-                                    out.sx = sx;
-                                    out.sy = sy;
+                                    float3 v0_pos = {ctri->v0x, ctri->v0y, ctri->v0z};
+                                    float3 v1_pos = {ctri->v1x, ctri->v1y, ctri->v1z};
+                                    float3 v2_pos = {ctri->v2x, ctri->v2y, ctri->v2z};
 
-                                    int isect = atomic_inc(intersection_count);
+                                    //v0_pos += parent_pos.yzw;
+                                    //v1_pos += parent_pos.yzw;
+                                    //v2_pos += parent_pos.yzw;
 
-                                    intersections_out[isect] = out;
-                                    return;
+                                    float3 ray_pos = rt_pos.yzw;
+                                    float3 ray_dir = next_rt_pos.yzw - rt_pos.yzw;
+
+                                    ///ehhhh need to take closest
+                                    if(ray_intersects_triangle(ray_pos, ray_dir, v0_pos, v1_pos, v2_pos))
+                                    {
+                                        struct intersection out;
+                                        out.sx = sx;
+                                        out.sy = sy;
+
+                                        int isect = atomic_inc(intersection_count);
+
+                                        intersections_out[isect] = out;
+                                        return;
+                                    }
                                 }
+
                             }
                             #endif // 0
 
