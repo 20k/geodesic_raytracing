@@ -3871,11 +3871,14 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                 if(dot(pdiff, pdiff) > 5)
                                     continue;*/
 
+                                #define OBSERVER_DEPENDENCE
+                                #ifdef OBSERVER_DEPENDENCE
                                 float tri_time = ctri->time;
 
                                 float ray_time = mix(rt_pos.x, next_rt_pos.x, (float)kk / max_len2);
 
                                 if(tri_time < ray_time + 0.5f && tri_time >= ray_time - 0.5f)
+                                #endif // OBSERVER_DEPENDENCE
                                 {
                                     float3 v0_pos = {ctri->v0x, ctri->v0y, ctri->v0z};
                                     float3 v1_pos = {ctri->v1x, ctri->v1y, ctri->v1z};
