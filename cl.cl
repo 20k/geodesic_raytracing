@@ -1,5 +1,21 @@
 #define M_PIf ((float)M_PI)
 
+struct triangle
+{
+    int parent;
+    float v0x, v0y, v0z;
+    float v1x, v1y, v1z;
+    float v2x, v2y, v2z;
+};
+
+struct computed_triangle
+{
+    float time;
+    float v0x, v0y, v0z;
+    float v1x, v1y, v1z;
+    float v2x, v2y, v2z;
+};
+
 struct object
 {
     float4 pos;
@@ -3242,15 +3258,6 @@ int calculate_ds_error(float current_ds, float4 next_acceleration, float4 accele
 }
 #endif // ADAPTIVE_PRECISION
 
-struct triangle
-{
-    int parent;
-    float time;
-    float v0x, v0y, v0z;
-    float v1x, v1y, v1z;
-    float v2x, v2y, v2z;
-};
-
 struct intersection
 {
     int sx, sy;
@@ -3423,7 +3430,7 @@ __kernel
 void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                                           int obj_count,
                                           __global struct triangle* reference_tris,
-                                          __global int* offset_map, __global int* offset_counts, __global struct triangle* mem_buffer,
+                                          __global int* offset_map, __global int* offset_counts, __global struct computed_triangle* mem_buffer,
                                           __global float4* object_geodesics, __global int* object_geodesic_counts,
                                           __global float* object_geodesic_ds,
                                           float start_ds, float end_ds,
@@ -3508,21 +3515,21 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
                         if(should_store)
                         {
-                            struct triangle local_tri = my_tri;
+                            struct computed_triangle local_tri;
 
                             local_tri.time = ray_current.x;
 
-                            local_tri.v0x += ray_current.y;
-                            local_tri.v0y += ray_current.z;
-                            local_tri.v0z += ray_current.w;
+                            local_tri.v0x = my_tri.v0x + ray_current.y;
+                            local_tri.v0y = my_tri.v0y + ray_current.z;
+                            local_tri.v0z = my_tri.v0z + ray_current.w;
 
-                            local_tri.v1x += ray_current.y;
-                            local_tri.v1y += ray_current.z;
-                            local_tri.v1z += ray_current.w;
+                            local_tri.v1x = my_tri.v1x + ray_current.y;
+                            local_tri.v1y = my_tri.v1y + ray_current.z;
+                            local_tri.v1z = my_tri.v1z + ray_current.w;
 
-                            local_tri.v2x += ray_current.y;
-                            local_tri.v2y += ray_current.z;
-                            local_tri.v2z += ray_current.w;
+                            local_tri.v2x = my_tri.v2x + ray_current.y;
+                            local_tri.v2y = my_tri.v2y + ray_current.z;
+                            local_tri.v2z = my_tri.v2z + ray_current.w;
 
                             int mem_start = offset_map[oid];
 
@@ -3568,9 +3575,9 @@ void alloc_acceleration(__global int* offset_map, __global int* offset_counts, i
     if(my_count > 0)
         offset = atomic_add(mem_count, my_count);
 
-    if(offset + my_count > max_memory_size)
+    if(offset + my_count > (max_memory_size / sizeof(struct computed_triangle)))
     {
-        offset = max_memory_size - my_count;
+        offset = (max_memory_size / sizeof(struct computed_triangle)) - my_count;
 
         printf("Error in alloc acceleration\n");
     }
@@ -3661,7 +3668,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                       //__global float4* path_out, __global int* counts_out,
                       __global struct triangle* tris, int tri_count, __global struct intersection* intersections_out, __global int* intersection_count,
                       __global struct potential_intersection* intersections_p, __global int* intersection_count_p,
-                      __global int* counts, __global int* offsets, __global struct triangle* linear_mem, float accel_width, int accel_width_num,
+                      __global int* counts, __global int* offsets, __global struct computed_triangle* linear_mem, float accel_width, int accel_width_num,
                       __global struct object* objs,
                       dynamic_config_space struct dynamic_config* cfg)
 {
@@ -3858,12 +3865,10 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                             int tri_count = counts[voxel_id];
                             int base_offset = offsets[voxel_id];
 
-                            __global struct triangle* base_tri = &linear_mem[base_offset];
-
                             #if 1
                             for(int t_off=0; t_off < tri_count; t_off++)
                             {
-                                __global struct triangle* ctri = &linear_mem[base_offset + t_off];
+                                __global struct computed_triangle* ctri = &linear_mem[base_offset + t_off];
 
                                 ///use dot current_pos tri centre pos (?) as distance metric
                                 /*float3 pdiff = parent_pos.yzw - rt_pos.yzw;
