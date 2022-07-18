@@ -3429,6 +3429,35 @@ void generate_acceleration_counts(__global struct sub_point* sp, int sp_count, _
     }
 }
 
+struct step_setup
+{
+    float3 current;
+    float3 step;
+    int num;
+};
+
+struct step_setup setup_step(float3 grid1, float3 grid2)
+{
+    grid1 = floor(grid1);
+    grid2 = floor(grid2);
+
+    float3 diff2 = grid2 - grid1;
+    float3 adiff2 = fabs(diff2);
+
+    float max_len2 = max(max(adiff2.x, adiff2.y), adiff2.z);
+
+    max_len2 = max(max_len2, 1.f);
+
+    float3 step = diff2 / max_len2;
+
+    struct step_setup ret;
+    ret.current = grid1;
+    ret.step = step;
+    ret.num = (int)max_len2;
+
+    return ret;
+};
+
 __kernel
 void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                                           int obj_count,
@@ -3467,6 +3496,18 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
     float voxel_cube_size = width / width_num;
 
     struct triangle my_tri = reference_tris[mine.parent];
+
+    int3 last_grid_pos = (0,0,0);
+
+    {
+        float4 start_pos = generic_to_cartesian(object_geodesics[0 * stride + mine.object_parent], cfg);
+
+        float4 pos = start_pos + (float4)(0.f, mine.x, mine.y, mine.z);
+
+        float4 grid_pos = floor(pos / voxel_cube_size);
+
+        last_grid_pos = (int3)(grid_pos.y, grid_pos.z, grid_pos.w);
+    }
 
     for(int cc=0; cc < count - 1;)
     {
@@ -3528,6 +3569,9 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
                 int3 int_grid_pos = (int3)(grid_pos.y, grid_pos.z, grid_pos.w);
 
+                if(all(int_grid_pos == last_grid_pos))
+                    continue;
+
                 ///todo: use 4d grid
                 for(int z=-1; z <= 1; z++)
                 {
@@ -3574,6 +3618,9 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                         }
                     }
                 }
+
+                last_grid_pos = int_grid_pos;
+
                 //ray_current += step;
             }
         }
