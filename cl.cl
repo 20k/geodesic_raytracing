@@ -3509,6 +3509,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         last_grid_pos = (int3)(grid_pos.y, grid_pos.z, grid_pos.w);
     }
 
+    ///if I'm doing bresenhams, then ds_stepping makes no sense and I am insane
     for(int cc=0; cc < count - 1;)
     {
         float ds = object_geodesic_ds[cc * stride + mine.object_parent];
@@ -3572,48 +3573,57 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                 if(all(int_grid_pos == last_grid_pos))
                     continue;
 
-                ///todo: use 4d grid
-                for(int z=-1; z <= 1; z++)
+                struct step_setup steps = setup_step((float3)(last_grid_pos.x, last_grid_pos.y, last_grid_pos.z), (float3)(int_grid_pos.x, int_grid_pos.y, int_grid_pos.z));
+
+                for(int kk=0; kk < steps.num; kk++)
                 {
-                    for(int y=-1; y <= 1; y++)
+                    float3 next_pos = kk * steps.step + steps.current;
+
+                    int3 ipos = (int3)(next_pos.x, next_pos.y, next_pos.z);
+
+                    ///todo: use 4d grid
+                    for(int z=-1; z <= 1; z++)
                     {
-                        for(int x=-1; x <= 1; x++)
+                        for(int y=-1; y <= 1; y++)
                         {
-                            int3 off = (int3)(x, y, z);
-                            int3 fin = int_grid_pos + off;
-
-                            fin.x = mod(fin.x, width_num);
-                            fin.y = mod(fin.y, width_num);
-                            fin.z = mod(fin.z, width_num);
-
-                            int oid = fin.z * width_num * width_num + fin.y * width_num + fin.x;
-
-                            int lid = atomic_inc(&offset_counts[oid]);
-
-                            if(should_store)
+                            for(int x=-1; x <= 1; x++)
                             {
-                                struct computed_triangle local_tri;
+                                int3 off = (int3)(x, y, z);
+                                int3 fin = ipos + off;
 
-                                local_tri.time = ray_current.x;
-                                local_tri.end_time = (next.x - current.x) * max_ds_step + ray_current.x;
+                                fin.x = mod(fin.x, width_num);
+                                fin.y = mod(fin.y, width_num);
+                                fin.z = mod(fin.z, width_num);
 
-                                local_tri.v0x = my_tri.v0x + ray_current.y;
-                                local_tri.v0y = my_tri.v0y + ray_current.z;
-                                local_tri.v0z = my_tri.v0z + ray_current.w;
+                                int oid = fin.z * width_num * width_num + fin.y * width_num + fin.x;
 
-                                local_tri.v1x = my_tri.v1x + ray_current.y;
-                                local_tri.v1y = my_tri.v1y + ray_current.z;
-                                local_tri.v1z = my_tri.v1z + ray_current.w;
+                                int lid = atomic_inc(&offset_counts[oid]);
 
-                                local_tri.v2x = my_tri.v2x + ray_current.y;
-                                local_tri.v2y = my_tri.v2y + ray_current.z;
-                                local_tri.v2z = my_tri.v2z + ray_current.w;
+                                if(should_store)
+                                {
+                                    struct computed_triangle local_tri;
 
-                                local_tri.velocity = (next - current);
+                                    local_tri.time = ray_current.x;
+                                    local_tri.end_time = (next.x - current.x) * max_ds_step + ray_current.x;
 
-                                int mem_start = offset_map[oid];
+                                    local_tri.v0x = my_tri.v0x + ray_current.y;
+                                    local_tri.v0y = my_tri.v0y + ray_current.z;
+                                    local_tri.v0z = my_tri.v0z + ray_current.w;
 
-                                mem_buffer[mem_start + lid] = local_tri;
+                                    local_tri.v1x = my_tri.v1x + ray_current.y;
+                                    local_tri.v1y = my_tri.v1y + ray_current.z;
+                                    local_tri.v1z = my_tri.v1z + ray_current.w;
+
+                                    local_tri.v2x = my_tri.v2x + ray_current.y;
+                                    local_tri.v2y = my_tri.v2y + ray_current.z;
+                                    local_tri.v2z = my_tri.v2z + ray_current.w;
+
+                                    local_tri.velocity = (next - current);
+
+                                    int mem_start = offset_map[oid];
+
+                                    mem_buffer[mem_start + lid] = local_tri;
+                                }
                             }
                         }
                     }
