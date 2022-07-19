@@ -3976,9 +3976,27 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
     float ray_time_velocity = dir.x;
 
+
+    ///so time line1 = entry + (exit - entry) * t0
+    ///time line 2 = ray_entry + (ray_exit - ray_entry) * t1;
+    ///I thiiink t1 = t2? and I want to solve for t
+
+    ///so y = entry + (exit - entry) * t
+    ///y = ray_entry + (ray_exit - ray_entry) * t
+    ///entry + (exit - entry) * t = ray_entry + (ray_exit - ray_entry) * t
+    ///entry - ray_entry + (exit - entry) * t - (ray_exit - ray_entry) * t = 0
+    ///entry - ray_entry + t * ((exit - entry) - (ray_exit - ray_entry)) = 0
+    ///t * ((exit - entry) - (ray_exit - ray_entry)) = -(entry - ray_entry)
+    ///t = -(entry - ray_entry) / ((exit - entry) - (ray_exit - ray_entry))
+
+    float intersection_time = -(entry_time - ray_entry_time) / ((exit_time - entry_time) - (ray_exit_time - ray_entry_time));
+
+    if(intersection_time >= 0 && intersection_time < 1)
+        return true;
+
     ///err. Overlap somehow
 
-    return true;
+    return false;
 }
 
 __kernel
