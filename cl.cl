@@ -4115,8 +4115,11 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
     float start_time = ctri->time;
     float end_time = ctri->end_time;
 
-    float3 toblerone_origin = (v0 + v1 + v2)/3.f;
-    float3 toblerone_end = (e0 + e1 + e2)/3.f;
+    //float3 toblerone_origin = (v0 + v1 + v2)/3.f;
+    //float3 toblerone_end = (e0 + e1 + e2)/3.f;
+
+    float3 toblerone_origin = v0;
+    float3 toblerone_end = e0;
     float3 toblerone_normal = toblerone_end - toblerone_origin;
 
     float toblerone_height = length(toblerone_normal);
@@ -4137,6 +4140,9 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
     sort2(&entry_time, &exit_time);
     sort2(&ray_entry_time, &ray_exit_time);
+
+    entry_time -= 0.01f;
+    exit_time += 0.01f;
 
     return ray_entry_time <= exit_time && entry_time <= ray_exit_time;
 
