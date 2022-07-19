@@ -4037,6 +4037,16 @@ bool ray_intersects_tetrahedron(float4 pos, float4 dir, struct tetrahedron* tet)
     return normalize(top);
 }*/
 
+void sort2(float* v0, float* v1)
+{
+    if(*v0 > *v1)
+    {
+        float tmp = *v0;
+        *v0 = *v1;
+        *v1 = tmp;
+    }
+}
+
 ///dir is not normalised, should really use a pos2
 bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_triangle* ctri)
 {
@@ -4097,6 +4107,11 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
     if(!any_t)
         return false;
 
+    //if(ctri->end_time > 4.5 && ctri->end_time < 5.5)
+    //    return true;
+
+    //return false;
+
     float start_time = ctri->time;
     float end_time = ctri->end_time;
 
@@ -4117,11 +4132,13 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
     float entry_time = (entry_height / toblerone_height) * (end_time - start_time) + start_time;
     float exit_time = (exit_height / toblerone_height) * (end_time - start_time) + start_time;
 
-
     float ray_entry_time = pos.x + dir.x * min_t;
     float ray_exit_time = pos.x + dir.x * max_t;
 
-    float ray_time_velocity = dir.x;
+    sort2(&entry_time, &exit_time);
+    sort2(&ray_entry_time, &ray_exit_time);
+
+    return ray_entry_time <= exit_time && entry_time <= ray_exit_time;
 
 
     ///so time line1 = entry + (exit - entry) * t0
@@ -4136,12 +4153,14 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
     ///t * ((exit - entry) - (ray_exit - ray_entry)) = -(entry - ray_entry)
     ///t = -(entry - ray_entry) / ((exit - entry) - (ray_exit - ray_entry))
 
-    float intersection_time = -(entry_time - ray_entry_time) / ((exit_time - entry_time) - (ray_exit_time - ray_entry_time));
+    /*float intersection_time = -(entry_time - ray_entry_time) / ((exit_time - entry_time) - (ray_exit_time - ray_entry_time));
 
-    if(intersection_time >= 0 && intersection_time < 1)
+    float eps = 0.00001f;
+
+    if(intersection_time >= -eps && intersection_time < 1 + eps)
         return true;
 
-    return false;
+    return false;*/
 }
 
 __kernel
