@@ -3853,6 +3853,12 @@ struct potential_intersection
     float et, ex, ey, ez;
 };
 
+bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_triangle* ctri)
+{
+
+    return false;
+}
+
 __kernel
 void do_generic_rays (__global struct lightray* restrict generic_rays_in, __global struct lightray* restrict generic_rays_out,
                       __global struct lightray* restrict finished_rays,
@@ -4069,6 +4075,19 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                 if(dot(pdiff, pdiff) > 5)
                                     continue;*/
 
+                                if(ray_intersects_toblerone(rt_pos, next_rt_pos - rt_pos, ctri))
+                                {
+                                    struct intersection out;
+                                    out.sx = sx;
+                                    out.sy = sy;
+
+                                    int isect = atomic_inc(intersection_count);
+
+                                    intersections_out[isect] = out;
+                                    return;
+                                }
+
+                                #if 0
                                 #define OBSERVER_DEPENDENCE
                                 #ifdef OBSERVER_DEPENDENCE
                                 float tri_time = ctri->time;
@@ -4115,6 +4134,9 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                         return;
                                     }
                                 }
+                                #endif // 0
+
+
 
                             }
                             #endif // 0
