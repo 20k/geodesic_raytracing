@@ -4048,6 +4048,7 @@ void sort2(float* v0, float* v1)
 }
 
 ///dir is not normalised, should really use a pos2
+///holes *could* be caused by constant triangle time approximation
 bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_triangle* ctri)
 {
     float3 v0 = (float3)(ctri->v0x, ctri->v0y, ctri->v0z);
