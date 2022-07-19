@@ -3509,6 +3509,95 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         last_grid_pos = (int3)(grid_pos.y, grid_pos.z, grid_pos.w);
     }
 
+    for(int cc=0; cc < count - 1; cc++)
+    {
+        float ds = object_geodesic_ds[cc * stride + mine.object_parent];
+
+        float current_ds = ds_accum;
+        float next_ds = ds_accum + ds;
+
+        ds_accum += ds;
+
+        if(current_ds < start_ds)
+            continue;
+
+        if(current_ds > end_ds)
+            return;
+
+        float4 current = generic_to_cartesian(object_geodesics[cc * stride + mine.object_parent], cfg);
+        float4 next = generic_to_cartesian(object_geodesics[(cc + 1) * stride + mine.object_parent], cfg);
+
+        float4 ray_current = current;
+
+        float4 pos = ray_current + (float4)(0.f, mine.x, mine.y, mine.z);
+
+        float4 grid_pos = floor(pos / voxel_cube_size);
+
+        int3 int_grid_pos = (int3)(grid_pos.y, grid_pos.z, grid_pos.w);
+
+        if(all(int_grid_pos == last_grid_pos))
+            continue;
+
+        struct step_setup steps = setup_step((float3)(last_grid_pos.x, last_grid_pos.y, last_grid_pos.z), (float3)(int_grid_pos.x, int_grid_pos.y, int_grid_pos.z));
+
+        for(int kk=0; kk < steps.num; kk++)
+        {
+            float3 next_pos = kk * steps.step + steps.current;
+
+            int3 ipos = (int3)(next_pos.x, next_pos.y, next_pos.z);
+
+            ///todo: use 4d grid
+            for(int z=-1; z <= 1; z++)
+            {
+                for(int y=-1; y <= 1; y++)
+                {
+                    for(int x=-1; x <= 1; x++)
+                    {
+                        int3 off = (int3)(x, y, z);
+                        int3 fin = ipos + off;
+
+                        fin.x = mod(fin.x, width_num);
+                        fin.y = mod(fin.y, width_num);
+                        fin.z = mod(fin.z, width_num);
+
+                        int oid = fin.z * width_num * width_num + fin.y * width_num + fin.x;
+
+                        int lid = atomic_inc(&offset_counts[oid]);
+
+                        if(should_store)
+                        {
+                            struct computed_triangle local_tri;
+
+                            local_tri.time = ray_current.x;
+                            local_tri.end_time = (next.x - current.x) * max_ds_step + ray_current.x;
+
+                            local_tri.v0x = my_tri.v0x + ray_current.y;
+                            local_tri.v0y = my_tri.v0y + ray_current.z;
+                            local_tri.v0z = my_tri.v0z + ray_current.w;
+
+                            local_tri.v1x = my_tri.v1x + ray_current.y;
+                            local_tri.v1y = my_tri.v1y + ray_current.z;
+                            local_tri.v1z = my_tri.v1z + ray_current.w;
+
+                            local_tri.v2x = my_tri.v2x + ray_current.y;
+                            local_tri.v2y = my_tri.v2y + ray_current.z;
+                            local_tri.v2z = my_tri.v2z + ray_current.w;
+
+                            local_tri.velocity = (next - current);
+
+                            int mem_start = offset_map[oid];
+
+                            mem_buffer[mem_start + lid] = local_tri;
+                        }
+                    }
+                }
+            }
+        }
+
+        last_grid_pos = int_grid_pos;
+    }
+
+    #if 0
     ///if I'm doing bresenhams, then ds_stepping makes no sense and I am insane
     for(int cc=0; cc < count - 1;)
     {
@@ -3635,6 +3724,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
             }
         }
     }
+    #endif // 0
 }
 
 ///so
@@ -3980,7 +4070,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                                 //if(tri_time < ray_time + 0.5f && tri_time >= ray_time - 0.5f)
 
-                                //if(ray_time >= tri_time && ray_time < next_tri_time)
+                                if(ray_time >= tri_time && ray_time < next_tri_time)
                                 #endif // OBSERVER_DEPENDENCE
                                 {
                                     float time_elapsed = (ray_time - tri_time);
