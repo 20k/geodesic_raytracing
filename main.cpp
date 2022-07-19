@@ -1149,6 +1149,7 @@ int main(int argc, char* argv[])
     gpu_intersections_count.alloc(sizeof(cl_int));
 
     bool reset_camera = true;
+    bool once = false;
 
     std::optional<cl_float4> last_camera_pos;
     std::optional<cl_float4> last_geodesic_velocity;
@@ -2191,6 +2192,11 @@ int main(int argc, char* argv[])
             ///do not change this string
             printf("Frametime Elapsed: %f\n", frametime_ms);
         }
+
+        if(frametime_s > 10 && once)
+            return 0;
+
+        once = true;
     }
 
 
