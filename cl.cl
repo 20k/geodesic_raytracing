@@ -3676,6 +3676,36 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
             float4 ray_current = mix(current, next, ds_frac);
 
             {
+                struct computed_triangle local_tri;
+
+                local_tri.time = last_ray_pos.x;
+                local_tri.end_time = ray_current.x;
+
+                local_tri.e0x = my_tri.v0x + ray_current.y;
+                local_tri.e0y = my_tri.v0y + ray_current.z;
+                local_tri.e0z = my_tri.v0z + ray_current.w;
+
+                local_tri.e1x = my_tri.v1x + ray_current.y;
+                local_tri.e1y = my_tri.v1y + ray_current.z;
+                local_tri.e1z = my_tri.v1z + ray_current.w;
+
+                local_tri.e2x = my_tri.v2x + ray_current.y;
+                local_tri.e2y = my_tri.v2y + ray_current.z;
+                local_tri.e2z = my_tri.v2z + ray_current.w;
+
+                local_tri.v0x = my_tri.v0x + last_ray_pos.y;
+                local_tri.v0y = my_tri.v0y + last_ray_pos.z;
+                local_tri.v0z = my_tri.v0z + last_ray_pos.w;
+
+                local_tri.v1x = my_tri.v1x + last_ray_pos.y;
+                local_tri.v1y = my_tri.v1y + last_ray_pos.z;
+                local_tri.v1z = my_tri.v1z + last_ray_pos.w;
+
+                local_tri.v2x = my_tri.v2x + last_ray_pos.y;
+                local_tri.v2y = my_tri.v2y + last_ray_pos.z;
+                local_tri.v2z = my_tri.v2z + last_ray_pos.w;
+
+
                 float4 pos = ray_current + (float4)(0.f, mine.x, mine.y, mine.z);
 
                 float4 grid_pos = floor(pos / voxel_cube_size);
@@ -3713,35 +3743,6 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
                                 if(should_store)
                                 {
-                                    struct computed_triangle local_tri;
-
-                                    local_tri.time = last_ray_pos.x;
-                                    local_tri.end_time = ray_current.x;
-
-                                    local_tri.e0x = my_tri.v0x + ray_current.y;
-                                    local_tri.e0y = my_tri.v0y + ray_current.z;
-                                    local_tri.e0z = my_tri.v0z + ray_current.w;
-
-                                    local_tri.e1x = my_tri.v1x + ray_current.y;
-                                    local_tri.e1y = my_tri.v1y + ray_current.z;
-                                    local_tri.e1z = my_tri.v1z + ray_current.w;
-
-                                    local_tri.e2x = my_tri.v2x + ray_current.y;
-                                    local_tri.e2y = my_tri.v2y + ray_current.z;
-                                    local_tri.e2z = my_tri.v2z + ray_current.w;
-
-                                    local_tri.v0x = my_tri.v0x + last_ray_pos.y;
-                                    local_tri.v0y = my_tri.v0y + last_ray_pos.z;
-                                    local_tri.v0z = my_tri.v0z + last_ray_pos.w;
-
-                                    local_tri.v1x = my_tri.v1x + last_ray_pos.y;
-                                    local_tri.v1y = my_tri.v1y + last_ray_pos.z;
-                                    local_tri.v1z = my_tri.v1z + last_ray_pos.w;
-
-                                    local_tri.v2x = my_tri.v2x + last_ray_pos.y;
-                                    local_tri.v2y = my_tri.v2y + last_ray_pos.z;
-                                    local_tri.v2z = my_tri.v2z + last_ray_pos.w;
-
                                     int mem_start = offset_map[oid];
 
                                     mem_buffer[mem_start + lid] = local_tri;
