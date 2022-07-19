@@ -3268,7 +3268,7 @@ struct intersection
     int sx, sy;
 };
 
-bool ray_intersects_triangle(float3 origin, float3 direction, float3 vertex0, float3 vertex1, float3 vertex2)
+bool ray_intersects_triangle(float3 origin, float3 direction, float3 vertex0, float3 vertex1, float3 vertex2, float* t_out)
 {
     //direction = fast_normalize(direction);
 
@@ -3313,6 +3313,9 @@ bool ray_intersects_triangle(float3 origin, float3 direction, float3 vertex0, fl
 
     if (t > eps) // ray intersection
     {
+        if(t_out)
+            *t_out = t;
+
         //outIntersectionPoint = rayOrigin + rayVector * t;
         return true;
     }
@@ -3499,7 +3502,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
     struct triangle my_tri = reference_tris[mine.parent];
 
-    int3 last_grid_pos = (0,0,0);
+    int3 last_grid_pos = (int3)(0,0,0);
 
     {
         float4 start_pos = generic_to_cartesian(object_geodesics[0 * stride + mine.object_parent], cfg);
@@ -3855,6 +3858,7 @@ struct potential_intersection
 
 bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_triangle* ctri)
 {
+
 
     return false;
 }
@@ -5229,7 +5233,7 @@ void render_tris(__global struct triangle* tris, int tri_count,
                 float3 ray_pos = mix(next_pos.yzw, pos.yzw, dx);
                 float3 ray_dir = next_pos.yzw - pos.yzw;
 
-                if(ray_intersects_triangle(ray_pos, ray_dir, v0_pos, v1_pos, v2_pos))
+                if(ray_intersects_triangle(ray_pos, ray_dir, v0_pos, v1_pos, v2_pos, 0))
                 {
                     write_imagef(screen, (int2){sx, sy}, (float4)(1, 0, 0, 1));
                     return;
@@ -5305,7 +5309,7 @@ void render_potential_intersections(__global struct potential_intersection* in, 
                 float3 ray_dir = next_rt_pos.yzw - rt_pos.yzw;
 
                 ///ehhhh need to take closest
-                if(ray_intersects_triangle(ray_pos, ray_dir, v0_pos, v1_pos, v2_pos))
+                if(ray_intersects_triangle(ray_pos, ray_dir, v0_pos, v1_pos, v2_pos, 0))
                 {
                     write_imagef(screen, (int2){cx, cy}, (float4)(1, 0, 0, 1));
                     return;
