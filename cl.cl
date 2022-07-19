@@ -3503,9 +3503,11 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
     struct triangle my_tri = reference_tris[mine.parent];
 
     int3 last_grid_pos = (int3)(0,0,0);
+    float4 last_ray_pos;
 
     {
         float4 start_pos = generic_to_cartesian(object_geodesics[0 * stride + mine.object_parent], cfg);
+        last_ray_pos = start_pos;
 
         float4 pos = start_pos + (float4)(0.f, mine.x, mine.y, mine.z);
 
@@ -3514,6 +3516,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         last_grid_pos = (int3)(grid_pos.y, grid_pos.z, grid_pos.w);
     }
 
+    #if 0
     for(int cc=0; cc < count - 1; cc++)
     {
         float ds = object_geodesic_ds[cc * stride + mine.object_parent];
@@ -3615,6 +3618,132 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         }
 
         last_grid_pos = int_grid_pos;
+    }
+    #endif // 0
+
+        ///if I'm doing bresenhams, then ds_stepping makes no sense and I am insane
+    for(int cc=0; cc < count - 1;)
+    {
+        float ds = object_geodesic_ds[cc * stride + mine.object_parent];
+
+        float current_ds = ds_accum;
+        float next_ds = ds_accum + ds;
+
+        ds_accum += ds;
+
+        if(current_ds < start_ds)
+            continue;
+
+        if(current_ds > end_ds)
+            return;
+
+        ds_error += ds;
+
+        if(ds_error < max_ds_step)
+        {
+            cc++;
+            continue;
+        }
+
+        while(ds_error >= max_ds_step)
+        {
+            ds_error -= max_ds_step;
+
+            ///must be < 1 by construction
+            float ds_frac = ds_error / ds;
+
+            if(ds_frac > 1)
+            {
+                printf("Error in generate smeared\n");
+            }
+
+            ds_frac = clamp(ds_frac, 0.f, 1.f);
+
+            float4 current = generic_to_cartesian(object_geodesics[cc * stride + mine.object_parent], cfg);
+            float4 next = generic_to_cartesian(object_geodesics[(cc + 1) * stride + mine.object_parent], cfg);
+
+            float4 ray_current = mix(current, next, ds_frac);
+
+            {
+                float4 pos = ray_current + (float4)(0.f, mine.x, mine.y, mine.z);
+
+                float4 grid_pos = floor(pos / voxel_cube_size);
+
+                int3 int_grid_pos = (int3)(grid_pos.y, grid_pos.z, grid_pos.w);
+
+                //if(all(int_grid_pos == last_grid_pos))
+                //    continue;
+
+                struct step_setup steps = setup_step((float3)(last_grid_pos.x, last_grid_pos.y, last_grid_pos.z), (float3)(int_grid_pos.x, int_grid_pos.y, int_grid_pos.z));
+
+                for(int kk=0; kk < steps.num; kk++)
+                {
+                    float3 next_pos = kk * steps.step + steps.current;
+
+                    int3 ipos = (int3)(next_pos.x, next_pos.y, next_pos.z);
+
+                    ///todo: use 4d grid
+                    for(int z=-1; z <= 1; z++)
+                    {
+                        for(int y=-1; y <= 1; y++)
+                        {
+                            for(int x=-1; x <= 1; x++)
+                            {
+                                int3 off = (int3)(x, y, z);
+                                int3 fin = ipos + off;
+
+                                fin.x = mod(fin.x, width_num);
+                                fin.y = mod(fin.y, width_num);
+                                fin.z = mod(fin.z, width_num);
+
+                                int oid = fin.z * width_num * width_num + fin.y * width_num + fin.x;
+
+                                int lid = atomic_inc(&offset_counts[oid]);
+
+                                if(should_store)
+                                {
+                                    struct computed_triangle local_tri;
+
+                                    local_tri.time = last_ray_pos.x;
+                                    local_tri.end_time = ray_current.x;
+
+                                    local_tri.e0x = my_tri.v0x + ray_current.y;
+                                    local_tri.e0y = my_tri.v0y + ray_current.z;
+                                    local_tri.e0z = my_tri.v0z + ray_current.w;
+
+                                    local_tri.e1x = my_tri.v1x + ray_current.y;
+                                    local_tri.e1y = my_tri.v1y + ray_current.z;
+                                    local_tri.e1z = my_tri.v1z + ray_current.w;
+
+                                    local_tri.e2x = my_tri.v2x + ray_current.y;
+                                    local_tri.e2y = my_tri.v2y + ray_current.z;
+                                    local_tri.e2z = my_tri.v2z + ray_current.w;
+
+                                    local_tri.v0x = my_tri.v0x + last_ray_pos.y;
+                                    local_tri.v0y = my_tri.v0y + last_ray_pos.z;
+                                    local_tri.v0z = my_tri.v0z + last_ray_pos.w;
+
+                                    local_tri.v1x = my_tri.v1x + last_ray_pos.y;
+                                    local_tri.v1y = my_tri.v1y + last_ray_pos.z;
+                                    local_tri.v1z = my_tri.v1z + last_ray_pos.w;
+
+                                    local_tri.v2x = my_tri.v2x + last_ray_pos.y;
+                                    local_tri.v2y = my_tri.v2y + last_ray_pos.z;
+                                    local_tri.v2z = my_tri.v2z + last_ray_pos.w;
+
+                                    int mem_start = offset_map[oid];
+
+                                    mem_buffer[mem_start + lid] = local_tri;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                last_grid_pos = int_grid_pos;
+                last_ray_pos = ray_current;
+            }
+        }
     }
 
     #if 0
@@ -4000,8 +4129,6 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
     if(intersection_time >= 0 && intersection_time < 1)
         return true;
-
-    ///err. Overlap somehow
 
     return false;
 }
