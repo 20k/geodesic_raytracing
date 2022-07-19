@@ -3632,7 +3632,18 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         ds_accum += ds;
 
         if(current_ds < start_ds)
+        {
+            float4 start_pos = generic_to_cartesian(object_geodesics[0 * stride + mine.object_parent], cfg);
+            last_ray_pos = start_pos;
+
+            float4 pos = start_pos + (float4)(0.f, mine.x, mine.y, mine.z);
+
+            float4 grid_pos = floor(pos / voxel_cube_size);
+
+            last_grid_pos = (int3)(grid_pos.y, grid_pos.z, grid_pos.w);
+
             continue;
+        }
 
         if(current_ds > end_ds)
             return;
