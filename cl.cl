@@ -3663,10 +3663,10 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
             ///must be < 1 by construction
             float ds_frac = ds_error / ds;
 
-            if(ds_frac > 1)
+            /*if(ds_frac > 1)
             {
                 printf("Error in generate smeared\n");
-            }
+            }*/
 
             ds_frac = clamp(ds_frac, 0.f, 1.f);
 
@@ -3682,8 +3682,8 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
                 int3 int_grid_pos = (int3)(grid_pos.y, grid_pos.z, grid_pos.w);
 
-                //if(all(int_grid_pos == last_grid_pos))
-                //    continue;
+                if(all(int_grid_pos == last_grid_pos))
+                    continue;
 
                 struct step_setup steps = setup_step((float3)(last_grid_pos.x, last_grid_pos.y, last_grid_pos.z), (float3)(int_grid_pos.x, int_grid_pos.y, int_grid_pos.z));
 
