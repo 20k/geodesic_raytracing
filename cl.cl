@@ -3533,15 +3533,22 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         float4 next = generic_to_cartesian(object_geodesics[(cc + 1) * stride + mine.object_parent], cfg);
 
         float4 pos = current + (float4)(0.f, mine.x, mine.y, mine.z);
-
         float4 grid_pos = floor(pos / voxel_cube_size);
-
         int3 int_grid_pos = (int3)(grid_pos.y, grid_pos.z, grid_pos.w);
 
-        if(all(int_grid_pos == last_grid_pos))
-            continue;
+        float4 next_pos = next + (float4)(0.f, mine.x, mine.y, mine.z);
+        float4 next_grid_pos = floor(next_pos / voxel_cube_size);
+        int3 next_int_grid_pos = (int3)(next_grid_pos.y, next_grid_pos.z, next_grid_pos.w);
 
-        struct step_setup steps = setup_step((float3)(last_grid_pos.x, last_grid_pos.y, last_grid_pos.z), (float3)(int_grid_pos.x, int_grid_pos.y, int_grid_pos.z));
+        //if(all(int_grid_pos) == all(next_int_grid_pos) && all(int_grid_pos == last_grid_pos))
+        //    continue;
+
+        //if(all(int_grid_pos == last_grid_pos))
+        //    continue;
+
+        struct step_setup steps = setup_step((float3)(int_grid_pos.x, int_grid_pos.y, int_grid_pos.z), (float3)(next_int_grid_pos.x, next_int_grid_pos.y, next_int_grid_pos.z));
+
+        //struct step_setup steps = setup_step((float3)(last_grid_pos.x, last_grid_pos.y, last_grid_pos.z), (float3)(int_grid_pos.x, int_grid_pos.y, int_grid_pos.z));
 
         for(int kk=0; kk < steps.num; kk++)
         {
