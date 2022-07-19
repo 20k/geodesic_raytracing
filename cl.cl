@@ -11,10 +11,14 @@ struct triangle
 struct computed_triangle
 {
     float time;
-    float end_time;
     float v0x, v0y, v0z;
     float v1x, v1y, v1z;
     float v2x, v2y, v2z;
+
+    float end_time;
+    float s0x, s0y, s0z;
+    float s1x, s1y, s1z;
+    float s2x, s2y, s2z;
 
     float4 velocity;
 };
@@ -3527,9 +3531,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         float4 current = generic_to_cartesian(object_geodesics[cc * stride + mine.object_parent], cfg);
         float4 next = generic_to_cartesian(object_geodesics[(cc + 1) * stride + mine.object_parent], cfg);
 
-        float4 ray_current = current;
-
-        float4 pos = ray_current + (float4)(0.f, mine.x, mine.y, mine.z);
+        float4 pos = current + (float4)(0.f, mine.x, mine.y, mine.z);
 
         float4 grid_pos = floor(pos / voxel_cube_size);
 
@@ -3568,20 +3570,20 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                         {
                             struct computed_triangle local_tri;
 
-                            local_tri.time = ray_current.x;
-                            local_tri.end_time = (next.x - current.x) * max_ds_step + ray_current.x;
+                            local_tri.time = current.x;
+                            local_tri.end_time = (next.x - current.x) * max_ds_step + current.x;
 
-                            local_tri.v0x = my_tri.v0x + ray_current.y;
-                            local_tri.v0y = my_tri.v0y + ray_current.z;
-                            local_tri.v0z = my_tri.v0z + ray_current.w;
+                            local_tri.v0x = my_tri.v0x + current.y;
+                            local_tri.v0y = my_tri.v0y + current.z;
+                            local_tri.v0z = my_tri.v0z + current.w;
 
-                            local_tri.v1x = my_tri.v1x + ray_current.y;
-                            local_tri.v1y = my_tri.v1y + ray_current.z;
-                            local_tri.v1z = my_tri.v1z + ray_current.w;
+                            local_tri.v1x = my_tri.v1x + current.y;
+                            local_tri.v1y = my_tri.v1y + current.z;
+                            local_tri.v1z = my_tri.v1z + current.w;
 
-                            local_tri.v2x = my_tri.v2x + ray_current.y;
-                            local_tri.v2y = my_tri.v2y + ray_current.z;
-                            local_tri.v2z = my_tri.v2z + ray_current.w;
+                            local_tri.v2x = my_tri.v2x + current.y;
+                            local_tri.v2y = my_tri.v2y + current.z;
+                            local_tri.v2z = my_tri.v2z + current.w;
 
                             local_tri.velocity = (next - current);
 
