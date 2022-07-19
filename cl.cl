@@ -3856,8 +3856,62 @@ struct potential_intersection
     float et, ex, ey, ez;
 };
 
+/*float4 cross4(float4 U, float4 V, float4 W)
+{
+    float a = (V.x * W.y) - (V.y * W.x);
+    float b = (V.x * W.z) - (V.z * W.x);
+    float c = (V.x * W.w) - (V.w * W.x);
+    float d = (V.y * W.z) - (V.z * W.y);
+    float e = (V.y * W.w) - (V.w * W.y);
+    float f = (V.z * W.w) - (V.w * W.z);
+
+    float4 res;
+    res.x =  (U.y * F) - (U.z * E) + (U.w * D);
+    res.y = -(U.x * F) + (U.z * C) - (U.w * B);
+    res.z =  (U.x * E) - (U.y * C) + (U.w * A);
+    res.w = -(U.x * D) + (U.y * B) - (U.y * A);
+
+    return res;
+}
+
+struct tetrahedron
+{
+    float4 v0, v1, v2, v3;
+};
+
+bool ray_intersects_tetrahedron(float4 pos, float4 dir, struct tetrahedron* tet)
+{
+    float4 b1 = tet->v1 - tet->v0;
+    float4 b2 = tet->v2 - tet->v0;
+    float4 b3 = tet->v3 - tet->v0;
+
+    float4 top = cross4(b1, b2, b3);
+
+    return normalize(top);
+}*/
+
 bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_triangle* ctri)
 {
+    float3 v0 = (float3)(ctri->v0x, ctri->v0y, ctri->v0z);
+    float3 v1 = (float3)(ctri->v1x, ctri->v1y, ctri->v1z);
+    float3 v2 = (float3)(ctri->v2x, ctri->v2y, ctri->v2z);
+
+    float3 e0 = (float3)(ctri->e0x, ctri->e0y, ctri->e0z);
+    float3 e1 = (float3)(ctri->e1x, ctri->e1y, ctri->e1z);
+    float3 e2 = (float3)(ctri->e2x, ctri->e2y, ctri->e2z);
+
+    float3 vertices[8 * 3] = {
+        v0, v1, v2,
+        e0, e1, e2,
+        v0, e0, v1,
+        v1, e0, e1,
+        v0, e0, v2,
+        e0, e2, v2,
+        v1, e1, v2,
+        e1, e2, v2
+    };
+
+    ///tri * 3 + vert
 
 
     return false;
