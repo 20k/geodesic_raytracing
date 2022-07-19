@@ -16,11 +16,9 @@ struct computed_triangle
     float v2x, v2y, v2z;
 
     float end_time;
-    float s0x, s0y, s0z;
-    float s1x, s1y, s1z;
-    float s2x, s2y, s2z;
-
-    float4 velocity;
+    float e0x, e0y, e0z;
+    float e1x, e1y, e1z;
+    float e2x, e2y, e2z;
 };
 
 struct object
@@ -3571,7 +3569,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                             struct computed_triangle local_tri;
 
                             local_tri.time = current.x;
-                            local_tri.end_time = (next.x - current.x) * max_ds_step + current.x;
+                            local_tri.end_time = next.x;
 
                             local_tri.v0x = my_tri.v0x + current.y;
                             local_tri.v0y = my_tri.v0y + current.z;
@@ -3585,7 +3583,17 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                             local_tri.v2y = my_tri.v2y + current.z;
                             local_tri.v2z = my_tri.v2z + current.w;
 
-                            local_tri.velocity = (next - current);
+                            local_tri.e0x = my_tri.v0x + next.y;
+                            local_tri.e0y = my_tri.v0y + next.z;
+                            local_tri.e0z = my_tri.v0z + next.w;
+
+                            local_tri.e1x = my_tri.v1x + next.y;
+                            local_tri.e1y = my_tri.v1y + next.z;
+                            local_tri.e1z = my_tri.v1z + next.w;
+
+                            local_tri.e2x = my_tri.v2x + next.y;
+                            local_tri.e2y = my_tri.v2y + next.z;
+                            local_tri.e2z = my_tri.v2z + next.w;
 
                             int mem_start = offset_map[oid];
 
