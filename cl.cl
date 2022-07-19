@@ -3913,6 +3913,37 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
     ///tri * 3 + vert
 
+    ///bool ray_intersects_triangle(float3 origin, float3 direction, float3 vertex0, float3 vertex1, float3 vertex2, float* t_out)
+
+    bool any_t = false;
+    float min_t = 0;
+    float max_t = 0;
+
+    for(int i=0; i < 8; i++)
+    {
+        float3 l_v0 = vertices[i * 3 + 0];
+        float3 l_v1 = vertices[i * 3 + 1];
+        float3 l_v2 = vertices[i * 3 + 2];
+
+        float my_t = 0;
+
+        if(ray_intersects_triangle(pos.yzw, dir.yzw, l_v0, l_v1, l_v2, &my_t))
+        {
+            if(any_t)
+            {
+                min_t = min(min_t, my_t);
+                max_t = max(max_t, my_t);
+            }
+            else
+            {
+                min_t = my_t;
+                max_t = my_t;
+                any_t = true;
+            }
+        }
+    }
+
+    ///min_t and max_t correspond to pos.yzw + dir.yzw * t positions, ie toblerone entry and exit
 
     return false;
 }
