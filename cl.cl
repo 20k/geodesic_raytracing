@@ -3890,6 +3890,7 @@ bool ray_intersects_tetrahedron(float4 pos, float4 dir, struct tetrahedron* tet)
     return normalize(top);
 }*/
 
+///dir is not normalised, should really use a pos2
 bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_triangle* ctri)
 {
     float3 v0 = (float3)(ctri->v0x, ctri->v0y, ctri->v0z);
@@ -3944,8 +3945,40 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
     }
 
     ///min_t and max_t correspond to pos.yzw + dir.yzw * t positions, ie toblerone entry and exit
+    ///min_t and max_t must be inherently in range [0, 1]
 
-    return false;
+    if(!any_t)
+        return false;
+
+    float start_time = ctri->time;
+    float end_time = ctri->end_time;
+
+    float3 toblerone_origin = (v0 + v1 + v2)/3.f;
+    float3 toblerone_end = (e0 + e1 + e2)/3.f;
+    float3 toblerone_normal = toblerone_end - toblerone_origin;
+
+    float toblerone_height = length(toblerone_normal);
+
+    float3 entry_position = pos.yzw + dir.yzw * min_t;
+    float3 exit_position = pos.yzw + dir.yzw * max_t;
+
+    float3 norm_toblerone_normal = normalize(toblerone_normal);
+
+    float entry_height = dot(entry_position - toblerone_origin, norm_toblerone_normal);
+    float exit_height = dot(exit_position - toblerone_origin, norm_toblerone_normal);
+
+    float entry_time = (entry_height / toblerone_height) * (end_time - start_time) + start_time;
+    float exit_time = (exit_height / toblerone_height) * (end_time - start_time) + start_time;
+
+
+    float ray_entry_time = pos.x + dir.x * min_t;
+    float ray_exit_time = pos.x + dir.x * max_t;
+
+    float ray_time_velocity = dir.x;
+
+    ///err. Overlap somehow
+
+    return true;
 }
 
 __kernel
