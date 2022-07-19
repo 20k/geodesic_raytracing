@@ -3495,7 +3495,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
     ///this is super suboptimal in regions of high curvature
     ///to future james: you cannot parameterise these curves by coordinate time, especially due to CTCs
-    float max_ds_step = 1.f;
+    float max_ds_step = 0.25f;
     float ds_error = 0;
 
     float voxel_cube_size = width / width_num;
@@ -3621,8 +3621,9 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
     }
     #endif // 0
 
-        ///if I'm doing bresenhams, then ds_stepping makes no sense and I am insane
-    for(int cc=0; cc < count - 1;)
+    #if 1
+    ///if I'm doing bresenhams, then ds_stepping makes no sense and I am insane
+    for(int cc=0; cc < count - 1; cc++)
     {
         float ds = object_geodesic_ds[cc * stride + mine.object_parent];
 
@@ -3648,15 +3649,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         if(current_ds > end_ds)
             return;
 
-        ds_error += ds;
-
-        if(ds_error < max_ds_step)
-        {
-            cc++;
-            continue;
-        }
-
-        while(ds_error >= max_ds_step)
+        //while(ds_error >= max_ds_step)
         {
             ds_error -= max_ds_step;
 
@@ -3673,7 +3666,9 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
             float4 current = generic_to_cartesian(object_geodesics[cc * stride + mine.object_parent], cfg);
             float4 next = generic_to_cartesian(object_geodesics[(cc + 1) * stride + mine.object_parent], cfg);
 
-            float4 ray_current = mix(current, next, ds_frac);
+            float4 ray_current = current;
+
+            //float4 ray_current = mix(current, next, ds_frac);
 
             {
                 struct computed_triangle local_tri;
@@ -3757,6 +3752,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
             }
         }
     }
+    #endif // 0
 
     #if 0
     ///if I'm doing bresenhams, then ds_stepping makes no sense and I am insane
@@ -4140,13 +4136,13 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
     float ray_entry_time = pos.x + dir.x * min_t;
     float ray_exit_time = pos.x + dir.x * max_t;
 
-    sort2(&entry_time, &exit_time);
+    /*sort2(&entry_time, &exit_time);
     sort2(&ray_entry_time, &ray_exit_time);
 
-    entry_time -= 0.01f;
-    exit_time += 0.01f;
+    entry_time -= 0.0001f;
+    exit_time += 0.0001f;
 
-    return ray_entry_time <= exit_time && entry_time <= ray_exit_time;
+    return ray_entry_time <= exit_time && entry_time <= ray_exit_time;*/
 
 
     ///so time line1 = entry + (exit - entry) * t0
@@ -4161,14 +4157,24 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
     ///t * ((exit - entry) - (ray_exit - ray_entry)) = -(entry - ray_entry)
     ///t = -(entry - ray_entry) / ((exit - entry) - (ray_exit - ray_entry))
 
-    /*float intersection_time = -(entry_time - ray_entry_time) / ((exit_time - entry_time) - (ray_exit_time - ray_entry_time));
+    float intersection_time = -(entry_time - ray_entry_time) / ((exit_time - entry_time) - (ray_exit_time - ray_entry_time));
 
-    float eps = 0.00001f;
+    /*float eps = 0.00001f;
 
     if(intersection_time >= -eps && intersection_time < 1 + eps)
         return true;
 
     return false;*/
+
+    float raw_time = intersection_time * (ray_exit_time - ray_entry_time) + ray_entry_time;
+
+    float tri_frac = ((raw_time - start_time) / (end_time - start_time));
+
+    float3 rv0 = mix(v0, e0, tri_frac);
+    float3 rv1 = mix(v1, e1, tri_frac);
+    float3 rv2 = mix(v2, e2, tri_frac);
+
+    return ray_intersects_triangle(pos.yzw, dir.yzw, rv0, rv1, rv2, 0);
 }
 
 __kernel
@@ -4387,6 +4393,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                 if(dot(pdiff, pdiff) > 5)
                                     continue;*/
 
+                                #if 1
                                 if(ray_intersects_toblerone(rt_pos, next_rt_pos - rt_pos, ctri))
                                 {
                                     struct intersection out;
@@ -4398,6 +4405,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                     intersections_out[isect] = out;
                                     return;
                                 }
+                                #endif // 0
 
                                 #if 0
                                 #define OBSERVER_DEPENDENCE
@@ -4434,7 +4442,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                     float3 ray_dir = next_rt_pos.yzw - rt_pos.yzw;
 
                                     ///ehhhh need to take closest
-                                    if(ray_intersects_triangle(ray_pos, ray_dir, v0_pos, v1_pos, v2_pos))
+                                    if(ray_intersects_triangle(ray_pos, ray_dir, v0_pos, v1_pos, v2_pos, 0))
                                     {
                                         struct intersection out;
                                         out.sx = sx;
