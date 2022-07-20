@@ -4041,7 +4041,7 @@ bool ray_toblerone_could_intersect(float4 pos, float4 dir, float tri_start_t, fl
 }
 
 ///dir is not normalised, should really use a pos2
-bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_triangle* ctri)
+bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_triangle* ctri, float tri_start_time, float tri_end_time)
 {
     float3 v0 = (float3)(ctri->v0x, ctri->v0y, ctri->v0z);
     float3 v1 = (float3)(ctri->v1x, ctri->v1y, ctri->v1z);
@@ -4102,9 +4102,6 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
     if(!any_t)
         return false;
 
-    float start_time = ctri->time;
-    float end_time = start_time + ctri->dvt;
-
     //float3 toblerone_origin = (v0 + v1 + v2)/3.f;
     //float3 toblerone_end = (e0 + e1 + e2)/3.f;
 
@@ -4152,8 +4149,8 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
         exit_height = length(new_origin - plane_intersection_location);
     }
 
-    float entry_time = (entry_height / toblerone_height) * (end_time - start_time) + start_time;
-    float exit_time = (exit_height / toblerone_height) * (end_time - start_time) + start_time;
+    float entry_time = (entry_height / toblerone_height) * (tri_end_time - tri_start_time) + tri_start_time;
+    float exit_time = (exit_height / toblerone_height) * (tri_end_time - tri_start_time) + tri_start_time;
 
     float ray_entry_time = pos.x + dir.x * min_t;
     float ray_exit_time = pos.x + dir.x * max_t;
@@ -4390,7 +4387,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                     continue;*/
 
                                 #if 1
-                                if(ray_intersects_toblerone(rt_pos, next_rt_pos - rt_pos, ctri))
+                                if(ray_intersects_toblerone(rt_pos, next_rt_pos - rt_pos, ctri, start_time, end_time))
                                 {
                                     struct intersection out;
                                     out.sx = sx;
