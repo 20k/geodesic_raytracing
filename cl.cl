@@ -10,12 +10,12 @@ struct triangle
 
 struct computed_triangle
 {
-    float time;
+    //float time;
     float v0x, v0y, v0z;
     float v1x, v1y, v1z;
     float v2x, v2y, v2z;
 
-    float dvt;
+    //float dvt;
     float dvx;
     float dvy;
     float dvz;
@@ -3674,7 +3674,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
             {
                 struct computed_triangle local_tri;
 
-                local_tri.time = last_ray_pos.x;
+                float delta_time = (ray_current - last_ray_pos).x;
 
                 local_tri.v0x = my_tri.v0x + last_ray_pos.y;
                 local_tri.v0y = my_tri.v0y + last_ray_pos.z;
@@ -3688,7 +3688,6 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                 local_tri.v2y = my_tri.v2y + last_ray_pos.z;
                 local_tri.v2z = my_tri.v2z + last_ray_pos.w;
 
-                local_tri.dvt = (ray_current - last_ray_pos).x;
                 local_tri.dvx = (ray_current - last_ray_pos).y;
                 local_tri.dvy = (ray_current - last_ray_pos).z;
                 local_tri.dvz = (ray_current - last_ray_pos).w;
@@ -3733,6 +3732,8 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                                     int mem_start = offset_map[oid];
 
                                     mem_buffer[mem_start + lid] = local_tri;
+                                    start_times_memory[mem_start + lid] = last_ray_pos.x;
+                                    delta_times_memory[mem_start + lid] = delta_time;
                                 }
                             }
                         }
@@ -4375,8 +4376,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                             {
                                 __global struct computed_triangle* ctri = &linear_mem[base_offset + t_off];
 
-                                float start_time = ctri->time;
-                                float end_time = start_time + ctri->dvt;
+                                float start_time = linear_start_times[base_offset + t_off];
+                                float end_time = start_time + linear_delta_times[base_offset + t_off];
 
                                 if(!ray_toblerone_could_intersect(rt_pos, next_rt_pos - rt_pos, start_time, end_time))
                                     continue;
