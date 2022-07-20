@@ -15,10 +15,10 @@ struct computed_triangle
     float v1x, v1y, v1z;
     float v2x, v2y, v2z;
 
-    float end_time;
-    float e0x, e0y, e0z;
-    float e1x, e1y, e1z;
-    float e2x, e2y, e2z;
+    float dvt;
+    float dvx;
+    float dvy;
+    float dvz;
 };
 
 struct object
@@ -3674,7 +3674,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                 struct computed_triangle local_tri;
 
                 local_tri.time = last_ray_pos.x;
-                local_tri.end_time = ray_current.x;
+                /*local_tri.end_time = ray_current.x;
 
                 local_tri.e0x = my_tri.v0x + ray_current.y;
                 local_tri.e0y = my_tri.v0y + ray_current.z;
@@ -3686,7 +3686,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
                 local_tri.e2x = my_tri.v2x + ray_current.y;
                 local_tri.e2y = my_tri.v2y + ray_current.z;
-                local_tri.e2z = my_tri.v2z + ray_current.w;
+                local_tri.e2z = my_tri.v2z + ray_current.w;*/
 
                 local_tri.v0x = my_tri.v0x + last_ray_pos.y;
                 local_tri.v0y = my_tri.v0y + last_ray_pos.z;
@@ -3700,6 +3700,12 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                 local_tri.v2y = my_tri.v2y + last_ray_pos.z;
                 local_tri.v2z = my_tri.v2z + last_ray_pos.w;
 
+                local_tri.dvt = (ray_current - last_ray_pos).x;
+                local_tri.dvx = (ray_current - last_ray_pos).y;
+                local_tri.dvy = (ray_current - last_ray_pos).z;
+                local_tri.dvz = (ray_current - last_ray_pos).w;
+
+                //local_tri.diff = ray_current - last_ray_pos;
 
                 float4 pos = ray_current + (float4)(0.f, mine.x, mine.y, mine.z);
 
@@ -4049,7 +4055,7 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
         float ray_end_t = pos.x + dir.x;
 
         float tri_start_t = ctri->time;
-        float tri_end_t = ctri->end_time;
+        float tri_end_t = tri_start_t + ctri->dvt;
 
         if(!range_overlaps(ray_start_t, ray_end_t, tri_start_t, tri_end_t))
             return false;
@@ -4059,9 +4065,11 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
     float3 v1 = (float3)(ctri->v1x, ctri->v1y, ctri->v1z);
     float3 v2 = (float3)(ctri->v2x, ctri->v2y, ctri->v2z);
 
-    float3 e0 = (float3)(ctri->e0x, ctri->e0y, ctri->e0z);
-    float3 e1 = (float3)(ctri->e1x, ctri->e1y, ctri->e1z);
-    float3 e2 = (float3)(ctri->e2x, ctri->e2y, ctri->e2z);
+    float3 t_diff = (float3)(ctri->dvx, ctri->dvy, ctri->dvz);
+
+    float3 e0 = v0 + t_diff;
+    float3 e1 = v1 + t_diff;
+    float3 e2 = v2 + t_diff;
 
     float3 vertices[8 * 3] = {
         v0, v1, v2,
@@ -4113,7 +4121,7 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
         return false;
 
     float start_time = ctri->time;
-    float end_time = ctri->end_time;
+    float end_time = start_time + ctri->dvt;
 
     //float3 toblerone_origin = (v0 + v1 + v2)/3.f;
     //float3 toblerone_end = (e0 + e1 + e2)/3.f;
