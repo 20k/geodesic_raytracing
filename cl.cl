@@ -3664,7 +3664,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
             ds_frac = clamp(ds_frac, 0.f, 1.f);
 
             float4 current = generic_to_cartesian(object_geodesics[cc * stride + mine.object_parent], cfg);
-            float4 next = generic_to_cartesian(object_geodesics[(cc + 1) * stride + mine.object_parent], cfg);
+            //float4 next = generic_to_cartesian(object_geodesics[(cc + 1) * stride + mine.object_parent], cfg);
 
             float4 ray_current = current;
 
@@ -4044,6 +4044,30 @@ void sort2(float* v0, float* v1)
     }
 }
 
+bool approx_equal(float v1, float v2, float tol)
+{
+    return fabs(v1 - v2) <= tol;
+}
+
+///todo: winding order
+float3 triangle_normal(float3 v0, float3 v1, float3 v2)
+{
+    float3 U = v1 - v0;
+    float3 V = v2 - v0;
+
+    return normalize(cross(U, V));
+}
+
+float ray_plane_intersection(float3 plane_origin, float3 plane_normal, float3 ray_origin, float3 ray_direction)
+{
+    float denom = dot(ray_direction, plane_normal);
+
+    if(denom < 0.000001f)
+        return 0.f;
+
+    return dot(plane_origin - ray_origin, plane_normal) / denom;
+}
+
 ///dir is not normalised, should really use a pos2
 ///holes *could* be caused by constant triangle time approximation
 bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_triangle* ctri)
@@ -4074,6 +4098,8 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
     bool any_t = false;
     float min_t = 0;
     float max_t = 0;
+    int which_min = -1;
+    int which_max = -1;
 
     for(int i=0; i < 8; i++)
     {
@@ -4089,12 +4115,21 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
             {
                 min_t = min(min_t, my_t);
                 max_t = max(max_t, my_t);
+
+                if(min_t == my_t)
+                    which_min = i;
+
+                if(max_t == my_t)
+                    which_max = i;
             }
             else
             {
                 min_t = my_t;
                 max_t = my_t;
                 any_t = true;
+
+                which_min = i;
+                which_max = i;
             }
         }
     }
@@ -4127,8 +4162,74 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
     float3 norm_toblerone_normal = normalize(toblerone_normal);
 
+    //float3 to_exit = (exit_position - entry_position);
+
+    ///project to_exit onto toblerone normal, get length
+    //float height_of_intersection = fabs(dot(to_exit, norm_toblerone_normal));
+
+    //float elapsed_time = height_of_intersection / toblerone_height;
+
+    float3 tri_normal = triangle_normal(v0, v1, v2);
+
+    float entry_height = 0;
+    float exit_height = 0;
+
+    {
+        float3 new_origin = entry_position;
+        float3 new_dir = -norm_toblerone_normal;
+
+        float ray_plane_t = ray_plane_intersection(toblerone_origin, tri_normal, new_origin, new_dir);
+
+        if(ray_plane_t == 0)
+            return false;
+
+        float3 plane_intersection_location = new_origin + new_dir * ray_plane_t;
+
+        entry_height = length(new_origin - plane_intersection_location);
+    }
+
+    {
+        float3 new_origin = exit_position;
+        float3 new_dir = -norm_toblerone_normal;
+
+        float ray_plane_t = ray_plane_intersection(toblerone_origin, tri_normal, new_origin, new_dir);
+
+        if(ray_plane_t == 0)
+            return false;
+
+        float3 plane_intersection_location = new_origin + new_dir * ray_plane_t;
+
+        exit_height = length(new_origin - plane_intersection_location);
+    }
+
+
+    float entry_time = (entry_height / toblerone_height) * (end_time - start_time) + start_time;
+    float exit_time = (exit_height / toblerone_height) * (end_time - start_time) + start_time;
+
+    float ray_entry_time = pos.x + dir.x * min_t;
+    float ray_exit_time = pos.x + dir.x * max_t;
+
+    sort2(&entry_time, &exit_time);
+    sort2(&ray_entry_time, &ray_exit_time);
+
+    entry_time -= 0.0001f;
+    exit_time += 0.0001f;
+
+    return ray_entry_time <= exit_time && entry_time <= ray_exit_time;
+
+    #if 0
     float entry_height = dot(entry_position - toblerone_origin, norm_toblerone_normal);
     float exit_height = dot(exit_position - toblerone_origin, norm_toblerone_normal);
+
+    ///ok figured it out
+    ///the problem is, say I take the centre of both tris, the tris can be tilted and the point of intersection can be below the origin
+    if(entry_height < 0 || entry_height >= toblerone_height || exit_height < 0 || exit_height >= toblerone_height)
+    {
+        printf("WTF %f %f %f min %i max %i min_t %f max_t %f\n", entry_height, exit_height, toblerone_height, which_min, which_max, min_t, max_t);
+        return false;
+
+        //return false;
+    }
 
     float entry_time = (entry_height / toblerone_height) * (end_time - start_time) + start_time;
     float exit_time = (exit_height / toblerone_height) * (end_time - start_time) + start_time;
@@ -4157,6 +4258,9 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
     ///t * ((exit - entry) - (ray_exit - ray_entry)) = -(entry - ray_entry)
     ///t = -(entry - ray_entry) / ((exit - entry) - (ray_exit - ray_entry))
 
+    if(approx_equal(exit_time - entry_time, ray_exit_time - ray_entry_time, 0.0001f))
+        return false;
+
     float intersection_time = -(entry_time - ray_entry_time) / ((exit_time - entry_time) - (ray_exit_time - ray_entry_time));
 
     /*float eps = 0.00001f;
@@ -4170,11 +4274,15 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
     float tri_frac = ((raw_time - start_time) / (end_time - start_time));
 
+    if(tri_frac < 0 || tri_frac > 1)
+        return false;
+
     float3 rv0 = mix(v0, e0, tri_frac);
     float3 rv1 = mix(v1, e1, tri_frac);
     float3 rv2 = mix(v2, e2, tri_frac);
 
     return ray_intersects_triangle(pos.yzw, dir.yzw, rv0, rv1, rv2, 0);
+    #endif // 0
 }
 
 __kernel
