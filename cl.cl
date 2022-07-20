@@ -4068,10 +4068,29 @@ float ray_plane_intersection(float3 plane_origin, float3 plane_normal, float3 ra
     return dot(plane_origin - ray_origin, plane_normal) / denom;
 }
 
+bool range_overlaps(float s0, float s1, float e0, float e1)
+{
+    sort2(&s0, &s1);
+    sort2(&e0, &e1);
+
+    return s0 <= e1 && e0 <= s1;
+}
+
 ///dir is not normalised, should really use a pos2
 ///holes *could* be caused by constant triangle time approximation
 bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_triangle* ctri)
 {
+    {
+        float ray_start_t = pos.x;
+        float ray_end_t = pos.x + dir.x;
+
+        float tri_start_t = ctri->time;
+        float tri_end_t = ctri->end_time;
+
+        if(!range_overlaps(ray_start_t, ray_end_t, tri_start_t, tri_end_t))
+            return false;
+    }
+
     float3 v0 = (float3)(ctri->v0x, ctri->v0y, ctri->v0z);
     float3 v1 = (float3)(ctri->v1x, ctri->v1y, ctri->v1z);
     float3 v2 = (float3)(ctri->v2x, ctri->v2y, ctri->v2z);
@@ -4139,11 +4158,6 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
     if(!any_t)
         return false;
-
-    //if(ctri->end_time > 4.5 && ctri->end_time < 5.5)
-    //    return true;
-
-    //return false;
 
     float start_time = ctri->time;
     float end_time = ctri->end_time;
