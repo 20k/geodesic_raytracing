@@ -103,6 +103,8 @@ namespace triangle_rendering
         cl::buffer offsets;
         cl::buffer counts;
         cl::buffer memory;
+        cl::buffer start_times_memory;
+        cl::buffer delta_times_memory;
         cl::buffer memory_count;
 
         vec4i offset_size = {128, 128, 128, 128};

@@ -323,7 +323,7 @@ void triangle_rendering::manager::update_objects(cl::command_queue& cqueue)
     }
 }
 
-triangle_rendering::acceleration::acceleration(cl::context& ctx) : offsets(ctx), counts(ctx), memory(ctx), memory_count(ctx)
+triangle_rendering::acceleration::acceleration(cl::context& ctx) : offsets(ctx), counts(ctx), memory(ctx), start_times_memory(ctx), delta_times_memory(ctx), memory_count(ctx)
 {
     memory_count.alloc(sizeof(cl_int));
 
@@ -332,6 +332,8 @@ triangle_rendering::acceleration::acceleration(cl::context& ctx) : offsets(ctx),
     offsets.alloc(sizeof(cl_int) * cells);
     counts.alloc(sizeof(cl_int) * cells);
     memory.alloc(max_memory_size);
+    start_times_memory.alloc(max_memory_size / sizeof(cl_float));
+    delta_times_memory.alloc(max_memory_size / sizeof(cl_float));
 }
 
 void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager& tris, physics& phys, cl::buffer& dynamic_config)
@@ -369,6 +371,8 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         accel.push_back(offsets);
         accel.push_back(counts);
         accel.push_back(memory);
+        accel.push_back(start_times_memory);
+        accel.push_back(delta_times_memory);
         accel.push_back(phys.geodesic_paths);
         accel.push_back(phys.counts);
         accel.push_back(phys.geodesic_ds);
@@ -404,6 +408,8 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         accel.push_back(offsets);
         accel.push_back(counts);
         accel.push_back(memory);
+        accel.push_back(start_times_memory);
+        accel.push_back(delta_times_memory);
         accel.push_back(phys.geodesic_paths);
         accel.push_back(phys.counts);
         accel.push_back(phys.geodesic_ds);
