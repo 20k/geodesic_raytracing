@@ -4032,20 +4032,17 @@ bool range_overlaps(float s0, float s1, float e0, float e1)
     return s0 <= e1 && e0 <= s1;
 }
 
+bool ray_toblerone_could_intersect(float4 pos, float4 dir, float tri_start_t, float tri_end_t)
+{
+    float ray_start_t = pos.x;
+    float ray_end_t = pos.x + dir.x;
+
+    return range_overlaps(ray_start_t, ray_end_t, tri_start_t, tri_end_t);
+}
+
 ///dir is not normalised, should really use a pos2
 bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_triangle* ctri)
 {
-    {
-        float ray_start_t = pos.x;
-        float ray_end_t = pos.x + dir.x;
-
-        float tri_start_t = ctri->time;
-        float tri_end_t = tri_start_t + ctri->dvt;
-
-        if(!range_overlaps(ray_start_t, ray_end_t, tri_start_t, tri_end_t))
-            return false;
-    }
-
     float3 v0 = (float3)(ctri->v0x, ctri->v0y, ctri->v0z);
     float3 v1 = (float3)(ctri->v1x, ctri->v1y, ctri->v1z);
     float3 v2 = (float3)(ctri->v2x, ctri->v2y, ctri->v2z);
@@ -4379,6 +4376,12 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                             for(int t_off=0; t_off < tri_count; t_off++)
                             {
                                 __global struct computed_triangle* ctri = &linear_mem[base_offset + t_off];
+
+                                float start_time = ctri->time;
+                                float end_time = start_time + ctri->dvt;
+
+                                if(!ray_toblerone_could_intersect(rt_pos, next_rt_pos - rt_pos, start_time, end_time))
+                                    continue;
 
                                 ///use dot current_pos tri centre pos (?) as distance metric
                                 /*float3 pdiff = parent_pos.yzw - rt_pos.yzw;
