@@ -4162,13 +4162,6 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
     float3 norm_toblerone_normal = normalize(toblerone_normal);
 
-    //float3 to_exit = (exit_position - entry_position);
-
-    ///project to_exit onto toblerone normal, get length
-    //float height_of_intersection = fabs(dot(to_exit, norm_toblerone_normal));
-
-    //float elapsed_time = height_of_intersection / toblerone_height;
-
     float3 tri_normal = triangle_normal(v0, v1, v2);
 
     float entry_height = 0;
