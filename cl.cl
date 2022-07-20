@@ -4000,48 +4000,13 @@ struct potential_intersection
     float et, ex, ey, ez;
 };
 
-/*float4 cross4(float4 U, float4 V, float4 W)
-{
-    float a = (V.x * W.y) - (V.y * W.x);
-    float b = (V.x * W.z) - (V.z * W.x);
-    float c = (V.x * W.w) - (V.w * W.x);
-    float d = (V.y * W.z) - (V.z * W.y);
-    float e = (V.y * W.w) - (V.w * W.y);
-    float f = (V.z * W.w) - (V.w * W.z);
-
-    float4 res;
-    res.x =  (U.y * F) - (U.z * E) + (U.w * D);
-    res.y = -(U.x * F) + (U.z * C) - (U.w * B);
-    res.z =  (U.x * E) - (U.y * C) + (U.w * A);
-    res.w = -(U.x * D) + (U.y * B) - (U.y * A);
-
-    return res;
-}
-
-struct tetrahedron
-{
-    float4 v0, v1, v2, v3;
-};
-
-bool ray_intersects_tetrahedron(float4 pos, float4 dir, struct tetrahedron* tet)
-{
-    float4 b1 = tet->v1 - tet->v0;
-    float4 b2 = tet->v2 - tet->v0;
-    float4 b3 = tet->v3 - tet->v0;
-
-    float4 top = cross4(b1, b2, b3);
-
-    return normalize(top);
-}*/
-
 void sort2(float* v0, float* v1)
 {
-    if(*v0 > *v1)
-    {
-        float tmp = *v0;
-        *v0 = *v1;
-        *v1 = tmp;
-    }
+    float iv0 = *v0;
+    float iv1 = *v1;
+
+    *v0 = min(iv0, iv1);
+    *v1 = max(iv0, iv1);
 }
 
 bool approx_equal(float v1, float v2, float tol)
