@@ -4062,7 +4062,7 @@ float ray_plane_intersection(float3 plane_origin, float3 plane_normal, float3 ra
 {
     float denom = dot(ray_direction, plane_normal);
 
-    if(denom < 0.000001f)
+    if(fabs(denom) < 0.00001f)
         return 0.f;
 
     return dot(plane_origin - ray_origin, plane_normal) / denom;
@@ -4194,7 +4194,6 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
         exit_height = length(new_origin - plane_intersection_location);
     }
-
 
     float entry_time = (entry_height / toblerone_height) * (end_time - start_time) + start_time;
     float exit_time = (exit_height / toblerone_height) * (end_time - start_time) + start_time;
