@@ -4081,8 +4081,6 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
     bool any_t = false;
     float min_t = 0;
     float max_t = 0;
-    int which_min = -1;
-    int which_max = -1;
 
     for(int i=0; i < 8; i++)
     {
@@ -4098,21 +4096,12 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
             {
                 min_t = min(min_t, my_t);
                 max_t = max(max_t, my_t);
-
-                if(min_t == my_t)
-                    which_min = i;
-
-                if(max_t == my_t)
-                    which_max = i;
             }
             else
             {
                 min_t = my_t;
                 max_t = my_t;
                 any_t = true;
-
-                which_min = i;
-                which_max = i;
             }
         }
     }
