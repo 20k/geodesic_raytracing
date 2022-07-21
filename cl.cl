@@ -3738,6 +3738,12 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                         int voxel_id = ifloor.z * accel_width_num * accel_width_num + ifloor.y * accel_width_num + ifloor.x;
 
+                        float min_time = min(rt_pos.x, next_rt_pos.x);
+                        float max_time = max(rt_pos.x, next_rt_pos.x);
+
+                        atomic_min(&cell_time_min[voxel_id], min_time);
+                        atomic_max(&cell_time_max[voxel_id], max_time);
+
                         int cnt = counts[voxel_id];
 
                         if(cnt > 0)
