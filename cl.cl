@@ -4400,7 +4400,13 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                             {
                                 __global struct computed_triangle* ctri = &linear_mem[base_offset + t_off];
 
+                                ///so, I now know for a fact that start time < end_time
+                                ///could sort this instead by end times, and then use end time as the quick check
                                 float start_time = linear_start_times[base_offset + t_off];
+
+                                if(rt_pos.x < start_time - 0.0001f && (next_rt_pos - rt_pos).x < 0)
+                                    continue;
+
                                 float end_time = start_time + linear_delta_times[base_offset + t_off];
 
                                 if(!ray_toblerone_could_intersect(rt_pos, next_rt_pos - rt_pos, start_time, end_time))
