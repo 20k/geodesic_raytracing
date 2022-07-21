@@ -4246,6 +4246,11 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
     float4 velocity = ray->velocity;
     float4 acceleration = ray->acceleration;
 
+    {
+        atomic_min(ray_time_min, (int)floor(position.x));
+        atomic_max(ray_time_max, (int)ceil(position.x));
+    }
+
     float f_in_x = fabs(velocity.x);
 
     int sx = ray->sx;
@@ -4294,9 +4299,17 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
     float4 last_pos = (float4)(0,0,0,0);
 
+    float my_min = 0;
+    float my_max = 0;
+
     //#pragma unroll
     for(int i=0; i < loop_limit; i++)
     {
+        {
+            my_min = min(my_min, position.x);
+            my_max = max(my_max, position.x);
+        }
+
         #ifdef IS_CONSTANT_THETA
         position.z = M_PIf/2;
         velocity.z = 0;
@@ -4345,7 +4358,11 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
         #ifndef UNCONDITIONALLY_NONSINGULAR
         if(fabs(velocity.x) > 1000 + f_in_x && fabs(acceleration.x) > 100)
+        {
+            atomic_min(ray_time_min, (int)floor(my_min));
+            atomic_max(ray_time_max, (int)ceil(my_max));
             return;
+        }
         #endif // UNCONDITIONALLY_NONSINGULAR
 
         if((i % 8) == 0)
@@ -4438,6 +4455,9 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                 #if 1
                                 if(ray_intersects_toblerone(rt_pos, next_rt_pos - rt_pos, ctri, start_time, end_time))
                                 {
+                                    atomic_min(ray_time_min, (int)floor(my_min));
+                                    atomic_max(ray_time_max, (int)ceil(my_max));
+
                                     struct intersection out;
                                     out.sx = sx;
                                     out.sy = sy;
@@ -4544,6 +4564,9 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
         if(should_terminate)
         {
+            atomic_min(ray_time_min, (int)floor(my_min));
+            atomic_max(ray_time_max, (int)ceil(my_max));
+
             int out_id = atomic_inc(finished_count_out);
 
             float4 polar_velocity = generic_velocity_to_spherical_velocity(position, velocity, cfg);
@@ -4615,6 +4638,9 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
             return;
         }
     }
+
+    atomic_min(ray_time_min, (int)floor(my_min));
+    atomic_max(ray_time_max, (int)ceil(my_max));
 
     int out_id = atomic_inc(generic_count_out);
 
