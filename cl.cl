@@ -3362,7 +3362,7 @@ float4 world_to_voxel4(float4 world, float width, int width_num)
 {
     float scale = width / width_num;
 
-    return world / scale;
+    return floor(world / scale);
 }
 
 int mod(int a, int b)
@@ -3500,7 +3500,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                                           __global float4* object_geodesics, __global int* object_geodesic_counts,
                                           __global float* object_geodesic_ds,
                                           float start_ds, float end_ds,
-                                          float width, int width_num,
+                                          float width, float time_width, int width_num,
                                           int should_store,
                                           dynamic_config_space struct dynamic_config* cfg)
 {
@@ -3540,9 +3540,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
         float4 pos = start_pos + (float4)(0.f, mine.x, mine.y, mine.z);
 
-        float4 grid_pos = floor(pos / voxel_cube_size);
-
-        last_grid_pos = grid_pos;
+        last_grid_pos = world_to_voxel4(pos, width, width_num);
     }
 
     #if 0
@@ -3668,9 +3666,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
             float4 pos = start_pos + (float4)(0.f, mine.x, mine.y, mine.z);
 
-            float4 grid_pos = floor(pos / voxel_cube_size);
-
-            last_grid_pos = grid_pos;
+            last_grid_pos = world_to_voxel4(pos, width, width_num);
 
             continue;
         }
@@ -3746,7 +3742,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
                 float4 pos = ray_current + (float4)(0.f, mine.x, mine.y, mine.z);
 
-                float4 grid_pos = floor(pos / voxel_cube_size);
+                float4 grid_pos = world_to_voxel4(pos, width, width_num);
 
                 //grid_pos.x = 0;
                 //last_grid_pos.x = 0;

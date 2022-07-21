@@ -358,7 +358,7 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
     #define SMEARED
     #ifdef SMEARED
     float start_ds = 0.f;
-    float end_ds = 4.f;
+    float end_ds = 8.f;
 
     {
         int should_store = 0;
@@ -379,6 +379,7 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         accel.push_back(start_ds);
         accel.push_back(end_ds);
         accel.push_back(offset_width);
+        accel.push_back(time_width);
         accel.push_back(offset_size.x());
         accel.push_back(should_store);
         accel.push_back(dynamic_config);
@@ -418,6 +419,7 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         accel.push_back(start_ds);
         accel.push_back(end_ds);
         accel.push_back(offset_width);
+        accel.push_back(time_width);
         accel.push_back(offset_size.x());
         accel.push_back(should_store);
         accel.push_back(dynamic_config);
