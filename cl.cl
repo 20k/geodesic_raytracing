@@ -3800,7 +3800,8 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                 {
                     int4 ipos = (int4)(steps.current.x, steps.current.y, steps.current.z, steps.current.w);
 
-                    ///todo: use 4d grid
+                    bool any_valid = false;
+
                     for(int t=-1; t <= 1; t++)
                     {
                         for(int z=-1; z <= 1; z++)
@@ -3809,6 +3810,9 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                             {
                                 for(int x=-1; x <= 1; x++)
                                 {
+                                    if(any_valid)
+                                        break;
+
                                     int4 off = (int4)(t, x, y, z);
                                     int4 fin = ipos + off;
 
@@ -3825,20 +3829,46 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                                     if(!range_overlaps(native_current.x, last_native_position.x, test_time_min, test_time_max))
                                         continue;
 
-                                    int lid = atomic_inc(&offset_counts[oid]);
+                                    any_valid = true;
+                                }
+                            }
+                        }
+                    }
 
-                                    if(should_store)
+                    if(any_valid)
+                    {
+                        ///todo: use 4d grid
+                        for(int t=-1; t <= 1; t++)
+                        {
+                            for(int z=-1; z <= 1; z++)
+                            {
+                                for(int y=-1; y <= 1; y++)
+                                {
+                                    for(int x=-1; x <= 1; x++)
                                     {
-                                        int mem_start = offset_map[oid];
+                                        int4 off = (int4)(t, x, y, z);
+                                        int4 fin = ipos + off;
 
-                                        mem_buffer[mem_start + lid] = local_tri;
-                                        start_times_memory[mem_start + lid] = output_time;
-                                        delta_times_memory[mem_start + lid] = delta_time;
+                                        fin = loop_voxel4(fin, width_num);
+
+                                        int oid = fin.w * width_num * width_num * width_num + fin.z * width_num * width_num + fin.y * width_num + fin.x;
+
+                                        int lid = atomic_inc(&offset_counts[oid]);
+
+                                        if(should_store)
+                                        {
+                                            int mem_start = offset_map[oid];
+
+                                            mem_buffer[mem_start + lid] = local_tri;
+                                            start_times_memory[mem_start + lid] = output_time;
+                                            delta_times_memory[mem_start + lid] = delta_time;
+                                        }
                                     }
                                 }
                             }
                         }
                     }
+
 
                     steps.current += steps.step;
                 }
