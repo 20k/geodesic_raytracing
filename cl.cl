@@ -3463,6 +3463,17 @@ struct step_setup setup_step(float3 grid1, float3 grid2)
     return ret;
 };
 
+unsigned int index_acceleration(struct step_setup* setup, int width_num)
+{
+    float3 floordf = floor(setup->current);
+
+    int3 ifloor = (int3)(floordf.x, floordf.y, floordf.z);
+
+    ifloor = loop_voxel(ifloor, width_num);
+
+    return ifloor.z * width_num * width_num + ifloor.y * width_num + ifloor.x;
+}
+
 __kernel
 void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                                           int obj_count,
@@ -3503,7 +3514,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
     struct triangle my_tri = reference_tris[mine.parent];
 
-    int3 last_grid_pos = (int3)(0,0,0);
+    float4 last_grid_pos = (float4)(0,0,0,0);
     float4 last_ray_pos;
 
     {
@@ -3514,7 +3525,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
         float4 grid_pos = floor(pos / voxel_cube_size);
 
-        last_grid_pos = (int3)(grid_pos.y, grid_pos.z, grid_pos.w);
+        last_grid_pos = grid_pos;
     }
 
     #if 0
@@ -3642,7 +3653,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
             float4 grid_pos = floor(pos / voxel_cube_size);
 
-            last_grid_pos = (int3)(grid_pos.y, grid_pos.z, grid_pos.w);
+            last_grid_pos = grid_pos;
 
             continue;
         }
@@ -3720,12 +3731,13 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
                 float4 grid_pos = floor(pos / voxel_cube_size);
 
-                int3 int_grid_pos = (int3)(grid_pos.y, grid_pos.z, grid_pos.w);
+                grid_pos.x = 0;
+                last_grid_pos.x = 0;
 
-                if(all(int_grid_pos == last_grid_pos))
+                if(all(grid_pos == last_grid_pos))
                     continue;
 
-                struct step_setup steps = setup_step((float3)(last_grid_pos.x, last_grid_pos.y, last_grid_pos.z), (float3)(int_grid_pos.x, int_grid_pos.y, int_grid_pos.z));
+                struct step_setup steps = setup_step(last_grid_pos.yzw, grid_pos.yzw);
 
                 for(int kk=0; kk < steps.num; kk++)
                 {
@@ -3764,7 +3776,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                     }
                 }
 
-                last_grid_pos = int_grid_pos;
+                last_grid_pos = grid_pos;
                 last_ray_pos = ray_current;
             }
         }
@@ -4188,17 +4200,6 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
     exit_time += 0.0001f;
 
     return ray_entry_time <= exit_time && entry_time <= ray_exit_time;
-}
-
-unsigned int index_acceleration(struct step_setup* setup, int width_num)
-{
-    float3 floordf = floor(setup->current);
-
-    int3 ifloor = (int3)(floordf.x, floordf.y, floordf.z);
-
-    ifloor = loop_voxel(ifloor, width_num);
-
-    return ifloor.z * width_num * width_num + ifloor.y * width_num + ifloor.x;
 }
 
 __kernel
