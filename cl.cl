@@ -3493,7 +3493,9 @@ unsigned int index_acceleration(struct step_setup* setup, int width_num)
 
     ifloor = loop_voxel4(ifloor, width_num);
 
-    return ifloor.w * width_num * width_num * width_num + ifloor.z * width_num * width_num + ifloor.y * width_num + ifloor.x;
+    return ifloor.w * width_num * width_num + ifloor.z * width_num + ifloor.y;
+
+    //return ifloor.w * width_num * width_num * width_num + ifloor.z * width_num * width_num + ifloor.y * width_num + ifloor.x;
 }
 
 void sort2(float* v0, float* v1)
@@ -3779,8 +3781,8 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
                 float4 grid_pos = world_to_voxel4(pos, width, time_width, width_num);
 
-                //grid_pos.x = 0;
-                //last_grid_pos.x = 0;
+                grid_pos.x = 0;
+                last_grid_pos.x = 0;
 
                 if(all(grid_pos == last_grid_pos))
                     continue;
@@ -3802,8 +3804,10 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
                     bool any_valid = false;
 
-                    for(int t=-1; t <= 1; t++)
+                    //for(int t=-1; t <= 1; t++)
                     {
+                        int t = 0;
+
                         for(int z=-1; z <= 1; z++)
                         {
                             for(int y=-1; y <= 1; y++)
@@ -3818,7 +3822,8 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
                                     fin = loop_voxel4(fin, width_num);
 
-                                    int oid = fin.w * width_num * width_num * width_num + fin.z * width_num * width_num + fin.y * width_num + fin.x;
+                                    int oid = fin.w * width_num * width_num + fin.z * width_num + fin.y;
+                                    //int oid = fin.w * width_num * width_num * width_num + fin.z * width_num * width_num + fin.y * width_num + fin.x;
 
                                     int test_time_min = old_cell_time_min[oid];
                                     int test_time_max = old_cell_time_max[oid];
@@ -3838,8 +3843,10 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                     if(any_valid)
                     {
                         ///todo: use 4d grid
-                        for(int t=-1; t <= 1; t++)
+                        //for(int t=-1; t <= 1; t++)
                         {
+                            int t = 0;
+
                             for(int z=-1; z <= 1; z++)
                             {
                                 for(int y=-1; y <= 1; y++)
@@ -3851,7 +3858,8 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
                                         fin = loop_voxel4(fin, width_num);
 
-                                        int oid = fin.w * width_num * width_num * width_num + fin.z * width_num * width_num + fin.y * width_num + fin.x;
+                                        int oid = fin.w * width_num * width_num + fin.z * width_num + fin.y;
+                                        //int oid = fin.w * width_num * width_num * width_num + fin.z * width_num * width_num + fin.y * width_num + fin.x;
 
                                         int lid = atomic_inc(&offset_counts[oid]);
 
