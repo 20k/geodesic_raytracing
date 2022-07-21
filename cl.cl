@@ -3675,6 +3675,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                 struct computed_triangle local_tri;
 
                 float delta_time = (ray_current - last_ray_pos).x;
+                float output_time = last_ray_pos.x;
 
                 local_tri.v0x = my_tri.v0x + last_ray_pos.y;
                 local_tri.v0y = my_tri.v0y + last_ray_pos.z;
@@ -3732,7 +3733,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                                     int mem_start = offset_map[oid];
 
                                     mem_buffer[mem_start + lid] = local_tri;
-                                    start_times_memory[mem_start + lid] = last_ray_pos.x;
+                                    start_times_memory[mem_start + lid] = output_time;
                                     delta_times_memory[mem_start + lid] = delta_time;
                                 }
                             }
