@@ -3380,6 +3380,16 @@ int3 loop_voxel(int3 in, int width_num)
     return in;
 }
 
+int4 loop_voxel4(int4 in, int width_num)
+{
+    in.x = mod(in.x, width_num);
+    in.y = mod(in.y, width_num);
+    in.z = mod(in.z, width_num);
+    in.w = mod(in.w, width_num);
+
+    return in;
+}
+
 __kernel void pull_to_geodesics(__global struct object* current_pos, __global float4* geodesic_out, int max_path_length, int object_count)
 {
     int id = get_global_id(0);
@@ -3443,8 +3453,8 @@ void generate_acceleration_counts(__global struct sub_point* sp, int sp_count, _
 
 struct step_setup
 {
-    float3 current;
-    float3 step;
+    float4 current;
+    float4 step;
     int num;
 };
 
@@ -3453,17 +3463,17 @@ struct step_setup setup_step(float4 grid1, float4 grid2)
     grid1 = floor(grid1);
     grid2 = floor(grid2);
 
-    float3 diff2 = grid2.yzw - grid1.yzw;
-    float3 adiff2 = fabs(diff2);
+    float4 diff2 = grid2 - grid1;
+    float4 adiff2 = fabs(diff2);
 
-    float max_len2 = max(max(adiff2.x, adiff2.y), adiff2.z);
+    float max_len2 = max(max(adiff2.x, adiff2.y), max(adiff2.z, adiff2.w));
 
     max_len2 = max(max_len2, 1.f);
 
-    float3 step = diff2 / max_len2;
+    float4 step = diff2 / max_len2;
 
     struct step_setup ret;
-    ret.current = grid1.yzw;
+    ret.current = grid1;
     ret.step = step;
     ret.num = (int)max_len2;
 
@@ -3472,13 +3482,13 @@ struct step_setup setup_step(float4 grid1, float4 grid2)
 
 unsigned int index_acceleration(struct step_setup* setup, int width_num)
 {
-    float3 floordf = floor(setup->current);
+    float4 floordf = floor(setup->current);
 
-    int3 ifloor = (int3)(floordf.x, floordf.y, floordf.z);
+    int4 ifloor = (int4)(floordf.x, floordf.y, floordf.z, floordf.w);
 
-    ifloor = loop_voxel(ifloor, width_num);
+    ifloor = loop_voxel4(ifloor, width_num);
 
-    return ifloor.z * width_num * width_num + ifloor.y * width_num + ifloor.x;
+    return ifloor.w * width_num * width_num * width_num + ifloor.z * width_num * width_num + ifloor.y * width_num + ifloor.x;
 }
 
 __kernel
@@ -3738,8 +3748,8 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
                 float4 grid_pos = floor(pos / voxel_cube_size);
 
-                grid_pos.x = 0;
-                last_grid_pos.x = 0;
+                //grid_pos.x = 0;
+                //last_grid_pos.x = 0;
 
                 if(all(grid_pos == last_grid_pos))
                     continue;
@@ -3748,33 +3758,34 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
                 for(int kk=0; kk < steps.num; kk++)
                 {
-                    int3 ipos = (int3)(steps.current.x, steps.current.y, steps.current.z);
+                    int4 ipos = (int4)(steps.current.x, steps.current.y, steps.current.z, steps.current.w);
 
                     ///todo: use 4d grid
-                    for(int z=-1; z <= 1; z++)
+                    for(int t=-1; t <= 1; t++)
                     {
-                        for(int y=-1; y <= 1; y++)
+                        for(int z=-1; z <= 1; z++)
                         {
-                            for(int x=-1; x <= 1; x++)
+                            for(int y=-1; y <= 1; y++)
                             {
-                                int3 off = (int3)(x, y, z);
-                                int3 fin = ipos + off;
-
-                                fin.x = mod(fin.x, width_num);
-                                fin.y = mod(fin.y, width_num);
-                                fin.z = mod(fin.z, width_num);
-
-                                int oid = fin.z * width_num * width_num + fin.y * width_num + fin.x;
-
-                                int lid = atomic_inc(&offset_counts[oid]);
-
-                                if(should_store)
+                                for(int x=-1; x <= 1; x++)
                                 {
-                                    int mem_start = offset_map[oid];
+                                    int4 off = (int4)(t, x, y, z);
+                                    int4 fin = ipos + off;
 
-                                    mem_buffer[mem_start + lid] = local_tri;
-                                    start_times_memory[mem_start + lid] = output_time;
-                                    delta_times_memory[mem_start + lid] = delta_time;
+                                    fin = loop_voxel4(fin, width_num);
+
+                                    int oid = fin.w * width_num * width_num * width_num + fin.z * width_num * width_num + fin.y * width_num + fin.x;
+
+                                    int lid = atomic_inc(&offset_counts[oid]);
+
+                                    if(should_store)
+                                    {
+                                        int mem_start = offset_map[oid];
+
+                                        mem_buffer[mem_start + lid] = local_tri;
+                                        start_times_memory[mem_start + lid] = output_time;
+                                        delta_times_memory[mem_start + lid] = delta_time;
+                                    }
                                 }
                             }
                         }
@@ -3931,16 +3942,12 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
 ///resets offset_counts
 __kernel
-void alloc_acceleration(__global int* offset_map, __global int* offset_counts, int width_num, __global int* mem_count, int max_memory_size)
+void alloc_acceleration(__global int* offset_map, __global int* offset_counts, int max_count, __global int* mem_count, int max_memory_size)
 {
-    int x = get_global_id(0);
-    int y = get_global_id(1);
-    int z = get_global_id(2);
+    int idx = get_global_id(0);
 
-    if(x >= width_num || y >= width_num || z >= width_num)
+    if(idx >= max_count)
         return;
-
-    int idx = z * width_num * width_num + y * width_num + x;
 
     int my_count = offset_counts[idx];
 
@@ -4394,7 +4401,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                     for(int kk=0; kk < setup.num; kk++)
                     {
-                        int voxel_id = index_acceleration(&setup, accel_width_num);
+                        unsigned int voxel_id = index_acceleration(&setup, accel_width_num);
 
                         setup.current += setup.step;
 
