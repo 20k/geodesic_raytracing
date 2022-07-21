@@ -4531,7 +4531,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                 if(dot(pdiff, pdiff) > 5)
                                     continue;*/
 
-                                #if 1
+                                #if 0
                                 if(ray_intersects_toblerone(rt_pos, next_rt_pos - rt_pos, ctri, start_time, end_time))
                                 {
                                     atomic_min(ray_time_min, (int)floor(my_min));
@@ -4548,22 +4548,22 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                 }
                                 #endif // 0
 
-                                #if 0
+                                #if 1
                                 #define OBSERVER_DEPENDENCE
                                 #ifdef OBSERVER_DEPENDENCE
-                                float tri_time = ctri->time;
-                                float next_tri_time = ctri->end_time;
+                                //float tri_time = ctri->time;
+                                //float next_tri_time = ctri->end_time;
 
-                                float interpolate_frac = (float)kk / max_len2;
+                                //float interpolate_frac = (float)kk / max_len2;
 
-                                float ray_time = mix(rt_pos.x, next_rt_pos.x, interpolate_frac);
+                                //float ray_time = mix(rt_pos.x, next_rt_pos.x, interpolate_frac);
 
                                 //if(tri_time < ray_time + 0.5f && tri_time >= ray_time - 0.5f)
 
-                                if(ray_time >= tri_time && ray_time < next_tri_time)
+                                //if(ray_time >= tri_time && ray_time < next_tri_time)
                                 #endif // OBSERVER_DEPENDENCE
                                 {
-                                    float time_elapsed = (ray_time - tri_time);
+                                    //float time_elapsed = (ray_time - tri_time);
 
                                     float3 v0_pos = {ctri->v0x, ctri->v0y, ctri->v0z};
                                     float3 v1_pos = {ctri->v1x, ctri->v1y, ctri->v1z};
@@ -4585,6 +4585,9 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                     ///ehhhh need to take closest
                                     if(ray_intersects_triangle(ray_pos, ray_dir, v0_pos, v1_pos, v2_pos, 0))
                                     {
+                                        atomic_min(ray_time_min, (int)floor(my_min));
+                                        atomic_max(ray_time_max, (int)ceil(my_max));
+
                                         struct intersection out;
                                         out.sx = sx;
                                         out.sy = sy;
@@ -4596,9 +4599,6 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                     }
                                 }
                                 #endif // 0
-
-
-
                             }
                             #endif // 0
 
