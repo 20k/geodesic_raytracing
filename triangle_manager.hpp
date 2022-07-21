@@ -80,6 +80,7 @@ namespace triangle_rendering
         cl::buffer objects_velocity;
         cl::buffer tris;
 
+
         int fill_point_count = 0;
         cl::buffer fill_points;
 
@@ -106,6 +107,9 @@ namespace triangle_rendering
         cl::buffer start_times_memory;
         cl::buffer delta_times_memory;
         cl::buffer memory_count;
+
+        cl::buffer ray_time_min;
+        cl::buffer ray_time_max;
 
         vec4i offset_size = {32, 32, 32, 32};
         float offset_width = 20.f;

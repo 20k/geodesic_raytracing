@@ -323,7 +323,7 @@ void triangle_rendering::manager::update_objects(cl::command_queue& cqueue)
     }
 }
 
-triangle_rendering::acceleration::acceleration(cl::context& ctx) : offsets(ctx), counts(ctx), memory(ctx), start_times_memory(ctx), delta_times_memory(ctx), memory_count(ctx)
+triangle_rendering::acceleration::acceleration(cl::context& ctx) : offsets(ctx), counts(ctx), memory(ctx), start_times_memory(ctx), delta_times_memory(ctx), memory_count(ctx), ray_time_min(ctx), ray_time_max(ctx)
 {
     memory_count.alloc(sizeof(cl_int));
 
@@ -334,6 +334,9 @@ triangle_rendering::acceleration::acceleration(cl::context& ctx) : offsets(ctx),
     memory.alloc(max_memory_size);
     start_times_memory.alloc(max_memory_size / sizeof(cl_float));
     delta_times_memory.alloc(max_memory_size / sizeof(cl_float));
+
+    ray_time_min.alloc(sizeof(cl_uint));
+    ray_time_max.alloc(sizeof(cl_uint));
 }
 
 void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager& tris, physics& phys, cl::buffer& dynamic_config)

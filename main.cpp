@@ -276,6 +276,9 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
         intersections_count.set_to_zero(cqueue);
         potential_intersections_count.set_to_zero(cqueue);
 
+        accel.ray_time_min.set_to_zero(cqueue);
+        accel.ray_time_max.set_to_zero(cqueue);
+
         cl::args run_args;
         run_args.push_back(rays_in);
         run_args.push_back(rays_out);
