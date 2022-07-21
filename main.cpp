@@ -276,8 +276,14 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
         intersections_count.set_to_zero(cqueue);
         potential_intersections_count.set_to_zero(cqueue);
 
-        accel.ray_time_min.set_to_zero(cqueue);
-        accel.ray_time_max.set_to_zero(cqueue);
+        cl_int my_min = INT_MAX;
+        cl_int my_max = INT_MIN;
+
+        accel.ray_time_min.write(cqueue, std::vector<cl_int>{my_min});
+        accel.ray_time_max.write(cqueue, std::vector<cl_int>{my_max});
+
+        accel.cell_time_min.fill(cqueue, my_min);
+        accel.cell_time_max.fill(cqueue, my_max);
 
         cl::args run_args;
         run_args.push_back(rays_in);
@@ -302,6 +308,8 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
         run_args.push_back(accel.offset_width);
         run_args.push_back(accel.time_width);
         run_args.push_back(accel.offset_size.x());
+        run_args.push_back(accel.cell_time_min);
+        run_args.push_back(accel.cell_time_max);
         run_args.push_back(manage.objects);
         run_args.push_back(accel.ray_time_min);
         run_args.push_back(accel.ray_time_max);
