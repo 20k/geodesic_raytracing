@@ -1,3 +1,5 @@
+#pragma OPENCL EXTENSION cl_khr_fp16 : enable
+
 #define M_PIf ((float)M_PI)
 
 struct triangle
@@ -16,9 +18,9 @@ struct computed_triangle
     float v2x, v2y, v2z;
 
     //float dvt;
-    float dvx;
-    float dvy;
-    float dvz;
+    half dvx;
+    half dvy;
+    half dvz;
 };
 
 struct object
@@ -3720,9 +3722,6 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
             float4 native_current = object_geodesics[cc * stride + mine.object_parent];
 
-            if(!range_overlaps(native_current.x, last_native_position.x, lowest_time, maximum_time))
-                continue;
-
             float4 current = generic_to_cartesian(native_current, cfg);
             //float4 next = generic_to_cartesian(object_geodesics[(cc + 1) * stride + mine.object_parent], cfg);
 
@@ -3784,6 +3783,15 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
                 if(all(grid_pos == last_grid_pos))
                     continue;
+
+                if(!range_overlaps(native_current.x, last_native_position.x, lowest_time, maximum_time))
+                {
+                    last_grid_pos = grid_pos;
+                    last_ray_pos = ray_current;
+                    last_native_position = native_current;
+
+                    continue;
+                }
 
                 struct step_setup steps = setup_step(last_grid_pos, grid_pos);
 
