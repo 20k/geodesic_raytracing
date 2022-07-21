@@ -3748,9 +3748,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
                 for(int kk=0; kk < steps.num; kk++)
                 {
-                    float3 next_pos = kk * steps.step + steps.current;
-
-                    int3 ipos = (int3)(next_pos.x, next_pos.y, next_pos.z);
+                    int3 ipos = (int3)(steps.current.x, steps.current.y, steps.current.z);
 
                     ///todo: use 4d grid
                     for(int z=-1; z <= 1; z++)
@@ -3781,6 +3779,8 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                             }
                         }
                     }
+
+                    steps.current += steps.step;
                 }
 
                 last_grid_pos = grid_pos;
