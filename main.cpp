@@ -297,6 +297,7 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
         run_args.push_back(accel.start_times_memory);
         run_args.push_back(accel.delta_times_memory);
         run_args.push_back(accel.offset_width);
+        run_args.push_back(accel.time_width);
         run_args.push_back(accel.offset_size.x());
         run_args.push_back(manage.objects);
         run_args.push_back(dynamic_config);
