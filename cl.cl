@@ -3494,6 +3494,23 @@ unsigned int index_acceleration(struct step_setup* setup, int width_num)
     return ifloor.w * width_num * width_num * width_num + ifloor.z * width_num * width_num + ifloor.y * width_num + ifloor.x;
 }
 
+void sort2(float* v0, float* v1)
+{
+    float iv0 = *v0;
+    float iv1 = *v1;
+
+    *v0 = min(iv0, iv1);
+    *v1 = max(iv0, iv1);
+}
+
+bool range_overlaps(float s0, float s1, float e0, float e1)
+{
+    sort2(&s0, &s1);
+    sort2(&e0, &e1);
+
+    return s0 <= e1 && e0 <= s1;
+}
+
 __kernel
 void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                                           int obj_count,
@@ -3504,6 +3521,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                                           __global float* object_geodesic_ds,
                                           float start_ds, float end_ds,
                                           float width, float time_width, int width_num,
+                                          __global int* ray_time_min, __global int* ray_time_max,
                                           int should_store,
                                           dynamic_config_space struct dynamic_config* cfg)
 {
@@ -3536,9 +3554,12 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
     float4 last_grid_pos = (float4)(0,0,0,0);
     float4 last_ray_pos;
+    float4 last_native_position;
 
     {
-        float4 start_pos = generic_to_cartesian(object_geodesics[0 * stride + mine.object_parent], cfg);
+        last_native_position = object_geodesics[0 * stride + mine.object_parent];
+
+        float4 start_pos = generic_to_cartesian(last_native_position, cfg);
         last_ray_pos = start_pos;
 
         float4 pos = start_pos + (float4)(0.f, mine.x, mine.y, mine.z);
@@ -3651,6 +3672,9 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
     }
     #endif // 0
 
+    float lowest_time = *ray_time_min - 1;
+    float maximum_time = *ray_time_max + 1;
+
     #if 1
     ///if I'm doing bresenhams, then ds_stepping makes no sense and I am insane
     for(int cc=0; cc < count - 1; cc++)
@@ -3664,7 +3688,10 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
         if(current_ds < start_ds)
         {
-            float4 start_pos = generic_to_cartesian(object_geodesics[cc * stride + mine.object_parent], cfg);
+            float4 native_current = object_geodesics[cc * stride + mine.object_parent];
+            last_native_position = native_current;
+
+            float4 start_pos = generic_to_cartesian(native_current, cfg);
             last_ray_pos = start_pos;
 
             float4 pos = start_pos + (float4)(0.f, mine.x, mine.y, mine.z);
@@ -3691,7 +3718,12 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
             ds_frac = clamp(ds_frac, 0.f, 1.f);
 
-            float4 current = generic_to_cartesian(object_geodesics[cc * stride + mine.object_parent], cfg);
+            float4 native_current = object_geodesics[cc * stride + mine.object_parent];
+
+            if(!range_overlaps(native_current.x, last_native_position.x, lowest_time, maximum_time))
+                continue;
+
+            float4 current = generic_to_cartesian(native_current, cfg);
             //float4 next = generic_to_cartesian(object_geodesics[(cc + 1) * stride + mine.object_parent], cfg);
 
             float4 ray_current = current;
@@ -3795,6 +3827,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
                 last_grid_pos = grid_pos;
                 last_ray_pos = ray_current;
+                last_native_position = native_current;
             }
         }
     }
@@ -4042,15 +4075,6 @@ struct potential_intersection
     float et, ex, ey, ez;
 };
 
-void sort2(float* v0, float* v1)
-{
-    float iv0 = *v0;
-    float iv1 = *v1;
-
-    *v0 = min(iv0, iv1);
-    *v1 = max(iv0, iv1);
-}
-
 bool approx_equal(float v1, float v2, float tol)
 {
     return fabs(v1 - v2) <= tol;
@@ -4073,14 +4097,6 @@ float ray_plane_intersection(float3 plane_origin, float3 plane_normal, float3 ra
         return 0.f;
 
     return dot(plane_origin - ray_origin, plane_normal) / denom;
-}
-
-bool range_overlaps(float s0, float s1, float e0, float e1)
-{
-    sort2(&s0, &s1);
-    sort2(&e0, &e1);
-
-    return s0 <= e1 && e0 <= s1;
 }
 
 bool ray_toblerone_could_intersect(float4 pos, float4 dir, float tri_start_t, float tri_end_t)

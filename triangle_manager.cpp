@@ -384,6 +384,8 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         accel.push_back(offset_width);
         accel.push_back(time_width);
         accel.push_back(offset_size.x());
+        accel.push_back(ray_time_min);
+        accel.push_back(ray_time_max);
         accel.push_back(should_store);
         accel.push_back(dynamic_config);
 
@@ -424,6 +426,8 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         accel.push_back(offset_width);
         accel.push_back(time_width);
         accel.push_back(offset_size.x());
+        accel.push_back(ray_time_min);
+        accel.push_back(ray_time_max);
         accel.push_back(should_store);
         accel.push_back(dynamic_config);
 
