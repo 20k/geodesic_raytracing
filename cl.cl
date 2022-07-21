@@ -3358,6 +3358,13 @@ float3 world_to_voxel(float3 world, float width, int width_num)
     return world / scale;
 }
 
+float4 world_to_voxel4(float4 world, float width, int width_num)
+{
+    float scale = width / width_num;
+
+    return world / scale;
+}
+
 int mod(int a, int b)
 {
     int r = a % b;
@@ -3441,12 +3448,12 @@ struct step_setup
     int num;
 };
 
-struct step_setup setup_step(float3 grid1, float3 grid2)
+struct step_setup setup_step(float4 grid1, float4 grid2)
 {
     grid1 = floor(grid1);
     grid2 = floor(grid2);
 
-    float3 diff2 = grid2 - grid1;
+    float3 diff2 = grid2.yzw - grid1.yzw;
     float3 adiff2 = fabs(diff2);
 
     float max_len2 = max(max(adiff2.x, adiff2.y), adiff2.z);
@@ -3456,7 +3463,7 @@ struct step_setup setup_step(float3 grid1, float3 grid2)
     float3 step = diff2 / max_len2;
 
     struct step_setup ret;
-    ret.current = grid1;
+    ret.current = grid1.yzw;
     ret.step = step;
     ret.num = (int)max_len2;
 
@@ -3737,7 +3744,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                 if(all(grid_pos == last_grid_pos))
                     continue;
 
-                struct step_setup steps = setup_step(last_grid_pos.yzw, grid_pos.yzw);
+                struct step_setup steps = setup_step(last_grid_pos, grid_pos);
 
                 for(int kk=0; kk < steps.num; kk++)
                 {
@@ -4379,8 +4386,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                     struct step_setup setup;
 
                     {
-                        float3 current_pos = world_to_voxel(rt_pos.yzw, accel_width, accel_width_num);
-                        float3 next_pos = world_to_voxel(next_rt_pos.yzw, accel_width, accel_width_num);
+                        float4 current_pos = world_to_voxel4(rt_pos, accel_width, accel_width_num);
+                        float4 next_pos = world_to_voxel4(next_rt_pos, accel_width, accel_width_num);
 
                         setup = setup_step(current_pos, next_pos);
                     }
