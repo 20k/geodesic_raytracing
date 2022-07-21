@@ -303,6 +303,8 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
         run_args.push_back(accel.time_width);
         run_args.push_back(accel.offset_size.x());
         run_args.push_back(manage.objects);
+        run_args.push_back(accel.ray_time_min);
+        run_args.push_back(accel.ray_time_max);
         run_args.push_back(dynamic_config);
 
         cqueue.exec("do_generic_rays", run_args, {num_rays}, {256});
