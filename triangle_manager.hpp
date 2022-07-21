@@ -107,8 +107,9 @@ namespace triangle_rendering
         cl::buffer delta_times_memory;
         cl::buffer memory_count;
 
-        vec4i offset_size = {128, 128, 128, 128};
-        float offset_width = 20;
+        vec4i offset_size = {64, 64, 64, 64};
+        float offset_width = 20.f;
+        float time_width = 200.f;
         int max_memory_size = 1024 * 1024 * 1024; ///1GB
 
         acceleration(cl::context& ctx);
