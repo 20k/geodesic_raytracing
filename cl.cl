@@ -4190,6 +4190,17 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
     return ray_entry_time <= exit_time && entry_time <= ray_exit_time;
 }
 
+unsigned int index_acceleration(struct step_setup* setup, int width_num)
+{
+    float3 floordf = floor(setup->current);
+
+    int3 ifloor = (int3)(floordf.x, floordf.y, floordf.z);
+
+    ifloor = loop_voxel(ifloor, width_num);
+
+    return ifloor.z * width_num * width_num + ifloor.y * width_num + ifloor.x;
+}
+
 __kernel
 void do_generic_rays (__global struct lightray* restrict generic_rays_in, __global struct lightray* restrict generic_rays_out,
                       __global struct lightray* restrict finished_rays,
@@ -4362,31 +4373,22 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                 last_pos = next_rt_pos;
 
                 #if 1
-                float3 current_pos = world_to_voxel(rt_pos.yzw, accel_width, accel_width_num);
-                float3 next_pos = world_to_voxel(next_rt_pos.yzw, accel_width, accel_width_num);
 
                 {
-                    current_pos = floor(current_pos);
-                    next_pos = floor(next_pos);
+                    struct step_setup setup;
 
-                    float3 diff2 = next_pos - current_pos;
-                    float3 adiff2 = fabs(diff2);
-
-                    float max_len2 = max(max(adiff2.x, adiff2.y), adiff2.z);
-
-                    max_len2 = max(max_len2, 1.f);
-
-                    float3 step = diff2 / max_len2;
-
-                    for(int kk=0; kk < max_len2; kk++)
                     {
-                        float3 floordf = floor(current_pos);
+                        float3 current_pos = world_to_voxel(rt_pos.yzw, accel_width, accel_width_num);
+                        float3 next_pos = world_to_voxel(next_rt_pos.yzw, accel_width, accel_width_num);
 
-                        int3 ifloor = (int3)(floordf.x, floordf.y, floordf.z);
+                        setup = setup_step(current_pos, next_pos);
+                    }
 
-                        ifloor = loop_voxel(ifloor, accel_width_num);
+                    for(int kk=0; kk < setup.num; kk++)
+                    {
+                        int voxel_id = index_acceleration(&setup, accel_width_num);
 
-                        int voxel_id = ifloor.z * accel_width_num * accel_width_num + ifloor.y * accel_width_num + ifloor.x;
+                        setup.current += setup.step;
 
                         int cnt = counts[voxel_id];
 
@@ -4495,8 +4497,6 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                             intersections_out[isect] = out;
                             return;*/
                         }
-
-                        current_pos += step;
                     }
                 }
                 #endif // 0
