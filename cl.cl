@@ -3524,6 +3524,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                                           float start_ds, float end_ds,
                                           float width, float time_width, int width_num,
                                           __global int* ray_time_min, __global int* ray_time_max,
+                                          __global int* old_cell_time_min, __global int* old_cell_time_max,
                                           int should_store,
                                           dynamic_config_space struct dynamic_config* cfg)
 {
@@ -3814,6 +3815,15 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                                     fin = loop_voxel4(fin, width_num);
 
                                     int oid = fin.w * width_num * width_num * width_num + fin.z * width_num * width_num + fin.y * width_num + fin.x;
+
+                                    int test_time_min = old_cell_time_min[oid];
+                                    int test_time_max = old_cell_time_max[oid];
+
+                                    if(test_time_min == 2147483647 || test_time_max == (-2147483647 - 1))
+                                        continue;
+
+                                    if(!range_overlaps(native_current.x, last_native_position.x, test_time_min, test_time_max))
+                                        continue;
 
                                     int lid = atomic_inc(&offset_counts[oid]);
 
@@ -4445,8 +4455,11 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                     {
                         unsigned int voxel_id = index_acceleration(&setup, accel_width_num);
 
-                        atomic_min(&cell_time_min[voxel_id], (int)floor(rt_pos.x));
-                        atomic_max(&cell_time_max[voxel_id], (int)ceil(rt_pos.x));
+                        float rmin = min(rt_pos.x, next_rt_pos.x);
+                        float rmax = max(rt_pos.x, next_rt_pos.x);
+
+                        atomic_min(&cell_time_min[voxel_id], (int)floor(rmin));
+                        atomic_max(&cell_time_max[voxel_id], (int)ceil(rmax));
 
                         setup.current += setup.step;
 

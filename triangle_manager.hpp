@@ -114,7 +114,7 @@ namespace triangle_rendering
         cl::buffer cell_time_min;
         cl::buffer cell_time_max;
 
-        vec4i offset_size = {32, 32, 32, 32};
+        vec4i offset_size = {64, 64, 64, 64};
         float offset_width = 20.f;
         float time_width = 200.f;
         int max_memory_size = 1024 * 1024 * 1024; ///1GB
