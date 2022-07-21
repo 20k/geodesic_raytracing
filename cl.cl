@@ -4248,7 +4248,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                       __global struct triangle* tris, int tri_count, __global struct intersection* intersections_out, __global int* intersection_count,
                       __global struct potential_intersection* intersections_p, __global int* intersection_count_p,
                       __global int* counts, __global int* offsets, __global struct computed_triangle* linear_mem, __global float* linear_start_times, __global float* linear_delta_times, float accel_width, float accel_time_width, int accel_width_num,
-                      __global int* cell_max_times, __global int* cell_min_times,
+                      __global int* cell_time_min, __global int* cell_time_max,
                       __global struct object* objs,
                       __global int* ray_time_min, __global int* ray_time_max,
                       dynamic_config_space struct dynamic_config* cfg)
@@ -4444,6 +4444,9 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                     for(int kk=0; kk < setup.num; kk++)
                     {
                         unsigned int voxel_id = index_acceleration(&setup, accel_width_num);
+
+                        atomic_min(&cell_time_min[voxel_id], (int)floor(rt_pos.x));
+                        atomic_max(&cell_time_max[voxel_id], (int)ceil(rt_pos.x));
 
                         setup.current += setup.step;
 
