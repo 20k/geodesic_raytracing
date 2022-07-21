@@ -358,7 +358,7 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
     #define SMEARED
     #ifdef SMEARED
     float start_ds = 0.f;
-    float end_ds = 32.f;
+    float end_ds = 4.f;
 
     {
         int should_store = 0;
@@ -387,14 +387,16 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
     }
 
     {
+        uint32_t data_max = offset_size.x() * offset_size.y() * offset_size.z() * offset_size.w();
+
         cl::args accel;
         accel.push_back(offsets);
         accel.push_back(counts);
-        accel.push_back(offset_size.x());
+        accel.push_back(data_max);
         accel.push_back(memory_count);
         accel.push_back(max_memory_size);
 
-        cqueue.exec("alloc_acceleration", accel, {offset_size.x(), offset_size.y(), offset_size.z()}, {8, 8, 1});
+        cqueue.exec("alloc_acceleration", accel, {data_max}, {256});
     }
 
     {
