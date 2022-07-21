@@ -3693,6 +3693,29 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                 local_tri.dvy = (ray_current - last_ray_pos).z;
                 local_tri.dvz = (ray_current - last_ray_pos).w;
 
+                ///my later pos is actually earlier than the last pos. Swap start and end
+                if(ray_current.x < last_ray_pos.x)
+                {
+                    delta_time = (last_ray_pos - ray_current).x;
+                    output_time = ray_current.x;
+
+                    local_tri.v0x = my_tri.v0x + ray_current.y;
+                    local_tri.v0y = my_tri.v0y + ray_current.z;
+                    local_tri.v0z = my_tri.v0z + ray_current.w;
+
+                    local_tri.v1x = my_tri.v1x + ray_current.y;
+                    local_tri.v1y = my_tri.v1y + ray_current.z;
+                    local_tri.v1z = my_tri.v1z + ray_current.w;
+
+                    local_tri.v2x = my_tri.v2x + ray_current.y;
+                    local_tri.v2y = my_tri.v2y + ray_current.z;
+                    local_tri.v2z = my_tri.v2z + ray_current.w;
+
+                    local_tri.dvx = (last_ray_pos - ray_current).y;
+                    local_tri.dvy = (last_ray_pos - ray_current).z;
+                    local_tri.dvz = (last_ray_pos - ray_current).w;
+                }
+
                 float4 pos = ray_current + (float4)(0.f, mine.x, mine.y, mine.z);
 
                 float4 grid_pos = floor(pos / voxel_cube_size);
