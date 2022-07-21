@@ -3471,7 +3471,9 @@ struct step_setup setup_step(float4 grid1, float4 grid2)
     float4 diff2 = grid2 - grid1;
     float4 adiff2 = fabs(diff2);
 
-    float max_len2 = max(max(adiff2.x, adiff2.y), max(adiff2.z, adiff2.w));
+    float max_len2 = max(max(adiff2.y, adiff2.z), adiff2.w);
+
+    //float max_len2 = max(max(adiff2.x, adiff2.y), max(adiff2.z, adiff2.w));
 
     max_len2 = max(max_len2, 1.f);
 
