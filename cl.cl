@@ -3358,11 +3358,14 @@ float3 world_to_voxel(float3 world, float width, int width_num)
     return world / scale;
 }
 
-float4 world_to_voxel4(float4 world, float width, int width_num)
+float4 world_to_voxel4(float4 world, float width, float time_width, int width_num)
 {
     float scale = width / width_num;
+    float time_scale = time_width / width_num;
 
-    return floor(world / scale);
+    float4 vscale = (float4)(time_scale, scale, scale, scale);
+
+    return floor(world / vscale);
 }
 
 int mod(int a, int b)
@@ -3540,7 +3543,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
         float4 pos = start_pos + (float4)(0.f, mine.x, mine.y, mine.z);
 
-        last_grid_pos = world_to_voxel4(pos, width, width_num);
+        last_grid_pos = world_to_voxel4(pos, width, time_width, width_num);
     }
 
     #if 0
@@ -3666,7 +3669,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
             float4 pos = start_pos + (float4)(0.f, mine.x, mine.y, mine.z);
 
-            last_grid_pos = world_to_voxel4(pos, width, width_num);
+            last_grid_pos = world_to_voxel4(pos, width, time_width, width_num);
 
             continue;
         }
@@ -3742,7 +3745,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
                 float4 pos = ray_current + (float4)(0.f, mine.x, mine.y, mine.z);
 
-                float4 grid_pos = world_to_voxel4(pos, width, width_num);
+                float4 grid_pos = world_to_voxel4(pos, width, time_width, width_num);
 
                 //grid_pos.x = 0;
                 //last_grid_pos.x = 0;
@@ -4389,8 +4392,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                     struct step_setup setup;
 
                     {
-                        float4 current_pos = world_to_voxel4(rt_pos, accel_width, accel_width_num);
-                        float4 next_pos = world_to_voxel4(next_rt_pos, accel_width, accel_width_num);
+                        float4 current_pos = world_to_voxel4(rt_pos, accel_width, accel_time_width, accel_width_num);
+                        float4 next_pos = world_to_voxel4(next_rt_pos, accel_width, accel_time_width, accel_width_num);
 
                         setup = setup_step(current_pos, next_pos);
                     }
