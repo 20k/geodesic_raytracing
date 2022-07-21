@@ -3547,6 +3547,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                       __global struct potential_intersection* intersections_p, __global int* intersection_count_p,
                       __global int* counts, __global int* offsets, __global struct triangle* linear_mem, float accel_width, int accel_width_num,
                       __global struct object* objs,
+                      __global int* cell_time_min, __global int* cell_time_max,
                       dynamic_config_space struct dynamic_config* cfg)
 {
     int id = get_global_id(0);
