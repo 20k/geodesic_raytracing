@@ -3405,7 +3405,7 @@ bool range_overlaps(float s0, float s1, float e0, float e1)
 
 __kernel
 void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
-                                  __global struct object* objs,
+                                  __global struct object* objs, int obj_count,
                                   __global struct triangle* reference_tris,
                                    __global int* offset_map, __global int* offset_counts, __global struct computed_triangle* mem_buffer,
                                    __global int* unculled_offset_counts,

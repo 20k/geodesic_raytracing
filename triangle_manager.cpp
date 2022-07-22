@@ -375,6 +375,7 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         gen.push_back(tris.fill_points);
         gen.push_back(tris.fill_point_count);
         gen.push_back(tris.objects);
+        gen.push_back(tris.gpu_object_count);
         gen.push_back(tris.tris);
         gen.push_back(offsets);
         gen.push_back(counts);
@@ -412,6 +413,7 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         gen.push_back(tris.fill_points);
         gen.push_back(tris.fill_point_count);
         gen.push_back(tris.objects);
+        gen.push_back(tris.gpu_object_count);
         gen.push_back(tris.tris);
         gen.push_back(offsets);
         gen.push_back(counts);
