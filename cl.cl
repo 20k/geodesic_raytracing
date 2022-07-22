@@ -4141,13 +4141,28 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                 if(dot(pdiff, pdiff) > 5)
                                     continue;*/
 
+                                float start_time = ctri->start_time;
+                                float end_time = start_time + ctri->dt;
+
+                                if(!ray_toblerone_could_intersect(rt_pos, next_rt_pos - rt_pos, start_time, end_time))
+                                    continue;
+
+                                if(ray_intersects_toblerone(rt_pos, next_rt_pos - rt_pos, ctri, start_time, end_time))
+                                {
+                                    struct intersection out;
+                                    out.sx = sx;
+                                    out.sy = sy;
+
+                                    int isect = atomic_inc(intersection_count);
+
+                                    intersections_out[isect] = out;
+                                    return;
+                                }
+
+                                #if 0
                                 float3 v0_pos = {ctri->v0x, ctri->v0y, ctri->v0z};
                                 float3 v1_pos = {ctri->v1x, ctri->v1y, ctri->v1z};
                                 float3 v2_pos = {ctri->v2x, ctri->v2y, ctri->v2z};
-
-                                //v0_pos += parent_pos.yzw;
-                                //v1_pos += parent_pos.yzw;
-                                //v2_pos += parent_pos.yzw;
 
                                 float3 ray_pos = rt_pos.yzw;
                                 float3 ray_dir = next_rt_pos.yzw - rt_pos.yzw;
@@ -4164,6 +4179,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                     intersections_out[isect] = out;
                                     return;
                                 }
+                                #endif // 0
                             }
                             #endif // 0
 
