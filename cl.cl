@@ -3410,9 +3410,11 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                                    __global int* offset_map, __global int* offset_counts, __global struct computed_triangle* mem_buffer,
                                    __global int* unculled_offset_counts,
                                    __global int* old_cell_time_min, __global int* old_cell_time_max,
+                                   __global float4* object_geodesics, __global int* object_geodesic_counts,
                                    float width, int width_num,
                                    int should_store,
-                                   int generate_unculled_counts)
+                                   int generate_unculled_counts,
+                                   dynamic_config_space struct dynamic_config* cfg)
 {
     int id = get_global_id(0);
 

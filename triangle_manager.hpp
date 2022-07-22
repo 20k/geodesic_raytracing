@@ -5,6 +5,8 @@
 #include <toolkit/opencl.hpp>
 #include "triangle.hpp"
 
+struct physics;
+
 ///so. This is never going to be a full on 3d renderer
 ///highest tri count we might get is 100k tris
 ///each object represents something that is on the same time coordinate, and also may follow a geodesic
@@ -113,7 +115,7 @@ namespace triangle_rendering
 
         acceleration(cl::context& ctx);
 
-        void build(cl::command_queue& cqueue, manager& tris);
+        void build(cl::command_queue& cqueue, manager& tris, physics& phys, cl::buffer& dynamic_config);
     };
 }
 

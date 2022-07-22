@@ -1,4 +1,5 @@
 #include "triangle_manager.hpp"
+#include "physics.hpp"
 #include "print.hpp"
 #include <tinyobjloader/tiny_obj_loader.h>
 
@@ -337,7 +338,7 @@ triangle_rendering::acceleration::acceleration(cl::context& ctx) : offsets(ctx),
     cell_time_max.alloc(sizeof(cl_int) * cells);
 }
 
-void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager& tris)
+void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager& tris, physics& phys, cl::buffer& dynamic_config)
 {
     //if(!tris.acceleration_needs_rebuild)
     //    return;
@@ -381,10 +382,13 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         gen.push_back(unculled_counts);
         gen.push_back(cell_time_min);
         gen.push_back(cell_time_max);
+        gen.push_back(phys.geodesic_paths);
+        gen.push_back(phys.counts);
         gen.push_back(offset_width);
         gen.push_back(offset_size.x());
         gen.push_back(should_store);
         gen.push_back(generate_unculled);
+        gen.push_back(dynamic_config);
 
         cqueue.exec("generate_smeared_acceleration", gen, {tris.fill_point_count}, {256});
     }
@@ -415,10 +419,13 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         gen.push_back(unculled_counts);
         gen.push_back(cell_time_min);
         gen.push_back(cell_time_max);
+        gen.push_back(phys.geodesic_paths);
+        gen.push_back(phys.counts);
         gen.push_back(offset_width);
         gen.push_back(offset_size.x());
         gen.push_back(should_store);
         gen.push_back(generate_unculled);
+        gen.push_back(dynamic_config);
 
         cqueue.exec("generate_smeared_acceleration", gen, {tris.fill_point_count}, {256});
     }
