@@ -3378,6 +3378,23 @@ void clear_accel_counts(__global int* offset_counts, int size)
     offset_counts[x] = 0;
 }
 
+void sort2(float* v0, float* v1)
+{
+    float iv0 = *v0;
+    float iv1 = *v1;
+
+    *v0 = min(iv0, iv1);
+    *v1 = max(iv0, iv1);
+}
+
+bool range_overlaps(float s0, float s1, float e0, float e1)
+{
+    sort2(&s0, &s1);
+    sort2(&e0, &e1);
+
+    return s0 <= e1 && e0 <= s1;
+}
+
 __kernel
 void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                                   __global struct object* objs,
