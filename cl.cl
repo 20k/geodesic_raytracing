@@ -3491,7 +3491,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
     for(int cc=0; cc < count - skip; cc += skip)
     {
-        if(cc > 128)
+        if(cc > 2048 * 8)
             return;
 
         float4 current_native_ray_pos = object_geodesics[cc * stride + mine.object_parent];
@@ -3559,6 +3559,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
                             int oid = fin.z * width_num * width_num + fin.y * width_num + fin.x;
 
+                            ///atomics are horrendously slow
                             atomic_inc(&unculled_offset_counts[oid]);
                         }
                     }
