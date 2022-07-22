@@ -3403,6 +3403,35 @@ bool range_overlaps(float s0, float s1, float e0, float e1)
     return s0 <= e1 && e0 <= s1;
 }
 
+struct step_setup
+{
+    float3 current;
+    float3 step;
+    int num;
+};
+
+struct step_setup setup_step(float3 grid1, float3 grid2)
+{
+    grid1 = floor(grid1);
+    grid2 = floor(grid2);
+
+    float3 diff2 = grid2 - grid1;
+    float3 adiff2 = fabs(diff2);
+
+    float max_len2 = max(max(adiff2.x, adiff2.y), adiff2.z);
+
+    max_len2 = max(max_len2, 1.f);
+
+    float3 step = diff2 / max_len2;
+
+    struct step_setup ret;
+    ret.current = grid1;
+    ret.step = step;
+    ret.num = (int)max_len2;
+
+    return ret;
+};
+
 __kernel
 void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                                   __global struct object* objs, int obj_count,
@@ -3425,14 +3454,17 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
     struct sub_point mine = sp[id];
 
-    float3 pos = (float3)(mine.x, mine.y, mine.z) + objs[mine.object_parent].pos.yzw;
+    int stride = obj_count;
+    int count = object_geodesic_counts[mine.object_parent];
+
+    //float3 pos = (float3)(mine.x, mine.y, mine.z) + objs[mine.object_parent].pos.yzw;
     int w_id = mine.parent;
 
     struct triangle tri_in = reference_tris[w_id];
 
-    struct object my_object = objs[tri_in.parent];
+    //struct object my_object = objs[tri_in.parent];
 
-    struct computed_triangle my_tri;
+    /*struct computed_triangle my_tri;
 
     my_tri.start_time = objs[mine.object_parent].pos.x;
     my_tri.v0x = tri_in.v0x + my_object.pos.y;
@@ -3445,57 +3477,107 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
     my_tri.v2x = tri_in.v2x + my_object.pos.y;
     my_tri.v2y = tri_in.v2y + my_object.pos.z;
-    my_tri.v2z = tri_in.v2z + my_object.pos.w;
+    my_tri.v2z = tri_in.v2z + my_object.pos.w;*/
 
-    float3 grid_pos = floor(pos / voxel_cube_size);
-
-    int3 int_grid_pos = (int3)(grid_pos.x, grid_pos.y, grid_pos.z);
-
-    if(generate_unculled_counts)
+    for(int cc=0; cc < count - 1; cc++)
     {
-        for(int z=-1; z <= 1; z++)
+        if(cc > 20)
+            return;
+
+        float4 current_native_ray_pos = object_geodesics[cc * stride + mine.object_parent];
+        float4 current_ray_pos = generic_to_cartesian(current_native_ray_pos, cfg);
+
+        float4 next_native_ray_pos = object_geodesics[(cc + 1) * stride + mine.object_parent];
+        float4 next_ray_pos = generic_to_cartesian(next_native_ray_pos, cfg);
+
+        struct computed_triangle my_tri;
+
+        float start_time = current_ray_pos.x;
+        float end_time = next_ray_pos.x;
+
+        my_tri.start_time = current_ray_pos.x;
+        my_tri.v0x = tri_in.v0x + current_ray_pos.y;
+        my_tri.v0y = tri_in.v0y + current_ray_pos.z;
+        my_tri.v0z = tri_in.v0z + current_ray_pos.w;
+
+        my_tri.v1x = tri_in.v1x + current_ray_pos.y;
+        my_tri.v1y = tri_in.v1y + current_ray_pos.z;
+        my_tri.v1z = tri_in.v1z + current_ray_pos.w;
+
+        my_tri.v2x = tri_in.v2x + current_ray_pos.y;
+        my_tri.v2y = tri_in.v2y + current_ray_pos.z;
+        my_tri.v2z = tri_in.v2z + current_ray_pos.w;
+
+        float3 current_grid_pos = floor(current_ray_pos.yzw / voxel_cube_size);
+        float3 next_grid_pos = floor(next_ray_pos.yzw / voxel_cube_size);
+
+        ///???
+        //if(all(current_grid_pos == next_grid_pos))
+        //    continue;
+
+        //int3 int_grid_pos = (int3)(grid_pos.x, grid_pos.y, grid_pos.z);
+
+        struct step_setup step = setup_step(current_grid_pos, next_grid_pos);
+
+        for(int kk=0; kk < step.num; kk++)
         {
-            for(int y=-1; y <= 1; y++)
+            float3 grid_position = step.current + kk * step.step;
+
+            int3 int_grid_pos = (int3)(grid_position.x, grid_position.y, grid_position.z);
+
+            if(generate_unculled_counts)
             {
-                for(int x=-1; x <= 1; x++)
+                for(int z=-1; z <= 1; z++)
                 {
-                    int3 off = (int3)(x, y, z);
-                    int3 fin = int_grid_pos + off;
+                    for(int y=-1; y <= 1; y++)
+                    {
+                        for(int x=-1; x <= 1; x++)
+                        {
+                            int3 off = (int3)(x, y, z);
+                            int3 fin = int_grid_pos + off;
 
-                    fin.x = mod(fin.x, width_num);
-                    fin.y = mod(fin.y, width_num);
-                    fin.z = mod(fin.z, width_num);
+                            fin.x = mod(fin.x, width_num);
+                            fin.y = mod(fin.y, width_num);
+                            fin.z = mod(fin.z, width_num);
 
-                    int oid = fin.z * width_num * width_num + fin.y * width_num + fin.x;
+                            int oid = fin.z * width_num * width_num + fin.y * width_num + fin.x;
 
-                    atomic_inc(&unculled_offset_counts[oid]);
+                            atomic_inc(&unculled_offset_counts[oid]);
+                        }
+                    }
                 }
             }
-        }
-    }
 
-    for(int z=-1; z <= 1; z++)
-    {
-        for(int y=-1; y <= 1; y++)
-        {
-            for(int x=-1; x <= 1; x++)
+            for(int z=-1; z <= 1; z++)
             {
-                int3 off = (int3)(x, y, z);
-                int3 fin = int_grid_pos + off;
-
-                fin.x = mod(fin.x, width_num);
-                fin.y = mod(fin.y, width_num);
-                fin.z = mod(fin.z, width_num);
-
-                int oid = fin.z * width_num * width_num + fin.y * width_num + fin.x;
-
-                int lid = atomic_inc(&offset_counts[oid]);
-
-                if(should_store)
+                for(int y=-1; y <= 1; y++)
                 {
-                    int mem_start = offset_map[oid];
+                    for(int x=-1; x <= 1; x++)
+                    {
+                        int3 off = (int3)(x, y, z);
+                        int3 fin = int_grid_pos + off;
 
-                    mem_buffer[mem_start + lid] = my_tri;
+                        fin.x = mod(fin.x, width_num);
+                        fin.y = mod(fin.y, width_num);
+                        fin.z = mod(fin.z, width_num);
+
+                        int oid = fin.z * width_num * width_num + fin.y * width_num + fin.x;
+
+                        float approx_min_time = old_cell_time_min[oid];
+                        float approx_max_time = old_cell_time_max[oid];
+
+                        if(!range_overlaps(approx_min_time - 1, approx_max_time + 1, start_time, end_time))
+                            continue;
+
+                        int lid = atomic_inc(&offset_counts[oid]);
+
+                        if(should_store)
+                        {
+                            int mem_start = offset_map[oid];
+
+                            mem_buffer[mem_start + lid] = my_tri;
+                        }
+                    }
                 }
             }
         }
