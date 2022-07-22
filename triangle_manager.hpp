@@ -100,6 +100,7 @@ namespace triangle_rendering
     {
         cl::buffer offsets;
         cl::buffer counts;
+        cl::buffer unculled_counts;
         cl::buffer memory;
         cl::buffer memory_count;
 

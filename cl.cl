@@ -3383,8 +3383,10 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                                   __global struct object* objs,
                                   __global struct triangle* reference_tris,
                                    __global int* offset_map, __global int* offset_counts, __global struct triangle* mem_buffer,
+                                   __global int* unculled_offset_counts,
                                    float width, int width_num,
-                                   int should_store)
+                                   int should_store,
+                                   int generate_unculled_counts)
 {
     int id = get_global_id(0);
 
@@ -3434,6 +3436,11 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                 int oid = fin.z * width_num * width_num + fin.y * width_num + fin.x;
 
                 int lid = atomic_inc(&offset_counts[oid]);
+
+                if(generate_unculled_counts)
+                {
+                    atomic_inc(&unculled_offset_counts[oid]);
+                }
 
                 if(should_store)
                 {

@@ -322,7 +322,7 @@ void triangle_rendering::manager::update_objects(cl::command_queue& cqueue)
     }
 }
 
-triangle_rendering::acceleration::acceleration(cl::context& ctx) : offsets(ctx), counts(ctx), memory(ctx), memory_count(ctx), cell_time_min(ctx), cell_time_max(ctx)
+triangle_rendering::acceleration::acceleration(cl::context& ctx) : offsets(ctx), counts(ctx), unculled_counts(ctx), memory(ctx), memory_count(ctx), cell_time_min(ctx), cell_time_max(ctx)
 {
     memory_count.alloc(sizeof(cl_int));
 
@@ -330,6 +330,7 @@ triangle_rendering::acceleration::acceleration(cl::context& ctx) : offsets(ctx),
 
     offsets.alloc(sizeof(cl_int) * cells);
     counts.alloc(sizeof(cl_int) * cells);
+    unculled_counts.alloc(sizeof(cl_int) * cells);
     memory.alloc(max_memory_size);
 
     cell_time_min.alloc(sizeof(cl_int) * cells);
@@ -356,7 +357,18 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
     }
 
     {
+        int count = unculled_counts.alloc_size / sizeof(cl_int);
+
+        cl::args aclear;
+        aclear.push_back(unculled_counts);
+        aclear.push_back(count);
+
+        cqueue.exec("clear_accel_counts", aclear, {count}, {256});
+    }
+
+    {
         int should_store = 0;
+        int generate_unculled = 1;
 
         cl::args gen;
         gen.push_back(tris.fill_points);
@@ -366,9 +378,11 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         gen.push_back(offsets);
         gen.push_back(counts);
         gen.push_back(memory);
+        gen.push_back(unculled_counts);
         gen.push_back(offset_width);
         gen.push_back(offset_size.x());
         gen.push_back(should_store);
+        gen.push_back(generate_unculled);
 
         cqueue.exec("generate_smeared_acceleration", gen, {tris.fill_point_count}, {256});
     }
@@ -386,6 +400,7 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
 
     {
         int should_store = 1;
+        int generate_unculled = 0;
 
         cl::args gen;
         gen.push_back(tris.fill_points);
@@ -395,9 +410,11 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         gen.push_back(offsets);
         gen.push_back(counts);
         gen.push_back(memory);
+        gen.push_back(unculled_counts);
         gen.push_back(offset_width);
         gen.push_back(offset_size.x());
         gen.push_back(should_store);
+        gen.push_back(generate_unculled);
 
         cqueue.exec("generate_smeared_acceleration", gen, {tris.fill_point_count}, {256});
     }
