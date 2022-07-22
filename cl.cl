@@ -3559,8 +3559,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
                             int oid = fin.z * width_num * width_num + fin.y * width_num + fin.x;
 
-                            ///atomics are horrendously slow
-                            atomic_inc(&unculled_offset_counts[oid]);
+                            unculled_offset_counts[oid] = 1;
                         }
                     }
                 }
