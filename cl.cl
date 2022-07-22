@@ -3487,11 +3487,11 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
     my_tri.v2y = tri_in.v2y + my_object.pos.z;
     my_tri.v2z = tri_in.v2z + my_object.pos.w;*/
 
-    int skip = 1;
+    int skip = 8;
 
     for(int cc=0; cc < count - skip; cc += skip)
     {
-        if(cc > 40)
+        if(cc > 128)
             return;
 
         float4 current_native_ray_pos = object_geodesics[cc * stride + mine.object_parent];
@@ -3534,6 +3534,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
         struct step_setup step = setup_step(current_grid_pos, next_grid_pos);
 
+        ///still need ray time min/max to clamp the unculled offsets
         for(int kk=0; kk < step.num; kk++)
         {
             float3 grid_position = step.current + kk * step.step;
@@ -4152,6 +4153,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                 float start_time = ctri->start_time;
                                 float end_time = start_time + ctri->dt;
 
+                                #define FULL_TOBLERONE
                                 #ifdef FULL_TOBLERONE
                                 if(!ray_toblerone_could_intersect(rt_pos, next_rt_pos - rt_pos, start_time, end_time))
                                     continue;
@@ -4167,9 +4169,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                     intersections_out[isect] = out;
                                     return;
                                 }
-                                #endif // FULL_TOBLERONE
-
-                                #if 1
+                                #else
                                 float3 v0_pos = {ctri->v0x, ctri->v0y, ctri->v0z};
                                 float3 v1_pos = {ctri->v1x, ctri->v1y, ctri->v1z};
                                 float3 v2_pos = {ctri->v2x, ctri->v2y, ctri->v2z};
