@@ -356,6 +356,54 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
     }
 
     {
+        int should_store = 0;
+
+        cl::args gen;
+        gen.push_back(tris.fill_points);
+        gen.push_back(tris.fill_point_count);
+        gen.push_back(tris.objects);
+        gen.push_back(tris.tris);
+        gen.push_back(offsets);
+        gen.push_back(counts);
+        gen.push_back(memory);
+        gen.push_back(offset_width);
+        gen.push_back(offset_size.x());
+        gen.push_back(should_store);
+
+        cqueue.exec("generate_smeared_acceleration", gen, {tris.fill_point_count}, {256});
+    }
+
+    {
+        cl::args accel;
+        accel.push_back(offsets);
+        accel.push_back(counts);
+        accel.push_back(offset_size.x());
+        accel.push_back(memory_count);
+        accel.push_back(max_memory_size);
+
+        cqueue.exec("alloc_acceleration", accel, {offset_size.x(), offset_size.y(), offset_size.z()}, {8, 8, 1});
+    }
+
+    {
+        int should_store = 1;
+
+        cl::args gen;
+        gen.push_back(tris.fill_points);
+        gen.push_back(tris.fill_point_count);
+        gen.push_back(tris.objects);
+        gen.push_back(tris.tris);
+        gen.push_back(offsets);
+        gen.push_back(counts);
+        gen.push_back(memory);
+        gen.push_back(offset_width);
+        gen.push_back(offset_size.x());
+        gen.push_back(should_store);
+
+        cqueue.exec("generate_smeared_acceleration", gen, {tris.fill_point_count}, {256});
+    }
+
+    #if 0
+    {
         cl::args count_args;
         count_args.push_back(tris.fill_points);
         count_args.push_back(tris.fill_point_count);
@@ -392,4 +440,5 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
 
         cqueue.exec("generate_acceleration_data", gen, {tris.fill_point_count}, {256});
     }
+    #endif
 }

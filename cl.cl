@@ -3379,6 +3379,74 @@ void clear_accel_counts(__global int* offset_counts, int size)
 }
 
 __kernel
+void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
+                                  __global struct object* objs,
+                                  __global struct triangle* reference_tris,
+                                   __global int* offset_map, __global int* offset_counts, __global struct triangle* mem_buffer,
+                                   float width, int width_num,
+                                   int should_store)
+{
+    int id = get_global_id(0);
+
+    if(id >= sp_count)
+        return;
+
+    float voxel_cube_size = width / width_num;
+
+    struct sub_point mine = sp[id];
+
+    float3 pos = (float3)(mine.x, mine.y, mine.z) + objs[mine.object_parent].pos.yzw;
+    int w_id = mine.parent;
+
+    struct triangle my_tri = reference_tris[w_id];
+
+    struct object my_object = objs[my_tri.parent];
+
+    my_tri.v0x += my_object.pos.y;
+    my_tri.v0y += my_object.pos.z;
+    my_tri.v0z += my_object.pos.w;
+
+    my_tri.v1x += my_object.pos.y;
+    my_tri.v1y += my_object.pos.z;
+    my_tri.v1z += my_object.pos.w;
+
+    my_tri.v2x += my_object.pos.y;
+    my_tri.v2y += my_object.pos.z;
+    my_tri.v2z += my_object.pos.w;
+
+    float3 grid_pos = floor(pos / voxel_cube_size);
+
+    int3 int_grid_pos = (int3)(grid_pos.x, grid_pos.y, grid_pos.z);
+
+    for(int z=-1; z <= 1; z++)
+    {
+        for(int y=-1; y <= 1; y++)
+        {
+            for(int x=-1; x <= 1; x++)
+            {
+                int3 off = (int3)(x, y, z);
+                int3 fin = int_grid_pos + off;
+
+                fin.x = mod(fin.x, width_num);
+                fin.y = mod(fin.y, width_num);
+                fin.z = mod(fin.z, width_num);
+
+                int oid = fin.z * width_num * width_num + fin.y * width_num + fin.x;
+
+                int lid = atomic_inc(&offset_counts[oid]);
+
+                if(should_store)
+                {
+                    int mem_start = offset_map[oid];
+
+                    mem_buffer[mem_start + lid] = my_tri;
+                }
+            }
+        }
+    }
+}
+
+__kernel
 void generate_acceleration_counts(__global struct sub_point* sp, int sp_count, __global struct object* objs, __global int* offset_counts, float width, int width_num)
 {
     int id = get_global_id(0);
@@ -3741,8 +3809,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                         float min_time = min(rt_pos.x, next_rt_pos.x);
                         float max_time = max(rt_pos.x, next_rt_pos.x);
 
-                        atomic_min(&cell_time_min[voxel_id], min_time);
-                        atomic_max(&cell_time_max[voxel_id], max_time);
+                        //atomic_min(&cell_time_min[voxel_id], min_time);
+                        //atomic_max(&cell_time_max[voxel_id], max_time);
 
                         int cnt = counts[voxel_id];
 
