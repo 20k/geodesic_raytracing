@@ -19,6 +19,11 @@ struct computed_triangle
     float v0x, v0y, v0z;
     float v1x, v1y, v1z;
     float v2x, v2y, v2z;
+
+    float dt;
+    float dx;
+    float dy;
+    float dz;
 };
 
 float3 cartesian_to_polar(float3 in)
@@ -3263,7 +3268,7 @@ struct intersection
     int sx, sy;
 };
 
-bool ray_intersects_triangle(float3 origin, float3 direction, float3 vertex0, float3 vertex1, float3 vertex2)
+bool ray_intersects_triangle(float3 origin, float3 direction, float3 vertex0, float3 vertex1, float3 vertex2, float* t_out)
 {
     //direction = fast_normalize(direction);
 
@@ -3308,6 +3313,9 @@ bool ray_intersects_triangle(float3 origin, float3 direction, float3 vertex0, fl
 
     if (t > eps) // ray intersection
     {
+        if(t_out)
+            *t_out = t;
+
         //outIntersectionPoint = rayOrigin + rayVector * t;
         return true;
     }
@@ -3507,6 +3515,11 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         my_tri.v2x = tri_in.v2x + current_ray_pos.y;
         my_tri.v2y = tri_in.v2y + current_ray_pos.z;
         my_tri.v2z = tri_in.v2z + current_ray_pos.w;
+
+        my_tri.dt = next_ray_pos.x - current_ray_pos.x;
+        my_tri.dx = next_ray_pos.y - current_ray_pos.y;
+        my_tri.dy = next_ray_pos.z - current_ray_pos.z;
+        my_tri.dz = next_ray_pos.w - current_ray_pos.w;
 
         float3 current_grid_pos = floor(current_ray_pos.yzw / voxel_cube_size);
         float3 next_grid_pos = floor(next_ray_pos.yzw / voxel_cube_size);
@@ -3742,6 +3755,157 @@ struct potential_intersection
     float st, sx, sy, sz;
     float et, ex, ey, ez;
 };
+
+///todo: winding order
+float3 triangle_normal(float3 v0, float3 v1, float3 v2)
+{
+    float3 U = v1 - v0;
+    float3 V = v2 - v0;
+
+    return normalize(cross(U, V));
+}
+
+float ray_plane_intersection(float3 plane_origin, float3 plane_normal, float3 ray_origin, float3 ray_direction)
+{
+    float denom = dot(ray_direction, plane_normal);
+
+    if(fabs(denom) < 0.00001f)
+        return 0.f;
+
+    return dot(plane_origin - ray_origin, plane_normal) / denom;
+}
+
+bool ray_toblerone_could_intersect(float4 pos, float4 dir, float tri_start_t, float tri_end_t)
+{
+    float ray_start_t = pos.x;
+    float ray_end_t = pos.x + dir.x;
+
+    return range_overlaps(ray_start_t, ray_end_t, tri_start_t, tri_end_t);
+}
+
+///dir is not normalised, should really use a pos2
+bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_triangle* ctri, float tri_start_time, float tri_end_time)
+{
+    float3 v0 = (float3)(ctri->v0x, ctri->v0y, ctri->v0z);
+    float3 v1 = (float3)(ctri->v1x, ctri->v1y, ctri->v1z);
+    float3 v2 = (float3)(ctri->v2x, ctri->v2y, ctri->v2z);
+
+    float3 t_diff = (float3)(ctri->dx, ctri->dy, ctri->dz);
+
+    float3 e0 = v0 + t_diff;
+    float3 e1 = v1 + t_diff;
+    float3 e2 = v2 + t_diff;
+
+    float3 vertices[8 * 3] = {
+        v0, v1, v2,
+        e0, e1, e2,
+        v0, e0, v1,
+        v1, e0, e1,
+        v0, e0, v2,
+        e0, e2, v2,
+        v1, e1, v2,
+        e1, e2, v2
+    };
+
+    ///tri * 3 + vert
+
+    ///bool ray_intersects_triangle(float3 origin, float3 direction, float3 vertex0, float3 vertex1, float3 vertex2, float* t_out)
+
+    bool any_t = false;
+    float min_t = 0;
+    float max_t = 0;
+
+    for(int i=0; i < 8; i++)
+    {
+        float3 l_v0 = vertices[i * 3 + 0];
+        float3 l_v1 = vertices[i * 3 + 1];
+        float3 l_v2 = vertices[i * 3 + 2];
+
+        float my_t = 0;
+
+        if(ray_intersects_triangle(pos.yzw, dir.yzw, l_v0, l_v1, l_v2, &my_t))
+        {
+            if(any_t)
+            {
+                min_t = min(min_t, my_t);
+                max_t = max(max_t, my_t);
+            }
+            else
+            {
+                min_t = my_t;
+                max_t = my_t;
+                any_t = true;
+            }
+        }
+    }
+
+    ///min_t and max_t correspond to pos.yzw + dir.yzw * t positions, ie toblerone entry and exit
+    ///min_t and max_t must be inherently in range [0, 1]
+
+    if(!any_t)
+        return false;
+
+    //float3 toblerone_origin = (v0 + v1 + v2)/3.f;
+    //float3 toblerone_end = (e0 + e1 + e2)/3.f;
+
+    float3 toblerone_origin = v0;
+    float3 toblerone_end = e0;
+    float3 toblerone_normal = toblerone_end - toblerone_origin;
+
+    float toblerone_height = length(toblerone_normal);
+
+    float3 entry_position = pos.yzw + dir.yzw * min_t;
+    float3 exit_position = pos.yzw + dir.yzw * max_t;
+
+    float3 norm_toblerone_normal = normalize(toblerone_normal);
+
+    float3 tri_normal = triangle_normal(v0, v1, v2);
+
+    float entry_height = 0;
+    float exit_height = 0;
+
+    {
+        float3 new_origin = entry_position;
+        float3 new_dir = -norm_toblerone_normal;
+
+        float ray_plane_t = ray_plane_intersection(toblerone_origin, tri_normal, new_origin, new_dir);
+
+        if(ray_plane_t == 0)
+            return false;
+
+        float3 plane_intersection_location = new_origin + new_dir * ray_plane_t;
+
+        entry_height = length(new_origin - plane_intersection_location);
+    }
+
+    {
+        float3 new_origin = exit_position;
+        float3 new_dir = -norm_toblerone_normal;
+
+        float ray_plane_t = ray_plane_intersection(toblerone_origin, tri_normal, new_origin, new_dir);
+
+        if(ray_plane_t == 0)
+            return false;
+
+        float3 plane_intersection_location = new_origin + new_dir * ray_plane_t;
+
+        exit_height = length(new_origin - plane_intersection_location);
+    }
+
+    float entry_time = (entry_height / toblerone_height) * (tri_end_time - tri_start_time) + tri_start_time;
+    float exit_time = (exit_height / toblerone_height) * (tri_end_time - tri_start_time) + tri_start_time;
+
+    float ray_entry_time = pos.x + dir.x * min_t;
+    float ray_exit_time = pos.x + dir.x * max_t;
+
+    sort2(&entry_time, &exit_time);
+    sort2(&ray_entry_time, &ray_exit_time);
+
+    entry_time -= 0.0001f;
+    exit_time += 0.0001f;
+
+    return ray_entry_time <= exit_time && entry_time <= ray_exit_time;
+}
 
 __kernel
 void do_generic_rays (__global struct lightray* restrict generic_rays_in, __global struct lightray* restrict generic_rays_out,
@@ -3989,7 +4153,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                 float3 ray_dir = next_rt_pos.yzw - rt_pos.yzw;
 
                                 ///ehhhh need to take closest
-                                if(ray_intersects_triangle(ray_pos, ray_dir, v0_pos, v1_pos, v2_pos))
+                                if(ray_intersects_triangle(ray_pos, ray_dir, v0_pos, v1_pos, v2_pos, 0))
                                 {
                                     struct intersection out;
                                     out.sx = sx;
@@ -5091,7 +5255,7 @@ void render_tris(__global struct triangle* tris, int tri_count,
                 float3 ray_pos = mix(next_pos.yzw, pos.yzw, dx);
                 float3 ray_dir = next_pos.yzw - pos.yzw;
 
-                if(ray_intersects_triangle(ray_pos, ray_dir, v0_pos, v1_pos, v2_pos))
+                if(ray_intersects_triangle(ray_pos, ray_dir, v0_pos, v1_pos, v2_pos, 0))
                 {
                     write_imagef(screen, (int2){sx, sy}, (float4)(1, 0, 0, 1));
                     return;
@@ -5167,7 +5331,7 @@ void render_potential_intersections(__global struct potential_intersection* in, 
                 float3 ray_dir = next_rt_pos.yzw - rt_pos.yzw;
 
                 ///ehhhh need to take closest
-                if(ray_intersects_triangle(ray_pos, ray_dir, v0_pos, v1_pos, v2_pos))
+                if(ray_intersects_triangle(ray_pos, ray_dir, v0_pos, v1_pos, v2_pos, 0))
                 {
                     write_imagef(screen, (int2){cx, cy}, (float4)(1, 0, 0, 1));
                     return;
