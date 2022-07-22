@@ -5,6 +5,22 @@ struct object
     float4 pos;
 };
 
+struct triangle
+{
+    int parent;
+    float v0x, v0y, v0z;
+    float v1x, v1y, v1z;
+    float v2x, v2y, v2z;
+};
+
+struct computed_triangle
+{
+    float start_time;
+    float v0x, v0y, v0z;
+    float v1x, v1y, v1z;
+    float v2x, v2y, v2z;
+};
+
 float3 cartesian_to_polar(float3 in)
 {
     float r = length(in);
@@ -3242,14 +3258,6 @@ int calculate_ds_error(float current_ds, float4 next_acceleration, float4 accele
 }
 #endif // ADAPTIVE_PRECISION
 
-struct triangle
-{
-    int parent;
-    float v0x, v0y, v0z;
-    float v1x, v1y, v1z;
-    float v2x, v2y, v2z;
-};
-
 struct intersection
 {
     int sx, sy;
@@ -3399,7 +3407,7 @@ __kernel
 void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                                   __global struct object* objs,
                                   __global struct triangle* reference_tris,
-                                   __global int* offset_map, __global int* offset_counts, __global struct triangle* mem_buffer,
+                                   __global int* offset_map, __global int* offset_counts, __global struct computed_triangle* mem_buffer,
                                    __global int* unculled_offset_counts,
                                    __global int* old_cell_time_min, __global int* old_cell_time_max,
                                    float width, int width_num,
@@ -3418,21 +3426,24 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
     float3 pos = (float3)(mine.x, mine.y, mine.z) + objs[mine.object_parent].pos.yzw;
     int w_id = mine.parent;
 
-    struct triangle my_tri = reference_tris[w_id];
+    struct triangle tri_in = reference_tris[w_id];
 
-    struct object my_object = objs[my_tri.parent];
+    struct object my_object = objs[tri_in.parent];
 
-    my_tri.v0x += my_object.pos.y;
-    my_tri.v0y += my_object.pos.z;
-    my_tri.v0z += my_object.pos.w;
+    struct computed_triangle my_tri;
 
-    my_tri.v1x += my_object.pos.y;
-    my_tri.v1y += my_object.pos.z;
-    my_tri.v1z += my_object.pos.w;
+    my_tri.start_time = objs[mine.object_parent].pos.x;
+    my_tri.v0x = tri_in.v0x + my_object.pos.y;
+    my_tri.v0y = tri_in.v0y + my_object.pos.z;
+    my_tri.v0z = tri_in.v0z + my_object.pos.w;
 
-    my_tri.v2x += my_object.pos.y;
-    my_tri.v2y += my_object.pos.z;
-    my_tri.v2z += my_object.pos.w;
+    my_tri.v1x = tri_in.v1x + my_object.pos.y;
+    my_tri.v1y = tri_in.v1y + my_object.pos.z;
+    my_tri.v1z = tri_in.v1z + my_object.pos.w;
+
+    my_tri.v2x = tri_in.v2x + my_object.pos.y;
+    my_tri.v2y = tri_in.v2y + my_object.pos.z;
+    my_tri.v2z = tri_in.v2z + my_object.pos.w;
 
     float3 grid_pos = floor(pos / voxel_cube_size);
 
@@ -3563,9 +3574,9 @@ void alloc_acceleration(__global int* offset_map, __global int* offset_counts, i
     if(my_count > 0)
         offset = atomic_add(mem_count, my_count);
 
-    if(offset + my_count > max_memory_size)
+    if(offset + my_count > (max_memory_size / sizeof(struct computed_triangle)))
     {
-        offset = max_memory_size - my_count;
+        offset = (max_memory_size / sizeof(struct computed_triangle)) - my_count;
 
         printf("Error in alloc acceleration\n");
     }
@@ -3656,7 +3667,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                       //__global float4* path_out, __global int* counts_out,
                       __global struct triangle* tris, int tri_count, __global struct intersection* intersections_out, __global int* intersection_count,
                       __global struct potential_intersection* intersections_p, __global int* intersection_count_p,
-                      __global int* counts, __global int* offsets, __global struct triangle* linear_mem, __global int* unculled_counts,
+                      __global int* counts, __global int* offsets, __global struct computed_triangle* linear_mem, __global int* unculled_counts,
                       float accel_width, int accel_width_num,
                       __global struct object* objs,
                       __global int* cell_time_min, __global int* cell_time_max,
@@ -3871,12 +3882,10 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                             int tri_count = counts[voxel_id];
                             int base_offset = offsets[voxel_id];
 
-                            __global struct triangle* base_tri = &linear_mem[base_offset];
-
                             #if 1
                             for(int t_off=0; t_off < tri_count; t_off++)
                             {
-                                __global struct triangle* ctri = &linear_mem[base_offset + t_off];
+                                __global struct computed_triangle* ctri = &linear_mem[base_offset + t_off];
 
                                 ///use dot current_pos tri centre pos (?) as distance metric
                                 /*float3 pdiff = parent_pos.yzw - rt_pos.yzw;
