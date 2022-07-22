@@ -379,6 +379,8 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         gen.push_back(counts);
         gen.push_back(memory);
         gen.push_back(unculled_counts);
+        gen.push_back(cell_time_min);
+        gen.push_back(cell_time_max);
         gen.push_back(offset_width);
         gen.push_back(offset_size.x());
         gen.push_back(should_store);
@@ -411,6 +413,8 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         gen.push_back(counts);
         gen.push_back(memory);
         gen.push_back(unculled_counts);
+        gen.push_back(cell_time_min);
+        gen.push_back(cell_time_max);
         gen.push_back(offset_width);
         gen.push_back(offset_size.x());
         gen.push_back(should_store);

@@ -3384,6 +3384,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                                   __global struct triangle* reference_tris,
                                    __global int* offset_map, __global int* offset_counts, __global struct triangle* mem_buffer,
                                    __global int* unculled_offset_counts,
+                                   __global int* old_cell_time_min, __global int* old_cell_time_max,
                                    float width, int width_num,
                                    int should_store,
                                    int generate_unculled_counts)
