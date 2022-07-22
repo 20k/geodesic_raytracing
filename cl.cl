@@ -3535,6 +3535,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         struct step_setup step = setup_step(current_grid_pos, next_grid_pos);
 
         ///still need ray time min/max to clamp the unculled offsets
+        ///to crack down on excessive atomics
         for(int kk=0; kk < step.num; kk++)
         {
             float3 grid_position = step.current + kk * step.step;
