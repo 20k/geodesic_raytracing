@@ -3487,7 +3487,9 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
     my_tri.v2y = tri_in.v2y + my_object.pos.z;
     my_tri.v2z = tri_in.v2z + my_object.pos.w;*/
 
-    for(int cc=0; cc < count - 1; cc++)
+    int skip = 1;
+
+    for(int cc=0; cc < count - skip; cc += skip)
     {
         if(cc > 40)
             return;
@@ -3495,7 +3497,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         float4 current_native_ray_pos = object_geodesics[cc * stride + mine.object_parent];
         float4 current_ray_pos = generic_to_cartesian(current_native_ray_pos, cfg);
 
-        float4 next_native_ray_pos = object_geodesics[(cc + 1) * stride + mine.object_parent];
+        float4 next_native_ray_pos = object_geodesics[(cc + skip) * stride + mine.object_parent];
         float4 next_ray_pos = generic_to_cartesian(next_native_ray_pos, cfg);
 
         struct computed_triangle my_tri;
@@ -3576,8 +3578,14 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
                         int oid = fin.z * width_num * width_num + fin.y * width_num + fin.x;
 
-                        float approx_min_time = old_cell_time_min[oid];
-                        float approx_max_time = old_cell_time_max[oid];
+                        int iapprox_min_time = old_cell_time_min[oid];
+                        int iapprox_max_time = old_cell_time_max[oid];
+
+                        if(iapprox_min_time == 2147483647 || iapprox_max_time == (-2147483647 - 1))
+                            continue;
+
+                        float approx_min_time = iapprox_min_time;
+                        float approx_max_time = iapprox_max_time;
 
                         if(!range_overlaps(approx_min_time - 1, approx_max_time + 1, start_time, end_time))
                             continue;
@@ -4144,6 +4152,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                 float start_time = ctri->start_time;
                                 float end_time = start_time + ctri->dt;
 
+                                #ifdef FULL_TOBLERONE
                                 if(!ray_toblerone_could_intersect(rt_pos, next_rt_pos - rt_pos, start_time, end_time))
                                     continue;
 
@@ -4158,8 +4167,9 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                     intersections_out[isect] = out;
                                     return;
                                 }
+                                #endif // FULL_TOBLERONE
 
-                                #if 0
+                                #if 1
                                 float3 v0_pos = {ctri->v0x, ctri->v0y, ctri->v0z};
                                 float3 v1_pos = {ctri->v1x, ctri->v1y, ctri->v1z};
                                 float3 v2_pos = {ctri->v2x, ctri->v2y, ctri->v2z};
