@@ -3421,6 +3421,29 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
     int3 int_grid_pos = (int3)(grid_pos.x, grid_pos.y, grid_pos.z);
 
+    if(generate_unculled_counts)
+    {
+        for(int z=-1; z <= 1; z++)
+        {
+            for(int y=-1; y <= 1; y++)
+            {
+                for(int x=-1; x <= 1; x++)
+                {
+                    int3 off = (int3)(x, y, z);
+                    int3 fin = int_grid_pos + off;
+
+                    fin.x = mod(fin.x, width_num);
+                    fin.y = mod(fin.y, width_num);
+                    fin.z = mod(fin.z, width_num);
+
+                    int oid = fin.z * width_num * width_num + fin.y * width_num + fin.x;
+
+                    atomic_inc(&unculled_offset_counts[oid]);
+                }
+            }
+        }
+    }
+
     for(int z=-1; z <= 1; z++)
     {
         for(int y=-1; y <= 1; y++)
@@ -3437,11 +3460,6 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                 int oid = fin.z * width_num * width_num + fin.y * width_num + fin.x;
 
                 int lid = atomic_inc(&offset_counts[oid]);
-
-                if(generate_unculled_counts)
-                {
-                    atomic_inc(&unculled_offset_counts[oid]);
-                }
 
                 if(should_store)
                 {
