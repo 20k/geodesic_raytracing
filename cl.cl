@@ -3481,7 +3481,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
     for(int cc=0; cc < count - 1; cc++)
     {
-        if(cc > 20)
+        if(cc > 40)
             return;
 
         float4 current_native_ray_pos = object_geodesics[cc * stride + mine.object_parent];
