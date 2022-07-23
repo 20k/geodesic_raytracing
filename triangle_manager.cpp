@@ -323,7 +323,7 @@ void triangle_rendering::manager::update_objects(cl::command_queue& cqueue)
     }
 }
 
-triangle_rendering::acceleration::acceleration(cl::context& ctx) : offsets(ctx), counts(ctx), unculled_counts(ctx), memory(ctx), memory_count(ctx), cell_time_min(ctx), cell_time_max(ctx)
+triangle_rendering::acceleration::acceleration(cl::context& ctx, cl::command_queue& cqueue) : offsets(ctx), counts(ctx), unculled_counts(ctx), memory(ctx), memory_count(ctx), cell_time_min(ctx), cell_time_max(ctx), global_min(ctx), global_max(ctx)
 {
     memory_count.alloc(sizeof(cl_int));
 
@@ -334,8 +334,20 @@ triangle_rendering::acceleration::acceleration(cl::context& ctx) : offsets(ctx),
     unculled_counts.alloc(sizeof(cl_int) * cells);
     memory.alloc(max_memory_size);
 
+    cl_int min_set = INT_MAX;
+    cl_int max_set = INT_MIN;
+
     cell_time_min.alloc(sizeof(cl_int) * cells);
     cell_time_max.alloc(sizeof(cl_int) * cells);
+
+    global_min.alloc(sizeof(cl_int));
+    global_max.alloc(sizeof(cl_int));
+
+    cell_time_min.fill(cqueue, min_set);
+    cell_time_max.fill(cqueue, max_set);
+
+    global_min.fill(cqueue, min_set);
+    global_max.fill(cqueue, max_set);
 }
 
 void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager& tris, physics& phys, cl::buffer& dynamic_config)

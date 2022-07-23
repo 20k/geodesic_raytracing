@@ -3364,6 +3364,16 @@ int mod(int a, int b)
     return r < 0 ? r + b : r;
 }
 
+int3 mod31(int3 a, int b)
+{
+    int3 ret;
+    ret.x = mod(a.x, b);
+    ret.y = mod(a.y, b);
+    ret.z = mod(a.z, b);
+
+    return ret;
+}
+
 int3 loop_voxel(int3 in, int width_num)
 {
     in.x = mod(in.x, width_num);
@@ -3545,10 +3555,13 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
             if(generate_unculled_counts)
             {
+                #pragma unroll
                 for(int z=-1; z <= 1; z++)
                 {
+                    #pragma unroll
                     for(int y=-1; y <= 1; y++)
                     {
+                        #pragma unroll
                         for(int x=-1; x <= 1; x++)
                         {
                             int3 off = (int3)(x, y, z);
@@ -3566,10 +3579,32 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                 }
             }
 
+            /*{
+                int3 local_coord = mod31(int_grid_pos, width_num);
+
+                int approx_centre_id = local_coord.z * width_num * width_num + local_coord.y * width_num + local_coord.x;
+
+                int iapprox_min_time = old_cell_time_min[approx_centre_id];
+                int iapprox_max_time = old_cell_time_max[approx_centre_id];
+
+                if(iapprox_min_time != 2147483647 && iapprox_max_time != (-2147483647 - 1))
+                {
+                    float approx_min_time = iapprox_min_time;
+                    float approx_max_time = iapprox_max_time;
+
+                    if(!range_overlaps(approx_min_time - 2, approx_max_time + 2, start_time, end_time))
+                        continue;
+                }
+            }*/
+
+
+            #pragma unroll
             for(int z=-1; z <= 1; z++)
             {
+                #pragma unroll
                 for(int y=-1; y <= 1; y++)
                 {
+                    #pragma unroll
                     for(int x=-1; x <= 1; x++)
                     {
                         int3 off = (int3)(x, y, z);
@@ -3930,6 +3965,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                       float accel_width, int accel_width_num,
                       __global struct object* objs,
                       __global int* cell_time_min, __global int* cell_time_max,
+                      __global int* global_time_min, __global int* global_time_max,
                       dynamic_config_space struct dynamic_config* cfg)
 {
     int id = get_global_id(0);

@@ -283,6 +283,9 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
         accel.cell_time_min.fill(cqueue, my_min);
         accel.cell_time_max.fill(cqueue, my_max);
 
+        accel.global_min.fill(cqueue, my_min);
+        accel.global_max.fill(cqueue, my_max);
+
         cl::args run_args;
         run_args.push_back(rays_in);
         run_args.push_back(rays_out);
@@ -307,6 +310,8 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
         run_args.push_back(manage.objects);
         run_args.push_back(accel.cell_time_min);
         run_args.push_back(accel.cell_time_max);
+        run_args.push_back(accel.global_min);
+        run_args.push_back(accel.global_max);
         run_args.push_back(dynamic_config);
 
         cqueue.exec("do_generic_rays", run_args, {num_rays}, {256});
@@ -1018,7 +1023,7 @@ int main(int argc, char* argv[])
     schwarzs_count_prepass.alloc(sizeof(int));
     finished_count_1.alloc(sizeof(int));
 
-    triangle_rendering::acceleration accel(clctx.ctx);
+    triangle_rendering::acceleration accel(clctx.ctx, clctx.cqueue);
 
     int potential_intersection_size = 10;
 
