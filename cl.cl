@@ -3475,27 +3475,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
     int stride = obj_count;
     int count = object_geodesic_counts[mine.object_parent];
 
-    //float3 pos = (float3)(mine.x, mine.y, mine.z) + objs[mine.object_parent].pos.yzw;
-    int w_id = mine.parent;
-
-    struct triangle tri_in = reference_tris[w_id];
-
-    //struct object my_object = objs[tri_in.parent];
-
-    /*struct computed_triangle my_tri;
-
-    my_tri.start_time = objs[mine.object_parent].pos.x;
-    my_tri.v0x = tri_in.v0x + my_object.pos.y;
-    my_tri.v0y = tri_in.v0y + my_object.pos.z;
-    my_tri.v0z = tri_in.v0z + my_object.pos.w;
-
-    my_tri.v1x = tri_in.v1x + my_object.pos.y;
-    my_tri.v1y = tri_in.v1y + my_object.pos.z;
-    my_tri.v1z = tri_in.v1z + my_object.pos.w;
-
-    my_tri.v2x = tri_in.v2x + my_object.pos.y;
-    my_tri.v2y = tri_in.v2y + my_object.pos.z;
-    my_tri.v2z = tri_in.v2z + my_object.pos.w;*/
+    struct triangle tri_in = reference_tris[mine.parent];
 
     int skip = 8;
 
@@ -3504,7 +3484,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
     for(int cc=0; cc < count - skip; cc += skip)
     {
-        if(cc > 2048 * 8)
+        if(cc > 2048 * 16)
             return;
 
         float4 current_native_ray_pos = object_geodesics[cc * stride + mine.object_parent];
@@ -3579,7 +3559,8 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                 }
             }
 
-            /*{
+            ///this is only approx
+            {
                 int3 local_coord = mod31(int_grid_pos, width_num);
 
                 int approx_centre_id = local_coord.z * width_num * width_num + local_coord.y * width_num + local_coord.x;
@@ -3592,10 +3573,10 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                     float approx_min_time = iapprox_min_time;
                     float approx_max_time = iapprox_max_time;
 
-                    if(!range_overlaps(approx_min_time - 2, approx_max_time + 2, start_time, end_time))
+                    if(!range_overlaps(approx_min_time - 3, approx_max_time + 3, start_time, end_time))
                         continue;
                 }
-            }*/
+            }
 
 
             #pragma unroll
