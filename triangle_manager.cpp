@@ -327,7 +327,7 @@ triangle_rendering::acceleration::acceleration(cl::context& ctx, cl::command_que
 {
     memory_count.alloc(sizeof(cl_int));
 
-    int cells = offset_size.x() * offset_size.y() * offset_size.z() * offset_size.w();
+    int cells = offset_size.x() * offset_size.y() * offset_size.z();
 
     offsets.alloc(sizeof(cl_int) * cells);
     counts.alloc(sizeof(cl_int) * cells);
