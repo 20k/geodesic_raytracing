@@ -1115,13 +1115,14 @@ int main(int argc, char* argv[])
         }
     }*/
 
+    #define TEAPOTS
     #ifdef TEAPOTS
     //#define INDIVIDUAL_GEODESICS
     #ifndef INDIVIDUAL_GEODESICS
     auto obj = tris.make_new("./models/newell_teaset/teapot.obj");
     obj->pos = {0, -5, 0, 0};
     obj->velocity = {0, 0.35f, 0};
-    obj->scale = 0.05f;
+    obj->scale = 0.45f;
     #else
     std::vector<triangle> teapot_tris = triangle_rendering::load_tris_from_model("./models/newell_teaset/teapot.obj");
 
@@ -1154,7 +1155,7 @@ int main(int argc, char* argv[])
     #endif // INDIVIDUAL_GEODESICS
     #endif // TEAPOTS
 
-    for(int z=-5; z <= 5; z++)
+    /*for(int z=-5; z <= 5; z++)
     {
         for(int y=-5; y <= 5; y++)
         {
@@ -1171,7 +1172,7 @@ int main(int argc, char* argv[])
                 obj->pos = {0, x, y, z};
             }
         }
-    }
+    }*/
 
     tris.build(clctx.cqueue, accel.offset_width / accel.offset_size.x());
 
