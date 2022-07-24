@@ -3553,123 +3553,83 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
     struct triangle my_tri = reference_tris[mine.parent];
 
-    float4 last_grid_pos = (float4)(0,0,0,0);
-    float4 last_ray_pos;
-    float4 last_native_position;
-
-    {
-        last_native_position = object_geodesics[0 * stride + mine.object_parent];
-
-        float4 start_pos = generic_to_cartesian(last_native_position, cfg);
-        last_ray_pos = start_pos;
-
-        float4 pos = start_pos + (float4)(0.f, mine.x, mine.y, mine.z);
-
-        last_grid_pos = world_to_voxel4(pos, width, time_width, width_num);
-    }
-
     float lowest_time = *ray_time_min - 1;
     float maximum_time = *ray_time_max + 1;
 
+    int skip = 8;
+
     ///if I'm doing bresenhams, then ds_stepping makes no sense and I am insane
-    for(int cc=0; cc < count - 1; cc++)
+    for(int cc=0; cc < count - skip; cc += skip)
     {
-        float ds = object_geodesic_ds[cc * stride + mine.object_parent];
-
-        float current_ds = ds_accum;
-        float next_ds = ds_accum + ds;
-
-        ds_accum += ds;
-
-        if(current_ds < start_ds)
-        {
-            float4 native_current = object_geodesics[cc * stride + mine.object_parent];
-            last_native_position = native_current;
-
-            float4 start_pos = generic_to_cartesian(native_current, cfg);
-            last_ray_pos = start_pos;
-
-            float4 pos = start_pos + (float4)(0.f, mine.x, mine.y, mine.z);
-
-            last_grid_pos = world_to_voxel4(pos, width, time_width, width_num);
-
-            continue;
-        }
-
-        if(current_ds > end_ds)
+        if(cc > 2048)
             return;
 
         float4 native_current = object_geodesics[cc * stride + mine.object_parent];
+        float4 native_next = object_geodesics[(cc + skip) * stride + mine.object_parent];
+
+        if(!range_overlaps(lowest_time, maximum_time, native_current.x, native_next.x))
+            continue;
 
         float4 current = generic_to_cartesian(native_current, cfg);
-        //float4 next = generic_to_cartesian(object_geodesics[(cc + 1) * stride + mine.object_parent], cfg);
-
-        float4 ray_current = current;
+        float4 next = generic_to_cartesian(native_next, cfg);
 
         struct computed_triangle local_tri;
 
-        float delta_time = (ray_current - last_ray_pos).x;
-        float output_time = last_ray_pos.x;
+        float delta_time = (next - current).x;
+        float output_time = current.x;
 
-        local_tri.v0x = my_tri.v0x + last_ray_pos.y;
-        local_tri.v0y = my_tri.v0y + last_ray_pos.z;
-        local_tri.v0z = my_tri.v0z + last_ray_pos.w;
+        local_tri.v0x = my_tri.v0x + current.y;
+        local_tri.v0y = my_tri.v0y + current.z;
+        local_tri.v0z = my_tri.v0z + current.w;
 
-        local_tri.v1x = my_tri.v1x + last_ray_pos.y;
-        local_tri.v1y = my_tri.v1y + last_ray_pos.z;
-        local_tri.v1z = my_tri.v1z + last_ray_pos.w;
+        local_tri.v1x = my_tri.v1x + current.y;
+        local_tri.v1y = my_tri.v1y + current.z;
+        local_tri.v1z = my_tri.v1z + current.w;
 
-        local_tri.v2x = my_tri.v2x + last_ray_pos.y;
-        local_tri.v2y = my_tri.v2y + last_ray_pos.z;
-        local_tri.v2z = my_tri.v2z + last_ray_pos.w;
+        local_tri.v2x = my_tri.v2x + current.y;
+        local_tri.v2y = my_tri.v2y + current.z;
+        local_tri.v2z = my_tri.v2z + current.w;
 
-        local_tri.dvx = (ray_current - last_ray_pos).y;
-        local_tri.dvy = (ray_current - last_ray_pos).z;
-        local_tri.dvz = (ray_current - last_ray_pos).w;
+        local_tri.dvx = (next - current).y;
+        local_tri.dvy = (next - current).z;
+        local_tri.dvz = (next - current).w;
 
         ///my later pos is actually earlier than the last pos. Swap start and end
-        if(ray_current.x < last_ray_pos.x)
+        if(next.x < current.x)
         {
-            delta_time = (last_ray_pos - ray_current).x;
-            output_time = ray_current.x;
+            delta_time = (current - next).x;
+            output_time = next.x;
 
-            local_tri.v0x = my_tri.v0x + ray_current.y;
-            local_tri.v0y = my_tri.v0y + ray_current.z;
-            local_tri.v0z = my_tri.v0z + ray_current.w;
+            local_tri.v0x = my_tri.v0x + next.y;
+            local_tri.v0y = my_tri.v0y + next.z;
+            local_tri.v0z = my_tri.v0z + next.w;
 
-            local_tri.v1x = my_tri.v1x + ray_current.y;
-            local_tri.v1y = my_tri.v1y + ray_current.z;
-            local_tri.v1z = my_tri.v1z + ray_current.w;
+            local_tri.v1x = my_tri.v1x + next.y;
+            local_tri.v1y = my_tri.v1y + next.z;
+            local_tri.v1z = my_tri.v1z + next.w;
 
-            local_tri.v2x = my_tri.v2x + ray_current.y;
-            local_tri.v2y = my_tri.v2y + ray_current.z;
-            local_tri.v2z = my_tri.v2z + ray_current.w;
+            local_tri.v2x = my_tri.v2x + next.y;
+            local_tri.v2y = my_tri.v2y + next.z;
+            local_tri.v2z = my_tri.v2z + next.w;
 
-            local_tri.dvx = (last_ray_pos - ray_current).y;
-            local_tri.dvy = (last_ray_pos - ray_current).z;
-            local_tri.dvz = (last_ray_pos - ray_current).w;
+            local_tri.dvx = (current - next).y;
+            local_tri.dvy = (current - next).z;
+            local_tri.dvz = (current - next).w;
         }
 
-        float4 pos = ray_current + (float4)(0.f, mine.x, mine.y, mine.z);
+        float4 pos = current + (float4)(0.f, mine.x, mine.y, mine.z);
+        float4 next_pos = next + (float4)(0.f, mine.x, mine.y, mine.z);
 
         float4 grid_pos = world_to_voxel4(pos, width, time_width, width_num);
+        float4 next_grid_pos = world_to_voxel4(next_pos, width, time_width, width_num);
 
         //grid_pos.x = 0;
         //last_grid_pos.x = 0;
 
-        if(all(grid_pos == last_grid_pos))
+        if(all(grid_pos == next_grid_pos))
             continue;
 
-        if(!range_overlaps(native_current.x, last_native_position.x, lowest_time, maximum_time))
-        {
-            last_grid_pos = grid_pos;
-            last_ray_pos = ray_current;
-            last_native_position = native_current;
-
-            continue;
-        }
-
-        struct step_setup steps = setup_step(last_grid_pos, grid_pos);
+        struct step_setup steps = setup_step(grid_pos, next_grid_pos);
 
         for(int kk=0; kk < steps.num; kk++)
         {
@@ -3677,12 +3637,16 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
             bool any_valid = false;
 
+            #pragma unroll
             for(int t=-1; t <= 1; t++)
             {
+                #pragma unroll
                 for(int z=-1; z <= 1; z++)
                 {
+                    #pragma unroll
                     for(int y=-1; y <= 1; y++)
                     {
+                        #pragma unroll
                         for(int x=-1; x <= 1; x++)
                         {
                             if(any_valid)
@@ -3701,7 +3665,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                             if(test_time_min == 2147483647 || test_time_max == (-2147483647 - 1))
                                 continue;
 
-                            if(!range_overlaps(native_current.x, last_native_position.x, test_time_min, test_time_max))
+                            if(!range_overlaps(current.x, next.x, test_time_min, test_time_max))
                                 continue;
 
                             any_valid = true;
@@ -3713,12 +3677,16 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
             if(any_valid)
             {
                 ///todo: use 4d grid
+                #pragma unroll
                 for(int t=-1; t <= 1; t++)
                 {
+                    #pragma unroll
                     for(int z=-1; z <= 1; z++)
                     {
+                        #pragma unroll
                         for(int y=-1; y <= 1; y++)
                         {
+                            #pragma unroll
                             for(int x=-1; x <= 1; x++)
                             {
                                 int4 off = (int4)(t, x, y, z);
@@ -3747,10 +3715,6 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
             steps.current += steps.step;
         }
-
-        last_grid_pos = grid_pos;
-        last_ray_pos = ray_current;
-        last_native_position = native_current;
     }
 }
 
