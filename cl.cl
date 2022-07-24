@@ -3448,6 +3448,9 @@ struct step_setup setup_step(float3 grid1, float3 grid2)
     return ret;
 };
 
+#define DEFAULT_MIN 2147483647
+#define DEFAULT_MAX (-2147483647 - 1)
+
 __kernel
 void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                                   __global struct object* objs, int obj_count,
@@ -3566,7 +3569,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                 int iapprox_min_time = old_cell_time_min[approx_centre_id];
                 int iapprox_max_time = old_cell_time_max[approx_centre_id];
 
-                if(iapprox_min_time != 2147483647 && iapprox_max_time != (-2147483647 - 1))
+                if(iapprox_min_time != DEFAULT_MIN && iapprox_max_time != DEFAULT_MAX)
                 {
                     float approx_min_time = iapprox_min_time;
                     float approx_max_time = iapprox_max_time;
@@ -3575,7 +3578,6 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                         continue;
                 }
             }
-
 
             #pragma unroll
             for(int z=-1; z <= 1; z++)
@@ -3598,7 +3600,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                         int iapprox_min_time = old_cell_time_min[oid];
                         int iapprox_max_time = old_cell_time_max[oid];
 
-                        if(iapprox_min_time == 2147483647 || iapprox_max_time == (-2147483647 - 1))
+                        if(iapprox_min_time == DEFAULT_MIN || iapprox_max_time == DEFAULT_MAX)
                             continue;
 
                         float approx_min_time = iapprox_min_time;
@@ -3617,6 +3619,14 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
                             start_time_out[mem_start + lid] = start_time;
                             dt_out[mem_start + lid] = end_time - start_time;
+
+                            float s1 = start_time;
+                            float s2 = end_time;
+
+                            sort2(&s1, &s2);
+
+                            atomic_min(&calculated_cell_time_min[oid], (int)floor(s1));
+                            atomic_max(&calculated_cell_time_max[oid], (int)ceil(s2));
                         }
                     }
                 }
@@ -4159,86 +4169,92 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                             atomic_max(&cell_time_max[voxel_id], max_time);
                         }
 
-                        int cnt = counts[voxel_id];
+                        int found_time_min = accelerated_cell_time_min[voxel_id];
+                        int found_time_max = accelerated_cell_time_max[voxel_id];
 
-                        if(cnt > 0)
+                        if(found_time_min != DEFAULT_MIN && found_time_max != DEFAULT_MAX)
                         {
-                            int tri_count = counts[voxel_id];
-                            int base_offset = offsets[voxel_id];
+                            bool overlaps = range_overlaps(found_time_min, found_time_max, min_time, max_time);
 
-                            #ifdef DEBUG_INTERSECTIONS
-                            unintersected_count += tri_count;
-                            #endif // DEBUG_INTERSECTIONS
-
-                            #if 1
-                            for(int t_off=0; t_off < tri_count; t_off++)
+                            if(overlaps)
                             {
-                                ///use dot current_pos tri centre pos (?) as distance metric
-                                /*float3 pdiff = parent_pos.yzw - rt_pos.yzw;
-
-                                if(dot(pdiff, pdiff) > 5)
-                                    continue;*/
-                                #define FULL_TOBLERONE
-                                #ifdef FULL_TOBLERONE
-                                float start_time = start_time_tri[base_offset + t_off];
-
-                                if(rt_pos.x < start_time - 0.0001f && (next_rt_pos - rt_pos).x < 0)
-                                    continue;
-
-                                float end_time = dt_time_tri[base_offset + t_off] + start_time;
-
-                                if(!ray_toblerone_could_intersect(rt_pos, next_rt_pos - rt_pos, start_time, end_time))
-                                    continue;
+                                int tri_count = counts[voxel_id];
+                                int base_offset = offsets[voxel_id];
 
                                 #ifdef DEBUG_INTERSECTIONS
-                                hard_intersections++;
+                                unintersected_count += tri_count;
                                 #endif // DEBUG_INTERSECTIONS
 
-                                __global struct computed_triangle* ctri = &linear_mem[base_offset + t_off];
-
-                                if(ray_intersects_toblerone(rt_pos, next_rt_pos - rt_pos, ctri, start_time, end_time))
+                                #if 1
+                                for(int t_off=0; t_off < tri_count; t_off++)
                                 {
-                                    struct intersection out;
-                                    out.sx = sx;
-                                    out.sy = sy;
+                                    ///use dot current_pos tri centre pos (?) as distance metric
+                                    /*float3 pdiff = parent_pos.yzw - rt_pos.yzw;
 
-                                    int isect = atomic_inc(intersection_count);
+                                    if(dot(pdiff, pdiff) > 5)
+                                        continue;*/
+                                    #define FULL_TOBLERONE
+                                    #ifdef FULL_TOBLERONE
+                                    float start_time = start_time_tri[base_offset + t_off];
 
-                                    intersections_out[isect] = out;
-                                    return;
-                                }
-                                #else
-                                float3 v0_pos = {ctri->v0x, ctri->v0y, ctri->v0z};
-                                float3 v1_pos = {ctri->v1x, ctri->v1y, ctri->v1z};
-                                float3 v2_pos = {ctri->v2x, ctri->v2y, ctri->v2z};
+                                    if(rt_pos.x < start_time - 0.0001f && (next_rt_pos - rt_pos).x < 0)
+                                        continue;
 
-                                float3 ray_pos = rt_pos.yzw;
-                                float3 ray_dir = next_rt_pos.yzw - rt_pos.yzw;
+                                    float end_time = dt_time_tri[base_offset + t_off] + start_time;
 
-                                ///ehhhh need to take closest
-                                if(ray_intersects_triangle(ray_pos, ray_dir, v0_pos, v1_pos, v2_pos, 0))
-                                {
-                                    struct intersection out;
-                                    out.sx = sx;
-                                    out.sy = sy;
+                                    if(!ray_toblerone_could_intersect(rt_pos, next_rt_pos - rt_pos, start_time, end_time))
+                                        continue;
 
-                                    int isect = atomic_inc(intersection_count);
+                                    #ifdef DEBUG_INTERSECTIONS
+                                    hard_intersections++;
+                                    #endif // DEBUG_INTERSECTIONS
 
-                                    intersections_out[isect] = out;
-                                    return;
+                                    __global struct computed_triangle* ctri = &linear_mem[base_offset + t_off];
+
+                                    if(ray_intersects_toblerone(rt_pos, next_rt_pos - rt_pos, ctri, start_time, end_time))
+                                    {
+                                        struct intersection out;
+                                        out.sx = sx;
+                                        out.sy = sy;
+
+                                        int isect = atomic_inc(intersection_count);
+
+                                        intersections_out[isect] = out;
+                                        return;
+                                    }
+                                    #else
+                                    float3 v0_pos = {ctri->v0x, ctri->v0y, ctri->v0z};
+                                    float3 v1_pos = {ctri->v1x, ctri->v1y, ctri->v1z};
+                                    float3 v2_pos = {ctri->v2x, ctri->v2y, ctri->v2z};
+
+                                    float3 ray_pos = rt_pos.yzw;
+                                    float3 ray_dir = next_rt_pos.yzw - rt_pos.yzw;
+
+                                    ///ehhhh need to take closest
+                                    if(ray_intersects_triangle(ray_pos, ray_dir, v0_pos, v1_pos, v2_pos, 0))
+                                    {
+                                        struct intersection out;
+                                        out.sx = sx;
+                                        out.sy = sy;
+
+                                        int isect = atomic_inc(intersection_count);
+
+                                        intersections_out[isect] = out;
+                                        return;
+                                    }
+                                    #endif // 0
                                 }
                                 #endif // 0
+
+                                /*struct intersection out;
+                                out.sx = sx;
+                                out.sy = sy;
+
+                                int isect = atomic_inc(intersection_count);
+
+                                intersections_out[isect] = out;
+                                return;*/
                             }
-                            #endif // 0
-
-                            /*struct intersection out;
-                            out.sx = sx;
-                            out.sy = sy;
-
-                            int isect = atomic_inc(intersection_count);
-
-                            intersections_out[isect] = out;
-                            return;*/
                         }
 
                         current_pos += step;
