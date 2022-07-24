@@ -12,15 +12,16 @@ struct triangle
 
 struct computed_triangle
 {
+    int parent;
     //float time;
     float v0x, v0y, v0z;
-    half dv1x, dv1y, dv1z;
-    half dv2x, dv2y, dv2z;
+    float dv1x, dv1y, dv1z;
+    float dv2x, dv2y, dv2z;
 
     //float dvt;
-    half dvx;
-    half dvy;
-    half dvz;
+    float dvx;
+    float dvy;
+    float dvz;
 };
 
 struct object
@@ -3577,6 +3578,8 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
         struct computed_triangle local_tri;
 
+        local_tri.parent = mine.parent;
+
         float delta_time = (next - current).x;
         float output_time = current.x;
 
@@ -4181,7 +4184,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
         }
         #endif // UNCONDITIONALLY_NONSINGULAR
 
-        if((i % 8) == 0)
+        if((i % 1) == 0)
         {
             float4 out_position = generic_to_cartesian(position, cfg);
 
@@ -4216,7 +4219,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
             if(dot(rt_diff, rt_diff) > 1)
                 should_check = true;
 
-            if(should_check || should_terminate)
+            //if(should_check || should_terminate)
             {
                 last_pos = next_rt_pos;
 
@@ -4232,7 +4235,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                         setup = setup_step(current_pos, next_pos);
                     }
 
-                    for(int kk=0; kk < setup.num; kk++)
+                    for(int kk=0; kk <= setup.num; kk++)
                     {
                         unsigned int voxel_id = index_acceleration(&setup, accel_width_num);
 
@@ -4253,13 +4256,32 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                         if(cnt > 0)
                         {
+                            /*struct intersection out;
+                            out.sx = sx;
+                            out.sy = sy;
+
+                            int isect = atomic_inc(intersection_count);
+
+                            intersections_out[isect] = out;
+                            return;*/
+
                             int tri_count = counts[voxel_id];
                             int base_offset = offsets[voxel_id];
+
+                            /*if(sx == 1920/2 && sy == 1080/2)
+                            {
+                                printf("Checking %i\n", cnt);
+                            }*/
 
                             #if 1
                             for(int t_off=0; t_off < tri_count; t_off++)
                             {
                                 __global struct computed_triangle* ctri = &linear_mem[base_offset + t_off];
+
+                                /*if(sx == 1920/2 && sy == 1080/2 && ctri->parent == 48)
+                                {
+                                    printf("hi\n");
+                                }*/
 
                                 ///so, I now know for a fact that start time < end_time
                                 ///could sort this instead by end times, and then use end time as the quick check
@@ -4282,6 +4304,11 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                 #if 1
                                 if(ray_intersects_toblerone(rt_pos, next_rt_pos - rt_pos, ctri, start_time, end_time))
                                 {
+                                    /*if(sx == 1920/2 && sy == 1080/2)
+                                    {
+                                        printf("Hit %i who %i\n", cnt, ctri->parent);
+                                    }*/
+
                                     atomic_min(ray_time_min, (int)floor(my_min));
                                     atomic_max(ray_time_max, (int)ceil(my_max));
 
