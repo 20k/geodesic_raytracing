@@ -4016,6 +4016,11 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
     float4 last_pos = (float4)(0,0,0,0);
 
+    #ifdef DEBUG_INTERSECTIONS
+    int unintersected_count = 0;
+    int hard_intersections = 0;
+    #endif // DEBUG_INTERSECTIONS
+
     //#pragma unroll
     for(int i=0; i < loop_limit; i++)
     {
@@ -4159,6 +4164,10 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                             int tri_count = counts[voxel_id];
                             int base_offset = offsets[voxel_id];
 
+                            #ifdef DEBUG_INTERSECTIONS
+                            unintersected_count += tri_count;
+                            #endif // DEBUG_INTERSECTIONS
+
                             #if 1
                             for(int t_off=0; t_off < tri_count; t_off++)
                             {
@@ -4178,6 +4187,10 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                                 if(!ray_toblerone_could_intersect(rt_pos, next_rt_pos - rt_pos, start_time, end_time))
                                     continue;
+
+                                #ifdef DEBUG_INTERSECTIONS
+                                hard_intersections++;
+                                #endif // DEBUG_INTERSECTIONS
 
                                 __global struct computed_triangle* ctri = &linear_mem[base_offset + t_off];
 
@@ -4259,6 +4272,11 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
         if(should_terminate)
         {
+            #ifdef DEBUG_INTERSECTIONS
+            if(unintersected_count > 0)
+                printf("unintersected %i hard %i\n", unintersected_count, hard_intersections);
+            #endif // DEBUG_INTERSECTIONS
+
             int out_id = atomic_inc(finished_count_out);
 
             float4 polar_velocity = generic_velocity_to_spherical_velocity(position, velocity, cfg);
