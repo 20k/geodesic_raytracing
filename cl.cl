@@ -3629,6 +3629,8 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
         for(int kk=0; kk < steps.num; kk++)
         {
+            int l = 2;
+
             int4 ipos = (int4)(steps.current.x, steps.current.y, steps.current.z, steps.current.w);
 
             bool any_valid = false;
@@ -3636,16 +3638,16 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
             if(generate_unculled_counts)
             {
                 #pragma unroll
-                for(int z=-1; z <= 1; z++)
+                for(int z=-l; z <= l; z++)
                 {
                     #pragma unroll
-                    for(int y=-1; y <= 1; y++)
+                    for(int y=-l; y <= l; y++)
                     {
                         #pragma unroll
-                        for(int x=-1; x <= 1; x++)
+                        for(int x=-l; x <= l; x++)
                         {
                             #pragma unroll
-                            for(int t=-1; t <= 1; t++)
+                            for(int t=-l; t <= l; t++)
                             {
                                 int4 off = (int4)(t, x, y, z);
                                 int4 fin = ipos + off;
@@ -3662,16 +3664,16 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
             }
 
             #pragma unroll
-            for(int z=-1; z <= 1; z++)
+            for(int z=-l; z <= l; z++)
             {
                 #pragma unroll
-                for(int y=-1; y <= 1; y++)
+                for(int y=-l; y <= l; y++)
                 {
                     #pragma unroll
-                    for(int x=-1; x <= 1; x++)
+                    for(int x=-l; x <= l; x++)
                     {
                         #pragma unroll
-                        for(int t=-1; t <= 1; t++)
+                        for(int t=-l; t <= l; t++)
                         {
                             if(any_valid)
                                 break;
@@ -3702,16 +3704,16 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
             {
                 ///todo: use 4d grid
                 #pragma unroll
-                for(int z=-1; z <= 1; z++)
+                for(int z=-l; z <= l; z++)
                 {
                     #pragma unroll
-                    for(int y=-1; y <= 1; y++)
+                    for(int y=-l; y <= l; y++)
                     {
                         #pragma unroll
-                        for(int x=-1; x <= 1; x++)
+                        for(int x=-l; x <= l; x++)
                         {
                             #pragma unroll
-                            for(int t=-1; t <= 1; t++)
+                            for(int t=-l; t <= l; t++)
                             {
                                 int4 off = (int4)(t, x, y, z);
                                 int4 fin = ipos + off;
@@ -4262,7 +4264,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                 if(dot(pdiff, pdiff) > 5)
                                     continue;*/
 
-                                #if 1
+                                #if 0
                                 if(ray_intersects_toblerone(rt_pos, next_rt_pos - rt_pos, ctri, start_time, end_time))
                                 {
                                     atomic_min(ray_time_min, (int)floor(my_min));
@@ -4279,13 +4281,13 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                 }
                                 #endif // 0
 
-                                #if 0
+                                #if 1
                                 #define OBSERVER_DEPENDENCE
                                 #ifdef OBSERVER_DEPENDENCE
-                                float tri_time = ctri->time;
-                                float next_tri_time = ctri->end_time;
+                                float tri_time = start_time;
+                                float next_tri_time = end_time;
 
-                                float interpolate_frac = (float)kk / max_len2;
+                                float interpolate_frac = (float)kk / setup.num;
 
                                 float ray_time = mix(rt_pos.x, next_rt_pos.x, interpolate_frac);
 
@@ -4296,9 +4298,12 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                 {
                                     float time_elapsed = (ray_time - tri_time);
 
-                                    float3 v0_pos = {ctri->v0x, ctri->v0y, ctri->v0z};
-                                    float3 v1_pos = {ctri->v1x, ctri->v1y, ctri->v1z};
-                                    float3 v2_pos = {ctri->v2x, ctri->v2y, ctri->v2z};
+                                    float3 to_v1 = (float3)(ctri->dv1x, ctri->dv1y, ctri->dv1z);
+                                    float3 to_v2 = (float3)(ctri->dv2x, ctri->dv2y, ctri->dv2z);
+
+                                    float3 v0 = (float3)(ctri->v0x, ctri->v0y, ctri->v0z);
+                                    float3 v1 = v0 + to_v1;
+                                    float3 v2 = v0 + to_v2;
 
                                     //printf("Elapsed %f velocity %f %f %f\n", time_elapsed, ctri->velocity.y, ctri->velocity.z, ctri->velocity.w);
 
@@ -4314,7 +4319,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                     float3 ray_dir = next_rt_pos.yzw - rt_pos.yzw;
 
                                     ///ehhhh need to take closest
-                                    if(ray_intersects_triangle(ray_pos, ray_dir, v0_pos, v1_pos, v2_pos, 0))
+                                    if(ray_intersects_triangle(ray_pos, ray_dir, v0, v1, v2, 0))
                                     {
                                         struct intersection out;
                                         out.sx = sx;
