@@ -323,7 +323,7 @@ void triangle_rendering::manager::update_objects(cl::command_queue& cqueue)
     }
 }
 
-triangle_rendering::acceleration::acceleration(cl::context& ctx) : offsets(ctx), counts(ctx), memory(ctx), start_times_memory(ctx), delta_times_memory(ctx), memory_count(ctx), ray_time_min(ctx), ray_time_max(ctx), cell_time_min(ctx), cell_time_max(ctx)
+triangle_rendering::acceleration::acceleration(cl::context& ctx) : offsets(ctx), counts(ctx), memory(ctx), start_times_memory(ctx), delta_times_memory(ctx), memory_count(ctx), unculled_counts(ctx), ray_time_min(ctx), ray_time_max(ctx), cell_time_min(ctx), cell_time_max(ctx)
 {
     memory_count.alloc(sizeof(cl_int));
 
@@ -334,6 +334,7 @@ triangle_rendering::acceleration::acceleration(cl::context& ctx) : offsets(ctx),
     memory.alloc(max_memory_size);
     start_times_memory.alloc(max_memory_size / sizeof(cl_float));
     delta_times_memory.alloc(max_memory_size / sizeof(cl_float));
+    unculled_counts.alloc(sizeof(cl_int) * cells);
 
     ray_time_min.alloc(sizeof(cl_uint));
     ray_time_max.alloc(sizeof(cl_uint));
@@ -361,6 +362,16 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         cqueue.exec("clear_accel_counts", aclear, {count}, {256});
     }
 
+    {
+        int count = unculled_counts.alloc_size / sizeof(cl_int);
+
+        cl::args aclear;
+        aclear.push_back(unculled_counts);
+        aclear.push_back(count);
+
+        cqueue.exec("clear_accel_counts", aclear, {count}, {256});
+    }
+
     #define SMEARED
     #ifdef SMEARED
     float start_ds = 0.f;
@@ -368,6 +379,7 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
 
     {
         int should_store = 0;
+        int generate_unculled = 1;
 
         cl::args accel;
         accel.push_back(tris.fill_points);
@@ -379,6 +391,7 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         accel.push_back(memory);
         accel.push_back(start_times_memory);
         accel.push_back(delta_times_memory);
+        accel.push_back(unculled_counts);
         accel.push_back(phys.geodesic_paths);
         accel.push_back(phys.counts);
         accel.push_back(phys.geodesic_ds);
@@ -392,6 +405,7 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         accel.push_back(cell_time_min);
         accel.push_back(cell_time_max);
         accel.push_back(should_store);
+        accel.push_back(generate_unculled);
         accel.push_back(dynamic_config);
 
         cqueue.exec("generate_smeared_acceleration", accel, {tris.fill_point_count}, {256});
@@ -412,6 +426,7 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
 
     {
         int should_store = 1;
+        int generate_unculled = 0;
 
         cl::args accel;
         accel.push_back(tris.fill_points);
@@ -423,6 +438,7 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         accel.push_back(memory);
         accel.push_back(start_times_memory);
         accel.push_back(delta_times_memory);
+        accel.push_back(unculled_counts);
         accel.push_back(phys.geodesic_paths);
         accel.push_back(phys.counts);
         accel.push_back(phys.geodesic_ds);
@@ -436,6 +452,7 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         accel.push_back(cell_time_min);
         accel.push_back(cell_time_max);
         accel.push_back(should_store);
+        accel.push_back(generate_unculled);
         accel.push_back(dynamic_config);
 
         cqueue.exec("generate_smeared_acceleration", accel, {tris.fill_point_count}, {256});
