@@ -1119,7 +1119,7 @@ int main(int argc, char* argv[])
     auto obj = tris.make_new("./models/newell_teaset/teapot.obj");
     obj->pos = {0, -5, 0, 0};
     obj->velocity = {0, 0.35f, 0};
-    obj->scale = 0.05f;
+    obj->scale = 0.45f;
     #else
     std::vector<triangle> teapot_tris = triangle_rendering::load_tris_from_model("./models/newell_teaset/teapot.obj");
 

@@ -3538,8 +3538,6 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
     ///number of geodesics == objs.size()
     int stride = obj_count;
 
-    //__global struct object* obj = objs[mine.object_parent];
-
     int count = object_geodesic_counts[mine.object_parent];
 
     float last_output_ds = -10;
@@ -3570,115 +3568,9 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         last_grid_pos = world_to_voxel4(pos, width, time_width, width_num);
     }
 
-    #if 0
-    for(int cc=0; cc < count - 1; cc++)
-    {
-        float ds = object_geodesic_ds[cc * stride + mine.object_parent];
-
-        float current_ds = ds_accum;
-        float next_ds = ds_accum + ds;
-
-        ds_accum += ds;
-
-        if(current_ds < start_ds)
-            continue;
-
-        if(current_ds > end_ds)
-            return;
-
-        float4 current = generic_to_cartesian(object_geodesics[cc * stride + mine.object_parent], cfg);
-        float4 next = generic_to_cartesian(object_geodesics[(cc + 1) * stride + mine.object_parent], cfg);
-
-        float4 pos = current + (float4)(0.f, mine.x, mine.y, mine.z);
-        float4 grid_pos = floor(pos / voxel_cube_size);
-        int3 int_grid_pos = (int3)(grid_pos.y, grid_pos.z, grid_pos.w);
-
-        float4 next_pos = next + (float4)(0.f, mine.x, mine.y, mine.z);
-        float4 next_grid_pos = floor(next_pos / voxel_cube_size);
-        int3 next_int_grid_pos = (int3)(next_grid_pos.y, next_grid_pos.z, next_grid_pos.w);
-
-        //if(all(int_grid_pos) == all(next_int_grid_pos) && all(int_grid_pos == last_grid_pos))
-        //    continue;
-
-        //if(all(int_grid_pos == last_grid_pos))
-        //    continue;
-
-        struct step_setup steps = setup_step((float3)(int_grid_pos.x, int_grid_pos.y, int_grid_pos.z), (float3)(next_int_grid_pos.x, next_int_grid_pos.y, next_int_grid_pos.z));
-
-        //struct step_setup steps = setup_step((float3)(last_grid_pos.x, last_grid_pos.y, last_grid_pos.z), (float3)(int_grid_pos.x, int_grid_pos.y, int_grid_pos.z));
-
-        for(int kk=0; kk < steps.num; kk++)
-        {
-            float3 next_pos = kk * steps.step + steps.current;
-
-            int3 ipos = (int3)(next_pos.x, next_pos.y, next_pos.z);
-
-            ///todo: use 4d grid
-            for(int z=-1; z <= 1; z++)
-            {
-                for(int y=-1; y <= 1; y++)
-                {
-                    for(int x=-1; x <= 1; x++)
-                    {
-                        int3 off = (int3)(x, y, z);
-                        int3 fin = ipos + off;
-
-                        fin.x = mod(fin.x, width_num);
-                        fin.y = mod(fin.y, width_num);
-                        fin.z = mod(fin.z, width_num);
-
-                        int oid = fin.z * width_num * width_num + fin.y * width_num + fin.x;
-
-                        int lid = atomic_inc(&offset_counts[oid]);
-
-                        if(should_store)
-                        {
-                            struct computed_triangle local_tri;
-
-                            local_tri.time = current.x;
-                            local_tri.end_time = next.x;
-
-                            local_tri.v0x = my_tri.v0x + current.y;
-                            local_tri.v0y = my_tri.v0y + current.z;
-                            local_tri.v0z = my_tri.v0z + current.w;
-
-                            local_tri.v1x = my_tri.v1x + current.y;
-                            local_tri.v1y = my_tri.v1y + current.z;
-                            local_tri.v1z = my_tri.v1z + current.w;
-
-                            local_tri.v2x = my_tri.v2x + current.y;
-                            local_tri.v2y = my_tri.v2y + current.z;
-                            local_tri.v2z = my_tri.v2z + current.w;
-
-                            local_tri.e0x = my_tri.v0x + next.y;
-                            local_tri.e0y = my_tri.v0y + next.z;
-                            local_tri.e0z = my_tri.v0z + next.w;
-
-                            local_tri.e1x = my_tri.v1x + next.y;
-                            local_tri.e1y = my_tri.v1y + next.z;
-                            local_tri.e1z = my_tri.v1z + next.w;
-
-                            local_tri.e2x = my_tri.v2x + next.y;
-                            local_tri.e2y = my_tri.v2y + next.z;
-                            local_tri.e2z = my_tri.v2z + next.w;
-
-                            int mem_start = offset_map[oid];
-
-                            mem_buffer[mem_start + lid] = local_tri;
-                        }
-                    }
-                }
-            }
-        }
-
-        last_grid_pos = int_grid_pos;
-    }
-    #endif // 0
-
     float lowest_time = *ray_time_min - 1;
     float maximum_time = *ray_time_max + 1;
 
-    #if 1
     ///if I'm doing bresenhams, then ds_stepping makes no sense and I am insane
     for(int cc=0; cc < count - 1; cc++)
     {
@@ -3707,308 +3599,159 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         if(current_ds > end_ds)
             return;
 
-        //while(ds_error >= max_ds_step)
+        float4 native_current = object_geodesics[cc * stride + mine.object_parent];
+
+        float4 current = generic_to_cartesian(native_current, cfg);
+        //float4 next = generic_to_cartesian(object_geodesics[(cc + 1) * stride + mine.object_parent], cfg);
+
+        float4 ray_current = current;
+
+        struct computed_triangle local_tri;
+
+        float delta_time = (ray_current - last_ray_pos).x;
+        float output_time = last_ray_pos.x;
+
+        local_tri.v0x = my_tri.v0x + last_ray_pos.y;
+        local_tri.v0y = my_tri.v0y + last_ray_pos.z;
+        local_tri.v0z = my_tri.v0z + last_ray_pos.w;
+
+        local_tri.v1x = my_tri.v1x + last_ray_pos.y;
+        local_tri.v1y = my_tri.v1y + last_ray_pos.z;
+        local_tri.v1z = my_tri.v1z + last_ray_pos.w;
+
+        local_tri.v2x = my_tri.v2x + last_ray_pos.y;
+        local_tri.v2y = my_tri.v2y + last_ray_pos.z;
+        local_tri.v2z = my_tri.v2z + last_ray_pos.w;
+
+        local_tri.dvx = (ray_current - last_ray_pos).y;
+        local_tri.dvy = (ray_current - last_ray_pos).z;
+        local_tri.dvz = (ray_current - last_ray_pos).w;
+
+        ///my later pos is actually earlier than the last pos. Swap start and end
+        if(ray_current.x < last_ray_pos.x)
         {
-            ds_error -= max_ds_step;
+            delta_time = (last_ray_pos - ray_current).x;
+            output_time = ray_current.x;
 
-            ///must be < 1 by construction
-            float ds_frac = ds_error / ds;
+            local_tri.v0x = my_tri.v0x + ray_current.y;
+            local_tri.v0y = my_tri.v0y + ray_current.z;
+            local_tri.v0z = my_tri.v0z + ray_current.w;
 
-            /*if(ds_frac > 1)
-            {
-                printf("Error in generate smeared\n");
-            }*/
+            local_tri.v1x = my_tri.v1x + ray_current.y;
+            local_tri.v1y = my_tri.v1y + ray_current.z;
+            local_tri.v1z = my_tri.v1z + ray_current.w;
 
-            ds_frac = clamp(ds_frac, 0.f, 1.f);
+            local_tri.v2x = my_tri.v2x + ray_current.y;
+            local_tri.v2y = my_tri.v2y + ray_current.z;
+            local_tri.v2z = my_tri.v2z + ray_current.w;
 
-            float4 native_current = object_geodesics[cc * stride + mine.object_parent];
-
-            float4 current = generic_to_cartesian(native_current, cfg);
-            //float4 next = generic_to_cartesian(object_geodesics[(cc + 1) * stride + mine.object_parent], cfg);
-
-            float4 ray_current = current;
-
-            //float4 ray_current = mix(current, next, ds_frac);
-
-            {
-                struct computed_triangle local_tri;
-
-                float delta_time = (ray_current - last_ray_pos).x;
-                float output_time = last_ray_pos.x;
-
-                local_tri.v0x = my_tri.v0x + last_ray_pos.y;
-                local_tri.v0y = my_tri.v0y + last_ray_pos.z;
-                local_tri.v0z = my_tri.v0z + last_ray_pos.w;
-
-                local_tri.v1x = my_tri.v1x + last_ray_pos.y;
-                local_tri.v1y = my_tri.v1y + last_ray_pos.z;
-                local_tri.v1z = my_tri.v1z + last_ray_pos.w;
-
-                local_tri.v2x = my_tri.v2x + last_ray_pos.y;
-                local_tri.v2y = my_tri.v2y + last_ray_pos.z;
-                local_tri.v2z = my_tri.v2z + last_ray_pos.w;
-
-                local_tri.dvx = (ray_current - last_ray_pos).y;
-                local_tri.dvy = (ray_current - last_ray_pos).z;
-                local_tri.dvz = (ray_current - last_ray_pos).w;
-
-                ///my later pos is actually earlier than the last pos. Swap start and end
-                if(ray_current.x < last_ray_pos.x)
-                {
-                    delta_time = (last_ray_pos - ray_current).x;
-                    output_time = ray_current.x;
-
-                    local_tri.v0x = my_tri.v0x + ray_current.y;
-                    local_tri.v0y = my_tri.v0y + ray_current.z;
-                    local_tri.v0z = my_tri.v0z + ray_current.w;
-
-                    local_tri.v1x = my_tri.v1x + ray_current.y;
-                    local_tri.v1y = my_tri.v1y + ray_current.z;
-                    local_tri.v1z = my_tri.v1z + ray_current.w;
-
-                    local_tri.v2x = my_tri.v2x + ray_current.y;
-                    local_tri.v2y = my_tri.v2y + ray_current.z;
-                    local_tri.v2z = my_tri.v2z + ray_current.w;
-
-                    local_tri.dvx = (last_ray_pos - ray_current).y;
-                    local_tri.dvy = (last_ray_pos - ray_current).z;
-                    local_tri.dvz = (last_ray_pos - ray_current).w;
-                }
-
-                float4 pos = ray_current + (float4)(0.f, mine.x, mine.y, mine.z);
-
-                float4 grid_pos = world_to_voxel4(pos, width, time_width, width_num);
-
-                //grid_pos.x = 0;
-                //last_grid_pos.x = 0;
-
-                if(all(grid_pos == last_grid_pos))
-                    continue;
-
-                if(!range_overlaps(native_current.x, last_native_position.x, lowest_time, maximum_time))
-                {
-                    last_grid_pos = grid_pos;
-                    last_ray_pos = ray_current;
-                    last_native_position = native_current;
-
-                    continue;
-                }
-
-                struct step_setup steps = setup_step(last_grid_pos, grid_pos);
-
-                for(int kk=0; kk < steps.num; kk++)
-                {
-                    int4 ipos = (int4)(steps.current.x, steps.current.y, steps.current.z, steps.current.w);
-
-                    bool any_valid = false;
-
-                    for(int t=-1; t <= 1; t++)
-                    {
-                        for(int z=-1; z <= 1; z++)
-                        {
-                            for(int y=-1; y <= 1; y++)
-                            {
-                                for(int x=-1; x <= 1; x++)
-                                {
-                                    if(any_valid)
-                                        break;
-
-                                    int4 off = (int4)(t, x, y, z);
-                                    int4 fin = ipos + off;
-
-                                    fin = loop_voxel4(fin, width_num);
-
-                                    int oid = fin.w * width_num * width_num * width_num + fin.z * width_num * width_num + fin.y * width_num + fin.x;
-
-                                    int test_time_min = old_cell_time_min[oid];
-                                    int test_time_max = old_cell_time_max[oid];
-
-                                    if(test_time_min == 2147483647 || test_time_max == (-2147483647 - 1))
-                                        continue;
-
-                                    if(!range_overlaps(native_current.x, last_native_position.x, test_time_min, test_time_max))
-                                        continue;
-
-                                    any_valid = true;
-                                }
-                            }
-                        }
-                    }
-
-                    if(any_valid)
-                    {
-                        ///todo: use 4d grid
-                        for(int t=-1; t <= 1; t++)
-                        {
-                            for(int z=-1; z <= 1; z++)
-                            {
-                                for(int y=-1; y <= 1; y++)
-                                {
-                                    for(int x=-1; x <= 1; x++)
-                                    {
-                                        int4 off = (int4)(t, x, y, z);
-                                        int4 fin = ipos + off;
-
-                                        fin = loop_voxel4(fin, width_num);
-
-                                        int oid = fin.w * width_num * width_num * width_num + fin.z * width_num * width_num + fin.y * width_num + fin.x;
-
-                                        int lid = atomic_inc(&offset_counts[oid]);
-
-                                        if(should_store)
-                                        {
-                                            int mem_start = offset_map[oid];
-
-                                            mem_buffer[mem_start + lid] = local_tri;
-                                            start_times_memory[mem_start + lid] = output_time;
-                                            delta_times_memory[mem_start + lid] = delta_time;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-
-                    steps.current += steps.step;
-                }
-
-                last_grid_pos = grid_pos;
-                last_ray_pos = ray_current;
-                last_native_position = native_current;
-            }
+            local_tri.dvx = (last_ray_pos - ray_current).y;
+            local_tri.dvy = (last_ray_pos - ray_current).z;
+            local_tri.dvz = (last_ray_pos - ray_current).w;
         }
-    }
-    #endif // 0
 
-    #if 0
-    ///if I'm doing bresenhams, then ds_stepping makes no sense and I am insane
-    for(int cc=0; cc < count - 1;)
-    {
-        float ds = object_geodesic_ds[cc * stride + mine.object_parent];
+        float4 pos = ray_current + (float4)(0.f, mine.x, mine.y, mine.z);
 
-        float current_ds = ds_accum;
-        float next_ds = ds_accum + ds;
+        float4 grid_pos = world_to_voxel4(pos, width, time_width, width_num);
 
-        ds_accum += ds;
+        //grid_pos.x = 0;
+        //last_grid_pos.x = 0;
 
-        if(current_ds < start_ds)
+        if(all(grid_pos == last_grid_pos))
             continue;
 
-        if(current_ds > end_ds)
-            return;
-
-        ds_error += ds;
-
-        if(ds_error < max_ds_step)
+        if(!range_overlaps(native_current.x, last_native_position.x, lowest_time, maximum_time))
         {
-            cc++;
+            last_grid_pos = grid_pos;
+            last_ray_pos = ray_current;
+            last_native_position = native_current;
+
             continue;
         }
 
-        while(ds_error >= max_ds_step)
+        struct step_setup steps = setup_step(last_grid_pos, grid_pos);
+
+        for(int kk=0; kk < steps.num; kk++)
         {
-            ds_error -= max_ds_step;
+            int4 ipos = (int4)(steps.current.x, steps.current.y, steps.current.z, steps.current.w);
 
-            ///must be < 1 by construction
-            float ds_frac = ds_error / ds;
+            bool any_valid = false;
 
-            if(ds_frac > 1)
+            for(int t=-1; t <= 1; t++)
             {
-                printf("Error in generate smeared\n");
+                for(int z=-1; z <= 1; z++)
+                {
+                    for(int y=-1; y <= 1; y++)
+                    {
+                        for(int x=-1; x <= 1; x++)
+                        {
+                            if(any_valid)
+                                break;
+
+                            int4 off = (int4)(t, x, y, z);
+                            int4 fin = ipos + off;
+
+                            fin = loop_voxel4(fin, width_num);
+
+                            int oid = fin.w * width_num * width_num * width_num + fin.z * width_num * width_num + fin.y * width_num + fin.x;
+
+                            int test_time_min = old_cell_time_min[oid];
+                            int test_time_max = old_cell_time_max[oid];
+
+                            if(test_time_min == 2147483647 || test_time_max == (-2147483647 - 1))
+                                continue;
+
+                            if(!range_overlaps(native_current.x, last_native_position.x, test_time_min, test_time_max))
+                                continue;
+
+                            any_valid = true;
+                        }
+                    }
+                }
             }
 
-            ds_frac = clamp(ds_frac, 0.f, 1.f);
-
-            float4 current = generic_to_cartesian(object_geodesics[cc * stride + mine.object_parent], cfg);
-            float4 next = generic_to_cartesian(object_geodesics[(cc + 1) * stride + mine.object_parent], cfg);
-
-            float4 ray_current = mix(current, next, ds_frac);
-
-            #if 0
-            float num = ceil(min((next_ds - current_ds) / max_ds_step, 1.f));
-
-            float4 ray_current = current;
-            float4 step = (next - current) / num;
-
-            for(int kk=0; kk < (int)num; kk++)
+            if(any_valid)
             {
-                float4 pos = ray_current + (float4)(0.f, mine.x, mine.y, mine.z);
-
-                #endif // 0
-            {
-                float4 pos = ray_current + (float4)(0.f, mine.x, mine.y, mine.z);
-
-                float4 grid_pos = floor(pos / voxel_cube_size);
-
-                int3 int_grid_pos = (int3)(grid_pos.y, grid_pos.z, grid_pos.w);
-
-                if(all(int_grid_pos == last_grid_pos))
-                    continue;
-
-                struct step_setup steps = setup_step((float3)(last_grid_pos.x, last_grid_pos.y, last_grid_pos.z), (float3)(int_grid_pos.x, int_grid_pos.y, int_grid_pos.z));
-
-                for(int kk=0; kk < steps.num; kk++)
+                ///todo: use 4d grid
+                for(int t=-1; t <= 1; t++)
                 {
-                    float3 next_pos = kk * steps.step + steps.current;
-
-                    int3 ipos = (int3)(next_pos.x, next_pos.y, next_pos.z);
-
-                    ///todo: use 4d grid
                     for(int z=-1; z <= 1; z++)
                     {
                         for(int y=-1; y <= 1; y++)
                         {
                             for(int x=-1; x <= 1; x++)
                             {
-                                int3 off = (int3)(x, y, z);
-                                int3 fin = ipos + off;
+                                int4 off = (int4)(t, x, y, z);
+                                int4 fin = ipos + off;
 
-                                fin.x = mod(fin.x, width_num);
-                                fin.y = mod(fin.y, width_num);
-                                fin.z = mod(fin.z, width_num);
+                                fin = loop_voxel4(fin, width_num);
 
-                                int oid = fin.z * width_num * width_num + fin.y * width_num + fin.x;
+                                int oid = fin.w * width_num * width_num * width_num + fin.z * width_num * width_num + fin.y * width_num + fin.x;
 
                                 int lid = atomic_inc(&offset_counts[oid]);
 
                                 if(should_store)
                                 {
-                                    struct computed_triangle local_tri;
-
-                                    local_tri.time = ray_current.x;
-                                    local_tri.end_time = (next.x - current.x) * max_ds_step + ray_current.x;
-
-                                    local_tri.v0x = my_tri.v0x + ray_current.y;
-                                    local_tri.v0y = my_tri.v0y + ray_current.z;
-                                    local_tri.v0z = my_tri.v0z + ray_current.w;
-
-                                    local_tri.v1x = my_tri.v1x + ray_current.y;
-                                    local_tri.v1y = my_tri.v1y + ray_current.z;
-                                    local_tri.v1z = my_tri.v1z + ray_current.w;
-
-                                    local_tri.v2x = my_tri.v2x + ray_current.y;
-                                    local_tri.v2y = my_tri.v2y + ray_current.z;
-                                    local_tri.v2z = my_tri.v2z + ray_current.w;
-
-                                    local_tri.velocity = (next - current);
-
                                     int mem_start = offset_map[oid];
 
                                     mem_buffer[mem_start + lid] = local_tri;
+                                    start_times_memory[mem_start + lid] = output_time;
+                                    delta_times_memory[mem_start + lid] = delta_time;
                                 }
                             }
                         }
                     }
                 }
-
-                last_grid_pos = int_grid_pos;
-
-                //ray_current += step;
             }
+
+
+            steps.current += steps.step;
         }
+
+        last_grid_pos = grid_pos;
+        last_ray_pos = ray_current;
+        last_native_position = native_current;
     }
-    #endif // 0
 }
 
 ///so
