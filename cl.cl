@@ -3768,8 +3768,6 @@ void alloc_acceleration(__global int* offset_map, __global int* offset_counts, i
 
     int my_count = offset_counts[idx];
 
-    offset_counts[idx] = 0;
-
     int offset = 0;
 
     if(my_count > 0)
