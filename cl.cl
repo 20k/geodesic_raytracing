@@ -3519,6 +3519,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                                           __global struct triangle* reference_tris,
                                           __global int* offset_map, __global int* offset_counts,
                                           __global struct computed_triangle* mem_buffer, __global float* start_times_memory, __global float* delta_times_memory,
+                                          __global int* unculled_counts,
                                           __global float4* object_geodesics, __global int* object_geodesic_counts,
                                           __global float* object_geodesic_ds,
                                           float start_ds, float end_ds,
@@ -3526,6 +3527,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                                           __global int* ray_time_min, __global int* ray_time_max,
                                           __global int* old_cell_time_min, __global int* old_cell_time_max,
                                           int should_store,
+                                          int generate_unculled_counts,
                                           dynamic_config_space struct dynamic_config* cfg)
 {
     int id = get_global_id(0);
@@ -3636,6 +3638,34 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
             int4 ipos = (int4)(steps.current.x, steps.current.y, steps.current.z, steps.current.w);
 
             bool any_valid = false;
+
+            if(generate_unculled_counts)
+            {
+                #pragma unroll
+                for(int t=-1; t <= 1; t++)
+                {
+                    #pragma unroll
+                    for(int z=-1; z <= 1; z++)
+                    {
+                        #pragma unroll
+                        for(int y=-1; y <= 1; y++)
+                        {
+                            #pragma unroll
+                            for(int x=-1; x <= 1; x++)
+                            {
+                                int4 off = (int4)(t, x, y, z);
+                                int4 fin = ipos + off;
+
+                                fin = loop_voxel4(fin, width_num);
+
+                                int oid = fin.w * width_num * width_num * width_num + fin.z * width_num * width_num + fin.y * width_num + fin.x;
+
+                                unculled_counts[oid] = 1;
+                            }
+                        }
+                    }
+                }
+            }
 
             #pragma unroll
             for(int t=-1; t <= 1; t++)
