@@ -1169,6 +1169,7 @@ int main(int argc, char* argv[])
 
                 obj->tris = make_cube({0, 0, 0});
                 obj->pos = {0, x, y, z};
+                obj->velocity = {0, 0.5f, 0};
             }
         }
     }

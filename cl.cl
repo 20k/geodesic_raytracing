@@ -3960,11 +3960,13 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
     ///min_t and max_t correspond to pos.yzw + dir.yzw * t positions, ie toblerone entry and exit
     ///min_t and max_t must be inherently in range [0, 1]
 
-    if(!any_t)
-        return false;
+    //if(!any_t)
+    //    return false;
 
     if(cnt != 2)
         return false;
+
+    //return true;
 
     //float3 toblerone_origin = (v0 + v1 + v2)/3.f;
     //float3 toblerone_end = (e0 + e1 + e2)/3.f;
