@@ -466,6 +466,16 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         cqueue.exec("generate_smeared_acceleration", gen, {tris.fill_point_count}, {256});
     }
 
+    {
+        cl::args dedup;
+        dedup.push_back(offsets);
+        dedup.push_back(counts);
+        dedup.push_back(memory);
+        dedup.push_back(offset_size.x());
+
+        cqueue.exec("deduplicate", dedup, {offset_size.x(), offset_size.y(), offset_size.z()}, {8,8,1});
+    }
+
     #if 0
     {
         cl::args count_args;

@@ -15,6 +15,7 @@ struct triangle
 
 struct computed_triangle
 {
+    int duplicate;
     float v0x, v0y, v0z;
     float v1x, v1y, v1z;
     float v2x, v2y, v2z;
@@ -3632,6 +3633,72 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                 }
             }
         }
+    }
+}
+
+__kernel
+void deduplicate(__global int* offsets, __global int* counts, __global struct computed_triangle* tris, int width_num)
+{
+    return;
+
+    int x = get_global_id(0);
+    int y = get_global_id(1);
+    int z = get_global_id(2);
+
+    if(x >= width_num || y >= width_num || z >= width_num)
+        return;
+
+    int id = z * width_num * width_num + y * width_num + x;
+
+    int count = counts[id];
+    int offset = offsets[id];
+
+    int check = 5000;
+
+    for(int i=0; i < count && i < check; i++)
+    {
+        int tri_id = offset + i;
+
+        __global struct computed_triangle* tri = &tris[tri_id];
+
+        float3 v0 = (float3)(tri->v0x, tri->v0y, tri->v0z);
+        float3 v1 = (float3)(tri->v1x, tri->v1y, tri->v1z);
+        float3 v2 = (float3)(tri->v2x, tri->v2y, tri->v2z);
+        float3 dv = (float3)(tri->dx, tri->dy, tri->dz);
+
+        for(int kk=i+1; kk < count && kk < check; kk++)
+        {
+            __global struct computed_triangle* check = &tris[offset + kk];
+
+            if(check->duplicate)
+                continue;
+
+            float3 cv0 = (float3)(check->v0x, check->v0y, check->v0z);
+            float3 cv1 = (float3)(check->v1x, check->v1y, check->v1z);
+            float3 cv2 = (float3)(check->v2x, check->v2y, check->v2z);
+            float3 cdv = (float3)(check->dx, check->dy, check->dz);
+
+            if(all(v0 == cv0) && all(v1 == cv1) && all(v2 == cv2) && all(dv == cdv))
+            {
+                check->duplicate = 1;
+            }
+        }
+    }
+
+    int dupes = 0;
+
+    for(int i=0; i < count; i++)
+    {
+        int tri_id = offset + i;
+
+        __global struct computed_triangle* tri = &tris[tri_id];
+
+        dupes += tri->duplicate;
+    }
+
+    if(dupes > 0)
+    {
+        printf("Dupes %i out of %i\n", dupes, min(count, check));
     }
 }
 
