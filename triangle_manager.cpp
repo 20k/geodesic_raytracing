@@ -323,7 +323,7 @@ void triangle_rendering::manager::update_objects(cl::command_queue& cqueue)
     }
 }
 
-triangle_rendering::acceleration::acceleration(cl::context& ctx) : offsets(ctx), counts(ctx), memory(ctx), start_times_memory(ctx), delta_times_memory(ctx), memory_count(ctx), unculled_counts(ctx), ray_time_min(ctx), ray_time_max(ctx), cell_time_min(ctx), cell_time_max(ctx)
+triangle_rendering::acceleration::acceleration(cl::context& ctx) : offsets(ctx), counts(ctx), memory(ctx), start_times_memory(ctx), delta_times_memory(ctx), memory_count(ctx), unculled_counts(ctx), ray_time_min(ctx), ray_time_max(ctx), cell_time_min(ctx), cell_time_max(ctx), dfdf(ctx)
 {
     memory_count.alloc(sizeof(cl_int));
 
@@ -341,6 +341,8 @@ triangle_rendering::acceleration::acceleration(cl::context& ctx) : offsets(ctx),
 
     cell_time_min.alloc(sizeof(cl_int) * cells);
     cell_time_max.alloc(sizeof(cl_int) * cells);
+
+    dfdf.alloc(sizeof(cl_uint));
 }
 
 void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager& tris, physics& phys, cl::buffer& dynamic_config)
@@ -365,6 +367,8 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
 
     clear_buffer(counts);
     clear_buffer(unculled_counts);
+
+    dfdf.set_to_zero(cqueue);
 
     #define SMEARED
     #ifdef SMEARED
@@ -401,9 +405,14 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         accel.push_back(should_store);
         accel.push_back(generate_unculled);
         accel.push_back(dynamic_config);
+        accel.push_back(dfdf);
 
         cqueue.exec("generate_smeared_acceleration", accel, {tris.fill_point_count}, {256});
     }
+
+    int val = dfdf.read<int>(cqueue)[0];
+
+    printf("Total tobl %i\n", val);
 
     {
         uint32_t data_max = offset_size.x() * offset_size.y() * offset_size.z() * offset_size.w();
@@ -450,6 +459,7 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         accel.push_back(should_store);
         accel.push_back(generate_unculled);
         accel.push_back(dynamic_config);
+        accel.push_back(dfdf);
 
         cqueue.exec("generate_smeared_acceleration", accel, {tris.fill_point_count}, {256});
     }

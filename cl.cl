@@ -3528,7 +3528,8 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                                           __global int* old_cell_time_min, __global int* old_cell_time_max,
                                           int should_store,
                                           int generate_unculled_counts,
-                                          dynamic_config_space struct dynamic_config* cfg)
+                                          dynamic_config_space struct dynamic_config* cfg,
+                                          __global int* global_toblerone)
 {
     int id = get_global_id(0);
 
@@ -3559,6 +3560,8 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
     float maximum_time = *ray_time_max + 1;
 
     int skip = 8;
+
+    int toblerone_count = 0;
 
     ///if I'm doing bresenhams, then ds_stepping makes no sense and I am insane
     for(int cc=0; cc < count - skip; cc += skip)
@@ -3706,6 +3709,8 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
             if(any_valid)
             {
+                atomic_inc(global_toblerone);
+
                 ///todo: use 4d grid
                 #pragma unroll
                 for(int z=-1; z <= 1; z++)
@@ -3746,6 +3751,8 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
             steps.current += steps.step;
         }
     }
+
+    //atomic_add(global_toblerone, toblerone_count);
 }
 
 ///so

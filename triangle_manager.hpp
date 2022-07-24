@@ -115,6 +115,8 @@ namespace triangle_rendering
         cl::buffer cell_time_min;
         cl::buffer cell_time_max;
 
+        cl::buffer dfdf;
+
         vec4i offset_size = {80, 80, 80, 80};
         float offset_width = 20.f;
         float time_width = 20.f;
