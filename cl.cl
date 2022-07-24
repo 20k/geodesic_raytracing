@@ -4024,7 +4024,9 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                       //__global float4* path_out, __global int* counts_out,
                       __global struct triangle* tris, int tri_count, __global struct intersection* intersections_out, __global int* intersection_count,
                       __global struct potential_intersection* intersections_p, __global int* intersection_count_p,
-                      __global int* counts, __global int* offsets, __global struct computed_triangle* linear_mem, __global float* linear_start_times, __global float* linear_delta_times, float accel_width, float accel_time_width, int accel_width_num,
+                      __global int* counts, __global int* offsets, __global struct computed_triangle* linear_mem, __global float* linear_start_times, __global float* linear_delta_times,
+                      __global int* unculled_counts,
+                      float accel_width, float accel_time_width, int accel_width_num,
                       __global int* cell_time_min, __global int* cell_time_max,
                       __global struct object* objs,
                       __global int* ray_time_min, __global int* ray_time_max,
@@ -4225,8 +4227,13 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                         float rmin = min(rt_pos.x, next_rt_pos.x);
                         float rmax = max(rt_pos.x, next_rt_pos.x);
 
-                        atomic_min(&cell_time_min[voxel_id], (int)floor(rmin));
-                        atomic_max(&cell_time_max[voxel_id], (int)ceil(rmax));
+                        int unculled = unculled_counts[voxel_id];
+
+                        if(unculled > 0)
+                        {
+                            atomic_min(&cell_time_min[voxel_id], (int)floor(rmin));
+                            atomic_max(&cell_time_max[voxel_id], (int)ceil(rmax));
+                        }
 
                         setup.current += setup.step;
 
