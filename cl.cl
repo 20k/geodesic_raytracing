@@ -3273,9 +3273,11 @@ struct intersection
 
 bool ray_intersects_triangle(float3 origin, float3 direction, float3 vertex0, float3 vertex1, float3 vertex2, float* t_out)
 {
-    //direction = fast_normalize(direction);
+    float ilen = length(direction);
 
-    float eps = 0.0000001;
+    direction = normalize(direction);
+
+    float eps = 0.0001;
     float3 edge1, edge2, h, s, q;
     float a,f,u,v;
     edge1 = vertex1 - vertex0;
@@ -3311,19 +3313,24 @@ bool ray_intersects_triangle(float3 origin, float3 direction, float3 vertex0, fl
 
     float t = f * dot(edge2, q);
 
-    if(t > 1)
+    /*if(t > ilen + eps)
         return false;
 
     if (t > eps) // ray intersection
     {
         if(t_out)
-            *t_out = t;
+            *t_out = t / ilen;
 
         //outIntersectionPoint = rayOrigin + rayVector * t;
         return true;
     }
     else // This means that there is a line intersection but not a ray intersection.
-        return false;
+        return false;*/
+
+    if(t_out)
+        *t_out = t / ilen;
+
+    return true;
 }
 
 struct sub_point
