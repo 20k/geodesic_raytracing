@@ -3310,7 +3310,7 @@ bool ray_intersects_triangle(float3 origin, float3 direction, float3 vertex0, fl
 
     float t = f * dot(edge2, q);
 
-    if(t > 1)
+    /*if(t > 1)
         return false;
 
     if (t > eps) // ray intersection
@@ -3322,7 +3322,12 @@ bool ray_intersects_triangle(float3 origin, float3 direction, float3 vertex0, fl
         return true;
     }
     else // This means that there is a line intersection but not a ray intersection.
-        return false;
+        return false;*/
+
+    if(t_out)
+        *t_out = t;
+
+    return true;
 }
 
 struct sub_point
@@ -3866,14 +3871,18 @@ float3 triangle_normal(float3 v0, float3 v1, float3 v2)
     return normalize(cross(U, V));
 }
 
-float ray_plane_intersection(float3 plane_origin, float3 plane_normal, float3 ray_origin, float3 ray_direction)
+bool ray_plane_intersection(float3 plane_origin, float3 plane_normal, float3 ray_origin, float3 ray_direction, float* t)
 {
     float denom = dot(ray_direction, plane_normal);
 
-    if(fabs(denom) < 0.00001f)
-        return 0.f;
+    if(fabs(denom) < 0.000001f)
+    {
+        *t = 0;
+        return false;
+    }
 
-    return dot(plane_origin - ray_origin, plane_normal) / denom;
+    *t = dot(plane_origin - ray_origin, plane_normal) / denom;
+    return true;
 }
 
 bool ray_toblerone_could_intersect(float4 pos, float4 dir, float tri_start_t, float tri_end_t)
@@ -3972,9 +3981,9 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
         float3 new_origin = entry_position;
         float3 new_dir = -norm_toblerone_normal;
 
-        float ray_plane_t = ray_plane_intersection(toblerone_origin, tri_normal, new_origin, new_dir);
+        float ray_plane_t = 0;
 
-        if(ray_plane_t == 0)
+        if(!ray_plane_intersection(toblerone_origin, tri_normal, new_origin, new_dir, &ray_plane_t))
             return false;
 
         float3 plane_intersection_location = new_origin + new_dir * ray_plane_t;
@@ -3986,15 +3995,16 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
         float3 new_origin = exit_position;
         float3 new_dir = -norm_toblerone_normal;
 
-        float ray_plane_t = ray_plane_intersection(toblerone_origin, tri_normal, new_origin, new_dir);
+        float ray_plane_t = 0;
 
-        if(ray_plane_t == 0)
+        if(!ray_plane_intersection(toblerone_origin, tri_normal, new_origin, new_dir, &ray_plane_t))
             return false;
 
         float3 plane_intersection_location = new_origin + new_dir * ray_plane_t;
 
         exit_height = length(new_origin - plane_intersection_location);
     }
+
 
     float entry_time = (entry_height / toblerone_height) * (tri_end_time - tri_start_time) + tri_start_time;
     float exit_time = (exit_height / toblerone_height) * (tri_end_time - tri_start_time) + tri_start_time;
