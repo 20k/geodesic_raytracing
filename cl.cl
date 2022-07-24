@@ -3868,14 +3868,18 @@ float3 triangle_normal(float3 v0, float3 v1, float3 v2)
     return normalize(cross(U, V));
 }
 
-float ray_plane_intersection(float3 plane_origin, float3 plane_normal, float3 ray_origin, float3 ray_direction)
+bool ray_plane_intersection(float3 plane_origin, float3 plane_normal, float3 ray_origin, float3 ray_direction, float* t)
 {
     float denom = dot(ray_direction, plane_normal);
 
-    if(fabs(denom) < 0.00001f)
-        return 0.f;
+    if(fabs(denom) < 0.000001f)
+    {
+        *t = 0;
+        return false;
+    }
 
-    return dot(plane_origin - ray_origin, plane_normal) / denom;
+    *t = dot(plane_origin - ray_origin, plane_normal) / denom;
+    return true;
 }
 
 bool ray_toblerone_could_intersect(float4 pos, float4 dir, float tri_start_t, float tri_end_t)
@@ -3895,6 +3899,8 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
     float3 v0 = (float3)(ctri->v0x, ctri->v0y, ctri->v0z);
     float3 v1 = v0 + to_v1;
     float3 v2 = v0 + to_v2;
+
+    //return ray_intersects_triangle(pos.yzw, dir.yzw, v0, v1, v2, 0);
 
     float3 t_diff = (float3)(ctri->dvx, ctri->dvy, ctri->dvz);
 
@@ -3974,9 +3980,9 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
         float3 new_origin = entry_position;
         float3 new_dir = -norm_toblerone_normal;
 
-        float ray_plane_t = ray_plane_intersection(toblerone_origin, tri_normal, new_origin, new_dir);
+        float ray_plane_t = 0;
 
-        if(ray_plane_t == 0)
+        if(!ray_plane_intersection(toblerone_origin, tri_normal, new_origin, new_dir, &ray_plane_t))
             return false;
 
         float3 plane_intersection_location = new_origin + new_dir * ray_plane_t;
@@ -3988,9 +3994,9 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
         float3 new_origin = exit_position;
         float3 new_dir = -norm_toblerone_normal;
 
-        float ray_plane_t = ray_plane_intersection(toblerone_origin, tri_normal, new_origin, new_dir);
+        float ray_plane_t = 0;
 
-        if(ray_plane_t == 0)
+        if(!ray_plane_intersection(toblerone_origin, tri_normal, new_origin, new_dir, &ray_plane_t))
             return false;
 
         float3 plane_intersection_location = new_origin + new_dir * ray_plane_t;
@@ -4264,7 +4270,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                 if(dot(pdiff, pdiff) > 5)
                                     continue;*/
 
-                                #if 0
+                                #if 1
                                 if(ray_intersects_toblerone(rt_pos, next_rt_pos - rt_pos, ctri, start_time, end_time))
                                 {
                                     atomic_min(ray_time_min, (int)floor(my_min));
@@ -4281,7 +4287,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                 }
                                 #endif // 0
 
-                                #if 1
+                                #if 0
                                 #define OBSERVER_DEPENDENCE
                                 #ifdef OBSERVER_DEPENDENCE
                                 float tri_time = start_time;
