@@ -3599,7 +3599,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         local_tri.dvz = (next - current).w;
 
         ///my later pos is actually earlier than the last pos. Swap start and end
-        if(next.x < current.x)
+        /*if(next.x < current.x)
         {
             delta_time = (current - next).x;
             output_time = next.x;
@@ -3611,7 +3611,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
             local_tri.dvx = (current - next).y;
             local_tri.dvy = (current - next).z;
             local_tri.dvz = (current - next).w;
-        }
+        }*/
 
         float4 pos = current + (float4)(0.f, mine.x, mine.y, mine.z);
         float4 next_pos = next + (float4)(0.f, mine.x, mine.y, mine.z);
@@ -3629,7 +3629,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
         for(int kk=0; kk < steps.num; kk++)
         {
-            int l = 2;
+            int l = 1;
 
             int4 ipos = (int4)(steps.current.x, steps.current.y, steps.current.z, steps.current.w);
 
@@ -3926,6 +3926,7 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
     bool any_t = false;
     float min_t = 0;
     float max_t = 0;
+    int cnt = 0;
 
     for(int i=0; i < 8; i++)
     {
@@ -3937,6 +3938,8 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
         if(ray_intersects_triangle(pos.yzw, dir.yzw, l_v0, l_v1, l_v2, &my_t))
         {
+            cnt++;
+
             if(any_t)
             {
                 min_t = min(min_t, my_t);
@@ -3955,6 +3958,9 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
     ///min_t and max_t must be inherently in range [0, 1]
 
     if(!any_t)
+        return false;
+
+    if(cnt != 2)
         return false;
 
     //float3 toblerone_origin = (v0 + v1 + v2)/3.f;
@@ -4007,14 +4013,17 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
     float entry_time = (entry_height / toblerone_height) * (tri_end_time - tri_start_time) + tri_start_time;
     float exit_time = (exit_height / toblerone_height) * (tri_end_time - tri_start_time) + tri_start_time;
 
+    entry_time = clamp(entry_time, tri_start_time, tri_end_time);
+    exit_time = clamp(exit_time, tri_start_time, tri_end_time);
+
     float ray_entry_time = pos.x + dir.x * min_t;
     float ray_exit_time = pos.x + dir.x * max_t;
 
     sort2(&entry_time, &exit_time);
     sort2(&ray_entry_time, &ray_exit_time);
 
-    entry_time -= 0.0001f;
-    exit_time += 0.0001f;
+    //entry_time -= 0.0001f;
+    //exit_time += 0.0001f;
 
     return ray_entry_time <= exit_time && entry_time <= ray_exit_time;
 }
@@ -4256,13 +4265,13 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                 ///could sort this instead by end times, and then use end time as the quick check
                                 float start_time = linear_start_times[base_offset + t_off];
 
-                                if(rt_pos.x < start_time - 0.0001f && (next_rt_pos - rt_pos).x < 0)
-                                    continue;
+                                //if(rt_pos.x < start_time - 0.0001f && (next_rt_pos - rt_pos).x < 0)
+                                //    continue;
 
                                 float end_time = start_time + linear_delta_times[base_offset + t_off];
 
-                                if(!ray_toblerone_could_intersect(rt_pos, next_rt_pos - rt_pos, start_time, end_time))
-                                    continue;
+                                //if(!ray_toblerone_could_intersect(rt_pos, next_rt_pos - rt_pos, start_time, end_time))
+                                //    continue;
 
                                 ///use dot current_pos tri centre pos (?) as distance metric
                                 /*float3 pdiff = parent_pos.yzw - rt_pos.yzw;
