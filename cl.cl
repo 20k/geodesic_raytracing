@@ -4167,7 +4167,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                                 if(dot(pdiff, pdiff) > 5)
                                     continue;*/
-
+                                #define FULL_TOBLERONE
+                                #ifdef FULL_TOBLERONE
                                 float start_time = start_time_tri[base_offset + t_off];
 
                                 if(rt_pos.x < start_time - 0.0001f && (next_rt_pos - rt_pos).x < 0)
@@ -4175,8 +4176,6 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                                 float end_time = dt_time_tri[base_offset + t_off] + start_time;
 
-                                #define FULL_TOBLERONE
-                                #ifdef FULL_TOBLERONE
                                 if(!ray_toblerone_could_intersect(rt_pos, next_rt_pos - rt_pos, start_time, end_time))
                                     continue;
 
