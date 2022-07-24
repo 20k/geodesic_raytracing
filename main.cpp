@@ -312,6 +312,8 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
         run_args.push_back(manage.objects);
         run_args.push_back(accel.cell_time_min);
         run_args.push_back(accel.cell_time_max);
+        run_args.push_back(accel.accelerated_cell_time_min);
+        run_args.push_back(accel.accelerated_cell_time_max);
         run_args.push_back(accel.global_min);
         run_args.push_back(accel.global_max);
         run_args.push_back(dynamic_config);

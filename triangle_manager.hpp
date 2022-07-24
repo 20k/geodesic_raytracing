@@ -108,8 +108,13 @@ namespace triangle_rendering
         cl::buffer start_time;
         cl::buffer dt_time;
 
+        ///as produced by the raytracer. This buffer is in the wrong place but there's no raytracing state struct yet
         cl::buffer cell_time_min;
         cl::buffer cell_time_max;
+
+        ///as produced by the acceleration structure
+        cl::buffer accelerated_cell_time_min;
+        cl::buffer accelerated_cell_time_max;
 
         cl::buffer global_min;
         cl::buffer global_max;

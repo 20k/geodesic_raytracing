@@ -3455,7 +3455,8 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                                    __global int* offset_map, __global int* offset_counts, __global struct computed_triangle* mem_buffer,
                                    __global int* unculled_offset_counts,
                                    __global float* start_time_out, __global float* dt_out,
-                                   __global int* old_cell_time_min, __global int* old_cell_time_max,
+                                   __global int* old_cell_time_min, __global int* old_cell_time_max, ///as produced by the raytracer
+                                   __global int* calculated_cell_time_min, __global int* calculated_cell_time_max, ///as produced by this function
                                    __global float4* object_geodesics, __global int* object_geodesic_counts,
                                    float width, int width_num,
                                    int should_store,
@@ -3947,6 +3948,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                       float accel_width, int accel_width_num,
                       __global struct object* objs,
                       __global int* cell_time_min, __global int* cell_time_max,
+                      __global int* accelerated_cell_time_min, __global int* accelerated_cell_time_max,
                       __global int* global_time_min, __global int* global_time_max,
                       dynamic_config_space struct dynamic_config* cfg)
 {
