@@ -323,7 +323,7 @@ void triangle_rendering::manager::update_objects(cl::command_queue& cqueue)
     }
 }
 
-triangle_rendering::acceleration::acceleration(cl::context& ctx, cl::command_queue& cqueue) : offsets(ctx), counts(ctx), unculled_counts(ctx), memory(ctx), memory_count(ctx), cell_time_min(ctx), cell_time_max(ctx), global_min(ctx), global_max(ctx)
+triangle_rendering::acceleration::acceleration(cl::context& ctx, cl::command_queue& cqueue) : offsets(ctx), counts(ctx), unculled_counts(ctx), memory(ctx), memory_count(ctx), start_time(ctx), dt_time(ctx), cell_time_min(ctx), cell_time_max(ctx), global_min(ctx), global_max(ctx)
 {
     memory_count.alloc(sizeof(cl_int));
 
@@ -333,6 +333,8 @@ triangle_rendering::acceleration::acceleration(cl::context& ctx, cl::command_que
     counts.alloc(sizeof(cl_int) * cells);
     unculled_counts.alloc(sizeof(cl_int) * cells);
     memory.alloc(max_memory_size);
+    start_time.alloc(max_memory_size);
+    dt_time.alloc(max_memory_size);
 
     cl_int min_set = INT_MAX;
     cl_int max_set = INT_MIN;
@@ -393,6 +395,8 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         gen.push_back(counts);
         gen.push_back(memory);
         gen.push_back(unculled_counts);
+        gen.push_back(start_time);
+        gen.push_back(dt_time);
         gen.push_back(cell_time_min);
         gen.push_back(cell_time_max);
         gen.push_back(phys.geodesic_paths);
@@ -431,6 +435,8 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         gen.push_back(counts);
         gen.push_back(memory);
         gen.push_back(unculled_counts);
+        gen.push_back(start_time);
+        gen.push_back(dt_time);
         gen.push_back(cell_time_min);
         gen.push_back(cell_time_max);
         gen.push_back(phys.geodesic_paths);

@@ -105,6 +105,8 @@ namespace triangle_rendering
         cl::buffer unculled_counts;
         cl::buffer memory;
         cl::buffer memory_count;
+        cl::buffer start_time;
+        cl::buffer dt_time;
 
         cl::buffer cell_time_min;
         cl::buffer cell_time_max;

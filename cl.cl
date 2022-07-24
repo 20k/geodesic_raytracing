@@ -15,12 +15,10 @@ struct triangle
 
 struct computed_triangle
 {
-    float start_time;
     float v0x, v0y, v0z;
     float v1x, v1y, v1z;
     float v2x, v2y, v2z;
 
-    float dt;
     float dx;
     float dy;
     float dz;
@@ -3456,6 +3454,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                                   __global struct triangle* reference_tris,
                                    __global int* offset_map, __global int* offset_counts, __global struct computed_triangle* mem_buffer,
                                    __global int* unculled_offset_counts,
+                                   __global float* start_time_out, __global float* dt_out,
                                    __global int* old_cell_time_min, __global int* old_cell_time_max,
                                    __global float4* object_geodesics, __global int* object_geodesic_counts,
                                    float width, int width_num,
@@ -3498,7 +3497,6 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         float start_time = current_ray_pos.x;
         float end_time = next_ray_pos.x;
 
-        my_tri.start_time = current_ray_pos.x;
         my_tri.v0x = tri_in.v0x + current_ray_pos.y;
         my_tri.v0y = tri_in.v0y + current_ray_pos.z;
         my_tri.v0z = tri_in.v0z + current_ray_pos.w;
@@ -3511,7 +3509,6 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         my_tri.v2y = tri_in.v2y + current_ray_pos.z;
         my_tri.v2z = tri_in.v2z + current_ray_pos.w;
 
-        my_tri.dt = next_ray_pos.x - current_ray_pos.x;
         my_tri.dx = next_ray_pos.y - current_ray_pos.y;
         my_tri.dy = next_ray_pos.z - current_ray_pos.z;
         my_tri.dz = next_ray_pos.w - current_ray_pos.w;
@@ -3616,6 +3613,9 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                             int mem_start = offset_map[oid];
 
                             mem_buffer[mem_start + lid] = my_tri;
+
+                            start_time_out[mem_start + lid] = start_time;
+                            dt_out[mem_start + lid] = end_time - start_time;
                         }
                     }
                 }
@@ -3943,6 +3943,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                       __global struct triangle* tris, int tri_count, __global struct intersection* intersections_out, __global int* intersection_count,
                       __global struct potential_intersection* intersections_p, __global int* intersection_count_p,
                       __global int* counts, __global int* offsets, __global struct computed_triangle* linear_mem, __global int* unculled_counts,
+                      __global float* start_time_tri, __global float* dt_time_tri,
                       float accel_width, int accel_width_num,
                       __global struct object* objs,
                       __global int* cell_time_min, __global int* cell_time_max,
@@ -4161,21 +4162,25 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                             #if 1
                             for(int t_off=0; t_off < tri_count; t_off++)
                             {
-                                __global struct computed_triangle* ctri = &linear_mem[base_offset + t_off];
-
                                 ///use dot current_pos tri centre pos (?) as distance metric
                                 /*float3 pdiff = parent_pos.yzw - rt_pos.yzw;
 
                                 if(dot(pdiff, pdiff) > 5)
                                     continue;*/
 
-                                float start_time = ctri->start_time;
-                                float end_time = start_time + ctri->dt;
+                                float start_time = start_time_tri[base_offset + t_off];
+
+                                if(rt_pos.x < start_time - 0.0001f && (next_rt_pos - rt_pos).x < 0)
+                                    continue;
+
+                                float end_time = dt_time_tri[base_offset + t_off] + start_time;
 
                                 #define FULL_TOBLERONE
                                 #ifdef FULL_TOBLERONE
                                 if(!ray_toblerone_could_intersect(rt_pos, next_rt_pos - rt_pos, start_time, end_time))
                                     continue;
+
+                                __global struct computed_triangle* ctri = &linear_mem[base_offset + t_off];
 
                                 if(ray_intersects_toblerone(rt_pos, next_rt_pos - rt_pos, ctri, start_time, end_time))
                                 {
