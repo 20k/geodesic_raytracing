@@ -14,8 +14,8 @@ struct computed_triangle
 {
     //float time;
     float v0x, v0y, v0z;
-    float v1x, v1y, v1z;
-    float v2x, v2y, v2z;
+    half dv1x, dv1y, dv1z;
+    half dv2x, dv2y, dv2z;
 
     //float dvt;
     half dvx;
@@ -3584,13 +3584,15 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         local_tri.v0y = my_tri.v0y + current.z;
         local_tri.v0z = my_tri.v0z + current.w;
 
-        local_tri.v1x = my_tri.v1x + current.y;
-        local_tri.v1y = my_tri.v1y + current.z;
-        local_tri.v1z = my_tri.v1z + current.w;
+        ///this is a constant. These are actually just all offsets. Could massively reduce memory storage
+        ///by storing location, and tri index
+        local_tri.dv1x = my_tri.v1x - my_tri.v0x;
+        local_tri.dv1y = my_tri.v1y - my_tri.v0y;
+        local_tri.dv1z = my_tri.v1z - my_tri.v0z;
 
-        local_tri.v2x = my_tri.v2x + current.y;
-        local_tri.v2y = my_tri.v2y + current.z;
-        local_tri.v2z = my_tri.v2z + current.w;
+        local_tri.dv2x = my_tri.v2x - my_tri.v0x;
+        local_tri.dv2y = my_tri.v2y - my_tri.v0y;
+        local_tri.dv2z = my_tri.v2z - my_tri.v0z;
 
         local_tri.dvx = (next - current).y;
         local_tri.dvy = (next - current).z;
@@ -3605,14 +3607,6 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
             local_tri.v0x = my_tri.v0x + next.y;
             local_tri.v0y = my_tri.v0y + next.z;
             local_tri.v0z = my_tri.v0z + next.w;
-
-            local_tri.v1x = my_tri.v1x + next.y;
-            local_tri.v1y = my_tri.v1y + next.z;
-            local_tri.v1z = my_tri.v1z + next.w;
-
-            local_tri.v2x = my_tri.v2x + next.y;
-            local_tri.v2y = my_tri.v2y + next.z;
-            local_tri.v2z = my_tri.v2z + next.w;
 
             local_tri.dvx = (current - next).y;
             local_tri.dvy = (current - next).z;
@@ -3893,9 +3887,12 @@ bool ray_toblerone_could_intersect(float4 pos, float4 dir, float tri_start_t, fl
 ///dir is not normalised, should really use a pos2
 bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_triangle* ctri, float tri_start_time, float tri_end_time)
 {
+    float3 to_v1 = (float3)(ctri->dv1x, ctri->dv1y, ctri->dv1z);
+    float3 to_v2 = (float3)(ctri->dv2x, ctri->dv2y, ctri->dv2z);
+
     float3 v0 = (float3)(ctri->v0x, ctri->v0y, ctri->v0z);
-    float3 v1 = (float3)(ctri->v1x, ctri->v1y, ctri->v1z);
-    float3 v2 = (float3)(ctri->v2x, ctri->v2y, ctri->v2z);
+    float3 v1 = v0 + to_v1;
+    float3 v2 = v0 + to_v2;
 
     float3 t_diff = (float3)(ctri->dvx, ctri->dvy, ctri->dvz);
 
