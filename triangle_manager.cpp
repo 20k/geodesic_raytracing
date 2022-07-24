@@ -352,25 +352,19 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
 
     memory_count.set_to_zero(cqueue);
 
+    auto clear_buffer = [&](cl::buffer& buf)
     {
-        int count = counts.alloc_size / sizeof(cl_int);
+        int count = buf.alloc_size / sizeof(cl_int);
 
         cl::args aclear;
-        aclear.push_back(counts);
+        aclear.push_back(buf);
         aclear.push_back(count);
 
         cqueue.exec("clear_accel_counts", aclear, {count}, {256});
-    }
+    };
 
-    {
-        int count = unculled_counts.alloc_size / sizeof(cl_int);
-
-        cl::args aclear;
-        aclear.push_back(unculled_counts);
-        aclear.push_back(count);
-
-        cqueue.exec("clear_accel_counts", aclear, {count}, {256});
-    }
+    clear_buffer(counts);
+    clear_buffer(unculled_counts);
 
     #define SMEARED
     #ifdef SMEARED
@@ -423,6 +417,8 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
 
         cqueue.exec("alloc_acceleration", accel, {data_max}, {256});
     }
+
+    clear_buffer(counts);
 
     {
         int should_store = 1;
