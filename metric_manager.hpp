@@ -64,7 +64,7 @@ struct metric_manager
         }
 
         current_idx = selected_idx;
-        std::string argument_string_prefix = "-cl-std=CL1.2 -cl-fast-relaxed-math ";
+        std::string argument_string_prefix = "-cl-std=CL1.2 -cl-unsafe-math-optimizations ";
 
         if(cfg.use_device_side_enqueue)
         {
