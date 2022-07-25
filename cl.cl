@@ -4102,7 +4102,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
     float uniform_coordinate_precision_divisor = max(max(W_V1, W_V2), max(W_V3, W_V4));
 
-    int loop_limit = 4096 / 10;
+    int loop_limit = 4096 / 2;
 
     #ifdef DEVICE_SIDE_ENQUEUE
     loop_limit /= 125;
@@ -4211,7 +4211,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
             if(dot(rt_diff, rt_diff) > 1)
                 should_check = true;
 
-            if(should_check || should_terminate)
+            if((should_check || should_terminate) && !any(IS_DEGENERATE(out_position)))
             {
                 last_pos = next_rt_pos;
 
@@ -4227,7 +4227,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                         setup = setup_step(current_pos, next_pos);
                     }
 
-                    for(int kk=0; kk < setup.num; kk++)
+                    for(int kk=0; kk < setup.num && setup.num < 600; kk++)
                     {
                         unsigned int voxel_id = index_acceleration(&setup, accel_width_num);
 

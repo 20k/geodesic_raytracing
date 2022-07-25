@@ -1115,7 +1115,7 @@ int main(int argc, char* argv[])
         }
     }*/
 
-    #define TEAPOTS
+    //#define TEAPOTS
     #ifdef TEAPOTS
     //#define INDIVIDUAL_GEODESICS
     #ifndef INDIVIDUAL_GEODESICS
@@ -1173,6 +1173,11 @@ int main(int argc, char* argv[])
             }
         }
     }*/
+
+    std::shared_ptr<triangle_rendering::object> obj = tris.make_new();
+
+    obj->tris = make_cube({0, 0, 0});
+    obj->pos = {-50, 1, 1, 1};
 
     tris.build(clctx.cqueue, accel.offset_width / accel.offset_size.x());
 
