@@ -4021,6 +4021,8 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
     return ray_entry_time <= exit_time && entry_time <= ray_exit_time;
 }
 
+#define IS_DEGENERATE(x) (isnan(x) || !isfinite(x))
+
 __kernel
 void do_generic_rays (__global struct lightray* restrict generic_rays_in, __global struct lightray* restrict generic_rays_out,
                       __global struct lightray* restrict finished_rays,
@@ -4100,7 +4102,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
     float uniform_coordinate_precision_divisor = max(max(W_V1, W_V2), max(W_V3, W_V4));
 
-    int loop_limit = 4096;
+    int loop_limit = 4096 / 10;
 
     #ifdef DEVICE_SIDE_ENQUEUE
     loop_limit /= 125;
@@ -4453,7 +4455,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
             printf("Pos %f %f %f %f vel %f %f %f %f\n", position.x, position.y, position.z, position.w, velocity.x, velocity.y, velocity.z, velocity.w);
         }*/
 
-        if(any(isnan(position)) || any(isnan(velocity)) || any(isnan(acceleration)))
+        if(any(IS_DEGENERATE(position)) || any(IS_DEGENERATE(velocity)) || any(IS_DEGENERATE(acceleration)))
         {
             return;
         }
@@ -4635,7 +4637,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         #endif
 
         ///in the event that velocity and acceleration is 0, it'd be ideal to have a fast path
-        if(any(isnan(next_position)) || any(isnan(next_velocity)) || any(isnan(next_acceleration)))
+        if(any(IS_DEGENERATE(next_position)) || any(IS_DEGENERATE(next_velocity)) || any(IS_DEGENERATE(next_acceleration)))
             break;
 
         position = next_position;
