@@ -2,7 +2,7 @@ function misner_4d(misner_T, misner_phi, y, z)
 {
 	var met = [];
 	met.length = 16;
-	
+
 	///https://arxiv.org/pdf/1102.0907.pdf (25)
 	var dT_dphi = -2;
 	var dphi = -misner_T;
