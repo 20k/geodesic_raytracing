@@ -239,7 +239,7 @@ storage s_mul(const storage& s1, const storage& s2)
     });
 }
 
-storage s_div(const storage& s1, const storage& s2)
+storage s_jdiv(const storage& s1, const storage& s2)
 {
     return func(s1, s2, [](auto v1, auto v2)
     {
@@ -269,6 +269,30 @@ storage s_eq(const storage& s1, const storage& s2)
         return (dual)(s1.d == s2.d);
     else
         throw std::runtime_error("Can only use == on real values");
+}
+
+storage s_lte(const storage& s1, const storage& s2)
+{
+    if(s1.which == 0 && s2.which == 0)
+        return (dual)(s1.d <= s2.d);
+    else
+        throw std::runtime_error("Can only use <= on real values");
+}
+
+storage s_gt(const storage& s1, const storage& s2)
+{
+    if(s1.which == 0 && s2.which == 0)
+        return (dual)(s1.d > s2.d);
+    else
+        throw std::runtime_error("Can only use > on real values");
+}
+
+storage s_gte(const storage& s1, const storage& s2)
+{
+    if(s1.which == 0 && s2.which == 0)
+        return (dual)(s1.d > s2.d);
+    else
+        throw std::runtime_error("Can only use >= on real values");
 }
 
 js::value to_class(js::value_context& vctx, js::value in)
@@ -423,59 +447,30 @@ void construct(js::value_context* vctx, js::value js_this, js::value v2)
     js_this.add_hidden("v", as_object);
 }
 
-js::value add(js::value_context* vctx, js::value v1, js::value v2)
-{
-    storage pv1 = get(v1);
-    storage pv2 = get(v2);
-
-    return to_value(*vctx, s_add(pv1, pv2));
+#define BINOP(name) \
+js::value name(js::value_context* vctx, js::value v1, js::value v2) \
+{ \
+    storage pv1 = get(v1); \
+    storage pv2 = get(v2); \
+    \
+    return to_value(*vctx, s_##name (pv1, pv2)); \
 }
 
-js::value mul(js::value_context* vctx, js::value v1, js::value v2)
-{
-    storage pv1 = get(v1);
-    storage pv2 = get(v2);
-
-    return to_value(*vctx, s_mul(pv1, pv2));
-}
-
-js::value sub(js::value_context* vctx, js::value v1, js::value v2)
-{
-    storage pv1 = get(v1);
-    storage pv2 = get(v2);
-
-    return to_value(*vctx, s_sub(pv1, pv2));
-}
-
-js::value jdiv(js::value_context* vctx, js::value v1, js::value v2)
-{
-    storage pv1 = get(v1);
-    storage pv2 = get(v2);
-
-    return to_value(*vctx, s_div(pv1, pv2));
-}
+BINOP(add);
+BINOP(mul);
+BINOP(sub);
+BINOP(jdiv);
+BINOP(lt);
+BINOP(lte);
+BINOP(eq);
+BINOP(gt);
+BINOP(gte);
 
 js::value neg(js::value_context* vctx, js::value v1)
 {
     storage pv1 = get(v1);
 
     return to_value(*vctx, s_neg(pv1));
-}
-
-js::value lt(js::value_context* vctx, js::value v1, js::value v2)
-{
-    storage pv1 = get(v1);
-    storage pv2 = get(v2);
-
-    return to_value(*vctx, s_lt(pv1, pv2));
-}
-
-js::value eq(js::value_context* vctx, js::value v1, js::value v2)
-{
-    storage pv1 = get(v1);
-    storage pv2 = get(v2);
-
-    return to_value(*vctx, s_eq(pv1, pv2));
 }
 
 namespace CMath
@@ -682,8 +677,7 @@ js::value extract_function(js::value_context& vctx, const std::string& script_da
     js::add_key_value(cshim, "sub", js::function<sub>);
     js::add_key_value(cshim, "div", js::function<jdiv>);
     js::add_key_value(cshim, "neg", js::function<neg>);
-    js::add_key_value(cshim, "lt", js::function<lt>);
-    js::add_key_value(cshim, "eq", js::function<eq>);
+
     js::add_key_value(cshim, "construct", js::function<construct>);
 
     js::value global = js::get_global(vctx);
@@ -727,6 +721,12 @@ js::value extract_function(js::value_context& vctx, const std::string& script_da
     js::add_key_value(cmath, "debug", js::function<CMath::debug>);
 
     js::add_key_value(cmath, "get_i", js::function<get_unit_i>);
+
+    js::add_key_value(cmath, "lt", js::function<lt>);
+    js::add_key_value(cmath, "lte", js::function<lte>);
+    js::add_key_value(cmath, "eq", js::function<eq>);
+    js::add_key_value(cmath, "gt", js::function<gt>);
+    js::add_key_value(cmath, "gte", js::function<gte>);
 
     js::add_key_value(global, "CMath", cmath);
 
