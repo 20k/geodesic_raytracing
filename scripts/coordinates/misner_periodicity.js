@@ -3,9 +3,9 @@ function func(misner_T, misner_phi, y, z)
 	function positive_fmod(a, b)
 	{	
 		var r = CMath.smooth_fmod(a, b);
-				
+
 		var rlt = CMath.lt(r, 0);
-				
+
 		return CMath.select(rlt, r + b, r);
 	}
 	

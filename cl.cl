@@ -4578,6 +4578,8 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
     float4 velocity = ray->velocity;
     float4 acceleration = ray->acceleration;
 
+    //printf("Pos %f %f %f %f\n", position.x,position.y,position.z,position.w);
+
     /*#ifndef GENERIC_BIG_METRIC
     {
         float g_metric[4] = {0};
@@ -4656,6 +4658,8 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         if(fabs(polar_position.y) < rs*SINGULAR_TERMINATOR || fabs(polar_position.y) >= UNIVERSE_SIZE)
         #endif // SINGULAR
         {
+            //printf("Escaped\n");
+
             should_break = true;
         }
 
@@ -4716,7 +4720,12 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
 
         ///in the event that velocity and acceleration is 0, it'd be ideal to have a fast path
         if(any(IS_DEGENERATE(next_position)) || any(IS_DEGENERATE(next_velocity)) || any(IS_DEGENERATE(next_acceleration)))
+        {
+            //printf("Degenerate");
             break;
+        }
+
+        //printf("Pos %f %f %f %f\n", next_position.x,next_position.y,next_position.z,next_position.w);
 
         position = next_position;
         velocity = next_velocity;
