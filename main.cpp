@@ -1654,7 +1654,6 @@ int main(int argc, char* argv[])
                         if(ImGui::Button("Rebuild"))
                         {
                             phys.needs_trace = true;
-                            phys.trace(clctx.cqueue, tris, dynamic_config);
                         }
 
                         ImGui::EndTabItem();
@@ -1683,9 +1682,12 @@ int main(int argc, char* argv[])
                 camera_time_progresses = false;
             }
 
-            metric_manage.check_recompile(should_recompile, should_soft_recompile, parent_directories,
+            if(metric_manage.check_recompile(should_recompile, should_soft_recompile, parent_directories,
                                           all_content, metric_names, dynamic_config, clctx.cqueue, cfg,
-                                          sett, clctx.ctx, termination_buffer);
+                                          sett, clctx.ctx, termination_buffer))
+            {
+                phys.needs_trace = true;
+            }
 
             metric_manage.check_substitution(clctx.ctx);
 

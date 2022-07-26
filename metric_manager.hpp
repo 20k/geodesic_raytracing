@@ -13,12 +13,12 @@ struct metric_manager
     bool has_built = false;
 
     ///this is a bit of a giant mess
-    void check_recompile(bool should_recompile, bool should_soft_recompile,
+    bool check_recompile(bool should_recompile, bool should_soft_recompile,
                          const std::vector<content*>& parent_directories, content_manager& all_content, std::vector<std::string>& metric_names,
                          cl::buffer& dynamic_config, cl::command_queue& cqueue, metrics::config& cfg, render_settings& sett, cl::context& context, cl::buffer& termination_buffer)
     {
         if(!(should_recompile || current_idx == -1 || should_soft_recompile))
-            return;
+            return false;
 
         bool should_hard_recompile = should_recompile || current_idx == -1;
 
@@ -151,6 +151,8 @@ struct metric_manager
 
         ///Is this necessary?
         termination_buffer.set_to_zero(cqueue);
+
+        return true;
     }
 
     void check_substitution(cl::context& ctx)
