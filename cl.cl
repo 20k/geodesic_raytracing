@@ -28,6 +28,13 @@ struct object
     float4 pos;
 };
 
+bool approx_equal(float v1, float v2, float tol)
+{
+    return fabs(v1 - v2) <= tol;
+}
+
+#define IS_DEGENERATE(x) (isnan(x) || !isfinite(x))
+
 float smooth_fmod(float a, float b)
 {
     return fmod(a, b);
@@ -1560,6 +1567,34 @@ void print_metric_big(float g_metric_big[])
            g_metric_big[12], g_metric_big[13], g_metric_big[14], g_metric_big[15]);
 }
 
+///specifically: cartesian minkowski
+void get_local_minkowski(float4 e0_hi, float4 e1_hi, float4 e2_hi, float4 e3_hi, float g_metric_big[], float minkowski[])
+{
+    ///a * 4 + mu
+    float m[16] = {e0_hi.x, e0_hi.y, e0_hi.z, e0_hi.w,
+                   e1_hi.x, e1_hi.y, e1_hi.z, e1_hi.w,
+                   e2_hi.x, e2_hi.y, e2_hi.z, e2_hi.w,
+                   e3_hi.x, e3_hi.y, e3_hi.z, e3_hi.w};
+
+    for(int a=0; a < 4; a++)
+    {
+        for(int b=0; b < 4; b++)
+        {
+            float sum = 0;
+
+            for(int mu=0; mu < 4; mu++)
+            {
+                for(int v=0; v < 4; v++)
+                {
+                    sum += g_metric_big[mu * 4 + v] * m[a * 4 + mu] * m[b * 4 + v];
+                }
+            }
+
+            minkowski[a * 4 + b] = sum;
+        }
+    }
+}
+
 ///todo: generic orthonormalisation
 struct frame_basis calculate_frame_basis(float big_metric[])
 {
@@ -1592,7 +1627,7 @@ struct frame_basis calculate_frame_basis(float big_metric[])
 
     for(int i=0; i < 4; i++)
     {
-        if(lengths[i] < -eps || lengths[i] > eps)
+        if(!approx_equal(lengths[i], 0.f, eps))
         {
             first_nonzero = i;
             break;
@@ -1623,6 +1658,22 @@ struct frame_basis calculate_frame_basis(float big_metric[])
 
         sorted_result[old_index] = result_as_array[i];
     }
+
+    float minkowski[16];
+
+    get_local_minkowski(sorted_result[0], sorted_result[1], sorted_result[2], sorted_result[3], big_metric, minkowski);
+
+    ///is_degenerate check is because its not helpful
+    ///ok no, can quite generally end up with explosions
+    /*if(!IS_DEGENERATE(minkowski[0]) && !approx_equal(minkowski[0], -1, eps) && approx_equal(minkowski[0], 1, eps))
+    {
+        for(int i=0; i < 16; i++)
+        {
+            printf("Mink %f %i\n", minkowski[i], i);
+        }
+
+        printf("Warning, first column vector is not timelike. Todo for me: Fix this %f\n", minkowski[0]);
+    }*/
 
     struct frame_basis result2;
     result2.v1 = sorted_result[0];
@@ -1887,34 +1938,6 @@ float4 tetrad_to_coordinate_basis(float4 vec_up, float4 e0_hi, float4 e1_hi, flo
     return vec_up.x * e0_hi + vec_up.y * e1_hi + vec_up.z * e2_hi + vec_up.w * e3_hi;
 }
 
-///specifically: cartesian minkowski
-void get_local_minkowski(float4 e0_hi, float4 e1_hi, float4 e2_hi, float4 e3_hi, float g_metric_big[], float minkowski[])
-{
-    ///a * 4 + mu
-    float m[16] = {e0_hi.x, e0_hi.y, e0_hi.z, e0_hi.w,
-                   e1_hi.x, e1_hi.y, e1_hi.z, e1_hi.w,
-                   e2_hi.x, e2_hi.y, e2_hi.z, e2_hi.w,
-                   e3_hi.x, e3_hi.y, e3_hi.z, e3_hi.w};
-
-    for(int a=0; a < 4; a++)
-    {
-        for(int b=0; b < 4; b++)
-        {
-            float sum = 0;
-
-            for(int mu=0; mu < 4; mu++)
-            {
-                for(int v=0; v < 4; v++)
-                {
-                    sum += g_metric_big[mu * 4 + v] * m[a * 4 + mu] * m[b * 4 + v];
-                }
-            }
-
-            minkowski[a * 4 + b] = sum;
-        }
-    }
-}
-
 void quat_to_matrix(float4 q, float m[9])
 {
     float qx = q.x;
@@ -2125,6 +2148,16 @@ void calculate_tetrads(float4 polar_camera, float3 cartesian_basis_speed,
                        dynamic_config_space struct dynamic_config* cfg, int should_orient)
 {
     float4 at_metric = spherical_to_generic(polar_camera, cfg);
+
+    if(IS_DEGENERATE(at_metric.x) || IS_DEGENERATE(at_metric.y) || IS_DEGENERATE(at_metric.z) || IS_DEGENERATE(at_metric.w))
+    {
+        *e0_out = (float4)(1, 0, 0, 0);
+        *e1_out = (float4)(0, 1, 0, 0);
+        *e2_out = (float4)(0, 0, 1, 0);
+        *e3_out = (float4)(0, 0, 0, 1);
+
+        return;
+    }
 
     #ifndef GENERIC_BIG_METRIC
     float g_metric[4] = {};
@@ -3935,11 +3968,6 @@ struct potential_intersection
     float et, ex, ey, ez;
 };
 
-bool approx_equal(float v1, float v2, float tol)
-{
-    return fabs(v1 - v2) <= tol;
-}
-
 ///todo: winding order
 float3 triangle_normal(float3 v0, float3 v1, float3 v2)
 {
@@ -4098,8 +4126,6 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
     return ray_entry_time <= exit_time && entry_time <= ray_exit_time;
 }
-
-#define IS_DEGENERATE(x) (isnan(x) || !isfinite(x))
 
 __kernel
 void do_generic_rays (__global struct lightray* restrict generic_rays_in, __global struct lightray* restrict generic_rays_out,
