@@ -1885,7 +1885,9 @@ int main(int argc, char* argv[])
                 tris.update_objects(clctx.cqueue);
 
                 phys.trace(clctx.cqueue, tris, dynamic_config);
-                phys.push_object_positions(clctx.cqueue, tris, dynamic_config, set_camera_time);
+
+                ///this is only good for the case when we're tracing constant t
+                //phys.push_object_positions(clctx.cqueue, tris, dynamic_config, set_camera_time);
 
                 accel.build(clctx.cqueue, tris, phys, dynamic_config);
             }

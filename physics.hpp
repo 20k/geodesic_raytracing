@@ -69,6 +69,11 @@ struct physics
         if(!needs_trace)
             return;
 
+        #define SMEARED
+        #ifdef SMEARED
+        manage.force_update_objects(cqueue);
+        #endif // PHYSICS_HPP_INCLUDED
+
         init_positions(cqueue, manage);
 
         counts.set_to_zero(cqueue);
