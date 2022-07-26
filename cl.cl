@@ -4152,7 +4152,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
     float uniform_coordinate_precision_divisor = max(max(W_V1, W_V2), max(W_V3, W_V4));
 
-    int loop_limit = 4096  * 2;
+    int loop_limit = 4096 /2;;
 
     #ifdef DEVICE_SIDE_ENQUEUE
     loop_limit /= 125;
@@ -4179,6 +4179,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
         float new_max = MAX_PRECISION_RADIUS * rs;
         float new_min = 3 * rs;
+
+        position.y = fmod(position.y, 0.1f);
 
         float4 polar_position = generic_to_spherical(position, cfg);
 
@@ -4595,6 +4597,8 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         float new_max = MAX_PRECISION_RADIUS * rs;
         float new_min = 3 * rs;
 
+        position.y = fmod(position.y, 0.1f);
+
         float4 polar_position = generic_to_spherical(position, cfg);
 
         #ifdef IS_CONSTANT_THETA
@@ -4635,6 +4639,8 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         float dT_ds = 0;
 
         step_verlet(position, velocity, acceleration, false, ds, &next_position, &next_velocity, &next_acceleration, &dT_ds, cfg);
+
+        next_position.y = fmod(next_position.y, 0.1f);
 
         #ifdef ADAPTIVE_PRECISION
         if(fabs(r_value) < new_max)
@@ -4689,6 +4695,8 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         ///in the event that velocity and acceleration is 0, it'd be ideal to have a fast path
         if(any(IS_DEGENERATE(next_position)) || any(IS_DEGENERATE(next_velocity)) || any(IS_DEGENERATE(next_acceleration)))
             break;
+
+        printf("Opos %f %f %f %f\n", next_position.x, next_position.y, next_position.z, next_position.w);
 
         position = next_position;
         velocity = next_velocity;
