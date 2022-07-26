@@ -913,6 +913,12 @@ std::array<dual, 4> js_function::operator()(dual iv1, dual iv2, dual iv3, dual i
     js::value v3 = to_value(vctx, iv3);
     js::value v4 = to_value(vctx, iv4);
 
+    if(func.is_error() || func.is_exception())
+    {
+        std::cout << "Function object error (4x4) " << func.to_error_message() << std::endl;
+        throw std::runtime_error("Err");
+    }
+
     auto [success, result] = js::call(func, v1, v2, v3, v4);
 
     if(!success)

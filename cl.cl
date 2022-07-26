@@ -1257,8 +1257,7 @@ float3 cartesian_velocity_to_spherical_velocity_g(float3 v, float3 inv)
     return (float3)(o2, o3, o4);
 }
 
-
-float4 coordinate_periodicity(float4 in, dynamic_config_space struct dynamic_config* cfg)
+float4 handle_coordinate_periodicity(float4 in, dynamic_config_space struct dynamic_config* cfg)
 {
     #ifdef HAS_COORDINATE_PERIODICITY
     float v1 = in.x;
@@ -1276,7 +1275,6 @@ float4 coordinate_periodicity(float4 in, dynamic_config_space struct dynamic_con
     return in;
     #endif // HAS_COORDINATE_PERIODICITY
 }
-
 
 float stable_quad(float a, float d, float k, float sign)
 {
@@ -2715,6 +2713,8 @@ struct corrected_lightray correct_lightray(float4 position, float4 velocity, dyn
     }
     #endif // GENERIC_CONSTANT_THETA
 
+    position = handle_coordinate_periodicity(position, cfg);
+
     struct corrected_lightray ret;
 
     ret.position = position;
@@ -3224,6 +3224,8 @@ void step_verlet(float4 position, float4 velocity, float4 acceleration, bool alw
     }
 
     float4 next_velocity = velocity + 0.5f * (acceleration + next_acceleration) * ds;
+
+    next_position = handle_coordinate_periodicity(next_position, cfg);
 
     *position_out = next_position;
     *velocity_out = next_velocity;
