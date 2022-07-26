@@ -1495,6 +1495,8 @@ float4 normalise_generic(float4 in, float metric[])
     return in / native_sqrt(fabs(d));
 }
 
+#define SWAP(x, y, T) do { T SWAP = x; x = y; y = SWAP; } while (0)
+
 ///i1-4 are raised
 struct frame_basis orthonormalise4_metric(float4 i1, float4 i2, float4 i3, float4 i4, float metric[])
 {
@@ -1512,11 +1514,6 @@ struct frame_basis orthonormalise4_metric(float4 i1, float4 i2, float4 i3, float
     u4 = u4 - gram_proj_generic(u2, u4, metric);
     u4 = u4 - gram_proj_generic(u3, u4, metric);
 
-    u1 = normalize(u1);
-    u2 = normalize(u2);
-    u3 = normalize(u3);
-    u4 = normalize(u4);
-
     u1 = normalise_generic(u1, metric);
     u2 = normalise_generic(u2, metric);
     u3 = normalise_generic(u3, metric);
@@ -1531,6 +1528,14 @@ struct frame_basis orthonormalise4_metric(float4 i1, float4 i2, float4 i3, float
     return ret;
 };
 
+void print_metric_big(float g_metric_big[])
+{
+    printf("%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f\n", g_metric_big[0], g_metric_big[1], g_metric_big[2], g_metric_big[3],
+           g_metric_big[4], g_metric_big[5], g_metric_big[6], g_metric_big[7],
+           g_metric_big[8], g_metric_big[9], g_metric_big[10], g_metric_big[11],
+           g_metric_big[12], g_metric_big[13], g_metric_big[14], g_metric_big[15]);
+}
+
 ///todo: generic orthonormalisation
 struct frame_basis calculate_frame_basis(float big_metric[])
 {
@@ -1544,12 +1549,64 @@ struct frame_basis calculate_frame_basis(float big_metric[])
     float g_big_metric_inverse[16] = {};
     metric_inverse(big_metric, g_big_metric_inverse);
 
-    i1 = raise_index_big(i1, g_big_metric_inverse);
-    i2 = raise_index_big(i2, g_big_metric_inverse);
-    i3 = raise_index_big(i3, g_big_metric_inverse);
-    i4 = raise_index_big(i4, g_big_metric_inverse);
+    float4 ri1 = raise_index_big(i1, g_big_metric_inverse);
+    float4 ri2 = raise_index_big(i2, g_big_metric_inverse);
+    float4 ri3 = raise_index_big(i3, g_big_metric_inverse);
+    float4 ri4 = raise_index_big(i4, g_big_metric_inverse);
 
-    return orthonormalise4_metric(i1, i2, i3, i4, big_metric);
+    /*return orthonormalise4_metric(ri1, ri2, ri3, ri4, big_metric);*/
+
+    ///all of the below is to fix misner
+    float4 as_array[4] = {ri1, ri2, ri3, ri4};
+    float lengths[4] = {dot(ri1, i1), dot(ri2, i2), dot(ri3, i3), dot(ri4, i4)};
+
+    int indices[4] = {0, 1, 2, 3};
+
+    int first_nonzero = -1;
+
+    float eps = 0.00001f;
+
+    for(int i=0; i < 4; i++)
+    {
+        if(lengths[i] < -eps || lengths[i] > eps)
+        {
+            first_nonzero = i;
+            break;
+        }
+    }
+
+    if(first_nonzero == -1)
+    {
+        printf("Frame basis could not be calculated\n");
+        first_nonzero = 0; ///can't exactly throw an exception now
+    }
+
+    if(first_nonzero != 0)
+    {
+        SWAP(as_array[0], as_array[first_nonzero], float4);
+        SWAP(indices[0], indices[first_nonzero], int);
+    }
+
+    struct frame_basis result = orthonormalise4_metric(as_array[0], as_array[1], as_array[2], as_array[3], big_metric);
+
+    float4 result_as_array[4] = {result.v1, result.v2, result.v3, result.v4};
+
+    float4 sorted_result[4] = {};
+
+    for(int i=0; i < 4; i++)
+    {
+        int old_index = indices[i];
+
+        sorted_result[old_index] = result_as_array[i];
+    }
+
+    struct frame_basis result2;
+    result2.v1 = sorted_result[0];
+    result2.v2 = sorted_result[1];
+    result2.v3 = sorted_result[2];
+    result2.v4 = sorted_result[3];
+
+    return result2;
 }
 
 void print_metric_big_trace(float g_metric_big[])
@@ -1557,13 +1614,6 @@ void print_metric_big_trace(float g_metric_big[])
     printf("%f %f %f %f\n", g_metric_big[0], g_metric_big[5], g_metric_big[10], g_metric_big[15]);
 }
 
-void print_metric_big(float g_metric_big[])
-{
-    printf("%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f\n", g_metric_big[0], g_metric_big[1], g_metric_big[2], g_metric_big[3],
-           g_metric_big[4], g_metric_big[5], g_metric_big[6], g_metric_big[7],
-           g_metric_big[8], g_metric_big[9], g_metric_big[10], g_metric_big[11],
-           g_metric_big[12], g_metric_big[13], g_metric_big[14], g_metric_big[15]);
-}
 
 void print_metric(float g_metric[])
 {
