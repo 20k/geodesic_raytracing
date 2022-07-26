@@ -23,5 +23,6 @@
 "minkowski.js",
 "symmetric_warp_drive.js",
 "kerr_schild.js",
-"kerr_newman_schild.js"
+"kerr_newman_schild.js",
+"misner_4d.js"
 ]

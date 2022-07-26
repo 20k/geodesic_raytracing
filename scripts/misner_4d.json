@@ -13,5 +13,5 @@
 	"from_polar": "polar_to_misner_4d",
 	"origin_distance": "at_origin",
 	"coordinate_periodicity":"misner_periodicity",
-	"description": "Misner spacetime, extended to 4d. Good for time travel"
+	"description": "Misner spacetime, extended to 4d. Good for time travel. Camera time should be set < 0"
 }

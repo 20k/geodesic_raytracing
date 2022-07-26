@@ -2569,7 +2569,7 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
                 dx = 0;
             #endif
 
-            ///NEED TO BACKWARDS ROTATE POS FOR CONSTANT THETA
+            #ifndef HAS_COORDINATE_PERIODICITY
             float4 spherical1 = generic_to_spherical(current_pos, cfg);
             float4 spherical2 = generic_to_spherical(next_pos, cfg);
 
@@ -2602,9 +2602,29 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
             *e1_out = oe1;
             *e2_out = oe2;
             *e3_out = oe3;
+            #else
+            float4 fin_polar = generic_to_spherical(current_pos, cfg);
 
-            ///so. now we have the basis. Need to apply camera rotation to it
-            ///or... could just parallel transport the whole rotation initially?
+            *g_camera_polar_out = fin_polar;
+
+            float4 oe0 = t_e0_in[i];
+            float4 oe1 = t_e1_in[i];
+            float4 oe2 = t_e2_in[i];
+            float4 oe3 = t_e3_in[i];
+
+            if(!parallel_transport_observer)
+            {
+                calculate_tetrads(fin_polar, *geodesic_basis_speed, &oe0, &oe1, &oe2, &oe3, cfg, 1);
+            }
+
+            *interpolated_geodesic_velocity = geodesic_velocity[i];
+
+            *e0_out = oe0;
+            *e1_out = oe1;
+            *e2_out = oe2;
+            *e3_out = oe3;
+
+            #endif // HAS_COORDINATE_PERIODICITY
 
             return;
         }
