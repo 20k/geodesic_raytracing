@@ -21,6 +21,7 @@ metrics::metric* load_metric_from_script(content_manager& all_content, std::file
     std::optional<std::filesystem::path> to_polar_file = all_content.lookup_path_to_coordinates_file(met->metric_cfg.to_polar);
     std::optional<std::filesystem::path> from_polar_file = all_content.lookup_path_to_coordinates_file(met->metric_cfg.from_polar);
     std::optional<std::filesystem::path> origin_file = all_content.lookup_path_to_origins_file(met->metric_cfg.origin_distance);
+    std::optional<std::filesystem::path> coordinate_periodicity_file = all_content.lookup_path_to_coordinates_file(met->metric_cfg.coordinate_periodicity);
 
     if(!to_polar_file.has_value())
         throw std::runtime_error("No to polar file " + met->metric_cfg.to_polar);
@@ -33,11 +34,18 @@ metrics::metric* load_metric_from_script(content_manager& all_content, std::file
 
     js_function func_to_polar(met->sand, file::read(to_polar_file.value().string(), file::mode::TEXT));
     js_function func_from_polar(met->sand, file::read(from_polar_file.value().string(), file::mode::TEXT));
-    js_single_function fun_origin_distance(met->sand, file::read(origin_file.value().string(), file::mode::TEXT));
+    js_single_function func_origin_distance(met->sand, file::read(origin_file.value().string(), file::mode::TEXT));
+
+    std::optional<js_function> func_coordinate_periodicity;
+
+    if(coordinate_periodicity_file.has_value())
+    {
+        func_coordinate_periodicity.emplace(met->sand, file::read(coordinate_periodicity_file.value().string(), file::mode::TEXT));
+    }
 
     printj("loading ", sname);
 
-    met->desc.load(jfunc, func_to_polar, func_from_polar, fun_origin_distance);
+    met->desc.load(jfunc, func_to_polar, func_from_polar, func_origin_distance, func_coordinate_periodicity);
 
     printj("Finished loading script\n");
 

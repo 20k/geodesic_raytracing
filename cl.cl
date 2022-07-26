@@ -28,6 +28,11 @@ struct object
     float4 pos;
 };
 
+float smooth_fmod(float a, float b)
+{
+    return fmod(a, b);
+}
+
 float3 cartesian_to_polar(float3 in)
 {
     float r = length(in);
@@ -1251,6 +1256,27 @@ float3 cartesian_velocity_to_spherical_velocity_g(float3 v, float3 inv)
 
     return (float3)(o2, o3, o4);
 }
+
+
+float4 coordinate_periodicity(float4 in, dynamic_config_space struct dynamic_config* cfg)
+{
+    #ifdef HAS_COORDINATE_PERIODICITY
+    float v1 = in.x;
+    float v2 = in.y;
+    float v3 = in.z;
+    float v4 = in.w;
+
+    float o1 = COORDINATE_PERIODICITY1;
+    float o2 = COORDINATE_PERIODICITY2;
+    float o3 = COORDINATE_PERIODICITY3;
+    float o4 = COORDINATE_PERIODICITY4;
+
+    return (float4)(o1, o2, o3, o4);
+    #else
+    return in;
+    #endif // HAS_COORDINATE_PERIODICITY
+}
+
 
 float stable_quad(float a, float d, float k, float sign)
 {

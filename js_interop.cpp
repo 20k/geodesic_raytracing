@@ -531,6 +531,14 @@ namespace CMath
 
     TERNARY_JS(fast_length);
 
+    js::value smooth_fmod(js::value_context* vctx, js::value in, js::value in2)
+    {
+        dual v = get(in).d;
+        dual v2 = get(in2).d;
+
+        return to_value(*vctx, dual_types::smooth_fmod(v, v2.real));
+    }
+
     js::value select(js::value_context* vctx, js::value condition, js::value if_true, js::value if_false)
     {
         dual dcondition = get(condition).d;
@@ -701,6 +709,7 @@ js::value extract_function(js::value_context& vctx, const std::string& script_da
     js::add_key_value(cmath, "exp", js::function<CMath::exp>);
     js::add_key_value(cmath, "fast_length", js::function<CMath::fast_length>);
     js::add_key_value(cmath, "length", js::function<CMath::fast_length>);
+    js::add_key_value(cmath, "smooth_fmod", js::function<CMath::smooth_fmod>);
 
     js::add_key_value(cmath, "sinh", js::function<CMath::sinh>);
     js::add_key_value(cmath, "cosh", js::function<CMath::cosh>);

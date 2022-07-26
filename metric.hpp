@@ -6,6 +6,7 @@
 #include <nlohmann/json.hpp>
 #include "js_interop.hpp"
 #include <vec/tensor.hpp>
+#include <span>
 
 namespace metrics
 {
@@ -241,6 +242,32 @@ namespace metrics
         return type_to_string(result.real);
     }
 
+    template<typename Func, typename... T>
+    inline
+    std::vector<dual> get_functionv(Func&& f, T... raw_variables)
+    {
+        constexpr int N = sizeof...(T);
+        std::array<std::string, N> variable_names{raw_variables...};
+
+        std::array<dual, sizeof...(raw_variables)> variables;
+
+        for(int i=0; i < N; i++)
+        {
+            variables[i].make_variable(variable_names[i]);
+        }
+
+        auto arr = array_apply(std::forward<Func>(f), variables);
+
+        std::vector<dual> ret;
+
+        for(auto& i : arr)
+        {
+            ret.push_back(i);
+        }
+
+        return ret;
+    }
+
     enum coordinate_system
     {
         //ANGULAR,
@@ -275,6 +302,7 @@ namespace metrics
         std::string to_polar;
         std::string from_polar;
         std::string origin_distance;
+        std::string coordinate_periodicity;
 
         std::string inherit_settings;
 
@@ -337,6 +365,9 @@ namespace metrics
                 else if(key == "origin_distance")
                     origin_distance = value;
 
+                else if(key == "coordinate_periodicity")
+                    coordinate_periodicity = value;
+
                 else if(key == "inherit_settings")
                     inherit_settings = value;
 
@@ -370,10 +401,12 @@ namespace metrics
         std::vector<T> dt_from_spherical;
 
         T distance_function;
+
+        std::vector<T> coordinate_periodicity;
     };
 
     inline
-    std::vector<std::string> stringify_vector(const std::vector<value>& in)
+    std::vector<std::string> stringify_range(const std::vector<value>& in)
     {
         std::vector<std::string> ret;
 
@@ -390,18 +423,20 @@ namespace metrics
     {
         metric_impl<std::string> ret;
 
-        ret.accel = stringify_vector(raw.accel);
+        ret.accel = stringify_range(raw.accel);
 
-        ret.real_eq = stringify_vector(raw.real_eq);
-        ret.derivatives = stringify_vector(raw.derivatives);
+        ret.real_eq = stringify_range(raw.real_eq);
+        ret.derivatives = stringify_range(raw.derivatives);
 
-        ret.to_polar = stringify_vector(raw.to_polar);
-        ret.dt_to_spherical = stringify_vector(raw.dt_to_spherical);
+        ret.to_polar = stringify_range(raw.to_polar);
+        ret.dt_to_spherical = stringify_range(raw.dt_to_spherical);
 
-        ret.from_polar = stringify_vector(raw.from_polar);
-        ret.dt_from_spherical = stringify_vector(raw.dt_from_spherical);
+        ret.from_polar = stringify_range(raw.from_polar);
+        ret.dt_from_spherical = stringify_range(raw.dt_from_spherical);
 
         ret.distance_function = type_to_string(raw.distance_function);
+
+        ret.coordinate_periodicity = stringify_range(raw.coordinate_periodicity);
 
         return ret;
     }
@@ -447,6 +482,11 @@ namespace metrics
         }
 
         raw_copy.distance_function.substitute(mapping);
+
+        for(value& v : raw_copy.coordinate_periodicity)
+        {
+            v.substitute(mapping);
+        }
 
         return stringify(raw_copy);
     }
@@ -526,8 +566,8 @@ namespace metrics
             return equivalent(theta, phi);
         }
 
-        template<typename T, typename U, typename V, typename W>
-        void load(T& func, U& func1, V& func2, W& func3)
+        template<typename Met, typename ToPolar, typename FromPolar, typename Distance, typename CoordinatePeriodicity>
+        void load(Met& func, ToPolar& func1, FromPolar& func2, Distance& func3, std::optional<CoordinatePeriodicity>& func4)
         {
             metric_info inf(func);
 
@@ -541,6 +581,20 @@ namespace metrics
             std::tie(raw.from_polar, raw.dt_from_spherical) = total_diff(func2, "v1", "v2", "v3", "v4");
 
             raw.distance_function = get_function(func3, "v1", "v2", "v3", "v4");
+
+            if(func4.has_value())
+            {
+                std::vector<dual> duals = get_functionv(func4.value(), "v1", "v2", "v3", "v4");
+
+                std::vector<value> linear;
+
+                for(const dual& d : duals)
+                {
+                    linear.push_back(d.real);
+                }
+
+                raw.coordinate_periodicity = linear;
+            }
 
             debiggen();
 
@@ -692,6 +746,18 @@ namespace metrics
             for(int i=0; i < (int)dt_from_spherical.size(); i++)
             {
                 argument_string += "-DFROM_DCOORD" + std::to_string(i + 1) + "=" + dt_from_spherical[i] + " ";
+            }
+
+            auto coordinate_periodicity = impl.coordinate_periodicity;
+
+            for(int i=0; i < (int)coordinate_periodicity.size(); i++)
+            {
+                argument_string += "-DCOORDINATE_PERIODICITY" + std::to_string(i + 1) + "=" + coordinate_periodicity[i] + " ";
+            }
+
+            if(coordinate_periodicity.size() > 0)
+            {
+                argument_string += "-DHAS_COORDINATE_PERIODICITY ";
             }
         }
 

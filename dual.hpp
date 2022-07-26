@@ -604,6 +604,13 @@ namespace dual_types
         return dual_types::dual_v<T>(length(d1.real, d2.real, d3.real), (2 * d1.real * d1.dual + 2 * d2.real * d2.dual + 2 * d3.real * d3.dual) / bottom);
     }
 
+    template<typename T>
+    inline
+    dual_types::dual_v<T> smooth_fmod(const dual_types::dual_v<T>& d1, const T& d2)
+    {
+        return {smooth_fmod(d1.real, d2), d1.dual};
+    }
+
     /*template<typename T>
     inline
     dual_types::dual_v<T> fast_length(const dual_types::dual_v<T>& d1, const dual_types::dual_v<T>& d2, const dual_types::dual_v<T>& d3)

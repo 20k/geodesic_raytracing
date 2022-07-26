@@ -111,6 +111,8 @@ namespace dual_types
             MAX,
             MIN,
 
+            SMOOTH_FMOD, ///assumes that the derivative is smooth, and that we don't need to touch it
+
             LAMBERT_W0,
             UNKNOWN_FUNCTION,
 
@@ -187,6 +189,7 @@ namespace dual_types
         "pow",
         "max",
         "min",
+        "smooth_fmod",
         "lambert_w0",
         "generated#function#failure",
         "ERROR"
@@ -1342,6 +1345,7 @@ namespace dual_types
     BINARY(pow, POW);
     BINARY(max, MAX);
     BINARY(min, MIN);
+    BINARY(smooth_fmod, SMOOTH_FMOD);
     UNARY(lambert_w0, LAMBERT_W0);
 
     template<typename T>
