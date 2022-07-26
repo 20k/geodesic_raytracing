@@ -520,13 +520,13 @@ struct read_queue
 
     std::vector<element*> q;
 
-    void start_read(cl::context& ctx, cl::command_queue& async_q, cl::buffer&& buf, cl::event wait_on)
+    void start_read(cl::context& ctx, cl::command_queue& async_q, cl::buffer&& buf, std::vector<cl::event> wait_on)
     {
         element* e = new element(ctx);
 
         e->gpu_buffer = std::move(buf);
 
-        e->evt = e->gpu_buffer.read_async(async_q, (char*)&e->data, sizeof(T), {wait_on});
+        e->evt = e->gpu_buffer.read_async(async_q, (char*)&e->data, sizeof(T), wait_on);
 
         q.push_back(e);
     }
@@ -576,7 +576,7 @@ struct read_queue_pool
         return buf;
     }
 
-    void start_read(cl::context& ctx, cl::command_queue& async_q, cl::buffer&& buf, cl::event wait_on)
+    void start_read(cl::context& ctx, cl::command_queue& async_q, cl::buffer&& buf, std::vector<cl::event> wait_on)
     {
         q.start_read(ctx, async_q, std::move(buf), wait_on);
     }
@@ -1034,6 +1034,7 @@ int main(int argc, char* argv[])
 
     read_queue_pool<cl_float4> camera_q;
     read_queue_pool<cl_float4> geodesic_q;
+    read_queue_pool<cl_float4> camera_polar_q;
 
     print("Finished async read queue init\n");
 
@@ -1193,6 +1194,7 @@ int main(int argc, char* argv[])
 
     std::optional<cl_float4> last_camera_pos;
     std::optional<cl_float4> last_geodesic_velocity;
+    std::optional<cl_float4> last_camera_pos_polar;
 
     while(!win.should_close() && !menu.should_quit && fullscreen.open)
     {
@@ -1491,11 +1493,17 @@ int main(int argc, char* argv[])
 
             {
                 std::vector<cl_float4> cam_data = camera_q.fetch();
+                std::vector<cl_float4> cam_data_polar = camera_polar_q.fetch();
                 std::vector<cl_float4> geodesic_data = geodesic_q.fetch();
 
                 if(cam_data.size() > 0)
                 {
                     last_camera_pos = cam_data.back();
+                }
+
+                if(cam_data_polar.size() > 0)
+                {
+                    last_camera_pos_polar = cam_data_polar.back();
                 }
 
                 if(geodesic_data.size() > 0)
@@ -1507,6 +1515,7 @@ int main(int argc, char* argv[])
             bool should_soft_recompile = false;
             bool should_update_camera_time = false;
             bool should_set_observer_velocity = false;
+            bool should_chuck_object = false;
 
             if(!taking_screenshot && !hide_ui && !menu.is_first_time_main_menu_open())
             {
@@ -1656,6 +1665,11 @@ int main(int argc, char* argv[])
                             phys.needs_trace = true;
                         }
 
+                        if(ImGui::Button("Chuck Box"))
+                        {
+                            should_chuck_object = true;
+                        }
+
                         ImGui::EndTabItem();
                     }
 
@@ -1687,6 +1701,27 @@ int main(int argc, char* argv[])
                                           sett, clctx.ctx, termination_buffer))
             {
                 phys.needs_trace = true;
+            }
+
+            if(should_chuck_object && last_camera_pos_polar.has_value())
+            {
+                ///ideally this would be in generic, but would need to have tetrad based triangle collisions heh
+                ///H E H
+                cl_float4 current_pos = last_camera_pos_polar.value();
+
+                vec3f as_cart = polar_to_cartesian(vec<3, float>{current_pos.s[1], current_pos.s[2], current_pos.s[3]});
+
+                vec4f pos = {current_pos.s[0], as_cart.x(), as_cart.y(), as_cart.z()};
+
+                std::shared_ptr<triangle_rendering::object> obj = tris.make_new();
+
+                obj->tris = make_cube({0, 0, 0});
+                obj->pos = pos;
+
+                tris.build(clctx.cqueue, accel.offset_width / accel.offset_size.x());
+                phys.setup(clctx.cqueue, tris);
+
+                should_chuck_object = false;
             }
 
             metric_manage.check_substitution(clctx.ctx);
@@ -1824,7 +1859,7 @@ int main(int argc, char* argv[])
 
                 cl::event evt = clctx.cqueue.exec("handle_interpolating_geodesic", interpolate_args, {1}, {1});
 
-                geodesic_q.start_read(clctx.ctx, async_queue, std::move(next_geodesic_velocity), evt);
+                geodesic_q.start_read(clctx.ctx, async_queue, std::move(next_geodesic_velocity), {evt});
             }
 
             if(!camera_on_geodesic)
@@ -1872,7 +1907,13 @@ int main(int argc, char* argv[])
 
                 cl::event evt = clctx.cqueue.exec("camera_polar_to_generic", args, {1}, {1});
 
-                camera_q.start_read(clctx.ctx, async_queue, std::move(next_generic_camera), evt);
+                camera_q.start_read(clctx.ctx, async_queue, std::move(next_generic_camera), {evt});
+
+
+                cl::buffer next_polar_camera = camera_polar_q.get_buffer(clctx.ctx);
+                cl::event copy_event = cl::copy(clctx.cqueue, g_camera_pos_polar, next_polar_camera);
+
+                camera_polar_q.start_read(clctx.ctx, async_queue, std::move(next_polar_camera), {copy_event});
             }
 
             int width = rtex.size<2>().x();

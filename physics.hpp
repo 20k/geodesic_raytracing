@@ -22,7 +22,7 @@ struct physics
 
     int object_count = 0;
 
-    bool needs_trace = true;
+    bool needs_trace = false;
 
     physics(cl::context& ctx) : geodesic_paths(ctx), geodesic_ds(ctx), positions(ctx), counts(ctx), basis_speeds(ctx),
                                 gpu_object_count(ctx),
@@ -52,6 +52,8 @@ struct physics
         timelike_vectors.alloc(manage.gpu_object_count * 1024); ///approximate because don't want to import gpu lightray definition
 
         counts.set_to_zero(cqueue);
+
+        needs_trace = true;
     }
 
     void init_positions(cl::command_queue& cqueue, triangle_rendering::manager& manage)
