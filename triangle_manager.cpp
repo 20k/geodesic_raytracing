@@ -323,6 +323,16 @@ void triangle_rendering::manager::update_objects(cl::command_queue& cqueue)
     }
 }
 
+void triangle_rendering::manager::force_update_objects(cl::command_queue& cqueue)
+{
+    for(std::shared_ptr<object>& obj : cpu_objects)
+    {
+        obj->dirty = true;
+    }
+
+    update_objects(cqueue);
+}
+
 triangle_rendering::acceleration::acceleration(cl::context& ctx) : offsets(ctx), counts(ctx), memory(ctx), start_times_memory(ctx), delta_times_memory(ctx), memory_count(ctx), unculled_counts(ctx), ray_time_min(ctx), ray_time_max(ctx), cell_time_min(ctx), cell_time_max(ctx)
 {
     memory_count.alloc(sizeof(cl_int));

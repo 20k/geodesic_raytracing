@@ -97,6 +97,7 @@ namespace triangle_rendering
 
         void build(cl::command_queue& cqueue, float acceleration_voxel_size);
         void update_objects(cl::command_queue& cqueue);
+        void force_update_objects(cl::command_queue& cqueue);
     };
 
     struct acceleration
