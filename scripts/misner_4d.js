@@ -9,7 +9,6 @@ function misner_4d(misner_T, misner_phi, y, z)
 	var dy = 1;
 	var dZ = 1;
 	
-	met[0] = 0;
 	met[0 * 4 + 1] = 0.5 * dT_dphi;
 	met[1 * 4 + 0] = 0.5 * dT_dphi;
 	met[1 * 4 + 1] = dphi;
