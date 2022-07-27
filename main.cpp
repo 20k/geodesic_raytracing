@@ -1534,7 +1534,7 @@ int main(int argc, char* argv[])
                             }
                         }
 
-                        if(ImGui::DragFloat("Camera Time", &set_camera_time, 0.1f))
+                        if(ImGui::DragFloat("Camera Time", &set_camera_time, 0.5f))
                         {
                             should_update_camera_time = true;
                         }
