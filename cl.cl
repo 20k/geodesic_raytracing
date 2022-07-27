@@ -3893,12 +3893,19 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         {
             unsigned int oid = index_acceleration(&steps, width_num);
 
+            //#define USE_FEEDBACK_CULLING
+            #ifdef USE_FEEDBACK_CULLING
             if(generate_unculled_counts)
             {
                 unculled_counts[oid] = 1;
             }
+            #endif // USE_FEEDBACK_CULLING
 
+            #ifdef USE_FEEDBACK_CULLING
             bool any_valid = false;
+            #else
+            bool any_valid = true;
+            #endif // USE_FEEDBACK_CULLING
 
             //#pragma unroll
             //for(int z=-1; z <= 1; z++)
@@ -3915,6 +3922,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                             //if(any_valid)
                             //    break;
 
+                            #ifdef USE_FEEDBACK_CULLING
                             int test_time_min = old_cell_time_min[oid];
                             int test_time_max = old_cell_time_max[oid];
 
@@ -3928,6 +3936,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
                             if(checked)
                                 any_valid = true;
+                            #endif // USE_FEEDBACK_CULLING
                         }
                     }
                 }
@@ -4432,6 +4441,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                         float rmin = min(rt_pos.x, next_rt_pos.x);
                         float rmax = max(rt_pos.x, next_rt_pos.x);
 
+                        #ifdef USE_FEEDBACK_CULLING
                         int unculled = unculled_counts[voxel_id];
 
                         if(unculled > 0)
@@ -4439,6 +4449,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                             atomic_min(&cell_time_min[voxel_id], (int)floor(rmin));
                             atomic_max(&cell_time_max[voxel_id], (int)ceil(rmax));
                         }
+                        #endif // USE_FEEDBACK_CULLING
 
                         do_step(&setup);
 
