@@ -4459,8 +4459,6 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                         #if 1
                         for(int t_off=0; t_off < tri_count; t_off++)
                         {
-                            __global struct computed_triangle* ctri = &linear_mem[base_offset + t_off];
-
                             ///so, I now know for a fact that start time < end_time
                             ///could sort this instead by end times, and then use end time as the quick check
                             float start_time = linear_start_times[base_offset + t_off];
@@ -4478,6 +4476,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                             if(dot(pdiff, pdiff) > 5)
                                 continue;*/
+
+                            __global struct computed_triangle* ctri = &linear_mem[base_offset + t_off];
 
                             #if 1
                             if(ray_intersects_toblerone(rt_pos, next_rt_pos - rt_pos, ctri, start_time, end_time))
