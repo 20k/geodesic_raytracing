@@ -3653,8 +3653,7 @@ struct step_setup setup_step(float4 grid1, float4 grid2)
     ///where I take the fractional part of the coordinate, ie fmod(pos, 1)
     ///though careful!! we CAN have negative coordinates here, the looping is done elsewhere
     ///this means need to positive_fmod
-
-    float4 position_fraction = positive_fmod4(grid1, (float4)(1.f, 1.f, 1.f, 1.f));
+    float4 position_fraction = grid1 - floor(grid1);
 
     float4 target = (float4)(1,1,1,1);
 
