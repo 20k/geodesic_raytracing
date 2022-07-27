@@ -11,6 +11,9 @@ function kerr_schild_metric(t, x, y, z)
 
     var R2 = x * x + y * y + z * z;
     var Rm2 = x * x + y * y - z * z;
+	
+	$pin(R2);
+	$pin(Rm2);
 
     var r2 = (-a*a + CMath.sqrt(a*a*a*a - 2*a*a * Rm2 + R2*R2) + R2) / 2;
 
@@ -29,6 +32,8 @@ function kerr_schild_metric(t, x, y, z)
 
     var f = (rs * r - Q * Q) * r * r / (r2 * r2 + a*a * z*z);
     //dual f = rs * r*r*r / (r*r*r*r + a*a * z*z);
+
+	$pin(f);
 
     var g = [];
     g.length = 16;
