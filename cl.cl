@@ -3710,7 +3710,7 @@ struct step_setup setup_step(float4 grid1, float4 grid2)
     float4 tMax = (target - position_fraction) / ray_dir;
 
     ///if we move at a speed of 0.7, the time it takes in t to traverse a voxel of size 1 is 1/0.7 == 1.42
-    float4 tDelta = 1.f / ray_dir;
+    float4 tDelta = 1.f / fabs(ray_dir);
 
     ret.tMax = tMax;
     ret.tDelta = tDelta;
