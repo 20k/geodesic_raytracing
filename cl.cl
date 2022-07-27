@@ -3626,10 +3626,10 @@ struct step_setup
 
 struct step_setup setup_step(float4 grid1, float4 grid2)
 {
-    if(any(grid1 == grid2))
+    /*if(all(grid1 == grid2))
     {
         printf("Error in setup_step, 1 == 2");
-    }
+    }*/
 
     /*grid1 = floor(grid1);
     grid2 = floor(grid2);
@@ -3695,6 +3695,18 @@ struct step_setup setup_step(float4 grid1, float4 grid2)
     if(ret.sign_step.w < 0)
         target.w = 0;
 
+    if(ray_dir.x == 0)
+        ray_dir.x = 1;
+
+    if(ray_dir.y == 0)
+        ray_dir.y = 1;
+
+    if(ray_dir.z == 0)
+        ray_dir.z = 1;
+
+    if(ray_dir.w == 0)
+        ray_dir.w = 1;
+
     float4 tMax = (target - position_fraction) / ray_dir;
 
     ///if we move at a speed of 0.7, the time it takes in t to traverse a voxel of size 1 is 1/0.7 == 1.42
@@ -3710,13 +3722,14 @@ struct step_setup setup_step(float4 grid1, float4 grid2)
 void do_step(struct step_setup* step)
 {
     float tMaxArray[4] = {step->tMax.x, step->tMax.y, step->tMax.z, step->tMax.w};
+    float tStep[4] = {step->sign_step.x, step->sign_step.y, step->sign_step.z, step->sign_step.w};
 
-    int which_min = 0;
-    float my_min = tMaxArray[0];
+    int which_min = -1;
+    float my_min = FLT_MAX;
 
-    for(int i=1; i < 4; i++)
+    for(int i=0; i < 4; i++)
     {
-        if(tMaxArray[i] < my_min)
+        if(tMaxArray[i] < my_min && tStep[i] != 0)
         {
             which_min = i;
             my_min = tMaxArray[i];
@@ -3916,17 +3929,17 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
             if(generate_unculled_counts)
             {
-                #pragma unroll
-                for(int z=-1; z <= 1; z++)
+                //#pragma unroll
+                //for(int z=-1; z <= 1; z++)
                 {
-                    #pragma unroll
-                    for(int y=-1; y <= 1; y++)
+                    //#pragma unroll
+                    //for(int y=-1; y <= 1; y++)
                     {
-                        #pragma unroll
-                        for(int x=-1; x <= 1; x++)
+                        //#pragma unroll
+                        //for(int x=-1; x <= 1; x++)
                         {
-                            #pragma unroll
-                            for(int t=-1; t <= 1; t++)
+                            //#pragma unroll
+                            //for(int t=-1; t <= 1; t++)
                             {
                                 int4 off = (int4)(t, x, y, z);
                                 int4 fin = ipos + off;
@@ -3942,20 +3955,20 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                 }
             }
 
-            #pragma unroll
-            for(int z=-1; z <= 1; z++)
+            //#pragma unroll
+            //for(int z=-1; z <= 1; z++)
             {
-                #pragma unroll
-                for(int y=-1; y <= 1; y++)
+                //#pragma unroll
+                //for(int y=-1; y <= 1; y++)
                 {
-                    #pragma unroll
-                    for(int x=-1; x <= 1; x++)
+                    //#pragma unroll
+                    //for(int x=-1; x <= 1; x++)
                     {
-                        #pragma unroll
-                        for(int t=-1; t <= 1; t++)
+                        //#pragma unroll
+                        //for(int t=-1; t <= 1; t++)
                         {
-                            if(any_valid)
-                                break;
+                            //if(any_valid)
+                            //    break;
 
                             int4 off = (int4)(t, x, y, z);
                             int4 fin = ipos + off;
@@ -3967,12 +3980,15 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                             int test_time_min = old_cell_time_min[oid];
                             int test_time_max = old_cell_time_max[oid];
 
+                            bool checked = true;
+
                             if(test_time_min == 2147483647 || test_time_max == (-2147483647 - 1))
-                                continue;
+                                checked = false;
 
                             if(!range_overlaps(current.x, next.x, test_time_min, test_time_max))
-                                continue;
+                                checked = false;
 
+                            if(checked)
                             any_valid = true;
                         }
                     }
@@ -3982,17 +3998,17 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
             if(any_valid)
             {
                 ///todo: use 4d grid
-                #pragma unroll
-                for(int z=-1; z <= 1; z++)
+                //#pragma unroll
+                //for(int z=-1; z <= 1; z++)
                 {
-                    #pragma unroll
-                    for(int y=-1; y <= 1; y++)
+                    //#pragma unroll
+                    //for(int y=-1; y <= 1; y++)
                     {
-                        #pragma unroll
-                        for(int x=-1; x <= 1; x++)
+                        //#pragma unroll
+                        //for(int x=-1; x <= 1; x++)
                         {
-                            #pragma unroll
-                            for(int t=-1; t <= 1; t++)
+                            //#pragma unroll
+                            //for(int t=-1; t <= 1; t++)
                             {
                                 int4 off = (int4)(t, x, y, z);
                                 int4 fin = ipos + off;
