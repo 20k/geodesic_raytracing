@@ -3750,10 +3750,6 @@ bool is_step_finished(struct step_setup* step)
 
 unsigned int index_acceleration(struct step_setup* setup, int width_num)
 {
-    /*float4 floordf = floor(setup->current);
-
-    int4 ifloor = (int4)(floordf.x, floordf.y, floordf.z, floordf.w);*/
-
     int4 ifloor = setup->current;
 
     ifloor = loop_voxel4(ifloor, width_num);
@@ -3877,8 +3873,8 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
             local_tri.dvy = (current - next).z;
             local_tri.dvz = (current - next).w;
         }
-
         float4 pos = current + (float4)(0.f, mine.x, mine.y, mine.z);
+
         float4 next_pos = next + (float4)(0.f, mine.x, mine.y, mine.z);
 
         float4 grid_pos = world_to_voxel4(pos, width, time_width, width_num);
@@ -3892,46 +3888,20 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
         struct step_setup steps = setup_step(grid_pos, next_grid_pos);
 
-        //for(int kk=0; kk < steps.num; kk++)
-
         while(!is_step_finished(&steps))
         {
             int4 ipos = (int4)(steps.current.x, steps.current.y, steps.current.z, steps.current.w);
 
-            bool any_valid = false;
-
-            int t = 0;
-            int x = 0;
-            int y = 0;
-            int z = 0;
-
             if(generate_unculled_counts)
             {
-                //#pragma unroll
-                //for(int z=-1; z <= 1; z++)
-                {
-                    //#pragma unroll
-                    //for(int y=-1; y <= 1; y++)
-                    {
-                        //#pragma unroll
-                        //for(int x=-1; x <= 1; x++)
-                        {
-                            //#pragma unroll
-                            //for(int t=-1; t <= 1; t++)
-                            {
-                                int4 off = (int4)(t, x, y, z);
-                                int4 fin = ipos + off;
+                int4 fin = loop_voxel4(ipos, width_num);
 
-                                fin = loop_voxel4(fin, width_num);
+                int oid = fin.w * width_num * width_num * width_num + fin.z * width_num * width_num + fin.y * width_num + fin.x;
 
-                                int oid = fin.w * width_num * width_num * width_num + fin.z * width_num * width_num + fin.y * width_num + fin.x;
-
-                                unculled_counts[oid] = 1;
-                            }
-                        }
-                    }
-                }
+                unculled_counts[oid] = 1;
             }
+
+            bool any_valid = false;
 
             //#pragma unroll
             //for(int z=-1; z <= 1; z++)
@@ -3948,10 +3918,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                             //if(any_valid)
                             //    break;
 
-                            int4 off = (int4)(t, x, y, z);
-                            int4 fin = ipos + off;
-
-                            fin = loop_voxel4(fin, width_num);
+                            int4 fin = loop_voxel4(ipos, width_num);
 
                             int oid = fin.w * width_num * width_num * width_num + fin.z * width_num * width_num + fin.y * width_num + fin.x;
 
@@ -3967,7 +3934,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                                 checked = false;
 
                             if(checked)
-                            any_valid = true;
+                                any_valid = true;
                         }
                     }
                 }
@@ -3975,39 +3942,19 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
             if(any_valid)
             {
-                ///todo: use 4d grid
-                //#pragma unroll
-                //for(int z=-1; z <= 1; z++)
+                int4 fin = loop_voxel4(ipos, width_num);
+
+                int oid = fin.w * width_num * width_num * width_num + fin.z * width_num * width_num + fin.y * width_num + fin.x;
+
+                int lid = atomic_inc(&offset_counts[oid]);
+
+                if(should_store)
                 {
-                    //#pragma unroll
-                    //for(int y=-1; y <= 1; y++)
-                    {
-                        //#pragma unroll
-                        //for(int x=-1; x <= 1; x++)
-                        {
-                            //#pragma unroll
-                            //for(int t=-1; t <= 1; t++)
-                            {
-                                int4 off = (int4)(t, x, y, z);
-                                int4 fin = ipos + off;
+                    int mem_start = offset_map[oid];
 
-                                fin = loop_voxel4(fin, width_num);
-
-                                int oid = fin.w * width_num * width_num * width_num + fin.z * width_num * width_num + fin.y * width_num + fin.x;
-
-                                int lid = atomic_inc(&offset_counts[oid]);
-
-                                if(should_store)
-                                {
-                                    int mem_start = offset_map[oid];
-
-                                    mem_buffer[mem_start + lid] = local_tri;
-                                    start_times_memory[mem_start + lid] = output_time;
-                                    delta_times_memory[mem_start + lid] = delta_time;
-                                }
-                            }
-                        }
-                    }
+                    mem_buffer[mem_start + lid] = local_tri;
+                    start_times_memory[mem_start + lid] = output_time;
+                    delta_times_memory[mem_start + lid] = delta_time;
                 }
             }
 
