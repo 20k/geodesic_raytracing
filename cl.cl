@@ -4453,42 +4453,86 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                         do_step(&setup);
 
-                        int cnt = counts[voxel_id];
+                        int tri_count = counts[voxel_id];
+                        int base_offset = offsets[voxel_id];
 
-                        if(cnt > 0)
+                        #if 1
+                        for(int t_off=0; t_off < tri_count; t_off++)
                         {
-                            int tri_count = counts[voxel_id];
-                            int base_offset = offsets[voxel_id];
+                            __global struct computed_triangle* ctri = &linear_mem[base_offset + t_off];
+
+                            ///so, I now know for a fact that start time < end_time
+                            ///could sort this instead by end times, and then use end time as the quick check
+                            float start_time = linear_start_times[base_offset + t_off];
+
+                            if(rt_pos.x < start_time - 0.0001f && (next_rt_pos - rt_pos).x < 0)
+                                continue;
+
+                            float end_time = start_time + linear_delta_times[base_offset + t_off];
+
+                            if(!ray_toblerone_could_intersect(rt_pos, next_rt_pos - rt_pos, start_time, end_time))
+                                continue;
+
+                            ///use dot current_pos tri centre pos (?) as distance metric
+                            /*float3 pdiff = parent_pos.yzw - rt_pos.yzw;
+
+                            if(dot(pdiff, pdiff) > 5)
+                                continue;*/
 
                             #if 1
-                            for(int t_off=0; t_off < tri_count; t_off++)
+                            if(ray_intersects_toblerone(rt_pos, next_rt_pos - rt_pos, ctri, start_time, end_time))
                             {
-                                __global struct computed_triangle* ctri = &linear_mem[base_offset + t_off];
+                                atomic_min(ray_time_min, (int)floor(my_min));
+                                atomic_max(ray_time_max, (int)ceil(my_max));
 
-                                ///so, I now know for a fact that start time < end_time
-                                ///could sort this instead by end times, and then use end time as the quick check
-                                float start_time = linear_start_times[base_offset + t_off];
+                                struct intersection out;
+                                out.sx = sx;
+                                out.sy = sy;
 
-                                if(rt_pos.x < start_time - 0.0001f && (next_rt_pos - rt_pos).x < 0)
-                                    continue;
+                                int isect = atomic_inc(intersection_count);
 
-                                float end_time = start_time + linear_delta_times[base_offset + t_off];
+                                intersections_out[isect] = out;
+                                return;
+                            }
+                            #endif // 0
 
-                                if(!ray_toblerone_could_intersect(rt_pos, next_rt_pos - rt_pos, start_time, end_time))
-                                    continue;
+                            #if 0
+                            #define OBSERVER_DEPENDENCE
+                            #ifdef OBSERVER_DEPENDENCE
+                            float tri_time = ctri->time;
+                            float next_tri_time = ctri->end_time;
 
-                                ///use dot current_pos tri centre pos (?) as distance metric
-                                /*float3 pdiff = parent_pos.yzw - rt_pos.yzw;
+                            float interpolate_frac = (float)kk / max_len2;
 
-                                if(dot(pdiff, pdiff) > 5)
-                                    continue;*/
+                            float ray_time = mix(rt_pos.x, next_rt_pos.x, interpolate_frac);
 
-                                #if 1
-                                if(ray_intersects_toblerone(rt_pos, next_rt_pos - rt_pos, ctri, start_time, end_time))
+                            //if(tri_time < ray_time + 0.5f && tri_time >= ray_time - 0.5f)
+
+                            if(ray_time >= tri_time && ray_time < next_tri_time)
+                            #endif // OBSERVER_DEPENDENCE
+                            {
+                                float time_elapsed = (ray_time - tri_time);
+
+                                float3 v0_pos = {ctri->v0x, ctri->v0y, ctri->v0z};
+                                float3 v1_pos = {ctri->v1x, ctri->v1y, ctri->v1z};
+                                float3 v2_pos = {ctri->v2x, ctri->v2y, ctri->v2z};
+
+                                //printf("Elapsed %f velocity %f %f %f\n", time_elapsed, ctri->velocity.y, ctri->velocity.z, ctri->velocity.w);
+
+                                /*v0_pos += ctri->velocity.yzw * time_elapsed;
+                                v1_pos += ctri->velocity.yzw * time_elapsed;
+                                v2_pos += ctri->velocity.yzw * time_elapsed;*/
+
+                                //v0_pos += parent_pos.yzw;
+                                //v1_pos += parent_pos.yzw;
+                                //v2_pos += parent_pos.yzw;
+
+                                float3 ray_pos = rt_pos.yzw;
+                                float3 ray_dir = next_rt_pos.yzw - rt_pos.yzw;
+
+                                ///ehhhh need to take closest
+                                if(ray_intersects_triangle(ray_pos, ray_dir, v0_pos, v1_pos, v2_pos, 0))
                                 {
-                                    atomic_min(ray_time_min, (int)floor(my_min));
-                                    atomic_max(ray_time_max, (int)ceil(my_max));
-
                                     struct intersection out;
                                     out.sx = sx;
                                     out.sy = sy;
@@ -4498,71 +4542,22 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                     intersections_out[isect] = out;
                                     return;
                                 }
-                                #endif // 0
-
-                                #if 0
-                                #define OBSERVER_DEPENDENCE
-                                #ifdef OBSERVER_DEPENDENCE
-                                float tri_time = ctri->time;
-                                float next_tri_time = ctri->end_time;
-
-                                float interpolate_frac = (float)kk / max_len2;
-
-                                float ray_time = mix(rt_pos.x, next_rt_pos.x, interpolate_frac);
-
-                                //if(tri_time < ray_time + 0.5f && tri_time >= ray_time - 0.5f)
-
-                                if(ray_time >= tri_time && ray_time < next_tri_time)
-                                #endif // OBSERVER_DEPENDENCE
-                                {
-                                    float time_elapsed = (ray_time - tri_time);
-
-                                    float3 v0_pos = {ctri->v0x, ctri->v0y, ctri->v0z};
-                                    float3 v1_pos = {ctri->v1x, ctri->v1y, ctri->v1z};
-                                    float3 v2_pos = {ctri->v2x, ctri->v2y, ctri->v2z};
-
-                                    //printf("Elapsed %f velocity %f %f %f\n", time_elapsed, ctri->velocity.y, ctri->velocity.z, ctri->velocity.w);
-
-                                    /*v0_pos += ctri->velocity.yzw * time_elapsed;
-                                    v1_pos += ctri->velocity.yzw * time_elapsed;
-                                    v2_pos += ctri->velocity.yzw * time_elapsed;*/
-
-                                    //v0_pos += parent_pos.yzw;
-                                    //v1_pos += parent_pos.yzw;
-                                    //v2_pos += parent_pos.yzw;
-
-                                    float3 ray_pos = rt_pos.yzw;
-                                    float3 ray_dir = next_rt_pos.yzw - rt_pos.yzw;
-
-                                    ///ehhhh need to take closest
-                                    if(ray_intersects_triangle(ray_pos, ray_dir, v0_pos, v1_pos, v2_pos, 0))
-                                    {
-                                        struct intersection out;
-                                        out.sx = sx;
-                                        out.sy = sy;
-
-                                        int isect = atomic_inc(intersection_count);
-
-                                        intersections_out[isect] = out;
-                                        return;
-                                    }
-                                }
-                                #endif // 0
-
-
-
                             }
                             #endif // 0
 
-                            /*struct intersection out;
-                            out.sx = sx;
-                            out.sy = sy;
 
-                            int isect = atomic_inc(intersection_count);
 
-                            intersections_out[isect] = out;
-                            return;*/
                         }
+                        #endif // 0
+
+                        /*struct intersection out;
+                        out.sx = sx;
+                        out.sy = sy;
+
+                        int isect = atomic_inc(intersection_count);
+
+                        intersections_out[isect] = out;
+                        return;*/
                     }
                 }
                 #endif // 0
