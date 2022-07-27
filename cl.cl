@@ -3889,14 +3889,10 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
         while(!is_step_finished(&steps))
         {
-            int4 ipos = (int4)(steps.current.x, steps.current.y, steps.current.z, steps.current.w);
+            unsigned int oid = index_acceleration(&steps, width_num);
 
             if(generate_unculled_counts)
             {
-                int4 fin = loop_voxel4(ipos, width_num);
-
-                int oid = fin.w * width_num * width_num * width_num + fin.z * width_num * width_num + fin.y * width_num + fin.x;
-
                 unculled_counts[oid] = 1;
             }
 
@@ -3916,10 +3912,6 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                         {
                             //if(any_valid)
                             //    break;
-
-                            int4 fin = loop_voxel4(ipos, width_num);
-
-                            int oid = fin.w * width_num * width_num * width_num + fin.z * width_num * width_num + fin.y * width_num + fin.x;
 
                             int test_time_min = old_cell_time_min[oid];
                             int test_time_max = old_cell_time_max[oid];
@@ -3941,10 +3933,6 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
             if(any_valid)
             {
-                int4 fin = loop_voxel4(ipos, width_num);
-
-                int oid = fin.w * width_num * width_num * width_num + fin.z * width_num * width_num + fin.y * width_num + fin.x;
-
                 int lid = atomic_inc(&offset_counts[oid]);
 
                 if(should_store)
