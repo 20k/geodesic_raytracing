@@ -613,7 +613,7 @@ int main(int argc, char* argv[])
     sett.width = 800;
     sett.height = 600;
     sett.opencl = true;
-    sett.no_double_buffer = true;
+    sett.no_double_buffer = false;
     sett.is_srgb = true;
     sett.no_decoration = true;
     sett.viewports = false;
