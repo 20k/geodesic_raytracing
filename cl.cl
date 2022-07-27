@@ -3503,7 +3503,7 @@ float4 world_to_voxel4(float4 world, float width, float time_width, int width_nu
 
     float4 vscale = (float4)(time_scale, scale, scale, scale);
 
-    return floor(world / vscale);
+    return world / vscale;
 }
 
 int mod(int a, int b)
@@ -3592,17 +3592,46 @@ void generate_acceleration_counts(__global struct sub_point* sp, int sp_count, _
     }
 }
 
+float positive_fmod(float a, float b)
+{
+    float v = fmod(a, b);
+
+    if(v < 0.f)
+       v += b;
+
+    return v;
+}
+
+float4 positive_fmod4(float4 a, float4 b)
+{
+    return (float4)(positive_fmod(a.x, b.x),
+                    positive_fmod(a.y, b.y),
+                    positive_fmod(a.z, b.z),
+                    positive_fmod(a.w, b.w));
+}
+
+///https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.42.3443&rep=rep1&type=pdf
 struct step_setup
 {
+    int4 start_grid_pos;
+    int4 end_grid_pos;
+    float4 sign_step; ///ie stepX, stepY, stepZ
+
+    float4 tMax;
+    float4 tDelta;
+
+    int4 current;
     int idx;
-    float4 current;
-    float4 step;
-    int num;
 };
 
 struct step_setup setup_step(float4 grid1, float4 grid2)
 {
-    grid1 = floor(grid1);
+    if(any(grid1 == grid2))
+    {
+        printf("Error in setup_step, 1 == 2");
+    }
+
+    /*grid1 = floor(grid1);
     grid2 = floor(grid2);
 
     float4 diff2 = grid2 - grid1;
@@ -3620,25 +3649,121 @@ struct step_setup setup_step(float4 grid1, float4 grid2)
     ret.step = step;
     ret.num = (int)max_len2;
 
+    return ret;*/
+
+    float4 ray_dir = normalize(grid2 - grid1);
+
+    struct step_setup ret;
+
+    float4 floor_grid1 = floor(grid1);
+    float4 floor_grid2 = floor(grid2);
+
+    ret.start_grid_pos = (int4)(floor_grid1.x, floor_grid1.y, floor_grid1.z, floor_grid1.w);
+    ret.end_grid_pos = (int4)(floor_grid2.x, floor_grid2.y, floor_grid2.z, floor_grid2.w);
+    ret.current = ret.start_grid_pos;
+
+    ret.sign_step = sign(ray_dir);
+
+    ///so, we're a ray, going at a speed of ray_dir.x
+    ///our position is grid1.x
+    ///here we're working in voxel coordinates, which means that there are
+    ///voxel boundaries at 0, 1, 2, 3, 4, 5
+    ///so, if I'm at 0.3, moving at a speed of 0.5 in the +x direction, we'll hit 1 in
+    ///(1 - 0.3) / 0.5f units of time == 1.4
+    ///so 0.3 + 0.5 * 1.4 == 1
+    ///if I'm a ray at 0.3, moving at a speed of -0.5 in the +x direction, we're looking to hit 0
+    ///in which case the calcultion becomes (0 - 0.3) / -0.5 == 0.6
+    ///which gives 0.3 + -0.5 * 0.6 == 0
+    ///therefore, if signstep < 0 we're looking to intersect with 0, and if signstep > 0 we're looking to intersect with 1
+    ///where I take the fractional part of the coordinate, ie fmod(pos, 1)
+    ///though careful!! we CAN have negative coordinates here, the looping is done elsewhere
+    ///this means need to positive_fmod
+
+    float4 position_fraction = positive_fmod4(grid1, (float4)(1.f, 1.f, 1.f, 1.f));
+
+    float4 target = (float4)(1,1,1,1);
+
+    if(ret.sign_step.x < 0)
+        target.x = 0;
+
+    if(ret.sign_step.y < 0)
+        target.y = 0;
+
+    if(ret.sign_step.z < 0)
+        target.z = 0;
+
+    if(ret.sign_step.w < 0)
+        target.w = 0;
+
+    float4 tMax = (target - position_fraction) / ray_dir;
+
+    ///if we move at a speed of 0.7, the time it takes in t to traverse a voxel of size 1 is 1/0.7 == 1.42
+    float4 tDelta = 1.f / ray_dir;
+
+    ret.tMax = tMax;
+    ret.tDelta = tDelta;
+    ret.idx = 0;
+
     return ret;
 };
 
 void do_step(struct step_setup* step)
 {
-    step->current += step->step;
+    float tMaxArray[4] = {step->tMax.x, step->tMax.y, step->tMax.z, step->tMax.w};
+
+    int which_min = 0;
+    float my_min = tMaxArray[0];
+
+    for(int i=1; i < 4; i++)
+    {
+        if(tMaxArray[i] < my_min)
+        {
+            which_min = i;
+            my_min = tMaxArray[i];
+        }
+    }
+
+    ///i sure love programming
+    if(which_min == 0)
+    {
+        step->tMax.x += step->tDelta.x;
+        step->current.x += step->sign_step.x;
+    }
+
+    if(which_min == 1)
+    {
+        step->tMax.y += step->tDelta.y;
+        step->current.y += step->sign_step.y;
+    }
+
+    if(which_min == 2)
+    {
+        step->tMax.z += step->tDelta.z;
+        step->current.z += step->sign_step.z;
+    }
+
+    if(which_min == 3)
+    {
+        step->tMax.w += step->tDelta.w;
+        step->current.w += step->sign_step.w;
+    }
+
+    //step->current += step->step;
     step->idx++;
 }
 
 bool is_step_finished(struct step_setup* step)
 {
-    return step->idx == step->num || step->idx > 600;
+    return all(step->current == step->end_grid_pos) || step->idx > 600;
 }
 
 unsigned int index_acceleration(struct step_setup* setup, int width_num)
 {
-    float4 floordf = floor(setup->current);
+    /*float4 floordf = floor(setup->current);
 
-    int4 ifloor = (int4)(floordf.x, floordf.y, floordf.z, floordf.w);
+    int4 ifloor = (int4)(floordf.x, floordf.y, floordf.z, floordf.w);*/
+
+    int4 ifloor = setup->current;
 
     ifloor = loop_voxel4(ifloor, width_num);
 
@@ -5599,6 +5724,7 @@ void render_tris(__global struct triangle* tris, int tri_count,
     }
 }
 
+#if 0
 __kernel
 void render_potential_intersections(__global struct potential_intersection* in, __global int* cnt,
                                     __global int* counts, __global int* offsets, __global int* linear_mem, float accel_width, int accel_width_num,
@@ -5676,6 +5802,7 @@ void render_potential_intersections(__global struct potential_intersection* in, 
         current_pos += step;
     }
 }
+#endif // 0
 
 __kernel
 void render_intersections(__global struct intersection* in, __global int* cnt, __write_only image2d_t screen)
