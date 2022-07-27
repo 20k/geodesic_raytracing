@@ -3753,7 +3753,9 @@ unsigned int index_acceleration(struct step_setup* setup, int width_num)
 
     ifloor = loop_voxel4(ifloor, width_num);
 
-    return ifloor.w * width_num * width_num * width_num + ifloor.z * width_num * width_num + ifloor.y * width_num + ifloor.x;
+    return ifloor.x * width_num * width_num * width_num + ifloor.w * width_num * width_num + ifloor.z * width_num + ifloor.y;
+
+    //return ifloor.w * width_num * width_num * width_num + ifloor.z * width_num * width_num + ifloor.y * width_num + ifloor.x;
 }
 
 void sort2(float* v0, float* v1)
