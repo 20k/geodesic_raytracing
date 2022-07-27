@@ -1054,6 +1054,7 @@ int main(int argc, char* argv[])
     bool parallel_transport_observer = true;
     cl_float4 cartesian_basis_speed = {0,0,0,0};
     float linear_basis_speed = 0.f;
+    float object_chuck_speed = 0.f;
 
     bool has_geodesic = false;
 
@@ -1533,7 +1534,7 @@ int main(int argc, char* argv[])
                             }
                         }
 
-                        if(ImGui::SliderFloat("Camera Time", &set_camera_time, 0.f, 100.f))
+                        if(ImGui::DragFloat("Camera Time", &set_camera_time, 0.1f))
                         {
                             should_update_camera_time = true;
                         }
@@ -1670,6 +1671,8 @@ int main(int argc, char* argv[])
                             should_chuck_object = true;
                         }
 
+                        ImGui::SliderFloat("Object Chuck Speed", &object_chuck_speed, 0.f, 0.99999f);
+
                         ImGui::EndTabItem();
                     }
 
@@ -1717,6 +1720,17 @@ int main(int argc, char* argv[])
 
                 obj->tris = make_cube({0, 0, 0});
                 obj->pos = pos;
+
+                cl_float4 camera_quat = g_camera_quat.read<cl_float4>(clctx.cqueue)[0];
+
+                quat q;
+                q.q = {camera_quat.s[0], camera_quat.s[1], camera_quat.s[2], camera_quat.s[3]};
+
+                vec3f dir = {0, 0, 1};
+
+                vec3f chuck_dir = rot_quat(dir, q);
+
+                obj->velocity = chuck_dir * object_chuck_speed;
 
                 tris.build(clctx.cqueue, accel.offset_width / accel.offset_size.x());
                 phys.setup(clctx.cqueue, tris);
