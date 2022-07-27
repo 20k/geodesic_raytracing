@@ -3626,31 +3626,6 @@ struct step_setup
 
 struct step_setup setup_step(float4 grid1, float4 grid2)
 {
-    /*if(all(grid1 == grid2))
-    {
-        printf("Error in setup_step, 1 == 2");
-    }*/
-
-    /*grid1 = floor(grid1);
-    grid2 = floor(grid2);
-
-    float4 diff2 = grid2 - grid1;
-    float4 adiff2 = fabs(diff2);
-
-    float max_len2 = max(max(adiff2.x, adiff2.y), max(adiff2.z, adiff2.w));
-
-    max_len2 = max(max_len2, 1.f);
-
-    float4 step = diff2 / max_len2;
-
-    struct step_setup ret;
-    ret.idx = 0;
-    ret.current = grid1;
-    ret.step = step;
-    ret.num = (int)max_len2;
-
-    return ret;*/
-
     float4 ray_dir = normalize(grid2 - grid1);
 
     struct step_setup ret;
@@ -3735,6 +3710,9 @@ void do_step(struct step_setup* step)
             my_min = tMaxArray[i];
         }
     }
+
+    if(which_min == -1)
+        step->idx = 99999;
 
     ///i sure love programming
     if(which_min == 0)
