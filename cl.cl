@@ -3873,8 +3873,8 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
             local_tri.dvy = (current - next).z;
             local_tri.dvz = (current - next).w;
         }
-        float4 pos = current + (float4)(0.f, mine.x, mine.y, mine.z);
 
+        float4 pos = current + (float4)(0.f, mine.x, mine.y, mine.z);
         float4 next_pos = next + (float4)(0.f, mine.x, mine.y, mine.z);
 
         float4 grid_pos = world_to_voxel4(pos, width, time_width, width_num);
