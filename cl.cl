@@ -3594,6 +3594,7 @@ void generate_acceleration_counts(__global struct sub_point* sp, int sp_count, _
 
 struct step_setup
 {
+    int idx;
     float4 current;
     float4 step;
     int num;
@@ -3614,12 +3615,24 @@ struct step_setup setup_step(float4 grid1, float4 grid2)
     float4 step = diff2 / max_len2;
 
     struct step_setup ret;
+    ret.idx = 0;
     ret.current = grid1;
     ret.step = step;
     ret.num = (int)max_len2;
 
     return ret;
 };
+
+void do_step(struct step_setup* step)
+{
+    step->current += step->step;
+    step->idx++;
+}
+
+bool is_step_finished(struct step_setup* step)
+{
+    return step->idx == step->num || step->idx > 600;
+}
 
 unsigned int index_acceleration(struct step_setup* setup, int width_num)
 {
@@ -3763,11 +3776,18 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
         struct step_setup steps = setup_step(grid_pos, next_grid_pos);
 
-        for(int kk=0; kk < steps.num; kk++)
+        //for(int kk=0; kk < steps.num; kk++)
+
+        while(!is_step_finished(&steps))
         {
             int4 ipos = (int4)(steps.current.x, steps.current.y, steps.current.z, steps.current.w);
 
             bool any_valid = false;
+
+            int t = 0;
+            int x = 0;
+            int y = 0;
+            int z = 0;
 
             if(generate_unculled_counts)
             {
@@ -3872,8 +3892,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                 }
             }
 
-
-            steps.current += steps.step;
+            do_step(&steps);
         }
     }
 }
@@ -4351,7 +4370,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                         setup = setup_step(current_pos, next_pos);
                     }
 
-                    for(int kk=0; kk < setup.num && setup.num < 600; kk++)
+                    while(!is_step_finished(&setup))
                     {
                         unsigned int voxel_id = index_acceleration(&setup, accel_width_num);
 
@@ -4366,7 +4385,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                             atomic_max(&cell_time_max[voxel_id], (int)ceil(rmax));
                         }
 
-                        setup.current += setup.step;
+                        do_step(&setup);
 
                         int cnt = counts[voxel_id];
 
