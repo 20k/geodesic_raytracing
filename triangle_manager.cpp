@@ -264,7 +264,7 @@ void triangle_rendering::manager::build(cl::command_queue& cqueue, float acceler
 
             vec3f vox = point / scale;
 
-            vox = floor(vox);
+            //vox = floor(vox);
 
             point = vox * scale;
         }
@@ -274,7 +274,7 @@ void triangle_rendering::manager::build(cl::command_queue& cqueue, float acceler
             return std::tie(i1.first.z(), i1.first.y(), i1.first.x(), i1.second) < std::tie(i2.first.z(), i2.first.y(), i2.first.x(), i2.second);
         });
 
-        local_subtri_as_points.erase(std::unique(local_subtri_as_points.begin(), local_subtri_as_points.end()), local_subtri_as_points.end());
+        //local_subtri_as_points.erase(std::unique(local_subtri_as_points.begin(), local_subtri_as_points.end()), local_subtri_as_points.end());
 
         global_subtri_as_points.insert(global_subtri_as_points.end(), local_subtri_as_points.begin(), local_subtri_as_points.end());
     }
