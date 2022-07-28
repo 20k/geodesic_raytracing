@@ -4317,8 +4317,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
     float4 last_pos = (float4)(0,0,0,0);
 
-    float my_min = 0;
-    float my_max = 0;
+    float my_min = position.x;
+    float my_max = position.x;
 
     //#pragma unroll
     for(int i=0; i < loop_limit; i++)
