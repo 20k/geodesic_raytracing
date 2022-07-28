@@ -3695,6 +3695,12 @@ struct step_setup setup_step(float4 grid1, float4 grid2)
 
 void do_step(struct step_setup* step)
 {
+    if(all(step->current == step->end_grid_pos))
+    {
+        step->idx++;
+        return;
+    }
+
     float tMaxArray[4] = {step->tMax.x, step->tMax.y, step->tMax.z, step->tMax.w};
     float tStep[4] = {step->sign_step.x, step->sign_step.y, step->sign_step.z, step->sign_step.w};
 
@@ -3744,7 +3750,7 @@ void do_step(struct step_setup* step)
 
 bool is_step_finished(struct step_setup* step)
 {
-    return all(step->current == step->end_grid_pos) || step->idx > 600;
+    return (all(step->current == step->end_grid_pos) && step->idx != 0) || step->idx > 600;
 }
 
 unsigned int index_acceleration(struct step_setup* setup, int width_num)
@@ -3884,8 +3890,8 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         //grid_pos.x = 0;
         //last_grid_pos.x = 0;
 
-        if(all(grid_pos == next_grid_pos))
-            continue;
+        //if(all(grid_pos == next_grid_pos))
+        //    continue;
 
         struct step_setup steps = setup_step(grid_pos, next_grid_pos);
 
