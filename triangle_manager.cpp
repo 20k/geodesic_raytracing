@@ -229,10 +229,11 @@ void triangle_rendering::manager::build(cl::command_queue& cqueue, float acceler
         gpu_velocities.push_back({i->velocity.x(), i->velocity.y(), i->velocity.z()});
     }
 
-    objects.alloc(sizeof(gpu_object) * gpu_objects.size());
+    ///should the opencl library handle 0 sized allocations?
+    objects.alloc(sizeof(gpu_object) * std::max(gpu_objects.size(), 1ull));
     objects.write(cqueue, gpu_objects);
 
-    objects_velocity.alloc(sizeof(cl_float3) * gpu_objects.size());
+    objects_velocity.alloc(sizeof(cl_float3) * std::max(gpu_objects.size(), 1ull));
     objects_velocity.write(cqueue, gpu_velocities);
 
     gpu_object_count = gpu_objects.size();
@@ -295,11 +296,11 @@ void triangle_rendering::manager::build(cl::command_queue& cqueue, float acceler
         gpu.push_back(point);
     }
 
-    tris.alloc(sizeof(triangle) * tri_count);
+    tris.alloc(sizeof(triangle) * std::max(tri_count, 1));
     tris.write(cqueue, linear_tris);
 
     fill_point_count = gpu.size();
-    fill_points.alloc(sizeof(sub_point) * gpu.size());
+    fill_points.alloc(sizeof(sub_point) * std::max(gpu.size(), 1ull));
     fill_points.write(cqueue, gpu);
 }
 

@@ -33,23 +33,25 @@ struct physics
 
     void setup(cl::command_queue& cqueue, triangle_rendering::manager& manage)
     {
+        int clamped_count = std::max(manage.gpu_object_count, 1);
+
         object_count = manage.gpu_object_count;
 
         ///need to pull geodesic initial position from gpu tris
-        geodesic_paths.alloc(manage.gpu_object_count * sizeof(cl_float4) * max_path_length);
-        geodesic_ds.alloc(manage.gpu_object_count * sizeof(cl_float) * max_path_length);
-        positions.alloc(manage.gpu_object_count * sizeof(cl_float4));
-        counts.alloc(manage.gpu_object_count * sizeof(cl_int));
-        basis_speeds.alloc(manage.gpu_object_count * sizeof(cl_float3));
+        geodesic_paths.alloc(clamped_count * sizeof(cl_float4) * max_path_length);
+        geodesic_ds.alloc(clamped_count * sizeof(cl_float) * max_path_length);
+        positions.alloc(clamped_count * sizeof(cl_float4));
+        counts.alloc(clamped_count * sizeof(cl_int));
+        basis_speeds.alloc(clamped_count * sizeof(cl_float3));
         basis_speeds.set_to_zero(cqueue);
 
         for(int i=0; i < 4; i++)
         {
-            tetrads[i].alloc(manage.gpu_object_count * sizeof(cl_float4));
+            tetrads[i].alloc(clamped_count * sizeof(cl_float4));
         }
 
-        polar_positions.alloc(manage.gpu_object_count * sizeof(cl_float4));
-        timelike_vectors.alloc(manage.gpu_object_count * 1024); ///approximate because don't want to import gpu lightray definition
+        polar_positions.alloc(clamped_count * sizeof(cl_float4));
+        timelike_vectors.alloc(clamped_count * 1024); ///approximate because don't want to import gpu lightray definition
 
         counts.set_to_zero(cqueue);
 
