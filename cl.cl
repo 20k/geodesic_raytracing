@@ -4273,11 +4273,38 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
     return ray_entry_time <= exit_time && entry_time <= ray_exit_time;*/
 
-    float intersection_time = -(entry_time - ray_entry_time) / ((exit_time - entry_time) - (ray_exit_time - ray_entry_time));
+    ///so. t = -(e - re) / ((x - e) - (rx - re)). Constrain to [0, 1]
+    ///t = -(e - re) / div -> [eps, 1 - eps]
+    ///t * div = -(e - re) -> [eps * div, (1 - eps) * div]
 
-    float eps = 0.00001f;
+    /*float eps = 0.0001f;
 
-    return intersection_time >= -eps && intersection_time < 1 + eps;
+    float tdiv = -(entry_time - ray_entry_time);
+
+    float div = ((exit_time - entry_time) - (ray_exit_time - ray_entry_time));
+
+    return (tdiv >= (-eps * div)) && tdiv <= ((1 + eps) * div);*/
+
+    float eps = 0.0001f;
+
+    float tdiv = -(entry_time - ray_entry_time);
+
+    float div = ((exit_time - entry_time) - (ray_exit_time - ray_entry_time));
+
+    //return tdiv >= -eps && tdiv <= (div + eps);
+
+    float lower = -eps;
+    float upper = div + eps;
+
+    sort2(&lower, &upper);
+
+    return tdiv >= lower && tdiv <= upper;
+
+    /*float intersection_time = -(entry_time - ray_entry_time) / ((exit_time - entry_time) - (ray_exit_time - ray_entry_time));
+
+    float eps = 0.0001f;
+
+    return intersection_time >= -eps && intersection_time < 1 + eps;*/
 }
 
 __kernel
