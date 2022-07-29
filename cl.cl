@@ -4265,13 +4265,17 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
     float ray_entry_time = pos.x + dir.x * min_t;
     float ray_exit_time = pos.x + dir.x * max_t;
 
-    sort2(&entry_time, &exit_time);
+    /*sort2(&entry_time, &exit_time);
     sort2(&ray_entry_time, &ray_exit_time);
 
     entry_time -= 0.0001f;
     exit_time += 0.0001f;
 
-    return ray_entry_time <= exit_time && entry_time <= ray_exit_time;
+    return ray_entry_time <= exit_time && entry_time <= ray_exit_time;*/
+
+    float intersection_time = -(entry_time - ray_entry_time) / ((exit_time - entry_time) - (ray_exit_time - ray_entry_time));
+
+    return intersection_time >= 0 && intersection_time < 1;
 }
 
 __kernel
