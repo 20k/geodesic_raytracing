@@ -1113,7 +1113,7 @@ int main(int argc, char* argv[])
         }
     }*/
 
-    #define TEAPOTS
+    //#define TEAPOTS
     #ifdef TEAPOTS
     //#define INDIVIDUAL_GEODESICS
     #ifndef INDIVIDUAL_GEODESICS
