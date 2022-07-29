@@ -4289,7 +4289,6 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
     sort2(&lower, &upper);
 
-
     return tdiv >= lower && tdiv <= upper;
 
     /*float intersection_time = -(entry_time - ray_entry_time) / ((exit_time - entry_time) - (ray_exit_time - ray_entry_time));
