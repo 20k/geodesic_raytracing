@@ -3622,6 +3622,8 @@ struct step_setup
 
     int4 current;
     int idx;
+    bool one_end_touch;
+    bool should_end;
 };
 
 struct step_setup setup_step(float4 grid1, float4 grid2)
@@ -3689,15 +3691,30 @@ struct step_setup setup_step(float4 grid1, float4 grid2)
     ret.tMax = tMax;
     ret.tDelta = tDelta;
     ret.idx = 0;
+    ret.one_end_touch = all(ret.current == ret.end_grid_pos);
+    ret.should_end = false;
 
     return ret;
 };
 
 void do_step(struct step_setup* step)
 {
-    if(all(step->current == step->end_grid_pos))
+    bool at_end = all(step->current == step->end_grid_pos);
+
+    if(at_end && !step->one_end_touch)
     {
+        step->one_end_touch = true;
         step->idx++;
+
+        return;
+    }
+
+    ///this is to ensure termination
+    if(at_end && step->one_end_touch)
+    {
+        step->should_end = true;
+        step->idx++;
+
         return;
     }
 
@@ -3750,7 +3767,8 @@ void do_step(struct step_setup* step)
 
 bool is_step_finished(struct step_setup* step)
 {
-    return (all(step->current == step->end_grid_pos) && step->idx != 0) || step->idx > 600;
+    ///do I sometimes want to include the end point in smearing?
+    return step->should_end || step->idx > 600;
 }
 
 unsigned int index_acceleration(struct step_setup* setup, int width_num)
@@ -3843,6 +3861,9 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         float4 current = generic_to_cartesian(native_current, cfg);
         float4 next = generic_to_cartesian(native_next, cfg);
 
+        //if(should_store)
+        //printf("Current %f %f %f %f\n", current.x, current.y, current.z, current.w);
+
         struct computed_triangle local_tri;
 
         float delta_time = (next - current).x;
@@ -3895,8 +3916,15 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
         struct step_setup steps = setup_step(grid_pos, next_grid_pos);
 
+        //if(should_store)
+        //printf("Fgp %f %f %f %f ngp %f %f %f %f\n", grid_pos.x, grid_pos.y, grid_pos.z, grid_pos.w, next_grid_pos.x, next_grid_pos.y, next_grid_pos.z, next_grid_pos.w);
+
         while(!is_step_finished(&steps))
         {
+
+            //if(should_store)
+            //printf("Gp %i %i %i %i\n", steps.current.x, steps.current.y, steps.current.z, steps.current.w);
+
             unsigned int oid = index_acceleration(&steps, width_num);
 
             //#define USE_FEEDBACK_CULLING
@@ -4118,7 +4146,17 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
     float3 v1 = v0 + to_v1;
     float3 v2 = v0 + to_v2;
 
+    /*if(tri_start_time == tri_end_time)
+    {
+        return ray_intersects_triangle(pos.yzw, dir.yzw, v0, v1, v2, 0);
+    }*/
+
     float3 t_diff = (float3)(ctri->dvx, ctri->dvy, ctri->dvz);
+
+    if(all(t_diff == 0.f))
+    {
+        return ray_intersects_triangle(pos.yzw, dir.yzw, v0, v1, v2, 0);
+    }
 
     float3 e0 = v0 + t_diff;
     float3 e1 = v1 + t_diff;
