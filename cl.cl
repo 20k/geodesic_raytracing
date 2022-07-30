@@ -3628,7 +3628,7 @@ struct step_setup
 
 struct step_setup setup_step(float4 grid1, float4 grid2)
 {
-    float4 ray_dir = normalize(grid2 - grid1);
+    float4 ray_dir = grid2 - grid1;
 
     struct step_setup ret;
 
