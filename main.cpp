@@ -2034,8 +2034,6 @@ int main(int argc, char* argv[])
                 texture_args.push_back(texture_coordinates);
                 texture_args.push_back(width);
                 texture_args.push_back(height);
-                texture_args.push_back(g_camera_pos_polar);
-                texture_args.push_back(g_camera_quat);
 
                 clctx.cqueue.exec("calculate_texture_coordinates", texture_args, {width * height}, {256});
 

@@ -5026,15 +5026,12 @@ void calculate_singularities(__global struct lightray* finished_rays, __global i
 #endif // GENERIC_METRIC
 
 __kernel
-void calculate_texture_coordinates(__global struct lightray* finished_rays, __global int* finished_count_in, __global float2* texture_coordinates, int width, int height, __global float4* g_polar_camera_pos, __global float4* g_camera_quat)
+void calculate_texture_coordinates(__global struct lightray* finished_rays, __global int* finished_count_in, __global float2* texture_coordinates, int width, int height)
 {
     int id = get_global_id(0);
 
     if(id >= *finished_count_in)
         return;
-
-    float4 polar_camera_pos = *g_polar_camera_pos;
-    float4 camera_quat = *g_camera_quat;
 
     __global struct lightray* ray = &finished_rays[id];
 
