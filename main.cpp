@@ -282,8 +282,11 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
         accel.ray_time_min.write(cqueue, std::vector<cl_int>{my_min});
         accel.ray_time_max.write(cqueue, std::vector<cl_int>{my_max});
 
-        accel.cell_time_min.fill(cqueue, my_min);
-        accel.cell_time_max.fill(cqueue, my_max);
+        if(accel.use_cell_based_culling)
+        {
+            accel.cell_time_min.fill(cqueue, my_min);
+            accel.cell_time_max.fill(cqueue, my_max);
+        }
 
         cl::args run_args;
         run_args.push_back(rays_in);

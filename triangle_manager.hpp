@@ -113,6 +113,7 @@ namespace triangle_rendering
         cl::buffer ray_time_min;
         cl::buffer ray_time_max;
 
+        bool use_cell_based_culling = false;
         cl::buffer cell_time_min;
         cl::buffer cell_time_max;
 

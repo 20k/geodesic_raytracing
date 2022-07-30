@@ -375,8 +375,12 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
     };
 
     clear_buffer(counts);
+
     ///1ms
-    clear_buffer(unculled_counts);
+    if(use_cell_based_culling)
+    {
+        clear_buffer(unculled_counts);
+    }
 
     #define SMEARED
     #ifdef SMEARED
