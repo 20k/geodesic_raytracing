@@ -1866,7 +1866,7 @@ float4 get_theta_adjustment_quat(float3 pixel_direction, float4 polar_camera_in,
     return aa_to_quat(normalize(cross(plane_n, (float3)(0, 0, 1))), angle_to_flat * angle_sign);
 }
 
-float3 calculate_pixel_direction(int cx, int cy, float width, float height, float4 polar_camera, float4 camera_quat)
+float3 calculate_pixel_direction(int cx, int cy, float width, float height, float4 camera_quat)
 {
     #define FOV 90
 
@@ -2933,14 +2933,12 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
     if(id >= width * height)
         return;
 
-    float4 polar_camera_in = *g_polar_camera_in;
-
     const int cx = id % width;
     const int cy = id / width;
 
-    float3 pixel_direction = calculate_pixel_direction(cx, cy, width, height, polar_camera_in, *g_camera_quat);
+    float3 pixel_direction = calculate_pixel_direction(cx, cy, width, height, *g_camera_quat);
 
-    float4 polar_camera = polar_camera_in;
+    float4 polar_camera = *g_polar_camera_in;
 
     float4 at_metric = spherical_to_generic(polar_camera, cfg);
 
