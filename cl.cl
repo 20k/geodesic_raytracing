@@ -4144,6 +4144,8 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
     float3 e1 = v1 + t_diff;
     float3 e2 = v2 + t_diff;
 
+
+    #if 0
     float3 vertices[8 * 3] = {
         v0, v1, v2,
         v0, e0, v1,
@@ -4192,6 +4194,57 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
     if(!any_t)
         return false;
+    #endif // 0
+
+    float3 planes[5 * 3] = {
+        v0, v1, v2,
+        e0, e2, e1,
+        v0, e0, v1,
+        v0, v2, e0,
+        v1, e1, v2,
+    };
+
+    float start_t = -FLT_MAX;
+    float end_t = FLT_MAX;
+
+    for(int i=0; i < 5; i++)
+    {
+        float3 pv0 = planes[i * 3 + 0];
+        float3 pv1 = planes[i * 3 + 1];
+        float3 pv2 = planes[i * 3 + 2];
+
+        float3 N = triangle_normal(pv0, pv1, pv2);
+
+        float denom = dot(dir.yzw, N);
+
+        if(approx_equal(denom, 0.f, 0.00001f))
+            continue;
+
+        float t = dot(pv0 - pos.yzw, N) / denom;
+
+        if(denom > 0)
+        {
+            if(t > start_t)
+                start_t = t;
+
+            min_t = min(t, min_t);
+            max_t = max(t, max_t);
+        }
+        else
+        {
+            if(t < end_t)
+                end_t = t;
+
+            min_t = min(t, min_t);
+            max_t = max(t, max_t);
+        }
+    }
+
+    if(start_t > end_t)
+        return false;
+
+    float min_t = start_t;
+    float max_t = end_t;
 
     //float3 toblerone_origin = (v0 + v1 + v2)/3.f;
     //float3 toblerone_end = (e0 + e1 + e2)/3.f;
