@@ -140,6 +140,13 @@ float3 rot_quat(const float3 point, float4 quat)
     return point + quat.w * t + cross(quat.xyz, t);
 }
 
+float3 rot_quat_norm(const float3 point, float4 norm_quat)
+{
+    float3 t = 2.f * cross(norm_quat.xyz, point);
+
+    return point + norm_quat.w * t + cross(norm_quat.xyz, t);
+}
+
 float3 spherical_velocity_to_cartesian_velocity(float3 p, float3 dp)
 {
     float r = p.x;
@@ -4386,6 +4393,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
     float my_min = position.x;
     float my_max = position.x;
 
+    float4 ray_quat = ray->initial_quat;
+
     //#pragma unroll
     for(int i=0; i < loop_limit; i++)
     {
@@ -4462,9 +4471,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                 float3 pos_cart = polar_to_cartesian(pos_spherical.yzw);
 
-                float4 quat = ray->initial_quat;
-
-                pos_cart = rot_quat(pos_cart, quat);
+                pos_cart = rot_quat_norm(pos_cart, ray_quat);
 
                 out_position = (float4)(position.x, pos_cart);
             }
