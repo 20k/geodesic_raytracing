@@ -4146,12 +4146,12 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
     float3 vertices[8 * 3] = {
         v0, v1, v2,
-        e0, e1, e2,
         v0, e0, v1,
-        v1, e0, e1,
         v0, e0, v2,
+        e0, e1, e2,
+        e0, e1, v1,
         e0, e2, v2,
-        v1, e1, v2,
+        e1, v2, v1,
         e1, e2, v2
     };
 
