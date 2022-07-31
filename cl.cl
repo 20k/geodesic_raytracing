@@ -3425,8 +3425,8 @@ bool ray_intersects_triangle(float3 origin, float3 direction, float3 v0, float3 
     float eps = 0.0000001;
     float3 edge1, edge2, h, s, q;
     float a,f,u,v;
-    edge1 = vertex1 - vertex0;
-    edge2 = vertex2 - vertex0;
+    edge1 = v1 - v0;
+    edge2 = v2 - v0;
 
     h = cross(direction, edge2);
     a = dot(edge1, h);
@@ -3435,7 +3435,7 @@ bool ray_intersects_triangle(float3 origin, float3 direction, float3 v0, float3 
         return false;    // This ray is parallel to this triangle.
 
     f = 1.0/a;
-    s = origin - vertex0;
+    s = origin - v0;
 
     u = f * dot(s, h);
 
