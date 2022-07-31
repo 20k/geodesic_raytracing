@@ -4511,10 +4511,10 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                     {
                         unsigned int voxel_id = index_acceleration(&setup, accel_width_num);
 
+                        #ifdef USE_FEEDBACK_CULLING
                         float rmin = min(rt_pos.x, next_rt_pos.x);
                         float rmax = max(rt_pos.x, next_rt_pos.x);
 
-                        #ifdef USE_FEEDBACK_CULLING
                         int unculled = unculled_counts[voxel_id];
 
                         if(unculled > 0)
