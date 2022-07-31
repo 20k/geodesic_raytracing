@@ -4244,9 +4244,10 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
         if(!ray_plane_intersection(toblerone_origin, tri_normal, new_origin, new_dir, &ray_plane_t))
             return false;
 
-        float3 plane_intersection_location = new_origin + new_dir * ray_plane_t;
+        //float3 plane_intersection_location = new_origin + new_dir * ray_plane_t;
+        //entry_height = length(new_origin - plane_intersection_location);
 
-        entry_height = length(new_origin - plane_intersection_location);
+        entry_height = fabs(ray_plane_t);
     }
 
     {
@@ -4258,9 +4259,10 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
         if(!ray_plane_intersection(toblerone_origin, tri_normal, new_origin, new_dir, &ray_plane_t))
             return false;
 
-        float3 plane_intersection_location = new_origin + new_dir * ray_plane_t;
+        //float3 plane_intersection_location = new_origin + new_dir * ray_plane_t;
+        //exit_height = length(new_origin - plane_intersection_location);
 
-        exit_height = length(new_origin - plane_intersection_location);
+        exit_height = fabs(ray_plane_t);
     }
 
 
