@@ -52,9 +52,9 @@ float3 cartesian_to_polar(float3 in)
 
 float3 polar_to_cartesian(float3 in)
 {
-    float x = in.x * sin(in.y) * cos(in.z);
-    float y = in.x * sin(in.y) * sin(in.z);
-    float z = in.x * cos(in.y);
+    float x = in.x * native_sin(in.y) * native_cos(in.z);
+    float y = in.x * native_sin(in.y) * native_sin(in.z);
+    float z = in.x * native_cos(in.y);
 
     return (float3){x, y, z};
 }
@@ -4481,8 +4481,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
             float4 rt_diff = next_rt_pos - rt_pos;
 
-            if(dot(rt_diff, rt_diff) > 1)
-                should_check = true;
+            //if(dot(rt_diff, rt_diff) > 1)
+            //    should_check = true;
 
             if((should_check || should_terminate) && !any(IS_DEGENERATE(out_position)))
             {
