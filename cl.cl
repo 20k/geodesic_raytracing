@@ -3406,10 +3406,78 @@ struct intersection
     int sx, sy;
 };
 
-bool ray_intersects_triangle(float3 origin, float3 direction, float3 vertex0, float3 vertex1, float3 vertex2, float* t_out)
+bool ray_plane_intersection(float3 plane_origin, float3 plane_normal, float3 ray_origin, float3 ray_direction, float* t)
+{
+    float denom = dot(ray_direction, plane_normal);
+
+    if(fabs(denom) < 0.000001f)
+    {
+        *t = 0;
+        return false;
+    }
+
+    *t = dot(plane_origin - ray_origin, plane_normal) / denom;
+    return true;
+}
+
+bool ray_intersects_triangle(float3 origin, float3 direction, float3 v0, float3 v1, float3 v2, float* t_out)
 {
     //direction = fast_normalize(direction);
 
+
+    float3 e0 = v1 - v0;
+    float3 e1 = v2 - v1;
+    float3 e2 = v0 - v2;
+
+    float3 N = cross(e1, e2);
+
+    /*float t = 0;
+
+    if(!ray_plane_intersection(v0, N, origin, direction, &t))
+        return false;*/
+
+    float D = dot(direction, N);
+
+    float eps = 0.00001f;
+
+    if(D >= -eps && D <= eps)
+        return false;
+
+    float t = dot(v0 - origin, N) / D;
+
+    float3 P = origin + direction * t;
+
+    float3 C0 = P - v0;
+
+    /*return dot(N, cross(e0, C0)) > 0 &&
+    dot(N, cross(e1, C1)) > 0 &&
+    dot(N, cross(e2, C2)) > 0;*/
+
+    float d0 = dot(N, cross(e0, C0));
+
+    if(d0 <= 0)
+        return false;
+
+    float3 C1 = P - v1;
+
+    float d1 = dot(N, cross(e1, C1));
+
+    if(d1 <= 0)
+        return false;
+
+    float3 C2 = P - v2;
+
+    float d2 = dot(N, cross(e2, C2));
+
+    if(d2 <= 0)
+        return false;
+
+    if(t_out)
+        *t_out = t;
+
+    return true;
+
+    #if 0
     float eps = 0.0000001;
     float3 edge1, edge2, h, s, q;
     float a,f,u,v;
@@ -3421,7 +3489,7 @@ bool ray_intersects_triangle(float3 origin, float3 direction, float3 vertex0, fl
 
     a = dot(edge1, h);
 
-    if (a > -eps && a < eps)
+    if (a < eps)
         return false;    // This ray is parallel to this triangle.
     f = 1.0/a;
     s = origin - vertex0;
@@ -3464,6 +3532,7 @@ bool ray_intersects_triangle(float3 origin, float3 direction, float3 vertex0, fl
         *t_out = t;
 
     return true;
+    #endif // 0
 }
 
 struct sub_point
@@ -4117,20 +4186,6 @@ float3 triangle_normal(float3 v0, float3 v1, float3 v2)
     float3 V = v2 - v0;
 
     return normalize(cross(U, V));
-}
-
-bool ray_plane_intersection(float3 plane_origin, float3 plane_normal, float3 ray_origin, float3 ray_direction, float* t)
-{
-    float denom = dot(ray_direction, plane_normal);
-
-    if(fabs(denom) < 0.000001f)
-    {
-        *t = 0;
-        return false;
-    }
-
-    *t = dot(plane_origin - ray_origin, plane_normal) / denom;
-    return true;
 }
 
 bool ray_toblerone_could_intersect(float4 pos, float4 dir, float tri_start_t, float tri_end_t)
