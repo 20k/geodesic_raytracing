@@ -3422,117 +3422,39 @@ bool ray_plane_intersection(float3 plane_origin, float3 plane_normal, float3 ray
 
 bool ray_intersects_triangle(float3 origin, float3 direction, float3 v0, float3 v1, float3 v2, float* t_out)
 {
-    //direction = fast_normalize(direction);
-
-
-    float3 e0 = v1 - v0;
-    float3 e1 = v2 - v1;
-    float3 e2 = v0 - v2;
-
-    float3 N = cross(e1, e2);
-
-    /*float t = 0;
-
-    if(!ray_plane_intersection(v0, N, origin, direction, &t))
-        return false;*/
-
-    float D = dot(direction, N);
-
-    float eps = 0.00001f;
-
-    if(D >= -eps && D <= eps)
-        return false;
-
-    float t = dot(v0 - origin, N) / D;
-
-    float3 P = origin + direction * t;
-
-    float3 C0 = P - v0;
-
-    /*return dot(N, cross(e0, C0)) > 0 &&
-    dot(N, cross(e1, C1)) > 0 &&
-    dot(N, cross(e2, C2)) > 0;*/
-
-    float d0 = dot(N, cross(e0, C0));
-
-    if(d0 <= 0)
-        return false;
-
-    float3 C1 = P - v1;
-
-    float d1 = dot(N, cross(e1, C1));
-
-    if(d1 <= 0)
-        return false;
-
-    float3 C2 = P - v2;
-
-    float d2 = dot(N, cross(e2, C2));
-
-    if(d2 <= 0)
-        return false;
-
-    if(t_out)
-        *t_out = t;
-
-    return true;
-
-    #if 0
     float eps = 0.0000001;
     float3 edge1, edge2, h, s, q;
     float a,f,u,v;
     edge1 = vertex1 - vertex0;
     edge2 = vertex2 - vertex0;
-    //h = rayVector.crossProduct(edge2);
-    h = cross(direction, edge2);
-    //a = edge1.dotProduct(h);
 
+    h = cross(direction, edge2);
     a = dot(edge1, h);
 
-    if (a < eps)
+    if (a > -eps && a < eps)
         return false;    // This ray is parallel to this triangle.
+
     f = 1.0/a;
     s = origin - vertex0;
-    //u = f * s.dotProduct(h);
 
     u = f * dot(s, h);
 
     if (u < 0.0 || u > 1.0)
         return false;
-    //q = s.crossProduct(edge1);
 
     q = cross(s, edge1);
-
-    //v = f * rayVector.dotProduct(q);
 
     v = f * dot(direction, q);
 
     if (v < 0.0 || u + v > 1.0)
         return false;
-    // At this stage we can compute t to find out where the intersection point is on the line.
-    //float t = f * edge2.dotProduct(q);
 
     float t = f * dot(edge2, q);
-
-    /*if(t > 1)
-        return false;
-
-    if (t > eps) // ray intersection
-    {
-        if(t_out)
-            *t_out = t;
-
-        //outIntersectionPoint = rayOrigin + rayVector * t;
-        return true;
-    }
-    else // This means that there is a line intersection but not a ray intersection.
-        return false;*/
 
     if(t_out)
         *t_out = t;
 
     return true;
-    #endif // 0
 }
 
 struct sub_point
