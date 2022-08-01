@@ -365,13 +365,7 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
 
     auto clear_buffer = [&](cl::buffer& buf)
     {
-        int count = buf.alloc_size / sizeof(cl_int);
-
-        cl::args aclear;
-        aclear.push_back(buf);
-        aclear.push_back(count);
-
-        cqueue.exec("clear_accel_counts", aclear, {count}, {256});
+        buf.fill(cqueue, cl_int{0});
     };
 
     clear_buffer(counts);
