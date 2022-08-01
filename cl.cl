@@ -5886,18 +5886,36 @@ void render_intersections(__global struct intersection* in, __global int* cnt, _
     if(id >= *cnt)
         return;
 
-    /*if(id == 0)
-    {
-        printf("CNT %i\n", *cnt);
-    }*/
-
     __global struct intersection* mine = &in[id];
+    __global struct computed_triangle* ctri = &linear_mem[mine->computed_parent];
+    float time_frac = mine->time_frac;
 
-    //__global struct computed_tri* tri = &linear_mem[mine->computed_parent];
+    float3 to_v1 = (float3)(ctri->dv1x, ctri->dv1y, ctri->dv1z);
+    float3 to_v2 = (float3)(ctri->dv2x, ctri->dv2y, ctri->dv2z);
+
+    float3 v0 = (float3)(ctri->v0x, ctri->v0y, ctri->v0z);
+    float3 v1 = v0 + to_v1;
+    float3 v2 = v0 + to_v2;
+
+    float3 t_diff = (float3)(ctri->dvx, ctri->dvy, ctri->dvz);
+
+    float3 e0 = v0 + t_diff;
+    float3 e1 = v1 + t_diff;
+    float3 e2 = v2 + t_diff;
+
+    float3 iv0 = mix(v0, e0, time_frac);
+    float3 iv1 = mix(v1, e1, time_frac);
+    float3 iv2 = mix(v2, e2, time_frac);
+
+    //float3 N = triangle_normal(iv0, iv1, iv2);
+
+    float3 N = triangle_normal(v0, v1, v2);
 
     int2 pos = (int2)(mine->sx, mine->sy);
 
-    write_imagef(screen, pos, (float4)(1, 0, 0, 1));
+    float3 N_as_col = fabs(N);
+
+    write_imagef(screen, pos, (float4)(N_as_col.xyz, 1));
 }
 
 ///todo: make flip global
