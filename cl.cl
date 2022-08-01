@@ -4009,12 +4009,40 @@ void alloc_acceleration(__global int* offset_map, __global int* offset_counts, i
     if(idx >= max_count)
         return;
 
+    __local int shared_count;
+    __local int shared_offset;
+
+    int lid = get_local_id(0);
+
+    if(lid == 0)
+        shared_count = 0;
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+
     int my_count = offset_counts[idx];
 
-    int offset = 0;
+    int local_offset = 0;
 
     if(my_count > 0)
-        offset = atomic_add(mem_count, my_count);
+        local_offset = atomic_add(&shared_count, my_count);
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    if(lid == 0)
+    {
+        int found_local_count = shared_count;
+
+        int offset = 0;
+
+        if(found_local_count > 0)
+            offset = atomic_add(mem_count, found_local_count);
+
+        shared_offset = offset;
+    }
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    int offset = shared_offset + local_offset;
 
     if(offset + my_count > (max_memory_size / sizeof(struct computed_triangle)))
     {
