@@ -117,6 +117,8 @@ namespace triangle_rendering
         cl::buffer cell_time_min;
         cl::buffer cell_time_max;
 
+        ///increasing offset_size makes the performance scaling essentially flat
+        ///but there's too high of a constant time. Two level raytracing is probably the answer
         vec4i offset_size = {80, 80, 80, 80};
         float offset_width = 20.f;
         float time_width = 80.f;
