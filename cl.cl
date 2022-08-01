@@ -23,6 +23,13 @@ struct computed_triangle
     half dvz;
 };
 
+struct intersection
+{
+    int sx, sy;
+    int computed_parent;
+    float time_frac;
+};
+
 struct object
 {
     float4 pos;
@@ -3401,11 +3408,6 @@ int calculate_ds_error(float current_ds, float4 next_acceleration, float4 accele
 }
 #endif // ADAPTIVE_PRECISION
 
-struct intersection
-{
-    int sx, sy;
-};
-
 bool ray_plane_intersection(float3 plane_origin, float3 plane_normal, float3 ray_origin, float3 ray_direction, float* t)
 {
     float denom = dot(ray_direction, plane_normal);
@@ -4126,8 +4128,9 @@ bool ray_toblerone_could_intersect(float4 pos, float4 dir, float tri_start_t, fl
     return range_overlaps(ray_start_t, ray_end_t, tri_start_t, tri_end_t);
 }
 
+///time_out is NOT the parameterisation of the ray, it is the parameterisation of the triangle TIME coordinate
 ///dir is not normalised, should really use a pos2
-bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_triangle* ctri, float tri_start_time, float tri_end_time)
+bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_triangle* ctri, float tri_start_time, float tri_end_time, float* time_frac_out)
 {
     float3 to_v1 = (float3)(ctri->dv1x, ctri->dv1y, ctri->dv1z);
     float3 to_v2 = (float3)(ctri->dv2x, ctri->dv2y, ctri->dv2z);
@@ -4145,6 +4148,9 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
     if(all(t_diff == 0.f))
     {
+        if(time_frac_out)
+            *time_frac_out = 0;
+
         return ray_intersects_triangle(pos.yzw, dir.yzw, v0, v1, v2, 0);
     }
 
@@ -4348,7 +4354,14 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
     sort2(&lower, &upper);
 
-    return tdiv >= lower && tdiv <= upper;
+    bool success = tdiv >= lower && tdiv <= upper;
+
+    if(time_frac_out)
+    {
+        *time_frac_out = native_divide(tdiv, div);
+    }
+
+    return success;
 
     /*float intersection_time = -(entry_time - ray_entry_time) / ((exit_time - entry_time) - (ray_exit_time - ray_entry_time));
 
@@ -4606,8 +4619,10 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                             __global struct computed_triangle* ctri = &linear_mem[base_offset + t_off];
 
+                            float time_frac_out = 0;
+
                             #if 1
-                            if(ray_intersects_toblerone(rt_pos, next_rt_pos - rt_pos, ctri, start_time, end_time))
+                            if(ray_intersects_toblerone(rt_pos, next_rt_pos - rt_pos, ctri, start_time, end_time, &time_frac_out))
                             {
                                 atomic_min(ray_time_min, (int)floor(my_min));
                                 atomic_max(ray_time_max, (int)ceil(my_max));
@@ -4615,6 +4630,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                 struct intersection out;
                                 out.sx = sx;
                                 out.sy = sy;
+                                out.computed_parent = base_offset + t_off;
+                                out.time_frac = time_frac_out;
 
                                 int isect = atomic_inc(intersection_count);
 
@@ -4671,9 +4688,6 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                 }
                             }
                             #endif // 0
-
-
-
                         }
                         #endif // 0
 
@@ -5865,7 +5879,7 @@ void render_potential_intersections(__global struct potential_intersection* in, 
 #endif // 0
 
 __kernel
-void render_intersections(__global struct intersection* in, __global int* cnt, __write_only image2d_t screen)
+void render_intersections(__global struct intersection* in, __global int* cnt, __global struct computed_triangle* linear_mem, __write_only image2d_t screen)
 {
     int id = get_global_id(0);
 
@@ -5878,6 +5892,8 @@ void render_intersections(__global struct intersection* in, __global int* cnt, _
     }*/
 
     __global struct intersection* mine = &in[id];
+
+    //__global struct computed_tri* tri = &linear_mem[mine->computed_parent];
 
     int2 pos = (int2)(mine->sx, mine->sy);
 
