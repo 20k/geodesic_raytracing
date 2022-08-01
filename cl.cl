@@ -4152,6 +4152,27 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
     float3 e1 = v1 + t_diff;
     float3 e2 = v2 + t_diff;
 
+    ///this is marginally faster if there's lots of false positives
+    /*{
+        float3 max_v = max(max(v0, v1), v2);
+        float3 max_e = max(max(e0, e1), e2);
+
+        float3 min_v = min(min(v0, v1), v2);
+        float3 min_e = min(min(e0, e1), e2);
+
+        float3 max_all = max(max_v, max_e);
+        float3 min_all = min(min_v, min_e);
+
+        if(!range_overlaps(min_all.x, max_all.x, pos.y, pos.y + dir.y))
+            return false;
+
+        if(!range_overlaps(min_all.y, max_all.y, pos.z, pos.z + dir.z))
+            return false;
+
+        if(!range_overlaps(min_all.z, max_all.z, pos.w, pos.w + dir.w))
+            return false;
+    }*/
+
     //#define TRI_COLLIDE
     #ifdef TRI_COLLIDE
     float3 vertices[8 * 3] = {
