@@ -4211,6 +4211,7 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
         v1, e1, v2,
     };
 
+    ///depending on the direction of movement of the tri, need to flip the convex hullness of the toblerone
     float3 base_normal = triangle_normal_U(v0, v1, v2);
     float base_sign = dot(base_normal, e0 - v0);
 
@@ -4231,14 +4232,15 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
         if(denom > 0)
         {
-            if(t > start_t)
-                start_t = t;
+            start_t = max(start_t, t);
         }
         else
         {
-            if(t < end_t)
-                end_t = t;
+            end_t = min(end_t, t);
         }
+
+        if(start_t > end_t)
+            return false;
     }
 
     if(start_t > end_t)
@@ -4249,55 +4251,6 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
     float min_t = start_t;
     float max_t = end_t;
-
-    #if 0
-    float3 vertices[8 * 3] = {
-        v0, v1, v2,
-        v0, e0, v1,
-        v0, e0, v2,
-        e0, e1, e2,
-        e0, e1, v1,
-        e0, e2, v2,
-        e1, v2, v1,
-        e1, e2, v2
-    };
-
-    ///tri * 3 + vert
-
-    ///bool ray_intersects_triangle(float3 origin, float3 direction, float3 vertex0, float3 vertex1, float3 vertex2, float* t_out)
-
-    bool any_t = false;
-
-    for(int i=0; i < 8; i++)
-    {
-        float3 l_v0 = vertices[i * 3 + 0];
-        float3 l_v1 = vertices[i * 3 + 1];
-        float3 l_v2 = vertices[i * 3 + 2];
-
-        float my_t = 0;
-
-        if(ray_intersects_triangle(pos.yzw, dir.yzw, l_v0, l_v1, l_v2, &my_t))
-        {
-            if(any_t)
-            {
-                min_t = min(min_t, my_t);
-                max_t = max(max_t, my_t);
-            }
-            else
-            {
-                min_t = my_t;
-                max_t = my_t;
-                any_t = true;
-            }
-        }
-    }
-
-    ///min_t and max_t correspond to pos.yzw + dir.yzw * t positions, ie toblerone entry and exit
-    ///min_t and max_t must be inherently in range [0, 1]
-
-    if(!any_t)
-        return false;
-    #endif // 0
 
     //float3 toblerone_origin = (v0 + v1 + v2)/3.f;
     //float3 toblerone_end = (e0 + e1 + e2)/3.f;
