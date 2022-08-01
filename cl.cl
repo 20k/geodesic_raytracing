@@ -4110,6 +4110,14 @@ float3 triangle_normal(float3 v0, float3 v1, float3 v2)
     return normalize(cross(U, V));
 }
 
+float3 triangle_normal_U(float3 v0, float3 v1, float3 v2)
+{
+    float3 U = v1 - v0;
+    float3 V = v2 - v0;
+
+    return cross(U, V);
+}
+
 bool ray_toblerone_could_intersect(float4 pos, float4 dir, float tri_start_t, float tri_end_t)
 {
     float ray_start_t = pos.x;
@@ -4143,7 +4151,6 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
     float3 e0 = v0 + t_diff;
     float3 e1 = v1 + t_diff;
     float3 e2 = v2 + t_diff;
-
 
     #if 0
     float3 vertices[8 * 3] = {
@@ -4204,6 +4211,9 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
         v1, e1, v2,
     };
 
+    float3 base_normal = triangle_normal_U(v0, v1, v2);
+    float base_sign = dot(base_normal, e0 - v0);
+
     float start_t = -FLT_MAX;
     float end_t = FLT_MAX;
 
@@ -4213,12 +4223,9 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
         float3 pv1 = planes[i * 3 + 1];
         float3 pv2 = planes[i * 3 + 2];
 
-        float3 N = triangle_normal(pv0, pv1, pv2);
+        float3 N = triangle_normal_U(pv0, pv1, pv2) * base_sign;
 
         float denom = dot(dir.yzw, N);
-
-        if(approx_equal(denom, 0.f, 0.00001f))
-            continue;
 
         float t = dot(pv0 - pos.yzw, N) / denom;
 
@@ -4226,25 +4233,71 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
         {
             if(t > start_t)
                 start_t = t;
-
-            min_t = min(t, min_t);
-            max_t = max(t, max_t);
         }
         else
         {
             if(t < end_t)
                 end_t = t;
-
-            min_t = min(t, min_t);
-            max_t = max(t, max_t);
         }
     }
 
     if(start_t > end_t)
         return false;
 
+    //if(start_t == -FLT_MAX || end_t == FLT_MAX)
+    //    return false;
+
     float min_t = start_t;
     float max_t = end_t;
+
+    #if 0
+    float3 vertices[8 * 3] = {
+        v0, v1, v2,
+        v0, e0, v1,
+        v0, e0, v2,
+        e0, e1, e2,
+        e0, e1, v1,
+        e0, e2, v2,
+        e1, v2, v1,
+        e1, e2, v2
+    };
+
+    ///tri * 3 + vert
+
+    ///bool ray_intersects_triangle(float3 origin, float3 direction, float3 vertex0, float3 vertex1, float3 vertex2, float* t_out)
+
+    bool any_t = false;
+
+    for(int i=0; i < 8; i++)
+    {
+        float3 l_v0 = vertices[i * 3 + 0];
+        float3 l_v1 = vertices[i * 3 + 1];
+        float3 l_v2 = vertices[i * 3 + 2];
+
+        float my_t = 0;
+
+        if(ray_intersects_triangle(pos.yzw, dir.yzw, l_v0, l_v1, l_v2, &my_t))
+        {
+            if(any_t)
+            {
+                min_t = min(min_t, my_t);
+                max_t = max(max_t, my_t);
+            }
+            else
+            {
+                min_t = my_t;
+                max_t = my_t;
+                any_t = true;
+            }
+        }
+    }
+
+    ///min_t and max_t correspond to pos.yzw + dir.yzw * t positions, ie toblerone entry and exit
+    ///min_t and max_t must be inherently in range [0, 1]
+
+    if(!any_t)
+        return false;
+    #endif // 0
 
     //float3 toblerone_origin = (v0 + v1 + v2)/3.f;
     //float3 toblerone_end = (e0 + e1 + e2)/3.f;
