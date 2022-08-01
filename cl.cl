@@ -4243,12 +4243,6 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
             return false;
     }
 
-    if(start_t > end_t)
-        return false;
-
-    //if(start_t == -FLT_MAX || end_t == FLT_MAX)
-    //    return false;
-
     float min_t = start_t;
     float max_t = end_t;
     #endif // 0
