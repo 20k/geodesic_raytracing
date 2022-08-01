@@ -4232,7 +4232,7 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
         if(denom > 0)
         {
-            start_t = max(start_t, t + 1e-7);
+            start_t = max(start_t, t - 1e-7);
         }
         else
         {
