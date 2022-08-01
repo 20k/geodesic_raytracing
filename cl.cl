@@ -4627,6 +4627,12 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                         int tri_count = counts[voxel_id];
                         int base_offset = offsets[voxel_id];
 
+                        float best_intersection = FLT_MAX;
+
+                        struct intersection out;
+                        out.sx = sx;
+                        out.sy = sy;
+
                         #if 1
                         for(int t_off=0; t_off < tri_count; t_off++)
                         {
@@ -4650,17 +4656,14 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                             __global struct computed_triangle* ctri = &linear_mem[base_offset + t_off];
 
-                            float time_out = 0;
+                            float ray_t = 0;
 
-                            #if 1
-                            if(ray_intersects_toblerone(rt_pos, next_rt_pos - rt_pos, ctri, start_time, end_time, &time_out))
+                            #if 0
+                            if(ray_intersects_toblerone(rt_pos, next_rt_pos - rt_pos, ctri, start_time, end_time, &ray_t))
                             {
                                 atomic_min(ray_time_min, (int)floor(my_min));
                                 atomic_max(ray_time_max, (int)ceil(my_max));
 
-                                struct intersection out;
-                                out.sx = sx;
-                                out.sy = sy;
                                 out.computed_parent = base_offset + t_off;
 
                                 int isect = atomic_inc(intersection_count);
@@ -4669,6 +4672,15 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                 return;
                             }
                             #endif // 0
+
+                            if(ray_intersects_toblerone(rt_pos, next_rt_pos - rt_pos, ctri, start_time, end_time, &ray_t))
+                            {
+                                if(ray_t < best_intersection)
+                                {
+                                    out.computed_parent = base_offset + t_off;
+                                    best_intersection = ray_t;
+                                }
+                            }
 
                             #if 0
                             #define OBSERVER_DEPENDENCE
@@ -4719,6 +4731,19 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                             }
                             #endif // 0
                         }
+
+                        if(best_intersection != FLT_MAX)
+                        {
+                            atomic_min(ray_time_min, (int)floor(my_min));
+                            atomic_max(ray_time_max, (int)ceil(my_max));
+
+                            int isect = atomic_inc(intersection_count);
+
+                            intersections_out[isect] = out;
+
+                            return;
+                        }
+
                         #endif // 0
 
                         /*struct intersection out;
