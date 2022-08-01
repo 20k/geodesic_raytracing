@@ -11,7 +11,7 @@ function wormhole(t, l, theta, phi)
 
     var x = 2 * (CMath.fabs(l) - a) / (Math.PI * M);
 
-    var r = CMath.select(CMath.fabs(l) <= a,
+    var r = CMath.select(CMath.lte(CMath.fabs(l), a),
     p,
     p + M * (x * CMath.atan(x) - 0.5 * CMath.log(1 + x * x))
     );
