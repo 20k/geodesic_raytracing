@@ -1116,7 +1116,7 @@ int main(int argc, char* argv[])
         }
     }*/
 
-    //#define TEAPOTS
+    #define TEAPOTS
     #ifdef TEAPOTS
     //#define INDIVIDUAL_GEODESICS
     #ifndef INDIVIDUAL_GEODESICS
@@ -2075,6 +2075,7 @@ int main(int argc, char* argv[])
                 cl::args intersect_args;
                 intersect_args.push_back(gpu_intersections);
                 intersect_args.push_back(gpu_intersections_count);
+                intersect_args.push_back(accel.memory);
                 intersect_args.push_back(rtex);
 
                 clctx.cqueue.exec("render_intersections", intersect_args, {width * height}, {256});

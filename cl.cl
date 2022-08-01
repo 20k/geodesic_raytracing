@@ -27,7 +27,6 @@ struct intersection
 {
     int sx, sy;
     int computed_parent;
-    float time_frac;
 };
 
 struct object
@@ -4128,9 +4127,8 @@ bool ray_toblerone_could_intersect(float4 pos, float4 dir, float tri_start_t, fl
     return range_overlaps(ray_start_t, ray_end_t, tri_start_t, tri_end_t);
 }
 
-///time_out is NOT the parameterisation of the ray, it is the parameterisation of the triangle TIME coordinate
 ///dir is not normalised, should really use a pos2
-bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_triangle* ctri, float tri_start_time, float tri_end_time, float* time_frac_out)
+bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_triangle* ctri, float tri_start_time, float tri_end_time, float* t_out)
 {
     float3 to_v1 = (float3)(ctri->dv1x, ctri->dv1y, ctri->dv1z);
     float3 to_v2 = (float3)(ctri->dv2x, ctri->dv2y, ctri->dv2z);
@@ -4148,10 +4146,16 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
     if(all(t_diff == 0.f))
     {
-        if(time_frac_out)
-            *time_frac_out = 0;
+        float ray_t = 0;
 
-        return ray_intersects_triangle(pos.yzw, dir.yzw, v0, v1, v2, 0);
+        bool success = ray_intersects_triangle(pos.yzw, dir.yzw, v0, v1, v2, &ray_t);
+
+        if(t_out)
+        {
+            *t_out = ray_t;
+        }
+
+        return success;
     }
 
     float3 e0 = v0 + t_diff;
@@ -4338,9 +4342,25 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
     return ray_entry_time <= exit_time && entry_time <= ray_exit_time;*/
 
+    /**
+    ///so time line1 = entry + (exit - entry) * t0
+    ///time line 2 = ray_entry + (ray_exit - ray_entry) * t1;
+    ///I thiiink t1 = t2? and I want to solve for t
+
+    ///so y = entry + (exit - entry) * t
+    ///y = ray_entry + (ray_exit - ray_entry) * t
+    ///entry + (exit - entry) * t = ray_entry + (ray_exit - ray_entry) * t
+    ///entry - ray_entry + (exit - entry) * t - (ray_exit - ray_entry) * t = 0
+    ///entry - ray_entry + t * ((exit - entry) - (ray_exit - ray_entry)) = 0
+    ///t * ((exit - entry) - (ray_exit - ray_entry)) = -(entry - ray_entry)
+    ///t = -(entry - ray_entry) / ((exit - entry) - (ray_exit - ray_entry))
+
+
     ///so. t = -(e - re) / ((x - e) - (rx - re)). Constrain to [0, 1]
     ///t = -(e - re) / div -> [eps, 1 - eps]
     ///t * div = -(e - re) -> [eps * div, (1 - eps) * div]
+    */
+
     float eps = 0.00001f;
 
     float tdiv = -(entry_time - ray_entry_time);
@@ -4356,9 +4376,20 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
     bool success = tdiv >= lower && tdiv <= upper;
 
-    if(time_frac_out)
+    /*if(time_out)
     {
-        *time_frac_out = native_divide(tdiv, div);
+        ///ok. So, its the fraction along dir. But ignoring pos.x
+        *time_out = native_divide(tdiv, div) * (ray_exit_time - ray_entry_time) + ray_entry_time;
+    }*/
+
+    if(t_out)
+    {
+        ///so. t = tdiv / div. entry + (exit - entry) * t = time, and we have t, exit, and entry so neat
+        ///now we want pos.x + dir.x * p = time
+        ///((entry + (exit - entry) * t) - pos.x) / dir.x = p
+        float fin_time = ray_entry_time + (ray_exit_time - ray_entry_time) * (tdiv / div);
+
+        *t_out = (fin_time - pos.x) / dir.x;
     }
 
     return success;
@@ -4619,10 +4650,10 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                             __global struct computed_triangle* ctri = &linear_mem[base_offset + t_off];
 
-                            float time_frac_out = 0;
+                            float time_out = 0;
 
                             #if 1
-                            if(ray_intersects_toblerone(rt_pos, next_rt_pos - rt_pos, ctri, start_time, end_time, &time_frac_out))
+                            if(ray_intersects_toblerone(rt_pos, next_rt_pos - rt_pos, ctri, start_time, end_time, &time_out))
                             {
                                 atomic_min(ray_time_min, (int)floor(my_min));
                                 atomic_max(ray_time_max, (int)ceil(my_max));
@@ -4631,7 +4662,6 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                 out.sx = sx;
                                 out.sy = sy;
                                 out.computed_parent = base_offset + t_off;
-                                out.time_frac = time_frac_out;
 
                                 int isect = atomic_inc(intersection_count);
 
@@ -5888,7 +5918,6 @@ void render_intersections(__global struct intersection* in, __global int* cnt, _
 
     __global struct intersection* mine = &in[id];
     __global struct computed_triangle* ctri = &linear_mem[mine->computed_parent];
-    float time_frac = mine->time_frac;
 
     float3 to_v1 = (float3)(ctri->dv1x, ctri->dv1y, ctri->dv1z);
     float3 to_v2 = (float3)(ctri->dv2x, ctri->dv2y, ctri->dv2z);
@@ -5902,10 +5931,6 @@ void render_intersections(__global struct intersection* in, __global int* cnt, _
     float3 e0 = v0 + t_diff;
     float3 e1 = v1 + t_diff;
     float3 e2 = v2 + t_diff;
-
-    float3 iv0 = mix(v0, e0, time_frac);
-    float3 iv1 = mix(v1, e1, time_frac);
-    float3 iv2 = mix(v2, e2, time_frac);
 
     //float3 N = triangle_normal(iv0, iv1, iv2);
 
