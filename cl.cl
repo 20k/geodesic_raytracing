@@ -4367,20 +4367,9 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
     float div = ((exit_time - entry_time) - (ray_exit_time - ray_entry_time));
 
-    eps *= div;
+    float intersection_time = tdiv / div;
 
-    float lower = -eps;
-    float upper = div + eps;
-
-    sort2(&lower, &upper);
-
-    bool success = tdiv >= lower && tdiv <= upper;
-
-    /*if(time_out)
-    {
-        ///ok. So, its the fraction along dir. But ignoring pos.x
-        *time_out = native_divide(tdiv, div) * (ray_exit_time - ray_entry_time) + ray_entry_time;
-    }*/
+    bool success = intersection_time >= -eps && intersection_time <= 1 + eps;
 
     if(t_out)
     {
@@ -4391,6 +4380,27 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
         *t_out = (fin_time - pos.x) / dir.x;
     }
+
+    #if 0
+    eps *= div;
+
+    float lower = -eps;
+    float upper = div + eps;
+
+    sort2(&lower, &upper);
+
+    bool success = tdiv >= lower && tdiv <= upper;
+
+    if(t_out)
+    {
+        ///so. t = tdiv / div. entry + (exit - entry) * t = time, and we have t, exit, and entry so neat
+        ///now we want pos.x + dir.x * p = time
+        ///((entry + (exit - entry) * t) - pos.x) / dir.x = p
+        float fin_time = ray_entry_time + (ray_exit_time - ray_entry_time) * (tdiv / div);
+
+        *t_out = (fin_time - pos.x) / dir.x;
+    }
+    #endif // 0
 
     return success;
 
