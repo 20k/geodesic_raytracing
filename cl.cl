@@ -3707,7 +3707,7 @@ void do_step(struct step_setup* step)
     }
 
     ///this is to ensure termination
-    if(at_end && step->one_end_touch)
+    if(at_end)
     {
         step->should_end = true;
         step->idx++;
@@ -3731,7 +3731,7 @@ void do_step(struct step_setup* step)
     }
 
     if(which_min == -1)
-        step->idx = 99999;
+        step->should_end = true;
 
     ///i sure love programming
     if(which_min == 0)
