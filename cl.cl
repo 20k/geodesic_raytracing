@@ -4615,6 +4615,12 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                         setup = setup_step(current_pos, next_pos);
                     }
 
+                    float best_intersection = FLT_MAX;
+
+                    struct intersection out;
+                    out.sx = sx;
+                    out.sy = sy;
+
                     while(!is_step_finished(&setup))
                     {
                         unsigned int voxel_id = index_acceleration(&setup, accel_width_num);
@@ -4636,12 +4642,6 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                         int tri_count = counts[voxel_id];
                         int base_offset = offsets[voxel_id];
-
-                        float best_intersection = FLT_MAX;
-
-                        struct intersection out;
-                        out.sx = sx;
-                        out.sy = sy;
 
                         #if 1
                         for(int t_off=0; t_off < tri_count; t_off++)
@@ -4742,17 +4742,6 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                             #endif // 0
                         }
 
-                        if(best_intersection != FLT_MAX)
-                        {
-                            atomic_min(ray_time_min, (int)floor(my_min));
-                            atomic_max(ray_time_max, (int)ceil(my_max));
-
-                            int isect = atomic_inc(intersection_count);
-
-                            intersections_out[isect] = out;
-
-                            return;
-                        }
 
                         #endif // 0
 
@@ -4764,6 +4753,18 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                         intersections_out[isect] = out;
                         return;*/
+                    }
+
+                    if(best_intersection != FLT_MAX)
+                    {
+                        atomic_min(ray_time_min, (int)floor(my_min));
+                        atomic_max(ray_time_max, (int)ceil(my_max));
+
+                        int isect = atomic_inc(intersection_count);
+
+                        intersections_out[isect] = out;
+
+                        return;
                     }
                 }
                 #endif // 0
