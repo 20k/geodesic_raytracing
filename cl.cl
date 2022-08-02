@@ -3621,6 +3621,7 @@ struct step_setup
     int idx;
     bool one_end_touch;
     bool should_end;
+    bool spacelike_terminated;
 };
 
 struct step_setup setup_step(float4 grid1, float4 grid2)
@@ -3690,6 +3691,7 @@ struct step_setup setup_step(float4 grid1, float4 grid2)
     ret.idx = 0;
     ret.one_end_touch = all(ret.current == ret.end_grid_pos);
     ret.should_end = false;
+    ret.spacelike_terminated = false;
 
     return ret;
 };
@@ -3731,7 +3733,7 @@ void do_step(struct step_setup* step)
     }
 
     if(which_min == -1)
-        step->idx = 99999;
+        step->should_end = true;
 
     ///i sure love programming
     if(which_min == 0)
@@ -3758,8 +3760,18 @@ void do_step(struct step_setup* step)
         step->current.w += step->sign_step.w;
     }
 
+    if(step->spacelike_terminated && which_min != 0)
+    {
+        //step->should_end = true;
+    }
+
     //step->current += step->step;
     step->idx++;
+}
+
+void spacelike_terminate(struct step_setup* step)
+{
+    step->spacelike_terminated = true;
 }
 
 bool is_step_finished(struct step_setup* step)
@@ -4685,6 +4697,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                             if(ray_intersects_toblerone(rt_pos, next_rt_pos - rt_pos, ctri, start_time, end_time, &ray_t))
                             {
+                                spacelike_terminate(&setup);
+
                                 if(ray_t < best_intersection)
                                 {
                                     out.computed_parent = base_offset + t_off;
