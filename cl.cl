@@ -27,6 +27,8 @@ struct intersection
 {
     int sx, sy;
     int computed_parent;
+    int ic;
+    float t;
 };
 
 struct object
@@ -4327,7 +4329,6 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
         exit_height = fabs(ray_plane_t);
     }
 
-
     float entry_time = (entry_height / toblerone_height) * (tri_end_time - tri_start_time) + tri_start_time;
     float exit_time = (exit_height / toblerone_height) * (tri_end_time - tri_start_time) + tri_start_time;
 
@@ -4642,6 +4643,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                         struct intersection out;
                         out.sx = sx;
                         out.sy = sy;
+                        out.ic = 0;
+                        out.t = 0;
 
                         #if 1
                         for(int t_off=0; t_off < tri_count; t_off++)
@@ -4689,6 +4692,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                 {
                                     out.computed_parent = base_offset + t_off;
                                     best_intersection = ray_t;
+                                    out.ic++;
+                                    out.t = ray_t;
                                 }
                             }
 
@@ -5944,7 +5949,7 @@ void render_potential_intersections(__global struct potential_intersection* in, 
 #endif // 0
 
 __kernel
-void render_intersections(__global struct intersection* in, __global int* cnt, __global struct computed_triangle* linear_mem, __write_only image2d_t screen)
+void render_intersections(__global struct intersection* in, __global int* cnt, __global struct computed_triangle* linear_mem, __write_only image2d_t screen, int tc)
 {
     int id = get_global_id(0);
 
@@ -5975,7 +5980,42 @@ void render_intersections(__global struct intersection* in, __global int* cnt, _
 
     float3 N_as_col = fabs(N);
 
-    write_imagef(screen, pos, (float4)(N_as_col.xyz, 1));
+    float3 ic_debug = (float3)(0,0,0);
+
+    /*if(mine->ic == 1)
+        ic_debug.x = 1;
+
+    if(mine->ic == 2)
+        ic_debug.y = 1;
+
+    if(mine->ic > 2)
+        ic_debug.z = 1;*/
+
+    float frac = ((mine->computed_parent * 65535) % 87) / 87.f;
+
+    //ic_debug.x = frac;
+
+    if(tc == 0)
+        ic_debug.x = clamp(mine->t, 0.f, 1.f);
+
+    if(tc == 1)
+        ic_debug = N_as_col;
+
+    if(tc == 2)
+    {
+        if(mine->ic == 1)
+            ic_debug.x = 1;
+
+        if(mine->ic == 2)
+            ic_debug.y = 1;
+
+        if(mine->ic > 2)
+            ic_debug.z = 1;
+    }
+
+    write_imagef(screen, pos, (float4)(ic_debug.xyz, 1));
+
+    //write_imagef(screen, pos, (float4)(N_as_col.xyz, 1));
 }
 
 ///todo: make flip global

@@ -121,7 +121,7 @@ namespace triangle_rendering
         ///but there's too high of a constant time. Two level raytracing is probably the answer
         vec4i offset_size = {80, 80, 80, 80};
         float offset_width = 20.f;
-        float time_width = 80.f;
+        float time_width = 2000.f;
         int max_memory_size = 1024 * 1024 * 1024; ///1GB
 
         acceleration(cl::context& ctx);

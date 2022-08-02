@@ -2071,12 +2071,24 @@ int main(int argc, char* argv[])
             }
             #endif // 0
 
+            static int tc = 0;
+
+            if(ImGui::IsKeyPressed(GLFW_KEY_F2))
+                tc = 0;
+
+            if(ImGui::IsKeyPressed(GLFW_KEY_F3))
+                tc = 1;
+
+            if(ImGui::IsKeyPressed(GLFW_KEY_F4))
+                tc = 2;
+
             {
                 cl::args intersect_args;
                 intersect_args.push_back(gpu_intersections);
                 intersect_args.push_back(gpu_intersections_count);
                 intersect_args.push_back(accel.memory);
                 intersect_args.push_back(rtex);
+                intersect_args.push_back(tc);
 
                 clctx.cqueue.exec("render_intersections", intersect_args, {width * height}, {256});
             }
