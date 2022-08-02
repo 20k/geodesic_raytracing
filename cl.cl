@@ -4616,6 +4616,14 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                         setup = setup_step(current_pos, next_pos);
                     }
 
+                    float best_intersection = FLT_MAX;
+
+                    struct intersection out;
+                    out.sx = sx;
+                    out.sy = sy;
+                    out.ic = 0;
+                    out.t = 0;
+
                     while(!is_step_finished(&setup))
                     {
                         unsigned int voxel_id = index_acceleration(&setup, accel_width_num);
@@ -4638,14 +4646,9 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                         int tri_count = counts[voxel_id];
                         int base_offset = offsets[voxel_id];
 
-                        float best_intersection = FLT_MAX;
-
-                        struct intersection out;
-                        out.sx = sx;
-                        out.sy = sy;
-                        out.ic = 0;
-                        out.t = 0;
-
+                        ///I think... I may need to do by time or something, unsure
+                        ///the issue is the cube is offset in time. We need to look for a specific time across
+                        ///the whole cube
                         #if 1
                         for(int t_off=0; t_off < tri_count; t_off++)
                         {
@@ -4688,6 +4691,9 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                             if(ray_intersects_toblerone(rt_pos, next_rt_pos - rt_pos, ctri, start_time, end_time, &ray_t))
                             {
+                                if(ray_t < 0 || ray_t > 1)
+                                    continue;
+
                                 if(ray_t < best_intersection)
                                 {
                                     out.computed_parent = base_offset + t_off;
@@ -4747,18 +4753,6 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                             #endif // 0
                         }
 
-                        if(best_intersection != FLT_MAX)
-                        {
-                            atomic_min(ray_time_min, (int)floor(my_min));
-                            atomic_max(ray_time_max, (int)ceil(my_max));
-
-                            int isect = atomic_inc(intersection_count);
-
-                            intersections_out[isect] = out;
-
-                            return;
-                        }
-
                         #endif // 0
 
                         /*struct intersection out;
@@ -4769,6 +4763,18 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                         intersections_out[isect] = out;
                         return;*/
+                    }
+
+                    if(best_intersection != FLT_MAX)
+                    {
+                        atomic_min(ray_time_min, (int)floor(my_min));
+                        atomic_max(ray_time_max, (int)ceil(my_max));
+
+                        int isect = atomic_inc(intersection_count);
+
+                        intersections_out[isect] = out;
+
+                        return;
                     }
                 }
                 #endif // 0
