@@ -4620,6 +4620,11 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                     float best_intersection = FLT_MAX;
 
+                    ///saves about 2ms, but I'm concerned about validity
+                    #ifdef FIRST_BEST_INTERSECTION
+                    int hit_id = -1;
+                    #endif
+
                     struct intersection out;
                     out.sx = sx;
                     out.sy = sy;
@@ -4649,6 +4654,11 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                         #if 1
                         for(int t_off=0; t_off < tri_count; t_off++)
                         {
+                            #ifdef FIRST_BEST_INTERSECTION
+                            if(hit_id == t_off + base_offset)
+                                continue;
+                            #endif
+
                             ///so, I now know for a fact that start time < end_time
                             ///could sort this instead by end times, and then use end time as the quick check
                             float start_time = linear_start_times[base_offset + t_off];
@@ -4692,6 +4702,10 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                 {
                                     out.computed_parent = base_offset + t_off;
                                     best_intersection = ray_t;
+
+                                    #ifdef FIRST_BEST_INTERSECTION
+                                    hit_id = base_offset + t_off;
+                                    #endif
                                 }
                             }
 
