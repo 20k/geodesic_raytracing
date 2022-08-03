@@ -3718,12 +3718,15 @@ void do_step(struct step_setup* step)
     float tMaxArray[4] = {step->tMax.x, step->tMax.y, step->tMax.z, step->tMax.w};
     float tStep[4] = {step->sign_step.x, step->sign_step.y, step->sign_step.z, step->sign_step.w};
 
+    int current[4] = {step->current.x, step->current.y, step->current.z, step->current.w};
+    int end_pos[4] = {step->end_grid_pos.x, step->end_grid_pos.y, step->end_grid_pos.z, step->end_grid_pos.w};
+
     int which_min = -1;
     float my_min = FLT_MAX;
 
     for(int i=0; i < 4; i++)
     {
-        if(tMaxArray[i] < my_min && tStep[i] != 0)
+        if(tMaxArray[i] < my_min && tStep[i] != 0 && current[i] != end_pos[i])
         {
             which_min = i;
             my_min = tMaxArray[i];
