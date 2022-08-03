@@ -4681,21 +4681,6 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                             float ray_t = 0;
 
-                            #if 0
-                            if(ray_intersects_toblerone(rt_pos, next_rt_pos - rt_pos, ctri, start_time, end_time, &ray_t))
-                            {
-                                atomic_min(ray_time_min, (int)floor(my_min));
-                                atomic_max(ray_time_max, (int)ceil(my_max));
-
-                                out.computed_parent = base_offset + t_off;
-
-                                int isect = atomic_inc(intersection_count);
-
-                                intersections_out[isect] = out;
-                                return;
-                            }
-                            #endif // 0
-
                             if(ray_intersects_toblerone(rt_pos, next_rt_pos - rt_pos, ctri, start_time, end_time, &ray_t))
                             {
                                 if(ray_t < best_intersection)
