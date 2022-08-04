@@ -4121,7 +4121,7 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
         bool success = ray_intersects_triangle(pos.yzw, dir.yzw, v0, v1, v2, &ray_t);
 
-        if(t_out)
+        if(success && t_out)
         {
             *t_out = ray_t;
         }
@@ -4342,7 +4342,7 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
     bool success = intersection_time >= -eps && intersection_time <= 1 + eps;
 
-    if(t_out)
+    if(success && t_out)
     {
         ///so. t = tdiv / div. entry + (exit - entry) * t = time, and we have t, exit, and entry so neat
         ///now we want pos.x + dir.x * p = time
