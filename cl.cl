@@ -3619,7 +3619,6 @@ struct step_setup
 
     int4 current;
     int idx;
-    bool one_end_touch;
     bool should_end;
 };
 
@@ -3688,7 +3687,6 @@ struct step_setup setup_step(float4 grid1, float4 grid2)
     ret.tMax = tMax;
     ret.tDelta = tDelta;
     ret.idx = 0;
-    ret.one_end_touch = all(ret.current == ret.end_grid_pos);
     ret.should_end = false;
 
     return ret;
@@ -3696,22 +3694,10 @@ struct step_setup setup_step(float4 grid1, float4 grid2)
 
 void do_step(struct step_setup* step)
 {
-    bool at_end = all(step->current == step->end_grid_pos);
-
-    if(at_end && !step->one_end_touch)
+    if(all(step->current == step->end_grid_pos))
     {
-        step->one_end_touch = true;
         step->idx++;
-
-        return;
-    }
-
-    ///this is to ensure termination
-    if(at_end)
-    {
         step->should_end = true;
-        step->idx++;
-
         return;
     }
 
