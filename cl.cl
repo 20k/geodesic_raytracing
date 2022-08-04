@@ -3925,40 +3925,21 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
             bool any_valid = true;
             #endif // USE_FEEDBACK_CULLING
 
-            //#pragma unroll
-            //for(int z=-1; z <= 1; z++)
-            {
-                //#pragma unroll
-                //for(int y=-1; y <= 1; y++)
-                {
-                    //#pragma unroll
-                    //for(int x=-1; x <= 1; x++)
-                    {
-                        //#pragma unroll
-                        //for(int t=-1; t <= 1; t++)
-                        {
-                            //if(any_valid)
-                            //    break;
+            #ifdef USE_FEEDBACK_CULLING
+            int test_time_min = old_cell_time_min[oid];
+            int test_time_max = old_cell_time_max[oid];
 
-                            #ifdef USE_FEEDBACK_CULLING
-                            int test_time_min = old_cell_time_min[oid];
-                            int test_time_max = old_cell_time_max[oid];
+            bool checked = true;
 
-                            bool checked = true;
+            if(test_time_min == 2147483647 || test_time_max == (-2147483647 - 1))
+                checked = false;
 
-                            if(test_time_min == 2147483647 || test_time_max == (-2147483647 - 1))
-                                checked = false;
+            if(!range_overlaps(current.x, next.x, test_time_min, test_time_max))
+                checked = false;
 
-                            if(!range_overlaps(current.x, next.x, test_time_min, test_time_max))
-                                checked = false;
-
-                            if(checked)
-                                any_valid = true;
-                            #endif // USE_FEEDBACK_CULLING
-                        }
-                    }
-                }
-            }
+            if(checked)
+                any_valid = true;
+            #endif // USE_FEEDBACK_CULLING
 
             if(any_valid)
             {
