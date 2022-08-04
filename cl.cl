@@ -4114,6 +4114,9 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
     if(all(t_diff == 0.f))
     {
+        if(!range_overlaps(pos.x, pos.x + dir.x, tri_start_time, tri_end_time))
+            return false;
+
         float ray_t = 0;
 
         bool success = ray_intersects_triangle(pos.yzw, dir.yzw, v0, v1, v2, &ray_t);
@@ -4628,13 +4631,17 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                             ///could sort this instead by end times, and then use end time as the quick check
                             float start_time = linear_start_times[base_offset + t_off];
 
+                            #ifdef TIME_CULL
                             if(rt_pos.x < start_time - 0.0001f && (next_rt_pos - rt_pos).x < 0)
                                 continue;
+                            #endif // TIME_CULL
 
                             float end_time = start_time + linear_delta_times[base_offset + t_off];
 
+                            #ifdef TIME_CULL
                             if(!ray_toblerone_could_intersect(rt_pos, next_rt_pos - rt_pos, start_time, end_time))
                                 continue;
+                            #endif // TIME_CULL
 
                             ///use dot current_pos tri centre pos (?) as distance metric
                             /*float3 pdiff = parent_pos.yzw - rt_pos.yzw;
