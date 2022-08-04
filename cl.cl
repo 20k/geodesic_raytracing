@@ -3610,9 +3610,8 @@ float4 positive_fmod4(float4 a, float4 b)
 ///https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.42.3443&rep=rep1&type=pdf
 struct step_setup
 {
-    int4 start_grid_pos;
     int4 end_grid_pos;
-    float4 sign_step; ///ie stepX, stepY, stepZ
+    char4 sign_step; ///ie stepX, stepY, stepZ
 
     float4 tMax;
     float4 tDelta;
@@ -3631,11 +3630,10 @@ struct step_setup setup_step(float4 grid1, float4 grid2)
     float4 floor_grid1 = floor(grid1);
     float4 floor_grid2 = floor(grid2);
 
-    ret.start_grid_pos = (int4)(floor_grid1.x, floor_grid1.y, floor_grid1.z, floor_grid1.w);
     ret.end_grid_pos = (int4)(floor_grid2.x, floor_grid2.y, floor_grid2.z, floor_grid2.w);
-    ret.current = ret.start_grid_pos;
+    ret.current = (int4)(floor_grid1.x, floor_grid1.y, floor_grid1.z, floor_grid1.w);
 
-    ret.sign_step = sign(ray_dir);
+    ret.sign_step = convert_char4(sign(ray_dir));
 
     ///so, we're a ray, going at a speed of ray_dir.x
     ///our position is grid1.x
@@ -3702,7 +3700,7 @@ void do_step(struct step_setup* step)
     }
 
     float tMaxArray[4] = {step->tMax.x, step->tMax.y, step->tMax.z, step->tMax.w};
-    float tStep[4] = {step->sign_step.x, step->sign_step.y, step->sign_step.z, step->sign_step.w};
+    char tStep[4] = {step->sign_step.x, step->sign_step.y, step->sign_step.z, step->sign_step.w};
 
     int current[4] = {step->current.x, step->current.y, step->current.z, step->current.w};
     int end_pos[4] = {step->end_grid_pos.x, step->end_grid_pos.y, step->end_grid_pos.z, step->end_grid_pos.w};
