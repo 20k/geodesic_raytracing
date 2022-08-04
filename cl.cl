@@ -3607,6 +3607,7 @@ float4 positive_fmod4(float4 a, float4 b)
                     positive_fmod(a.w, b.w));
 }
 
+#if 0
 ///https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.42.3443&rep=rep1&type=pdf
 struct step_setup
 {
@@ -3769,6 +3770,130 @@ bool is_step_finished(struct step_setup* step)
 {
     ///do I sometimes want to include the end point in smearing?
     return step->should_end || step->idx > 600;
+}
+#endif // 0
+
+struct step_setup
+{
+    float4 ray_dir;
+    float4 delta_dist;
+    int4 ray_step;
+    float4 side_dist;
+    int4 current;
+    int idx;
+    float ray_len;
+    bool once_over;
+};
+
+struct step_setup setup_step(float4 grid1, float4 grid2)
+{
+    float4 ray_dir = grid2 - grid1;
+
+    float4 floord_pos = floor(grid1);
+    float4 delta_dist = fabs(length(ray_dir) / ray_dir);
+
+    if(ray_dir.x == 0)
+        delta_dist.x = 0;
+    if(ray_dir.y == 0)
+        delta_dist.y = 0;
+    if(ray_dir.z == 0)
+        delta_dist.z = 0;
+    if(ray_dir.w == 0)
+        delta_dist.w = 0;
+
+    float4 ray_stepf = sign(ray_dir);
+    float4 side_dist = (ray_stepf * (floord_pos - grid1) + (ray_stepf * 0.5f) + 0.5f) * delta_dist;
+
+    struct step_setup ret;
+    ret.delta_dist = delta_dist;
+    ret.ray_step = (int4)(ray_stepf.x, ray_stepf.y, ray_stepf.z, ray_stepf.w);
+    ret.side_dist = side_dist;
+    ret.current = convert_int4(floord_pos);
+    ret.idx = 0;
+    ret.ray_len = length(ray_dir);
+    ret.ray_dir = ray_dir;
+    ret.once_over = false;
+
+    return ret;
+};
+
+#define AS_ARRAY4(v) {v.x, v.y, v.z, v.w}
+
+void do_step(struct step_setup* step)
+{
+    bool term = all(step->side_dist >= fabs(step->ray_dir));
+
+    if(term && !step->once_over)
+    {
+        step->once_over = true;
+        return;
+    }
+
+    if(term && step->once_over)
+    {
+        step->idx = 9999;
+        return;
+    }
+
+    float side_dist[4] = AS_ARRAY4(step->side_dist);
+    float delta_dist[4] = AS_ARRAY4(step->delta_dist);
+
+    step->idx++;
+
+    int which_min = -1;
+    float my_min = FLT_MAX;
+
+    for(int i=0; i < 4; i++)
+    {
+        if(side_dist[i] < my_min && delta_dist[i] != 0)
+        {
+            which_min = i;
+            my_min = side_dist[i];
+        }
+    }
+
+    if(which_min == -1)
+        return;
+
+    if(which_min == 0)
+    {
+        step->side_dist.x += step->delta_dist.x;
+        step->current.x += step->ray_step.x;
+    }
+
+    if(which_min == 1)
+    {
+        step->side_dist.y += step->delta_dist.y;
+        step->current.y += step->ray_step.y;
+    }
+
+    if(which_min == 2)
+    {
+        step->side_dist.z += step->delta_dist.z;
+        step->current.z += step->ray_step.z;
+    }
+
+    if(which_min == 3)
+    {
+        step->side_dist.w += step->delta_dist.w;
+        step->current.w += step->ray_step.w;
+    }
+}
+
+bool is_step_finished(struct step_setup* setup)
+{
+    //printf("Delta %f %f %f %f\n", setup->delta_dist.x, setup->delta_dist.y, setup->delta_dist.z, setup->delta_dist.w);
+
+    float max_dst = max(max(setup->side_dist.x, setup->side_dist.y), max(setup->side_dist.z, setup->side_dist.w));
+
+    if(setup->idx > 512)
+        return true;
+
+    return false;
+
+    //return all(setup->side_dist >= fabs(setup->ray_dir));
+
+    //return setup->idx > 600 || max_dst > setup->ray_len;
 }
 
 unsigned int index_acceleration(struct step_setup* setup, int width_num)
