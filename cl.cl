@@ -4230,11 +4230,19 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
     };
 
     float3 normals[5] = {
-        base_normal,
-        -base_normal,
-        triangle_normal_D(t_diff, to_v1),
-        triangle_normal_D(to_v2, t_diff),
-        triangle_normal_D(t_diff, to_v2 - to_v1)
+        base_normal * base_sign,
+        -base_normal * base_sign,
+        triangle_normal_D(t_diff, to_v1) * base_sign,
+        triangle_normal_D(to_v2, t_diff) * base_sign,
+        triangle_normal_D(t_diff, to_v2 - to_v1) * base_sign
+    };
+
+    float denoms[5] = {
+        dot(dir.yzw, normals[0]),
+        -dot(dir.yzw, normals[0]),
+        dot(dir.yzw, normals[2]),
+        dot(dir.yzw, normals[3]),
+        dot(dir.yzw, normals[4]),
     };
 
     float start_t = -FLT_MAX;
@@ -4242,9 +4250,8 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
     for(int i=0; i < 5; i++)
     {
-        float3 N = normals[i] * base_sign;
-
-        float denom = dot(dir.yzw, N);
+        float3 N = normals[i];
+        float denom = denoms[i];
 
         float t = dot(origins[i] - pos.yzw, N) / denom;
 
@@ -4257,9 +4264,12 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
             end_t = min(end_t, t + 1e-7);
         }
 
-        if(start_t > end_t)
-            return false;
+        //if(start_t > end_t)
+        //    return false;
     }
+
+    if(start_t > end_t)
+        return false;
 
     float min_t = start_t;
     float max_t = end_t;
