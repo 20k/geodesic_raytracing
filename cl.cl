@@ -4087,6 +4087,11 @@ float3 triangle_normal_U(float3 v0, float3 v1, float3 v2)
     return cross(U, V);
 }
 
+float3 triangle_normal_D(float3 v1_m_v0, float3 v2_m_v0)
+{
+    return cross(v1_m_v0, v2_m_v0);
+}
+
 bool ray_toblerone_could_intersect(float4 pos, float4 dir, float tri_start_t, float tri_end_t)
 {
     float ray_start_t = pos.x;
@@ -4205,32 +4210,43 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
     if(!any_t)
         return false;
     #else
-    float3 planes[5 * 3] = {
+    /*float3 planes[5 * 3] = {
         v0, v1, v2,
         e0, e2, e1,
         v0, e0, v1,
         v0, v2, e0,
         v1, e1, v2,
+    };*/
+
+    float3 base_normal = triangle_normal_D(to_v1, to_v2);
+    float base_sign = dot(base_normal, t_diff);
+
+    float3 origins[5] = {
+        v0,
+        e0,
+        v0,
+        v0,
+        v1
     };
 
-    ///depending on the direction of movement of the tri, need to flip the convex hullness of the toblerone
-    float3 base_normal = triangle_normal_U(v0, v1, v2);
-    float base_sign = dot(base_normal, e0 - v0);
+    float3 normals[5] = {
+        base_normal,
+        -base_normal,
+        triangle_normal_D(t_diff, to_v1),
+        triangle_normal_D(to_v2, t_diff),
+        triangle_normal_D(t_diff, v2 - v1)
+    };
 
     float start_t = -FLT_MAX;
     float end_t = FLT_MAX;
 
     for(int i=0; i < 5; i++)
     {
-        float3 pv0 = planes[i * 3 + 0];
-        float3 pv1 = planes[i * 3 + 1];
-        float3 pv2 = planes[i * 3 + 2];
-
-        float3 N = triangle_normal_U(pv0, pv1, pv2) * base_sign;
+        float3 N = normals[i] * base_sign;
 
         float denom = dot(dir.yzw, N);
 
-        float t = dot(pv0 - pos.yzw, N) / denom;
+        float t = dot(origins[i] - pos.yzw, N) / denom;
 
         if(denom > 0)
         {
