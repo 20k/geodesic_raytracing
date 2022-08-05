@@ -4234,7 +4234,7 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
         -base_normal,
         triangle_normal_D(t_diff, to_v1),
         triangle_normal_D(to_v2, t_diff),
-        triangle_normal_D(t_diff, v2 - v1)
+        triangle_normal_D(t_diff, to_v2 - to_v1)
     };
 
     float start_t = -FLT_MAX;
