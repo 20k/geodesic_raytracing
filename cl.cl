@@ -2439,44 +2439,52 @@ float4 mix_spherical(float4 in1, float4 in2, float a)
 }
 
 __kernel
-void parallel_transport_quantity(__global float4* geodesic_path, __global float4* geodesic_velocity, __global float* ds_in, __global float4* quantity, __global int* count_in, __global float4* quantity_out, dynamic_config_space struct dynamic_config* cfg)
+void parallel_transport_quantity(__global float4* geodesic_path, __global float4* geodesic_velocity, __global float* ds_in, __global float4* quantity, __global int* count_in, int count, __global float4* quantity_out, dynamic_config_space struct dynamic_config* cfg)
 {
-    if(get_global_id(0) != 0)
+    int id = get_global_id(0);
+
+    if(id >= count)
         return;
 
-    if(*count_in == 0)
+    int cnt = count_in[id];
+
+    if(cnt == 0)
         return;
 
-    float4 current_quantity = *quantity;
+    int stride = count;
 
-    quantity_out[0] = current_quantity;
+    ///i * stride + id
+    float4 current_quantity = quantity[0 * stride + id];
 
-    int cnt = *count_in;
+    quantity_out[0 * stride + id] = current_quantity;
 
     if(cnt == 1)
         return;
 
-    for(int i=0; i < cnt - 1; i++)
+    for(int kk=0; kk < cnt - 1; kk++)
     {
-        float ds = ds_in[i];
+        int current_idx = kk * stride + id;
+        int next_idx = (kk + 1) * stride + id;
 
-        float4 current_pos = geodesic_path[i];
-        float4 next_pos = geodesic_path[i + 1];
+        float ds = ds_in[current_idx];
 
-        float4 f_x = parallel_transport_get_acceleration(current_quantity, geodesic_path[i], geodesic_velocity[i], cfg);
+        float4 current_pos = geodesic_path[current_idx];
+        float4 next_pos = geodesic_path[next_idx];
+
+        float4 f_x = parallel_transport_get_acceleration(current_quantity, geodesic_path[current_idx], geodesic_velocity[current_idx], cfg);
 
         float4 intermediate_next = current_quantity + f_x * ds;
 
-        float4 next = current_quantity + 0.5f * ds * (f_x + parallel_transport_get_acceleration(intermediate_next, geodesic_path[i + 1], geodesic_velocity[i + 1], cfg));
+        float4 next = current_quantity + 0.5f * ds * (f_x + parallel_transport_get_acceleration(intermediate_next, geodesic_path[next_idx], geodesic_velocity[next_idx], cfg));
 
         ///so. quantity_out[0] ends up being initial, quantity_out[1] = after one transport
-        quantity_out[i] = current_quantity;
+        quantity_out[current_idx] = current_quantity;
 
         current_quantity = next;
     }
 
     ///need to write final one
-    quantity_out[cnt - 1] = current_quantity;
+    quantity_out[(cnt - 1) * stride + id] = current_quantity;
 }
 
 __kernel

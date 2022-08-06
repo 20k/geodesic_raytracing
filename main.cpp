@@ -2169,12 +2169,15 @@ int main(int argc, char* argv[])
 
                 for(int i=0; i < (int)parallel_transported_tetrads.size(); i++)
                 {
+                    int count = 1;
+
                     cl::args pt_args;
                     pt_args.push_back(geodesic_trace_buffer);
                     pt_args.push_back(geodesic_vel_buffer);
                     pt_args.push_back(geodesic_ds_buffer);
                     pt_args.push_back(tetrad[i]);
                     pt_args.push_back(geodesic_count_buffer);
+                    pt_args.push_back(count);
                     pt_args.push_back(parallel_transported_tetrads[i]);
                     pt_args.push_back(dynamic_config);
 
