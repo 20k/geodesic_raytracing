@@ -1664,6 +1664,38 @@ int main(int argc, char* argv[])
 
                     if(ImGui::BeginTabItem("Physics"))
                     {
+                        for(int idx = 0; idx < (int)tris.cpu_objects.size(); idx++)
+                        {
+                            std::shared_ptr<triangle_rendering::object> obj = tris.cpu_objects[idx];
+
+                            std::string name = "Object " + std::to_string(idx);
+
+                            ImGui::SetNextTreeNodeOpen(true, ImGuiCond_Appearing);
+
+                            if(ImGui::TreeNode(name.c_str()))
+                            {
+                                bool dirty = false;
+
+                                dirty |= ImGui::DragFloat4("Pos", &obj->pos.v[0], 0.1f, 0.f, 0.f);
+                                dirty |= ImGui::DragFloat3("Vel", &obj->velocity.v[0], 0.01f, -1.f, 1.f);
+
+                                if(dirty)
+                                {
+                                    phys.needs_trace = true;
+                                    obj->dirty = true;
+                                }
+
+                                float vel_max = 0.9999f;
+
+                                if(obj->velocity.length() > vel_max)
+                                {
+                                    obj->velocity = obj->velocity.norm() * vel_max;
+                                }
+
+                                ImGui::TreePop();
+                            }
+                        }
+
                         if(ImGui::Button("Rebuild"))
                         {
                             phys.needs_trace = true;

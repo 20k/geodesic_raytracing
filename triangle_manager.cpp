@@ -308,15 +308,17 @@ void triangle_rendering::manager::update_objects(cl::command_queue& cqueue)
 {
     for(std::shared_ptr<object>& obj : cpu_objects)
     {
-        gpu_object gobj(*obj);
-
         if(obj->gpu_offset == -1)
             continue;
 
         if(!obj->dirty)
             continue;
 
+        gpu_object gobj(*obj);
+        cl_float3 next_velocity = {obj->velocity.x(), obj->velocity.y(), obj->velocity.z()};
+
         objects.write(cqueue, (const char*)&gobj, sizeof(gpu_object), sizeof(gpu_object) * obj->gpu_offset);
+        objects_velocity.write(cqueue, (const char*)&next_velocity, sizeof(cl_float3), sizeof(cl_float3) * obj->gpu_offset);
 
         obj->dirty = false;
 
