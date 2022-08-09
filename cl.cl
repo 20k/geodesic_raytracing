@@ -4512,8 +4512,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
     ///ambient precision however looks way too low at 0.01, testing up to 0.3 showed no noticable difference, needs more precise tests though
     ///only in the case without kruskals and event horizon crossings however, any precision > 0.01 is insufficient in that case
     ///this super affects being able to render alcubierre at thin shells
-    float subambient_precision = 0.05;
-    float ambient_precision = 0.02;
+    float subambient_precision = 0.5;
+    float ambient_precision = 0.2;
 
     float rs = 1;
 
