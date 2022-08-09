@@ -1611,20 +1611,15 @@ void get_local_minkowski(float4 e0_hi, float4 e1_hi, float4 e2_hi, float4 e3_hi,
 ///todo: generic orthonormalisation
 struct frame_basis calculate_frame_basis(float big_metric[])
 {
-    ///while really i think it should be columns, the metric tensor is always symmetric
-    ///this seems better for memory ordering
-    float4 i1 = (float4)(big_metric[0], big_metric[1], big_metric[2], big_metric[3]);
-    float4 i2 = (float4)(big_metric[1], big_metric[5], big_metric[6], big_metric[7]);
-    float4 i3 = (float4)(big_metric[2], big_metric[6], big_metric[10], big_metric[11]);
-    float4 i4 = (float4)(big_metric[3], big_metric[7], big_metric[11], big_metric[15]);
+    float4 ri1 = (float4)(1, 0, 0, 0);
+    float4 ri2 = (float4)(0, 1, 0, 0);
+    float4 ri3 = (float4)(0, 0, 1, 0);
+    float4 ri4 = (float4)(0, 0, 0, 1);
 
-    float g_big_metric_inverse[16] = {};
-    metric_inverse(big_metric, g_big_metric_inverse);
-
-    float4 ri1 = raise_index_big(i1, g_big_metric_inverse);
-    float4 ri2 = raise_index_big(i2, g_big_metric_inverse);
-    float4 ri3 = raise_index_big(i3, g_big_metric_inverse);
-    float4 ri4 = raise_index_big(i4, g_big_metric_inverse);
+    float4 i1 = lower_index_generic(ri1, big_metric);
+    float4 i2 = lower_index_generic(ri2, big_metric);
+    float4 i3 = lower_index_generic(ri3, big_metric);
+    float4 i4 = lower_index_generic(ri4, big_metric);
 
     /*return orthonormalise4_metric(ri1, ri2, ri3, ri4, big_metric);*/
 
