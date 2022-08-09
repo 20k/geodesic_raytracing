@@ -1683,6 +1683,7 @@ struct frame_basis calculate_frame_basis(float big_metric[])
         printf("Warning, first column vector is not timelike. Todo for me: Fix this %f\n", minkowski[0]);
     }*/
 
+    ///do I need to reshuffle spatial indices?
     if(!approx_equal(minkowski[0], -1, eps))
     {
         int which_index_is_timelike = -1;
