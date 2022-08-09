@@ -1688,6 +1688,30 @@ struct frame_basis calculate_frame_basis(float big_metric[])
         printf("Warning, first column vector is not timelike. Todo for me: Fix this %f\n", minkowski[0]);
     }*/
 
+    if(!approx_equal(minkowski[0], -1, eps))
+    {
+        int which_index_is_timelike = -1;
+
+        for(int i=0; i < 4; i++)
+        {
+            if(approx_equal(minkowski[i * 4 + i], -1, eps))
+            {
+                which_index_is_timelike = i;
+                break;
+            }
+        }
+
+        ///catastrophic failure
+        if(which_index_is_timelike == -1)
+        {
+
+        }
+        else
+        {
+            SWAP(sorted_result[0], sorted_result[which_index_is_timelike], float4);
+        }
+    }
+
     struct frame_basis result2;
     result2.v1 = sorted_result[0];
     result2.v2 = sorted_result[1];
@@ -4488,8 +4512,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
     ///ambient precision however looks way too low at 0.01, testing up to 0.3 showed no noticable difference, needs more precise tests though
     ///only in the case without kruskals and event horizon crossings however, any precision > 0.01 is insufficient in that case
     ///this super affects being able to render alcubierre at thin shells
-    float subambient_precision = 0.5;
-    float ambient_precision = 0.2;
+    float subambient_precision = 0.05;
+    float ambient_precision = 0.02;
 
     float rs = 1;
 
