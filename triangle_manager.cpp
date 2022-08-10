@@ -405,9 +405,14 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         accel.push_back(unculled_counts);
         accel.push_back(any_visible);
         accel.push_back(phys.geodesic_paths);
-        accel.push_back(phys.geodesic_velocities);
         accel.push_back(phys.counts);
         accel.push_back(phys.geodesic_ds);
+
+        for(int i=0; i < 4; i++)
+        {
+            accel.push_back(phys.parallel_transported_tetrads[i]);
+        }
+
         accel.push_back(start_ds);
         accel.push_back(end_ds);
         accel.push_back(offset_width);
@@ -456,9 +461,14 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         accel.push_back(unculled_counts);
         accel.push_back(any_visible);
         accel.push_back(phys.geodesic_paths);
-        accel.push_back(phys.geodesic_velocities);
         accel.push_back(phys.counts);
         accel.push_back(phys.geodesic_ds);
+
+        for(int i=0; i < 4; i++)
+        {
+            accel.push_back(phys.parallel_transported_tetrads[i]);
+        }
+
         accel.push_back(start_ds);
         accel.push_back(end_ds);
         accel.push_back(offset_width);
