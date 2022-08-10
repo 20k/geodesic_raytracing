@@ -3971,29 +3971,29 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
         struct computed_triangle local_tri;
 
-        local_tri.v0x = cart_s_coordinate_v0.x;
-        local_tri.v0y = cart_s_coordinate_v0.y;
-        local_tri.v0z = cart_s_coordinate_v0.z;
+        local_tri.v0x = cart_s_coordinate_v0.y;
+        local_tri.v0y = cart_s_coordinate_v0.z;
+        local_tri.v0z = cart_s_coordinate_v0.w;
 
-        local_tri.v1x = cart_s_coordinate_v1.x;
-        local_tri.v1y = cart_s_coordinate_v1.y;
-        local_tri.v1z = cart_s_coordinate_v1.z;
+        local_tri.v1x = cart_s_coordinate_v1.y;
+        local_tri.v1y = cart_s_coordinate_v1.z;
+        local_tri.v1z = cart_s_coordinate_v1.w;
 
-        local_tri.v2x = cart_s_coordinate_v2.x;
-        local_tri.v2y = cart_s_coordinate_v2.y;
-        local_tri.v2z = cart_s_coordinate_v2.z;
+        local_tri.v2x = cart_s_coordinate_v2.y;
+        local_tri.v2y = cart_s_coordinate_v2.z;
+        local_tri.v2z = cart_s_coordinate_v2.w;
 
-        local_tri.e0x = cart_e_coordinate_v0.x;
-        local_tri.e0y = cart_e_coordinate_v0.y;
-        local_tri.e0z = cart_e_coordinate_v0.z;
+        local_tri.e0x = cart_e_coordinate_v0.y;
+        local_tri.e0y = cart_e_coordinate_v0.z;
+        local_tri.e0z = cart_e_coordinate_v0.w;
 
-        local_tri.e1x = cart_e_coordinate_v1.x;
-        local_tri.e1y = cart_e_coordinate_v1.y;
-        local_tri.e1z = cart_e_coordinate_v1.z;
+        local_tri.e1x = cart_e_coordinate_v1.y;
+        local_tri.e1y = cart_e_coordinate_v1.z;
+        local_tri.e1z = cart_e_coordinate_v1.w;
 
-        local_tri.e2x = cart_e_coordinate_v2.x;
-        local_tri.e2y = cart_e_coordinate_v2.y;
-        local_tri.e2z = cart_e_coordinate_v2.z;
+        local_tri.e2x = cart_e_coordinate_v2.y;
+        local_tri.e2y = cart_e_coordinate_v2.z;
+        local_tri.e2z = cart_e_coordinate_v2.w;
         #endif // TRI_PRECESSION
 
         float4 pos = current + (float4)(0.f, mine.x, mine.y, mine.z);
