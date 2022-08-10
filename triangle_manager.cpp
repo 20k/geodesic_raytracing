@@ -336,7 +336,7 @@ void triangle_rendering::manager::force_update_objects(cl::command_queue& cqueue
     update_objects(cqueue);
 }
 
-triangle_rendering::acceleration::acceleration(cl::context& ctx) : offsets(ctx), counts(ctx), memory(ctx), start_times_memory(ctx), delta_times_memory(ctx), memory_count(ctx), unculled_counts(ctx), ray_time_min(ctx), ray_time_max(ctx), cell_time_min(ctx), cell_time_max(ctx)
+triangle_rendering::acceleration::acceleration(cl::context& ctx, cl::command_queue& cqueue) : offsets(ctx), counts(ctx), memory(ctx), start_times_memory(ctx), delta_times_memory(ctx), memory_count(ctx), unculled_counts(ctx), ray_time_min(ctx), ray_time_max(ctx), cell_time_min(ctx), cell_time_max(ctx), any_visible(ctx)
 {
     memory_count.alloc(sizeof(cl_int));
 
@@ -354,6 +354,9 @@ triangle_rendering::acceleration::acceleration(cl::context& ctx) : offsets(ctx),
 
     cell_time_min.alloc(sizeof(cl_int) * cells);
     cell_time_max.alloc(sizeof(cl_int) * cells);
+
+    any_visible.alloc(sizeof(cl_int));
+    any_visible.set_to_zero(cqueue);
 }
 
 void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager& tris, physics& phys, cl::buffer& dynamic_config)
@@ -378,6 +381,8 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         clear_buffer(unculled_counts);
     }
 
+    any_visible.set_to_zero(cqueue);
+
     #define SMEARED
     #ifdef SMEARED
     float start_ds = 0.f;
@@ -398,6 +403,7 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         accel.push_back(start_times_memory);
         accel.push_back(delta_times_memory);
         accel.push_back(unculled_counts);
+        accel.push_back(any_visible);
         accel.push_back(phys.geodesic_paths);
         accel.push_back(phys.counts);
         accel.push_back(phys.geodesic_ds);
@@ -447,6 +453,7 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         accel.push_back(start_times_memory);
         accel.push_back(delta_times_memory);
         accel.push_back(unculled_counts);
+        accel.push_back(any_visible);
         accel.push_back(phys.geodesic_paths);
         accel.push_back(phys.counts);
         accel.push_back(phys.geodesic_ds);

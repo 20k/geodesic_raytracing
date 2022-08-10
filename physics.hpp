@@ -9,6 +9,7 @@ struct physics
 {
     int max_path_length = 16000;
     cl::buffer geodesic_paths;
+    cl::buffer geodesic_velocities;
     cl::buffer geodesic_ds;
     cl::buffer positions;
     cl::buffer counts;
@@ -17,6 +18,7 @@ struct physics
     cl::buffer gpu_object_count;
 
     std::array<cl::buffer, 4> tetrads;
+    std::array<cl::buffer, 4> parallel_transported_tetrads;
     cl::buffer polar_positions;
     cl::buffer timelike_vectors;
 
@@ -24,9 +26,9 @@ struct physics
 
     bool needs_trace = false;
 
-    physics(cl::context& ctx) : geodesic_paths(ctx), geodesic_ds(ctx), positions(ctx), counts(ctx), basis_speeds(ctx),
+    physics(cl::context& ctx) : geodesic_paths(ctx), geodesic_velocities(ctx), geodesic_ds(ctx), positions(ctx), counts(ctx), basis_speeds(ctx),
                                 gpu_object_count(ctx),
-                                tetrads{ctx, ctx, ctx, ctx}, polar_positions(ctx), timelike_vectors(ctx)
+                                tetrads{ctx, ctx, ctx, ctx}, parallel_transported_tetrads{ctx, ctx, ctx, ctx}, polar_positions(ctx), timelike_vectors(ctx)
     {
         gpu_object_count.alloc(sizeof(cl_int));
     }
@@ -39,6 +41,7 @@ struct physics
 
         ///need to pull geodesic initial position from gpu tris
         geodesic_paths.alloc(clamped_count * sizeof(cl_float4) * max_path_length);
+        geodesic_velocities.alloc(clamped_count * sizeof(cl_float4) * max_path_length);
         geodesic_ds.alloc(clamped_count * sizeof(cl_float) * max_path_length);
         positions.alloc(clamped_count * sizeof(cl_float4));
         counts.alloc(clamped_count * sizeof(cl_int));
@@ -48,6 +51,7 @@ struct physics
         for(int i=0; i < 4; i++)
         {
             tetrads[i].alloc(clamped_count * sizeof(cl_float4));
+            parallel_transported_tetrads[i].alloc(clamped_count * sizeof(cl_float4) * max_path_length);
         }
 
         polar_positions.alloc(clamped_count * sizeof(cl_float4));
@@ -153,7 +157,7 @@ struct physics
             cl::args snapshot_args;
             snapshot_args.push_back(timelike_vectors);
             snapshot_args.push_back(geodesic_paths); // position
-            snapshot_args.push_back(nullptr);        // velocity
+            snapshot_args.push_back(geodesic_velocities);        // velocity
             snapshot_args.push_back(nullptr);        // dT_ds
             snapshot_args.push_back(geodesic_ds);    // ds
             snapshot_args.push_back(gpu_object_count);
@@ -162,6 +166,21 @@ struct physics
             snapshot_args.push_back(counts);
 
             cqueue.exec("get_geodesic_path", snapshot_args, {object_count}, {256});
+        }
+
+        for(int i=0; i < 4; i++)
+        {
+            cl::args pt_args;
+            pt_args.push_back(geodesic_paths);
+            pt_args.push_back(geodesic_velocities);
+            pt_args.push_back(geodesic_ds);
+            pt_args.push_back(tetrads[i]);
+            pt_args.push_back(counts);
+            pt_args.push_back(object_count);
+            pt_args.push_back(parallel_transported_tetrads[i]);
+            pt_args.push_back(dynamic_config);
+
+            cqueue.exec("parallel_transport_quantity", pt_args, {object_count}, {256});
         }
 
         needs_trace = false;

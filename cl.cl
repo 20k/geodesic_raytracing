@@ -3818,6 +3818,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                                           __global int* offset_map, __global int* offset_counts,
                                           __global struct computed_triangle* mem_buffer, __global float* start_times_memory, __global float* delta_times_memory,
                                           __global int* unculled_counts,
+                                          __global int* any_visible,
                                           __global float4* object_geodesics, __global int* object_geodesic_counts,
                                           __global float* object_geodesic_ds,
                                           float start_ds, float end_ds,
@@ -3980,6 +3981,8 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                     mem_buffer[mem_start + lid] = local_tri;
                     start_times_memory[mem_start + lid] = output_time;
                     delta_times_memory[mem_start + lid] = delta_time;
+
+                    *any_visible = 1;
                 }
             }
 
@@ -4446,6 +4449,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                       __global struct potential_intersection* intersections_p, __global int* intersection_count_p,
                       __global int* counts, __global int* offsets, __global struct computed_triangle* linear_mem, __global float* linear_start_times, __global float* linear_delta_times,
                       __global int* unculled_counts,
+                      __constant int* any_visible,
                       float accel_width, float accel_time_width, int accel_width_num,
                       __global int* cell_time_min, __global int* cell_time_max,
                       __global struct object* objs,
@@ -4528,6 +4532,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
     float4 ray_quat = ray->initial_quat;
 
+    int any_visible_tris = *any_visible;
+
     //#pragma unroll
     for(int i=0; i < loop_limit; i++)
     {
@@ -4591,7 +4597,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
         }
         #endif // UNCONDITIONALLY_NONSINGULAR
 
-        if((i % 8) == 0)
+        if((i % 8) == 0 && any_visible_tris > 0)
         {
             float4 out_position = generic_to_cartesian(position, cfg);
 
