@@ -3935,6 +3935,9 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
             local_tri.dvz = (current - next).w;
         }
         #endif // TIME_CULL
+
+        float4 cartesian_mine_start = (float4)(0.f, mine.x, mine.y, mine.z);
+        float4 cartesian_mine_next = (float4)(0.f, mine.x, mine.y, mine.z);
         #else
         float delta_time = (next - current).x;
         float output_time = current.x;
@@ -3994,10 +3997,16 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         local_tri.e2x = cart_e_coordinate_v2.y;
         local_tri.e2y = cart_e_coordinate_v2.z;
         local_tri.e2z = cart_e_coordinate_v2.w;
+
+        float4 coordinate_mine_start = tetrad_to_coordinate_basis((float4)(0.f, mine.x, mine.y, mine.z), s_e0, s_e1, s_e2, s_e3);
+        float4 cartesian_mine_start = generic_velocity_to_cartesian_velocity(native_current, coordinate_mine_start, cfg);
+
+        float4 coordinate_mine_next = tetrad_to_coordinate_basis((float4)(0.f, mine.x, mine.y, mine.z), e_e0, e_e1, e_e2, e_e3);
+        float4 cartesian_mine_next = generic_velocity_to_cartesian_velocity(native_next, coordinate_mine_next, cfg);
         #endif // TRI_PRECESSION
 
-        float4 pos = current + (float4)(0.f, mine.x, mine.y, mine.z);
-        float4 next_pos = next + (float4)(0.f, mine.x, mine.y, mine.z);
+        float4 pos = current + cartesian_mine_start;
+        float4 next_pos = next + cartesian_mine_next;
 
         float4 grid_pos = world_to_voxel4(pos, width, time_width, width_num);
         float4 next_grid_pos = world_to_voxel4(next_pos, width, time_width, width_num);
