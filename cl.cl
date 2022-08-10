@@ -10,6 +10,19 @@ struct triangle
     float v2x, v2y, v2z;
 };
 
+#define TRI_PRECESSION
+#ifdef TRI_PRECESSION
+struct computed_triangle
+{
+    float v0x, v0y, v0z;
+    float v1x, v1y, v1z;
+    float v2x, v2y, v2z;
+
+    float e0x, e0y, e0z;
+    float e1x, e1y, e1z;
+    float e2x, e2y, e2z;
+};
+#else
 struct computed_triangle
 {
     //float time;
@@ -22,6 +35,8 @@ struct computed_triangle
     half dvy;
     half dvz;
 };
+
+#endif // TRI_PRECESSION
 
 struct intersection
 {
@@ -3866,8 +3881,10 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         if(cc > 2048)
             return;
 
+        int next_cc = cc + skip;
+
         float4 native_current = object_geodesics[cc * stride + mine.object_parent];
-        float4 native_next = object_geodesics[(cc + skip) * stride + mine.object_parent];
+        float4 native_next = object_geodesics[next_cc * stride + mine.object_parent];
 
         if(!range_overlaps(lowest_time, maximum_time, native_current.x, native_next.x))
             continue;
@@ -3875,6 +3892,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         float4 current = generic_to_cartesian(native_current, cfg);
         float4 next = generic_to_cartesian(native_next, cfg);
 
+        #ifndef TRI_PRECESSION
         //if(should_store)
         //printf("Current %f %f %f %f\n", current.x, current.y, current.z, current.w);
 
@@ -3917,6 +3935,66 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
             local_tri.dvz = (current - next).w;
         }
         #endif // TIME_CULL
+        #else
+        float delta_time = (next - current).x;
+        float output_time = current.x;
+
+        float4 s_e0 = p_e0[cc * stride + mine.object_parent];
+        float4 s_e1 = p_e1[cc * stride + mine.object_parent];
+        float4 s_e2 = p_e2[cc * stride + mine.object_parent];
+        float4 s_e3 = p_e3[cc * stride + mine.object_parent];
+
+        float4 e_e0 = p_e0[next_cc * stride + mine.object_parent];
+        float4 e_e1 = p_e1[next_cc * stride + mine.object_parent];
+        float4 e_e2 = p_e2[next_cc * stride + mine.object_parent];
+        float4 e_e3 = p_e3[next_cc * stride + mine.object_parent];
+
+        float4 vert_0 = (float4)(0, my_tri.v0x, my_tri.v0y, my_tri.v0z);
+        float4 vert_1 = (float4)(0, my_tri.v1x, my_tri.v1y, my_tri.v1z);
+        float4 vert_2 = (float4)(0, my_tri.v2x, my_tri.v2y, my_tri.v2z);
+
+        float4 s_coordinate_v0 = coordinate_to_tetrad_basis(vert_0, s_e0, s_e1, s_e2, s_e3);
+        float4 s_coordinate_v1 = coordinate_to_tetrad_basis(vert_1, s_e0, s_e1, s_e2, s_e3);
+        float4 s_coordinate_v2 = coordinate_to_tetrad_basis(vert_2, s_e0, s_e1, s_e2, s_e3);
+
+        float4 e_coordinate_v0 = coordinate_to_tetrad_basis(vert_0, s_e0, s_e1, s_e2, s_e3);
+        float4 e_coordinate_v1 = coordinate_to_tetrad_basis(vert_1, s_e0, s_e1, s_e2, s_e3);
+        float4 e_coordinate_v2 = coordinate_to_tetrad_basis(vert_2, s_e0, s_e1, s_e2, s_e3);
+
+        float4 cart_s_coordinate_v0 = generic_velocity_to_cartesian_velocity(native_current, s_coordinate_v0, cfg) + current;
+        float4 cart_s_coordinate_v1 = generic_velocity_to_cartesian_velocity(native_current, s_coordinate_v1, cfg) + current;
+        float4 cart_s_coordinate_v2 = generic_velocity_to_cartesian_velocity(native_current, s_coordinate_v2, cfg) + current;
+
+        float4 cart_e_coordinate_v0 = generic_velocity_to_cartesian_velocity(native_next, e_coordinate_v0, cfg) + next;
+        float4 cart_e_coordinate_v1 = generic_velocity_to_cartesian_velocity(native_next, e_coordinate_v1, cfg) + next;
+        float4 cart_e_coordinate_v2 = generic_velocity_to_cartesian_velocity(native_next, e_coordinate_v2, cfg) + next;
+
+        struct computed_triangle local_tri;
+
+        local_tri.v0x = cart_s_coordinate_v0.x;
+        local_tri.v0y = cart_s_coordinate_v0.y;
+        local_tri.v0z = cart_s_coordinate_v0.z;
+
+        local_tri.v1x = cart_s_coordinate_v1.x;
+        local_tri.v1y = cart_s_coordinate_v1.y;
+        local_tri.v1z = cart_s_coordinate_v1.z;
+
+        local_tri.v2x = cart_s_coordinate_v2.x;
+        local_tri.v2y = cart_s_coordinate_v2.y;
+        local_tri.v2z = cart_s_coordinate_v2.z;
+
+        local_tri.e0x = cart_e_coordinate_v0.x;
+        local_tri.e0y = cart_e_coordinate_v0.y;
+        local_tri.e0z = cart_e_coordinate_v0.z;
+
+        local_tri.e1x = cart_e_coordinate_v1.x;
+        local_tri.e1y = cart_e_coordinate_v1.y;
+        local_tri.e1z = cart_e_coordinate_v1.z;
+
+        local_tri.e2x = cart_e_coordinate_v2.x;
+        local_tri.e2y = cart_e_coordinate_v2.y;
+        local_tri.e2z = cart_e_coordinate_v2.z;
+        #endif // TRI_PRECESSION
 
         float4 pos = current + (float4)(0.f, mine.x, mine.y, mine.z);
         float4 next_pos = next + (float4)(0.f, mine.x, mine.y, mine.z);
@@ -4137,6 +4215,7 @@ bool ray_toblerone_could_intersect(float4 pos, float4 dir, float tri_start_t, fl
 ///dir is not normalised, should really use a pos2
 bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_triangle* ctri, float tri_start_time, float tri_end_time, float* t_out)
 {
+    #ifndef TRI_PRECESSION
     float3 to_v1 = (float3)(ctri->dv1x, ctri->dv1y, ctri->dv1z);
     float3 to_v2 = (float3)(ctri->dv2x, ctri->dv2y, ctri->dv2z);
 
@@ -4144,14 +4223,32 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
     float3 v1 = v0 + to_v1;
     float3 v2 = v0 + to_v2;
 
+    float3 t_diff = (float3)(ctri->dvx, ctri->dvy, ctri->dvz);
+
+    bool is_static = all(t_diff == 0.f);
+
+    float3 e0 = v0 + t_diff;
+    float3 e1 = v1 + t_diff;
+    float3 e2 = v2 + t_diff;
+    #else
+    #define TRI_COLLIDE
+    float3 v0 = (float3)(ctri->v0x, ctri->v0y, ctri->v0z);
+    float3 v1 = (float3)(ctri->v1x, ctri->v1y, ctri->v1z);
+    float3 v2 = (float3)(ctri->v2x, ctri->v2y, ctri->v2z);
+
+    float3 e0 = (float3)(ctri->e0x, ctri->e0y, ctri->e0z);
+    float3 e1 = (float3)(ctri->e1x, ctri->e1y, ctri->e1z);
+    float3 e2 = (float3)(ctri->e2x, ctri->e2y, ctri->e2z);
+
+    bool is_static = all(v0 == e0) && all(v1 == e1) && all(v2 == e2);
+    #endif // TRI_PRECESSION
+
     /*if(tri_start_time == tri_end_time)
     {
         return ray_intersects_triangle(pos.yzw, dir.yzw, v0, v1, v2, 0);
     }*/
 
-    float3 t_diff = (float3)(ctri->dvx, ctri->dvy, ctri->dvz);
-
-    if(all(t_diff == 0.f))
+    if(is_static)
     {
         if(!range_overlaps(pos.x, pos.x + dir.x, tri_start_time, tri_end_time))
             return false;
@@ -4168,9 +4265,6 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
         return success;
     }
 
-    float3 e0 = v0 + t_diff;
-    float3 e1 = v1 + t_diff;
-    float3 e2 = v2 + t_diff;
 
     ///this is marginally faster if there's lots of false positives
     /*{
@@ -5992,6 +6086,7 @@ void render_intersections(__global struct intersection* in, __global int* cnt, _
     __global struct intersection* mine = &in[id];
     __global struct computed_triangle* ctri = &linear_mem[mine->computed_parent];
 
+    #ifndef TRI_PRECESSION
     float3 to_v1 = (float3)(ctri->dv1x, ctri->dv1y, ctri->dv1z);
     float3 to_v2 = (float3)(ctri->dv2x, ctri->dv2y, ctri->dv2z);
 
@@ -6004,6 +6099,11 @@ void render_intersections(__global struct intersection* in, __global int* cnt, _
     float3 e0 = v0 + t_diff;
     float3 e1 = v1 + t_diff;
     float3 e2 = v2 + t_diff;
+    #else
+    float3 v0 = (float3)(ctri->v0x, ctri->v0y, ctri->v0z);
+    float3 v1 = (float3)(ctri->v1x, ctri->v1y, ctri->v1z);
+    float3 v2 = (float3)(ctri->v2x, ctri->v2y, ctri->v2z);
+    #endif
 
     //float3 N = triangle_normal(iv0, iv1, iv2);
 
