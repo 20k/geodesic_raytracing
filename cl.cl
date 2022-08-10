@@ -3953,13 +3953,13 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         float4 vert_1 = (float4)(0, my_tri.v1x, my_tri.v1y, my_tri.v1z);
         float4 vert_2 = (float4)(0, my_tri.v2x, my_tri.v2y, my_tri.v2z);
 
-        float4 s_coordinate_v0 = coordinate_to_tetrad_basis(vert_0, s_e0, s_e1, s_e2, s_e3);
-        float4 s_coordinate_v1 = coordinate_to_tetrad_basis(vert_1, s_e0, s_e1, s_e2, s_e3);
-        float4 s_coordinate_v2 = coordinate_to_tetrad_basis(vert_2, s_e0, s_e1, s_e2, s_e3);
+        float4 s_coordinate_v0 = tetrad_to_coordinate_basis(vert_0, s_e0, s_e1, s_e2, s_e3);
+        float4 s_coordinate_v1 = tetrad_to_coordinate_basis(vert_1, s_e0, s_e1, s_e2, s_e3);
+        float4 s_coordinate_v2 = tetrad_to_coordinate_basis(vert_2, s_e0, s_e1, s_e2, s_e3);
 
-        float4 e_coordinate_v0 = coordinate_to_tetrad_basis(vert_0, s_e0, s_e1, s_e2, s_e3);
-        float4 e_coordinate_v1 = coordinate_to_tetrad_basis(vert_1, s_e0, s_e1, s_e2, s_e3);
-        float4 e_coordinate_v2 = coordinate_to_tetrad_basis(vert_2, s_e0, s_e1, s_e2, s_e3);
+        float4 e_coordinate_v0 = tetrad_to_coordinate_basis(vert_0, s_e0, s_e1, s_e2, s_e3);
+        float4 e_coordinate_v1 = tetrad_to_coordinate_basis(vert_1, s_e0, s_e1, s_e2, s_e3);
+        float4 e_coordinate_v2 = tetrad_to_coordinate_basis(vert_2, s_e0, s_e1, s_e2, s_e3);
 
         float4 cart_s_coordinate_v0 = generic_velocity_to_cartesian_velocity(native_current, s_coordinate_v0, cfg) + current;
         float4 cart_s_coordinate_v1 = generic_velocity_to_cartesian_velocity(native_current, s_coordinate_v1, cfg) + current;
