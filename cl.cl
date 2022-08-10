@@ -3464,7 +3464,7 @@ bool ray_plane_intersection(float3 plane_origin, float3 plane_normal, float3 ray
     return true;
 }
 
-bool ray_intersects_triangle(float3 origin, float3 direction, float3 v0, float3 v1, float3 v2, float* t_out)
+bool ray_intersects_triangle(float3 origin, float3 direction, float3 v0, float3 v1, float3 v2, float* t_out, float* u_out, float* v_out)
 {
     float eps = 0.0000001;
     float3 edge1, edge2, h, s, q;
@@ -3497,6 +3497,12 @@ bool ray_intersects_triangle(float3 origin, float3 direction, float3 v0, float3 
 
     if(t_out)
         *t_out = t;
+
+    if(u_out)
+        *u_out = u;
+
+    if(v_out)
+        *v_out = v;
 
     return true;
 }
@@ -3960,9 +3966,9 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         float4 s_coordinate_v1 = tetrad_to_coordinate_basis(vert_1, s_e0, s_e1, s_e2, s_e3);
         float4 s_coordinate_v2 = tetrad_to_coordinate_basis(vert_2, s_e0, s_e1, s_e2, s_e3);
 
-        float4 e_coordinate_v0 = tetrad_to_coordinate_basis(vert_0, s_e0, s_e1, s_e2, s_e3);
-        float4 e_coordinate_v1 = tetrad_to_coordinate_basis(vert_1, s_e0, s_e1, s_e2, s_e3);
-        float4 e_coordinate_v2 = tetrad_to_coordinate_basis(vert_2, s_e0, s_e1, s_e2, s_e3);
+        float4 e_coordinate_v0 = tetrad_to_coordinate_basis(vert_0, e_e0, e_e1, e_e2, e_e3);
+        float4 e_coordinate_v1 = tetrad_to_coordinate_basis(vert_1, e_e0, e_e1, e_e2, e_e3);
+        float4 e_coordinate_v2 = tetrad_to_coordinate_basis(vert_2, e_e0, e_e1, e_e2, e_e3);
 
         float4 cart_s_coordinate_v0 = generic_velocity_to_cartesian_velocity(native_current, s_coordinate_v0, cfg) + current;
         float4 cart_s_coordinate_v1 = generic_velocity_to_cartesian_velocity(native_current, s_coordinate_v1, cfg) + current;
@@ -4264,7 +4270,7 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
         float ray_t = 0;
 
-        bool success = ray_intersects_triangle(pos.yzw, dir.yzw, v0, v1, v2, &ray_t);
+        bool success = ray_intersects_triangle(pos.yzw, dir.yzw, v0, v1, v2, &ray_t, 0, 0);
 
         if(success && t_out)
         {
@@ -4325,7 +4331,7 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
         float my_t = 0;
 
-        if(ray_intersects_triangle(pos.yzw, dir.yzw, l_v0, l_v1, l_v2, &my_t))
+        if(ray_intersects_triangle(pos.yzw, dir.yzw, l_v0, l_v1, l_v2, &my_t, 0, 0))
         {
             if(any_t)
             {
@@ -4867,7 +4873,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                 float3 ray_dir = next_rt_pos.yzw - rt_pos.yzw;
 
                                 ///ehhhh need to take closest
-                                if(ray_intersects_triangle(ray_pos, ray_dir, v0_pos, v1_pos, v2_pos, 0))
+                                if(ray_intersects_triangle(ray_pos, ray_dir, v0_pos, v1_pos, v2_pos, 0, 0, 0))
                                 {
                                     struct intersection out;
                                     out.sx = sx;
@@ -5994,7 +6000,7 @@ void render_tris(__global struct triangle* tris, int tri_count,
                 float3 ray_pos = mix(next_pos.yzw, pos.yzw, dx);
                 float3 ray_dir = next_pos.yzw - pos.yzw;
 
-                if(ray_intersects_triangle(ray_pos, ray_dir, v0_pos, v1_pos, v2_pos, 0))
+                if(ray_intersects_triangle(ray_pos, ray_dir, v0_pos, v1_pos, v2_pos, 0, 0, 0))
                 {
                     write_imagef(screen, (int2){sx, sy}, (float4)(1, 0, 0, 1));
                     return;
