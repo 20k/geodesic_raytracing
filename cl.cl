@@ -3901,6 +3901,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         local_tri.dvy = (next - current).z;
         local_tri.dvz = (next - current).w;
 
+        #ifdef TIME_CULL
         ///my later pos is actually earlier than the last pos. Swap start and end
         if(next.x < current.x)
         {
@@ -3915,6 +3916,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
             local_tri.dvy = (current - next).z;
             local_tri.dvz = (current - next).w;
         }
+        #endif // TIME_CULL
 
         float4 pos = current + (float4)(0.f, mine.x, mine.y, mine.z);
         float4 next_pos = next + (float4)(0.f, mine.x, mine.y, mine.z);
