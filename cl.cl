@@ -4315,6 +4315,17 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
         e1, e2, v2
     };
 
+    float vert_times[8 * 3] = {
+        tri_start_time, tri_start_time, tri_start_time,
+        tri_start_time, tri_end_time, tri_start_time,
+        tri_start_time, tri_end_time, tri_start_time,
+        tri_end_time, tri_end_time, tri_end_time,
+        tri_end_time, tri_end_time, tri_start_time,
+        tri_end_time, tri_end_time, tri_start_time,
+        tri_end_time, tri_start_time, tri_start_time,
+        tri_end_time, tri_end_time, tri_start_time
+    };
+
     ///tri * 3 + vert
 
     ///bool ray_intersects_triangle(float3 origin, float3 direction, float3 vertex0, float3 vertex1, float3 vertex2, float* t_out)
@@ -4322,6 +4333,10 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
     bool any_t = false;
     float min_t = 0;
     float max_t = 0;
+
+    ///time of this triangle
+    float interpolated_min_time = 0;
+    float interpolated_max_time = 0;
 
     for(int i=0; i < 8; i++)
     {
@@ -4331,17 +4346,40 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
         float my_t = 0;
 
-        if(ray_intersects_triangle(pos.yzw, dir.yzw, l_v0, l_v1, l_v2, &my_t, 0, 0))
+        float u = 0;
+        float v = 0;
+
+        if(ray_intersects_triangle(pos.yzw, dir.yzw, l_v0, l_v1, l_v2, &my_t, &u, &v))
         {
+            float tv0 = vert_times[i * 3 + 0];
+            float tv1 = vert_times[i * 3 + 1];
+            float tv2 = vert_times[i * 3 + 2];
+
+            float i_t = tv0 * u + tv1 * v + tv2 * (1 - u - v);
+
             if(any_t)
             {
-                min_t = min(min_t, my_t);
-                max_t = max(max_t, my_t);
+                float w = 1 - u - v;
+
+                if(my_t < min_t)
+                {
+                    min_t = my_t;
+                    interpolated_min_time = i_t;
+                }
+
+                if(my_t > max_t)
+                {
+                    max_t = my_t;
+                    interpolated_max_time = i_t;
+                }
             }
             else
             {
                 min_t = my_t;
                 max_t = my_t;
+                interpolated_min_time = i_t;
+                interpolated_max_time = i_t;
+
                 any_t = true;
             }
         }
@@ -4421,6 +4459,7 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
     //float3 toblerone_origin = (v0 + v1 + v2)/3.f;
     //float3 toblerone_end = (e0 + e1 + e2)/3.f;
 
+    #ifndef TRI_COLLIDE
     float3 toblerone_origin = v0;
     float3 toblerone_end = e0;
     float3 toblerone_normal = toblerone_end - toblerone_origin;
@@ -4467,9 +4506,12 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
         exit_height = fabs(ray_plane_t);
     }
 
-
     float entry_time = (entry_height / toblerone_height) * (tri_end_time - tri_start_time) + tri_start_time;
     float exit_time = (exit_height / toblerone_height) * (tri_end_time - tri_start_time) + tri_start_time;
+    #else
+    float entry_time = interpolated_min_time;
+    float exit_time = interpolated_max_time;
+    #endif // TRI_COLLIDE
 
     float ray_entry_time = pos.x + dir.x * min_t;
     float ray_exit_time = pos.x + dir.x * max_t;
