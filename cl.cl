@@ -4351,6 +4351,8 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
         if(ray_intersects_triangle(pos.yzw, dir.yzw, l_v0, l_v1, l_v2, &my_t, &u, &v))
         {
+            float w = 1 - u - v;
+
             float tv0 = vert_times[i * 3 + 0];
             float tv1 = vert_times[i * 3 + 1];
             float tv2 = vert_times[i * 3 + 2];
@@ -4358,7 +4360,83 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
             ///ok barycentric coordinates is wrong
             ///because we only want to interpolate vertically
             ///but its close to a good idea!
-            float i_t = tv0 * u + tv1 * v + tv2 * (1 - u - v);
+            //float i_t = tv0 * u + tv1 * v + tv2 * (1 - u - v);
+
+            float i_t = 0;
+
+            /*if(tv0 == tv1 && tv1 == tv2)
+            {
+                i_t = tv0;
+            }
+            else
+            {
+                ///tv0 != tv2
+                if(tv0 == tv1)
+                {
+                    float n_u = u / (u + w);
+                    float n_w = w / (u + w);
+
+                    i_t = n_u * tv0 + n_w * tv2;
+                }
+
+                ///tv0 != tv1
+                else if(tv0 == tv2)
+                {
+                    float n_u = u / (u + v);
+                    float n_v = v / (u + v);
+
+                    i_t = n_u * tv0 + n_v * tv1;
+                }
+
+                ///tv0 != tv1
+                else //if(tv1 == tv2)
+                {
+                    float n_u = u / (u + v);
+                    float n_v = v / (u + v);
+
+                    i_t = n_u * tv0 + n_v * tv1;
+                }
+            }*/
+
+            if(tv0 == tv1 && tv1 == tv2)
+            {
+                i_t = tv0;
+            }
+            else
+            {
+                ///tv0 != tv2
+                if(tv0 == tv1)
+                {
+                    float a_1 = (u + v)/2.f;
+
+                    float n_u = a_1 / (a_1 + w);
+                    float n_w = w / (a_1 + w);
+
+                    i_t = n_u * tv0 + n_w * tv2;
+                }
+
+                ///tv0 != tv1
+                else if(tv0 == tv2)
+                {
+                    float a_1 = (u + w)/2.f;
+
+                    float n_u = a_1 / (a_1 + v);
+                    float n_v = v / (a_1 + v);
+
+                    i_t = n_u * tv0 + n_v * tv1;
+                }
+
+                ///tv0 != tv1
+                else //if(tv1 == tv2)
+                {
+                    float a_1 = (v + w)/2.f;
+
+                    float n_v = a_1 / (a_1 + u);
+                    float n_u = u / (a_1 + u);
+
+                    i_t = n_u * tv0 + n_v * tv1;
+                }
+            }
 
             if(any_t)
             {
