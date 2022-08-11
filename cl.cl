@@ -4383,7 +4383,14 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
         ///if 0, we're situated at the upper line
         ///if 1, we're situated at the lower line
-        float fraction_from_upper = length(to_upper_edge) / full_length;
+        //float fraction_from_upper = length(to_upper_edge) / full_length;
+
+        float fraction_from_upper = 0.f;
+
+        if(full_length > 0.00001f)
+        {
+            fraction_from_upper = length(to_upper_edge) / full_length;
+        }
 
         fraction_from_upper = clamp(fraction_from_upper, 0.f, 1.f);
 
