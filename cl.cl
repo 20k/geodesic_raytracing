@@ -4355,12 +4355,13 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
             float tv1 = vert_times[i * 3 + 1];
             float tv2 = vert_times[i * 3 + 2];
 
+            ///ok barycentric coordinates is wrong
+            ///because we only want to interpolate vertically
+            ///but its close to a good idea!
             float i_t = tv0 * u + tv1 * v + tv2 * (1 - u - v);
 
             if(any_t)
             {
-                float w = 1 - u - v;
-
                 if(my_t < min_t)
                 {
                     min_t = my_t;
@@ -4377,6 +4378,7 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
             {
                 min_t = my_t;
                 max_t = my_t;
+
                 interpolated_min_time = i_t;
                 interpolated_max_time = i_t;
 
@@ -4512,7 +4514,6 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
     float entry_time = interpolated_min_time;
     float exit_time = interpolated_max_time;
     #endif // TRI_COLLIDE
-
     float ray_entry_time = pos.x + dir.x * min_t;
     float ray_exit_time = pos.x + dir.x * max_t;
 
