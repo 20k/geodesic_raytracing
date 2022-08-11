@@ -4304,6 +4304,29 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
     //#define TRI_COLLIDE
     #ifdef TRI_COLLIDE
+
+    bool any_t = false;
+    float min_t = 0;
+    float max_t = 0;
+
+    ///time of this triangle
+    float interpolated_min_time = 0;
+    float interpolated_max_time = 0;
+
+    float3 intermediate_planes[3 * 4] =
+    {
+        v1, v0, e0, e1,
+        v0, v2, e2, e0,
+        v2, v1, e1, e2,
+    };
+
+    float3 base_tris[3 * 2] = {
+        v0, v1, v2,
+        e0, e1, e2,
+    };
+
+
+    #if 0
     float3 vertices[8 * 3] = {
         v0, v1, v2,
         v0, e0, v1,
@@ -4470,6 +4493,7 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
     if(!any_t)
         return false;
+    #endif // 0
     #else
     /*float3 planes[5 * 3] = {
         v0, v1, v2,
