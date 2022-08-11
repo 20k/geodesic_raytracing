@@ -4325,6 +4325,46 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
         e0, e1, e2,
     };
 
+    bool any_hit = false;
+
+    for(int i=0; i < 3; i++)
+    {
+        float3 base_0 = intermediate_planes[i * 3 + 0];
+        float3 base_1 = intermediate_planes[i * 3 + 1];
+        float3 end_0 = intermediate_planes[i * 3 + 2];
+        float3 end_1 = intermediate_planes[i * 3 + 3];
+
+        ///triangles are!
+        ///base_0, base1, end0
+        ///base_0, end0, end1
+
+        float3 tri_0_0 = base_0;
+        float3 tri_0_1 = base_1;
+        float3 tri_0_2 = end_0;
+
+        float3 tri_1_0 = base_0;
+        float3 tri_1_1 = end_0;
+        float3 tri_1_2 = end_1;
+
+        float t_0 = 0;
+        float t_1 = 0;
+
+        bool hit_1 = ray_intersects_triangle(pos.yzw, dir.yzw, tri_0_0, tri_0_1, tri_0_2, &t_0, 0, 0);
+        bool hit_2 = ray_intersects_triangle(pos.yzw, dir.yzw, tri_1_0, tri_1_1, tri_1_2, &t_1, 0, 0);
+
+        if(!hit_1 && !hit_2)
+            continue;
+
+        float which_t = 0;
+
+        if(hit_1)
+            which_t = t_0;
+
+        if(hit_2)
+            which_t = t_1;
+
+        float3 hit_pos = pos.yzw + dir.yzw * which_t;
+    }
 
     #if 0
     float3 vertices[8 * 3] = {
