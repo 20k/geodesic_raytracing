@@ -4227,6 +4227,16 @@ bool ray_toblerone_could_intersect(float4 pos, float4 dir, float tri_start_t, fl
     return range_overlaps(ray_start_t, ray_end_t, tri_start_t, tri_end_t);
 }
 
+///returns from point to line
+float3 point_to_line(float3 line_pos, float3 line_dir, float3 point)
+{
+    line_dir = normalize(line_dir);
+
+    float3 on_line = line_pos + dot(point - line_pos, line_dir) * line_dir;
+
+    return on_line - point;
+}
+
 ///dir is not normalised, should really use a pos2
 bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_triangle* ctri, float tri_start_time, float tri_end_time, float* t_out)
 {
@@ -4325,8 +4335,6 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
         e0, e1, e2,
     };
 
-    bool any_hit = false;
-
     for(int i=0; i < 3; i++)
     {
         float3 base_0 = intermediate_planes[i * 3 + 0];
@@ -4364,7 +4372,53 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
             which_t = t_1;
 
         float3 hit_pos = pos.yzw + dir.yzw * which_t;
+
+        float3 to_upper_edge = point_to_line(end_0, end_1 - end_0, hit_pos);
+        float3 to_lower_edge = point_to_line(base_0, base_1 - base_0, hit_pos);
+
+        float full_length = length(to_upper_edge) + length(to_lower_edge);
+
+        float value_at_upper = tri_end_time;
+        float value_at_lower = tri_start_time;
+
+        ///if 0, we're situated at the upper line
+        ///if 1, we're situated at the lower line
+        float fraction_from_upper = length(to_upper_edge) / full_length;
+
+        fraction_from_upper = clamp(fraction_from_upper, 0.f, 1.f);
+
+        float my_time = value_at_upper * (1 - fraction_from_upper) + value_at_lower * fraction_from_upper;
+
+        if(!any_t)
+        {
+            min_t = which_t;
+            max_t = which_t;
+
+            interpolated_min_time = my_time;
+            interpolated_max_time = my_time;
+        }
+        else
+        {
+            if(which_t < min_t)
+            {
+                min_t = which_t;
+                interpolated_min_time = my_time;
+            }
+
+            if(which_t > max_t)
+            {
+                max_t = which_t;
+                interpolated_max_time = my_time;
+            }
+        }
+
+
+
+        any_t = true;
     }
+
+    if(!any_t)
+        return false;
 
     #if 0
     float3 vertices[8 * 3] = {
