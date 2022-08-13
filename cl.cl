@@ -4373,6 +4373,7 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
         float3 hit_pos = pos.yzw + dir.yzw * which_t;
 
+        #if 0
         float3 to_upper_edge = point_to_line(end_0, end_1 - end_0, hit_pos);
         float3 to_lower_edge = point_to_line(base_0, base_1 - base_0, hit_pos);
 
@@ -4395,6 +4396,74 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
         fraction_from_upper = clamp(fraction_from_upper, 0.f, 1.f);
 
         float my_time = value_at_upper * (1 - fraction_from_upper) + value_at_lower * fraction_from_upper;
+        #endif // 0
+
+
+        #if 0
+        {
+            float3 v00 = base_0;
+            float3 v10 = base_1;
+            float3 v11 = end_0;
+            float3 v01 = end_1;
+
+            float3 X = hit_pos;
+
+            float3 A = v00 - X;
+            float3 B = v10 - v00;
+            float3 C = v01 - v00;
+            float3 D = v00 - v10 - v01 + v11;
+
+            ///https://www.reedbeta.com/blog/quadrilateral-interpolation-part-2/
+        }
+        #endif // 0
+
+        float my_time = 0;
+
+        ///https://www.wolframalpha.com/input?i=%28%28c+%2B+d+*+y+-+a+-+b+*+y%29+%2F+%28%28c+%2B+d+*+y+-+a+-+b+*+y%29%5E2%29%29+*+%28%28k+-+a+-+b+*+y%29+%2F+%28k+-+a+-+b+*+y%29%5E2%29+%3D+1+solve+for+y
+        {
+            float3 e = end_0;
+            float3 v = base_0;
+
+            float3 en = normalize(end_1 - end_0);
+            float3 vn = normalize(base_1 - base_0);
+
+            float3 ps = hit_pos;
+
+            float3 a = v;
+            float3 b = vn;
+            float3 c = e;
+            float3 d = en;
+            float3 k = ps;
+
+            float start = 1 / (2 * dot(b, b - d));
+
+            float chunk_1 = -2 * dot(b, d) * (dot(a, c) - dot(a, k) - dot(c, k) + dot(k, k) + 2);
+            float chunk_2 = dot(d, d) * dot(a - k, a - k);
+            float chunk_3 = dot(b, b) * (dot(c, c) - 2 * dot(c, k) + dot(k,k) + 4);
+            float chunk_4 = dot(a, d - 2 * b);
+            float chunk_5 = dot(b, c) + dot(b, k) - dot(d, k);
+
+            float interior = chunk_1 + chunk_2 + chunk_3 + chunk_4 + chunk_5;
+
+            float rhs_2 = -sqrt(interior);
+
+            float y = start * rhs_2;
+
+            float t = y;
+
+            ///t = y
+
+            float3 upper = e + en * t;
+            float3 lower = v * vn * t;
+
+            float ul_len = length(upper - lower);
+            float my_len = length(ps - lower);
+
+            ///when frac = 0, ps == lower. When frac = 1, ps == upper
+            float frac = my_len / ul_len;
+
+            my_time = frac * tri_end_time + (1 - frac) * tri_start_time;
+        }
 
         if(!any_t)
         {
