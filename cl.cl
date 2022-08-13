@@ -4443,9 +4443,7 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
             float chunk_4 = dot(a, d - 2 * b);
             float chunk_5 = dot(b, c) + dot(b, k) - dot(d, k);
 
-            float interior = chunk_1 + chunk_2 + chunk_3 + chunk_4 + chunk_5;
-
-            float rhs_2 = -sqrt(interior);
+            float rhs_2 = -sqrt(chunk_1 + chunk_2 + chunk_3) + chunk_4 + chunk_5;
 
             float y = start * rhs_2;
 
