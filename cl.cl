@@ -4419,48 +4419,9 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
         float my_time = 0;
 
-        ///https://www.wolframalpha.com/input?i=%28%28c+%2B+d+*+y+-+a+-+b+*+y%29+%2F+%28%28c+%2B+d+*+y+-+a+-+b+*+y%29%5E2%29%29+*+%28%28k+-+a+-+b+*+y%29+%2F+%28k+-+a+-+b+*+y%29%5E2%29+%3D+1+solve+for+y
         {
-            float3 e = end_0;
-            float3 v = base_0;
-
-            float3 en = normalize(end_1 - end_0);
-            float3 vn = normalize(base_1 - base_0);
-
-            float3 ps = hit_pos;
-
-            float3 a = v;
-            float3 b = vn;
-            float3 c = e;
-            float3 d = en;
-            float3 k = ps;
-
-            float start = 1 / (2 * dot(b, b - d));
-
-            float chunk_1 = -2 * dot(b, d) * (dot(a, c) - dot(a, k) - dot(c, k) + dot(k, k) + 2);
-            float chunk_2 = dot(d, d) * dot(a - k, a - k);
-            float chunk_3 = dot(b, b) * (dot(c, c) - 2 * dot(c, k) + dot(k,k) + 4);
-            float chunk_4 = dot(a, d - 2 * b);
-            float chunk_5 = dot(b, c) + dot(b, k) - dot(d, k);
-
-            float rhs_2 = -sqrt(chunk_1 + chunk_2 + chunk_3) + chunk_4 + chunk_5;
-
-            float y = start * rhs_2;
-
-            float t = y;
-
-            ///t = y
-
-            float3 upper = e + en * t;
-            float3 lower = v * vn * t;
-
-            float ul_len = length(upper - lower);
-            float my_len = length(ps - lower);
-
-            ///when frac = 0, ps == lower. When frac = 1, ps == upper
-            float frac = my_len / ul_len;
-
-            my_time = frac * tri_end_time + (1 - frac) * tri_start_time;
+            float3 pseudo_normal = normalize(triangle_normal(tri_0_0, tri_0_1, tri_0_2) + triangle_normal(tri_1_0, tri_1_1, tri_1_2));
+            float3 pseudo_origin = (base_0 + base_1 + end_0 + end_1) / 4;
         }
 
         if(!any_t)
