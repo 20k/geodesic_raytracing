@@ -4237,6 +4237,20 @@ float3 point_to_line(float3 line_pos, float3 line_dir, float3 point)
     return on_line - point;
 }
 
+///plane normal must be normalised
+float3 point_on_plane_3d(float3 plane_origin, float3 plane_normal, float3 point)
+{
+    float3 to_point = point - plane_origin;
+
+    return point - plane_normal * dot(to_point, plane_normal);
+}
+
+///plane normal must be normalized
+float3 vector_on_plane_3d(float3 plane_normal, float3 vect)
+{
+    return cross(plane_normal, cross(vect, plane_normal));
+}
+
 ///dir is not normalised, should really use a pos2
 bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_triangle* ctri, float tri_start_time, float tri_end_time, float* t_out)
 {
@@ -4417,11 +4431,19 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
         }
         #endif // 0
 
+        //vec3f up = ((e0 + e1 + e2)/3.f) - (v0 + v1 + v2)/3.f;
+        float3 right = normalize(base_1 - base_0);
+
+        ///up vector is toblerone normal
+        ///use triangle base as right
+        ///need to project both onto plane
         float my_time = 0;
 
         {
             float3 pseudo_normal = normalize(triangle_normal(tri_0_0, tri_0_1, tri_0_2) + triangle_normal(tri_1_0, tri_1_1, tri_1_2));
             float3 pseudo_origin = (base_0 + base_1 + end_0 + end_1) / 4;
+
+            float3 up = cross(pseudo_normal, right)
         }
 
         if(!any_t)
