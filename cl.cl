@@ -4261,6 +4261,14 @@ float2 project_plane_point_into_2d(float3 plane_origin, float3 point_on_plane, f
     return (float2)(r_component, u_component)
 }
 
+float2 project_plane_vector_into_2d(float3 vec, float3 up, float3 right)
+{
+    float r_component = dot(vec, right);
+    float u_component = dot(vec, up);
+
+    return (float2)(r_component, u_component)
+}
+
 ///dir is not normalised, should really use a pos2
 bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_triangle* ctri, float tri_start_time, float tri_end_time, float* t_out)
 {
