@@ -4792,13 +4792,13 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
             float3 pseudo_normal = normalize(triangle_normal(tri_0_0, tri_0_1, tri_0_2) + triangle_normal(tri_1_0, tri_1_1, tri_1_2));
             float3 pseudo_origin = (base_0 + base_1 + end_0 + end_1) / 4;
 
-            float3 up = cross(pseudo_normal, right);
+            //float3 up = cross(pseudo_normal, right);
 
-            float3 projected_right = vector_on_plane_3d(pseudo_normal, right);
+            /*float3 projected_right = vector_on_plane_3d(pseudo_normal, right);
             float3 projected_up = vector_on_plane_3d(pseudo_normal, up);
 
             float3 plane_right = normalize(projected_right);
-            float3 plane_up = normalize(projected_up);
+            float3 plane_up = normalize(projected_up);*/
 
             float3 intersection_on_plane = point_on_plane_3d(pseudo_origin, pseudo_normal, hit_pos);
 
@@ -4809,6 +4809,9 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
             float3 projected_end_0 = point_on_plane_3d(pseudo_origin, pseudo_normal, end_0);
             float3 projected_end_1 = point_on_plane_3d(pseudo_origin, pseudo_normal, end_1);
+
+            float3 plane_right = normalize(projected_base_1 - projected_base_0);
+            float3 plane_up = normalize(cross(pseudo_normal, plane_right));
 
             float2 p_b0 = project_plane_point_into_2d(pseudo_origin, projected_base_0, plane_up, plane_right);
             float2 p_b1 = project_plane_point_into_2d(pseudo_origin, projected_base_1, plane_up, plane_right);
@@ -4856,7 +4859,7 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
                 }
 
                 // Solve for u, using largest-magnitude component
-                float2 denom = b1 + uv.y * b3;
+                /*float2 denom = b1 + uv.y * b3;
 
                 if(fabs(denom.x) > fabs(denom.y))
                 {
@@ -4865,9 +4868,11 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
                 else
                 {
                     uv.x = (q.y - b2.y * uv.y) / denom.y;
-                }
+                }*/
 
                 my_time = mix(tri_start_time, tri_end_time, uv.y);
+
+                my_time = clamp(my_time, tri_start_time, tri_end_time);
             }
         }
         #endif // 0
