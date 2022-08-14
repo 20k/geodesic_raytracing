@@ -4251,6 +4251,16 @@ float3 vector_on_plane_3d(float3 plane_normal, float3 vect)
     return cross(plane_normal, cross(vect, plane_normal));
 }
 
+float2 project_plane_point_into_2d(float3 plane_origin, float3 point_on_plane, float3 up, float3 right)
+{
+    float3 rel = point_on_plane - plane_origin;
+
+    float r_component = dot(rel, right);
+    float u_component = dot(rel, up);
+
+    return (float2)(r_component, u_component)
+}
+
 ///dir is not normalised, should really use a pos2
 bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_triangle* ctri, float tri_start_time, float tri_end_time, float* t_out)
 {
@@ -4443,7 +4453,16 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
             float3 pseudo_normal = normalize(triangle_normal(tri_0_0, tri_0_1, tri_0_2) + triangle_normal(tri_1_0, tri_1_1, tri_1_2));
             float3 pseudo_origin = (base_0 + base_1 + end_0 + end_1) / 4;
 
-            float3 up = cross(pseudo_normal, right)
+            float3 up = cross(pseudo_normal, right);
+
+            float3 projected_right = vector_on_plane_3d(pseudo_normal, right);
+            float3 projected_up = vector_on_plane_3d(pseudo_normal, up);
+
+            float3 plane_right = normalize(projected_right);
+            float3 plane_up = normalize(projected_up);
+
+            float3 intersection_on_plane = point_on_plane_3d(pseudo_origin, pseudo_normal, hit_pos);
+
         }
 
         if(!any_t)
