@@ -4358,6 +4358,228 @@ void interpolate_debug(__write_only image2d_t screen)
     }
 }
 
+#if 0
+        float3 base_0 = intermediate_planes[i * 4 + 0];
+        float3 base_1 = intermediate_planes[i * 4 + 1];
+        float3 end_0 = intermediate_planes[i * 4 + 2];
+        float3 end_1 = intermediate_planes[i * 4 + 3];
+
+        ///triangles are!
+        ///base_0, base1, end0
+        ///base_0, end0, end1
+
+        float3 tri_0_0 = base_0;
+        float3 tri_0_1 = base_1;
+        float3 tri_0_2 = end_0;
+
+        float3 tri_1_0 = base_0;
+        float3 tri_1_1 = end_0;
+        float3 tri_1_2 = end_1;
+
+        float t_0 = 0;
+        float t_1 = 0;
+
+        bool hit_1 = ray_intersects_triangle(pos.yzw, dir.yzw, tri_0_0, tri_0_1, tri_0_2, &t_0, 0, 0);
+        bool hit_2 = ray_intersects_triangle(pos.yzw, dir.yzw, tri_1_0, tri_1_1, tri_1_2, &t_1, 0, 0);
+
+        if(!hit_1 && !hit_2)
+            continue;
+
+        float which_t = 0;
+
+        if(hit_1)
+            which_t = t_0;
+
+        if(hit_2)
+            which_t = t_1;
+
+        float3 hit_pos = pos.yzw + dir.yzw * which_t;
+
+        //vec3f up = ((e0 + e1 + e2)/3.f) - (v0 + v1 + v2)/3.f;
+        float3 right = normalize(base_1 - base_0);
+
+        ///up vector is toblerone normal
+        ///use triangle base as right
+        ///need to project both onto plane
+        float my_time = 0;
+
+        {
+            float3 pseudo_normal = normalize(triangle_normal(tri_0_0, tri_0_1, tri_0_2) + triangle_normal(tri_1_0, tri_1_1, tri_1_2));
+            float3 pseudo_origin = (base_0 + base_1 + end_0 + end_1) / 4;
+
+            float3 up = cross(pseudo_normal, right);
+
+            float3 projected_right = vector_on_plane_3d(pseudo_normal, right);
+            float3 projected_up = vector_on_plane_3d(pseudo_normal, up);
+
+            float3 plane_right = normalize(projected_right);
+            float3 plane_up = normalize(projected_up);
+
+            //float3 intersection_on_plane = point_on_plane_3d(pseudo_origin, pseudo_normal, hit_pos);
+
+            float3 intersection_on_plane;
+
+            {
+                float ray_plane_t = 0;
+
+                if(!ray_plane_intersection(pseudo_origin, pseudo_origin, pos.yzw, dir.yzw, &ray_plane_t))
+                    continue;
+
+                intersection_on_plane = pos.yzw + dir.yzw * ray_plane_t;
+            }
+
+            float3 projected_base_0 = point_on_plane_3d(pseudo_origin, pseudo_normal, base_0);
+            float3 projected_base_1 = point_on_plane_3d(pseudo_origin, pseudo_normal, base_1);
+
+            float3 projected_end_0 = point_on_plane_3d(pseudo_origin, pseudo_normal, end_0);
+            float3 projected_end_1 = point_on_plane_3d(pseudo_origin, pseudo_normal, end_1);
+
+            float2 p_b0 = project_plane_point_into_2d(pseudo_origin, projected_base_0, plane_up, plane_right);
+            float2 p_b1 = project_plane_point_into_2d(pseudo_origin, projected_base_1, plane_up, plane_right);
+
+            float2 p_e0 = project_plane_point_into_2d(pseudo_origin, projected_end_0, plane_up, plane_right);
+            float2 p_e1 = project_plane_point_into_2d(pseudo_origin, projected_end_1, plane_up, plane_right);
+
+            float2 point_on_plane = project_plane_point_into_2d(pseudo_origin, intersection_on_plane, plane_up, plane_right);
+
+            ///https://www.reedbeta.com/blog/quadrilateral-interpolation-part-2/
+            {
+                float2 p = point_on_plane;
+
+                float2 p0 = p_b0;
+                float2 p1 = p_b1;
+                float2 p2 = p_e0;
+                float2 p3 = p_e1;
+
+                float2 q = p - p0;
+                float2 b1 = p1 - p0;
+                float2 b2 = p2 - p0;
+                float2 b3 = p0 - p1 - p2 + p3;
+
+                float A = wedge_2d(b2, b3);
+                float B = wedge_2d(b3, q) - wedge_2d(b1, b2);
+                float C = wedge_2d(b1, q);
+
+                float2 uv;
+
+                if(fabs(A) < 0.001)
+                {
+                    // Linear form
+                    uv.y = -C/B;
+                }
+                else
+                {
+                    // Quadratic form. Take positive root for CCW winding with V-up
+                    float discrim = B*B - 4*A*C;
+                    uv.y = 0.5 * (-B + sqrt(discrim)) / A;
+                }
+
+                // Solve for u, using largest-magnitude component
+                float2 denom = b1 + uv.y * b3;
+
+                if(fabs(denom.x) > fabs(denom.y))
+                {
+                    uv.x = (q.x - b2.x * uv.y) / denom.x;
+                }
+                else
+                {
+                    uv.x = (q.y - b2.y * uv.y) / denom.y;
+                }
+
+                my_time = mix(tri_start_time, tri_end_time, uv.y);
+            }
+        }
+#endif
+
+__kernel
+void interpolate_debug2(__write_only image2d_t screen)
+{
+    int x = get_global_id(0);
+    int y = get_global_id(1);
+
+    if(x >= get_image_width(screen))
+        return;
+
+    if(y >= get_image_height(screen))
+        return;
+
+    float fx = (float)x / get_image_width(screen);
+    float fy = (float)y / get_image_height(screen);
+
+
+
+    /*float2 quad_0 = (float2)(10.f, 801.f);
+    float2 quad_1 = (float2)(800.f, 801.f);
+    float2 quad_2 = (float2)(50.f, 600.f);
+    float2 quad_3 = (float2)(650.f, 30.f);
+
+    float3 val_at_top = (float3)(1.f, 0.f, 0.f);
+    float3 val_at_bottom = (float3)(0.f, 0.f, 1.f);
+
+
+    {
+        float2 p_b0 = quad_0;
+        float2 p_b1 = quad_1;
+
+        float2 p_e0 = quad_2;
+        float2 p_e1 = quad_3;
+
+        ///https://www.reedbeta.com/blog/quadrilateral-interpolation-part-2/
+        {
+            float2 p = (float2)(x, y);
+
+            float2 p0 = p_b0;
+            float2 p1 = p_b1;
+            float2 p2 = p_e0;
+            float2 p3 = p_e1;
+
+            float2 q = p - p0;
+            float2 b1 = p1 - p0;
+            float2 b2 = p2 - p0;
+            float2 b3 = p0 - p1 - p2 + p3;
+
+            float A = wedge_2d(b2, b3);
+            float B = wedge_2d(b3, q) - wedge_2d(b1, b2);
+            float C = wedge_2d(b1, q);
+
+            float2 uv;
+
+            if(fabs(A) < 0.001)
+            {
+                // Linear form
+                uv.y = -C/B;
+            }
+            else
+            {
+                // Quadratic form. Take positive root for CCW winding with V-up
+                float discrim = B*B - 4*A*C;
+                uv.y = 0.5 * (-B + sqrt(discrim)) / A;
+            }
+
+            // Solve for u, using largest-magnitude component
+            float2 denom = b1 + uv.y * b3;
+
+            if(fabs(denom.x) > fabs(denom.y))
+            {
+                uv.x = (q.x - b2.x * uv.y) / denom.x;
+            }
+            else
+            {
+                uv.x = (q.y - b2.y * uv.y) / denom.y;
+            }
+
+            float3 val = mix(val_at_bottom, val_at_top, uv.y);
+
+            if(uv.x < 0 || uv.x > 1 || uv.y < 0 || uv.y > 1)
+                val = 0.f;
+
+            float3 srgb_val = srgb_to_lin(val);
+
+            write_imagef(screen, (int2)(x, y), (float4)(srgb_val, 1.f));
+        }
+    }*/
+}
+
 ///dir is not normalised, should really use a pos2
 bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_triangle* ctri, float tri_start_time, float tri_end_time, float* t_out)
 {

@@ -2092,6 +2092,11 @@ int main(int argc, char* argv[])
 
                     clctx.cqueue.exec("interpolate_debug", dbg, {width, height}, {16, 16});
                 }*/
+
+                /*cl::args dbg;
+                dbg.push_back(rtex);
+
+                clctx.cqueue.exec("interpolate_debug2", dbg, {width, height}, {16, 16});*/
             }
 
             #if 0
