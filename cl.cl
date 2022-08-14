@@ -4558,7 +4558,18 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
             float3 plane_right = normalize(projected_right);
             float3 plane_up = normalize(projected_up);
 
-            float3 intersection_on_plane = point_on_plane_3d(pseudo_origin, pseudo_normal, hit_pos);
+            //float3 intersection_on_plane = point_on_plane_3d(pseudo_origin, pseudo_normal, hit_pos);
+
+            float3 intersection_on_plane;
+
+            {
+                float ray_plane_t = 0;
+
+                if(!ray_plane_intersection(pseudo_origin, pseudo_origin, pos.yzw, dir.yzw, &ray_plane_t))
+                    continue;
+
+                intersection_on_plane = pos.yzw + dir.yzw * ray_plane_t;
+            }
 
             float3 projected_base_0 = point_on_plane_3d(pseudo_origin, pseudo_normal, base_0);
             float3 projected_base_1 = point_on_plane_3d(pseudo_origin, pseudo_normal, base_1);
