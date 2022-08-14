@@ -4269,6 +4269,11 @@ float2 project_plane_vector_into_2d(float3 vec, float3 up, float3 right)
     return (float2)(r_component, u_component);
 }
 
+float wedge_2d(float2 v, float2 w)
+{
+    return v.x * w.y - v.y * w.x;
+}
+
 ///dir is not normalised, should really use a pos2
 bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_triangle* ctri, float tri_start_time, float tri_end_time, float* t_out)
 {
@@ -4484,6 +4489,53 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
             float2 p_e1 = project_plane_point_into_2d(pseudo_origin, projected_end_1, plane_up, plane_right);
 
             float2 point_on_plane = project_plane_point_into_2d(pseudo_origin, intersection_on_plane, plane_up, plane_right);
+
+            ///https://www.reedbeta.com/blog/quadrilateral-interpolation-part-2/
+            {
+                float2 p = point_on_plane;
+
+                float2 p0 = p_b0;
+                float2 p1 = p_b1;
+                float2 p2 = p_e0;
+                float2 p3 = p_e1;
+
+                float2 q = p - p0;
+                float2 b1 = p1 - p0;
+                float2 b2 = p2 - p0;
+                float2 b3 = p0 - p1 - p2 + p3;
+
+                float A = wedge_2d(b2, b3);
+                float B = wedge_2d(b3, q) - wedge_2d(b1, b2);
+                float C = wedge_2d(b1, q);
+
+                float2 uv;
+
+                if(fabs(A) < 0.001)
+                {
+                    // Linear form
+                    uv.y = -C/B;
+                }
+                else
+                {
+                    // Quadratic form. Take positive root for CCW winding with V-up
+                    float discrim = B*B - 4*A*C;
+                    uv.y = 0.5 * (-B + sqrt(discrim)) / A;
+                }
+
+                // Solve for u, using largest-magnitude component
+                float2 denom = b1 + uv.y * b3;
+
+                if(fabs(denom.x) > fabs(denom.y))
+                {
+                    uv.x = (q.x - b2.x * uv.y) / denom.x;
+                }
+                else
+                {
+                    uv.x = (q.y - b2.y * uv.y) / denom.y;
+                }
+
+                my_time = mix(tri_start_time, tri_end_time, uv.y);
+            }
         }
 
         if(!any_t)
