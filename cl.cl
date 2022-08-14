@@ -3955,6 +3955,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         float4 cartesian_mine_start = (float4)(0.f, mine.x, mine.y, mine.z);
         float4 cartesian_mine_next = (float4)(0.f, mine.x, mine.y, mine.z);
         #else
+        #ifdef PRECESS
         float delta_time = (next - current).x;
         float output_time = current.x;
 
@@ -4019,6 +4020,39 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
         float4 coordinate_mine_next = tetrad_to_coordinate_basis((float4)(0.f, mine.x, mine.y, mine.z), e_e0, e_e1, e_e2, e_e3);
         float4 cartesian_mine_next = generic_velocity_to_cartesian_velocity(native_next, coordinate_mine_next, cfg);
+        #else
+        struct computed_triangle local_tri;
+
+        float delta_time = (next - current).x;
+        float output_time = current.x;
+
+        local_tri.v0x = my_tri.v0x + current.y;
+        local_tri.v0y = my_tri.v0y + current.z;
+        local_tri.v0z = my_tri.v0z + current.w;
+
+        local_tri.v1x = my_tri.v1x + current.y;
+        local_tri.v1y = my_tri.v1y + current.z;
+        local_tri.v1z = my_tri.v1z + current.w;
+
+        local_tri.v2x = my_tri.v2x + current.y;
+        local_tri.v2y = my_tri.v2y + current.z;
+        local_tri.v2z = my_tri.v2z + current.w;
+
+        local_tri.e0x = my_tri.v0x + next.y;
+        local_tri.e0y = my_tri.v0y + next.z;
+        local_tri.e0z = my_tri.v0z + next.w;
+
+        local_tri.e1x = my_tri.v1x + next.y;
+        local_tri.e1y = my_tri.v1y + next.z;
+        local_tri.e1z = my_tri.v1z + next.w;
+
+        local_tri.e2x = my_tri.v2x + next.y;
+        local_tri.e2y = my_tri.v2y + next.z;
+        local_tri.e2z = my_tri.v2z + next.w;
+
+        float4 cartesian_mine_start = (float4)(0.f, mine.x, mine.y, mine.z);
+        float4 cartesian_mine_next = (float4)(0.f, mine.x, mine.y, mine.z);
+        #endif // PRECESS
         #endif // TRI_PRECESSION
 
         float4 pos = current + cartesian_mine_start;
