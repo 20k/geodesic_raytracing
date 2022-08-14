@@ -4707,22 +4707,13 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
         float3 tri_1_1 = end_0;
         float3 tri_1_2 = end_1;
 
-        float t_0 = 0;
-        float t_1 = 0;
+        float which_t = 0;
 
-        bool hit_1 = ray_intersects_triangle(pos.yzw, dir.yzw, tri_0_0, tri_0_1, tri_0_2, &t_0, 0, 0);
-        bool hit_2 = ray_intersects_triangle(pos.yzw, dir.yzw, tri_1_0, tri_1_1, tri_1_2, &t_1, 0, 0);
+        bool hit_1 = ray_intersects_triangle(pos.yzw, dir.yzw, tri_0_0, tri_0_1, tri_0_2, &which_t, 0, 0);
+        bool hit_2 = ray_intersects_triangle(pos.yzw, dir.yzw, tri_1_0, tri_1_1, tri_1_2, &which_t, 0, 0);
 
         if(!hit_1 && !hit_2)
             continue;
-
-        float which_t = 0;
-
-        if(hit_1)
-            which_t = t_0;
-
-        if(hit_2)
-            which_t = t_1;
 
         float3 hit_pos = pos.yzw + dir.yzw * which_t;
 
