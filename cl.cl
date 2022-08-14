@@ -4274,6 +4274,90 @@ float wedge_2d(float2 v, float2 w)
     return v.x * w.y - v.y * w.x;
 }
 
+__kernel
+void interpolate_debug(__write_only image2d_t screen)
+{
+    int x = get_global_id(0);
+    int y = get_global_id(1);
+
+    if(x >= get_image_width(screen))
+        return;
+
+    if(y >= get_image_height(screen))
+        return;
+
+    float2 quad_0 = (float2)(10.f, 801.f);
+    float2 quad_1 = (float2)(800.f, 801.f);
+    float2 quad_2 = (float2)(50.f, 600.f);
+    float2 quad_3 = (float2)(650.f, 30.f);
+
+    float3 val_at_top = (float3)(1.f, 0.f, 0.f);
+    float3 val_at_bottom = (float3)(0.f, 0.f, 1.f);
+
+
+    {
+        float2 p_b0 = quad_0;
+        float2 p_b1 = quad_1;
+
+        float2 p_e0 = quad_2;
+        float2 p_e1 = quad_3;
+
+        ///https://www.reedbeta.com/blog/quadrilateral-interpolation-part-2/
+        {
+            float2 p = (float2)(x, y);
+
+            float2 p0 = p_b0;
+            float2 p1 = p_b1;
+            float2 p2 = p_e0;
+            float2 p3 = p_e1;
+
+            float2 q = p - p0;
+            float2 b1 = p1 - p0;
+            float2 b2 = p2 - p0;
+            float2 b3 = p0 - p1 - p2 + p3;
+
+            float A = wedge_2d(b2, b3);
+            float B = wedge_2d(b3, q) - wedge_2d(b1, b2);
+            float C = wedge_2d(b1, q);
+
+            float2 uv;
+
+            if(fabs(A) < 0.001)
+            {
+                // Linear form
+                uv.y = -C/B;
+            }
+            else
+            {
+                // Quadratic form. Take positive root for CCW winding with V-up
+                float discrim = B*B - 4*A*C;
+                uv.y = 0.5 * (-B + sqrt(discrim)) / A;
+            }
+
+            // Solve for u, using largest-magnitude component
+            float2 denom = b1 + uv.y * b3;
+
+            if(fabs(denom.x) > fabs(denom.y))
+            {
+                uv.x = (q.x - b2.x * uv.y) / denom.x;
+            }
+            else
+            {
+                uv.x = (q.y - b2.y * uv.y) / denom.y;
+            }
+
+            float3 val = mix(val_at_bottom, val_at_top, uv.y);
+
+            if(uv.x < 0 || uv.x > 1 || uv.y < 0 || uv.y > 1)
+                val = 0.f;
+
+            float3 srgb_val = srgb_to_lin(val);
+
+            write_imagef(screen, (int2)(x, y), (float4)(srgb_val, 1.f));
+        }
+    }
+}
+
 ///dir is not normalised, should really use a pos2
 bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_triangle* ctri, float tri_start_time, float tri_end_time, float* t_out)
 {
