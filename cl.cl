@@ -3955,10 +3955,10 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         float4 cartesian_mine_start = (float4)(0.f, mine.x, mine.y, mine.z);
         float4 cartesian_mine_next = (float4)(0.f, mine.x, mine.y, mine.z);
         #else
-        #ifdef PRECESS
         float delta_time = (next - current).x;
         float output_time = current.x;
 
+        #ifdef PRECESS
         float4 s_e0 = p_e0[cc * stride + mine.object_parent];
         float4 s_e1 = p_e1[cc * stride + mine.object_parent];
         float4 s_e2 = p_e2[cc * stride + mine.object_parent];
@@ -4022,9 +4022,6 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         float4 cartesian_mine_next = generic_velocity_to_cartesian_velocity(native_next, coordinate_mine_next, cfg);
         #else
         struct computed_triangle local_tri;
-
-        float delta_time = (next - current).x;
-        float output_time = current.x;
 
         local_tri.v0x = my_tri.v0x + current.y;
         local_tri.v0y = my_tri.v0y + current.z;
