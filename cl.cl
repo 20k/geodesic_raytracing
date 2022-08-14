@@ -4258,7 +4258,7 @@ float2 project_plane_point_into_2d(float3 plane_origin, float3 point_on_plane, f
     float r_component = dot(rel, right);
     float u_component = dot(rel, up);
 
-    return (float2)(r_component, u_component)
+    return (float2)(r_component, u_component);
 }
 
 float2 project_plane_vector_into_2d(float3 vec, float3 up, float3 right)
@@ -4266,7 +4266,7 @@ float2 project_plane_vector_into_2d(float3 vec, float3 up, float3 right)
     float r_component = dot(vec, right);
     float u_component = dot(vec, up);
 
-    return (float2)(r_component, u_component)
+    return (float2)(r_component, u_component);
 }
 
 ///dir is not normalised, should really use a pos2
