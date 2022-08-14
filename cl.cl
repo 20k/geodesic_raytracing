@@ -4770,6 +4770,7 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
         }
         #endif // 0
 
+        #if 1
         //vec3f up = ((e0 + e1 + e2)/3.f) - (v0 + v1 + v2)/3.f;
         float3 right = normalize(base_1 - base_0);
 
@@ -4779,6 +4780,15 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
         float my_time = 0;
 
         {
+            /*float3 pseudo_normal;
+
+            if(hit_1)
+                pseudo_normal = -triangle_normal(tri_0_0, tri_0_1, tri_0_2);
+            else
+                pseudo_normal = -triangle_normal(tri_1_0, tri_1_1, tri_1_2);
+
+            float3 pseudo_origin = base_0;*/
+
             float3 pseudo_normal = -normalize(triangle_normal(tri_0_0, tri_0_1, tri_0_2) + triangle_normal(tri_1_0, tri_1_1, tri_1_2));
             float3 pseudo_origin = (base_0 + base_1 + end_0 + end_1) / 4;
 
@@ -4794,25 +4804,11 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
             //float3 intersection_on_plane = ray_plane_intersection_point(pseudo_origin, pseudo_normal, pos.yzw, dir.yzw);
 
-            /*{
-                float ray_plane_t = 0;
-
-                if(!ray_plane_intersection(pseudo_origin, pseudo_normal, pos.yzw, dir.yzw, &ray_plane_t))
-                    continue;
-
-                intersection_on_plane = pos.yzw + dir.yzw * ray_plane_t;
-            }*/
-
             float3 projected_base_0 = point_on_plane_3d(pseudo_origin, pseudo_normal, base_0);
             float3 projected_base_1 = point_on_plane_3d(pseudo_origin, pseudo_normal, base_1);
 
             float3 projected_end_0 = point_on_plane_3d(pseudo_origin, pseudo_normal, end_0);
             float3 projected_end_1 = point_on_plane_3d(pseudo_origin, pseudo_normal, end_1);
-
-            /*float3 projected_base_0 = ray_plane_intersection_point(pseudo_origin, pseudo_normal, base_0, dir.yzw);
-            float3 projected_base_1 = ray_plane_intersection_point(pseudo_origin, pseudo_normal, base_1, dir.yzw);
-            float3 projected_end_0 = ray_plane_intersection_point(pseudo_origin, pseudo_normal, end_0, dir.yzw);
-            float3 projected_end_1 = ray_plane_intersection_point(pseudo_origin, pseudo_normal, end_1, dir.yzw);*/
 
             float2 p_b0 = project_plane_point_into_2d(pseudo_origin, projected_base_0, plane_up, plane_right);
             float2 p_b1 = project_plane_point_into_2d(pseudo_origin, projected_base_1, plane_up, plane_right);
@@ -4874,6 +4870,7 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
                 my_time = mix(tri_start_time, tri_end_time, uv.y);
             }
         }
+        #endif // 0
 
         if(!any_t)
         {
