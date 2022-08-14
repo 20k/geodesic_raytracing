@@ -4790,11 +4790,9 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
             float3 plane_right = normalize(projected_right);
             float3 plane_up = normalize(projected_up);
 
-            //float3 intersection_on_plane = point_on_plane_3d(pseudo_origin, pseudo_normal, hit_pos);
+            float3 intersection_on_plane = point_on_plane_3d(pseudo_origin, pseudo_normal, hit_pos);
 
-            //float3 intersection_on_plane = ray_plane_intersection_point(pseudo_origin, );
-
-            float3 intersection_on_plane = ray_plane_intersection_point(pseudo_origin, pseudo_normal, pos.yzw, dir.yzw);
+            //float3 intersection_on_plane = ray_plane_intersection_point(pseudo_origin, pseudo_normal, pos.yzw, dir.yzw);
 
             /*{
                 float ray_plane_t = 0;
@@ -4822,6 +4820,11 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
             float2 p_e0 = project_plane_point_into_2d(pseudo_origin, projected_end_0, plane_up, plane_right);
             float2 p_e1 = project_plane_point_into_2d(pseudo_origin, projected_end_1, plane_up, plane_right);
 
+            /*if(debug)
+            {
+                printf("Projected %i b0 %f %f b1 %f %f e0 %f %f e1 %f %f\n", i, p_b0.x, p_b0.y, p_b1.x, p_b1.y, p_e0.x, p_e0.y, p_e1.x, p_e1.y);
+            }*/
+
             float2 point_on_plane = project_plane_point_into_2d(pseudo_origin, intersection_on_plane, plane_up, plane_right);
 
             ///https://www.reedbeta.com/blog/quadrilateral-interpolation-part-2/
@@ -4830,8 +4833,8 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
                 float2 p0 = p_b0;
                 float2 p1 = p_b1;
-                float2 p2 = p_e0;
-                float2 p3 = p_e1;
+                float2 p2 = p_e1;
+                float2 p3 = p_e0;
 
                 float2 q = p - p0;
                 float2 b1 = p1 - p0;

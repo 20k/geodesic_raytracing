@@ -727,6 +727,11 @@ int main(int argc, char* argv[])
             should_debug = false;
             should_print_frametime = true;
         }
+
+        if(current == "-start")
+        {
+            start_metric = next;
+        }
     }
 
     bool has_new_content = false;
