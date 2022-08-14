@@ -4789,7 +4789,7 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
             float3 pseudo_origin = base_0;*/
 
-            float3 pseudo_normal = -normalize(triangle_normal(tri_0_0, tri_0_1, tri_0_2) + triangle_normal(tri_1_0, tri_1_1, tri_1_2));
+            float3 pseudo_normal = normalize(triangle_normal(tri_0_0, tri_0_1, tri_0_2) + triangle_normal(tri_1_0, tri_1_1, tri_1_2));
             float3 pseudo_origin = (base_0 + base_1 + end_0 + end_1) / 4;
 
             float3 up = cross(pseudo_normal, right);
@@ -4852,7 +4852,7 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
                 {
                     // Quadratic form. Take positive root for CCW winding with V-up
                     float discrim = B*B - 4*A*C;
-                    uv.y = 0.5 * (-B + sqrt(discrim)) / A;
+                    uv.y = 0.5 * (-B + -sqrt(discrim)) / A;
                 }
 
                 // Solve for u, using largest-magnitude component
