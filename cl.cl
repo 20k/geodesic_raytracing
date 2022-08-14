@@ -3464,6 +3464,16 @@ bool ray_plane_intersection(float3 plane_origin, float3 plane_normal, float3 ray
     return true;
 }
 
+float3 ray_plane_intersection_point(float3 plane_origin, float3 plane_normal, float3 ray_origin, float3 ray_direction)
+{
+    float oT = 0;
+
+    ///look ok, I'm tired
+    ray_plane_intersection(plane_origin, plane_normal, ray_origin, ray_direction, &oT);
+
+    return ray_origin + ray_direction * oT;
+}
+
 bool ray_intersects_triangle(float3 origin, float3 direction, float3 v0, float3 v1, float3 v2, float* t_out, float* u_out, float* v_out)
 {
     float eps = 0.0000001;
@@ -4581,7 +4591,7 @@ void interpolate_debug2(__write_only image2d_t screen)
 }
 
 ///dir is not normalised, should really use a pos2
-bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_triangle* ctri, float tri_start_time, float tri_end_time, float* t_out)
+bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_triangle* ctri, float tri_start_time, float tri_end_time, float* t_out, bool debug)
 {
     #ifndef TRI_PRECESSION
     float3 to_v1 = (float3)(ctri->dv1x, ctri->dv1y, ctri->dv1z);
@@ -4782,22 +4792,29 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
             //float3 intersection_on_plane = point_on_plane_3d(pseudo_origin, pseudo_normal, hit_pos);
 
-            float3 intersection_on_plane;
+            //float3 intersection_on_plane = ray_plane_intersection_point(pseudo_origin, );
 
-            {
+            float3 intersection_on_plane = ray_plane_intersection_point(pseudo_origin, pseudo_normal, pos.yzw, dir.yzw);
+
+            /*{
                 float ray_plane_t = 0;
 
-                if(!ray_plane_intersection(pseudo_origin, pseudo_origin, pos.yzw, dir.yzw, &ray_plane_t))
+                if(!ray_plane_intersection(pseudo_origin, pseudo_normal, pos.yzw, dir.yzw, &ray_plane_t))
                     continue;
 
                 intersection_on_plane = pos.yzw + dir.yzw * ray_plane_t;
-            }
+            }*/
 
             float3 projected_base_0 = point_on_plane_3d(pseudo_origin, pseudo_normal, base_0);
             float3 projected_base_1 = point_on_plane_3d(pseudo_origin, pseudo_normal, base_1);
 
             float3 projected_end_0 = point_on_plane_3d(pseudo_origin, pseudo_normal, end_0);
             float3 projected_end_1 = point_on_plane_3d(pseudo_origin, pseudo_normal, end_1);
+
+            /*float3 projected_base_0 = ray_plane_intersection_point(pseudo_origin, pseudo_normal, base_0, dir.yzw);
+            float3 projected_base_1 = ray_plane_intersection_point(pseudo_origin, pseudo_normal, base_1, dir.yzw);
+            float3 projected_end_0 = ray_plane_intersection_point(pseudo_origin, pseudo_normal, end_0, dir.yzw);
+            float3 projected_end_1 = ray_plane_intersection_point(pseudo_origin, pseudo_normal, end_1, dir.yzw);*/
 
             float2 p_b0 = project_plane_point_into_2d(pseudo_origin, projected_base_0, plane_up, plane_right);
             float2 p_b1 = project_plane_point_into_2d(pseudo_origin, projected_base_1, plane_up, plane_right);
@@ -5573,7 +5590,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                             float ray_t = 0;
 
-                            if(ray_intersects_toblerone(rt_pos, next_rt_pos - rt_pos, ctri, start_time, end_time, &ray_t))
+                            if(ray_intersects_toblerone(rt_pos, next_rt_pos - rt_pos, ctri, start_time, end_time, &ray_t, sx == 1920/2 && sy == 1080/2))
                             {
                                 if(ray_t < best_intersection)
                                 {
