@@ -4771,9 +4771,6 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
         #endif // 0
 
         #if 1
-        //vec3f up = ((e0 + e1 + e2)/3.f) - (v0 + v1 + v2)/3.f;
-        float3 right = normalize(base_1 - base_0);
-
         ///up vector is toblerone normal
         ///use triangle base as right
         ///need to project both onto plane
@@ -4792,16 +4789,7 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
             float3 pseudo_normal = normalize(triangle_normal(tri_0_0, tri_0_1, tri_0_2) + triangle_normal(tri_1_0, tri_1_1, tri_1_2));
             float3 pseudo_origin = (base_0 + base_1 + end_0 + end_1) / 4;
 
-            //float3 up = cross(pseudo_normal, right);
-
-            /*float3 projected_right = vector_on_plane_3d(pseudo_normal, right);
-            float3 projected_up = vector_on_plane_3d(pseudo_normal, up);
-
-            float3 plane_right = normalize(projected_right);
-            float3 plane_up = normalize(projected_up);*/
-
             float3 intersection_on_plane = point_on_plane_3d(pseudo_origin, pseudo_normal, hit_pos);
-
             //float3 intersection_on_plane = ray_plane_intersection_point(pseudo_origin, pseudo_normal, pos.yzw, dir.yzw);
 
             float3 projected_base_0 = point_on_plane_3d(pseudo_origin, pseudo_normal, base_0);
