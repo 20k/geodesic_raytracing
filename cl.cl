@@ -4761,7 +4761,7 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
         }
         #endif // 0
 
-        #if 1
+        #if 0
         ///up vector is toblerone normal
         ///use triangle base as right
         ///need to project both onto plane
@@ -4855,6 +4855,41 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
             }
         }
         #endif // 0
+
+        #define OLD_METHOD
+        #ifdef OLD_METHOD
+        float my_time = 0;
+
+        {
+            float3 toblerone_origin = v0;
+            float3 toblerone_end = e0;
+            float3 toblerone_normal = toblerone_end - toblerone_origin;
+
+            float toblerone_height = length(toblerone_normal);
+
+            float3 entry_position = pos.yzw + dir.yzw * which_t;
+
+            float3 norm_toblerone_normal = normalize(toblerone_normal);
+
+            float3 tri_normal = triangle_normal(v0, v1, v2);
+
+            float entry_height = 0;
+
+            {
+                float3 new_origin = entry_position;
+                float3 new_dir = -norm_toblerone_normal;
+
+                float ray_plane_t = 0;
+
+                if(!ray_plane_intersection(toblerone_origin, tri_normal, new_origin, new_dir, &ray_plane_t))
+                    return false;
+
+                entry_height = fabs(ray_plane_t);
+            }
+
+            my_time = (entry_height / toblerone_height) * (tri_end_time - tri_start_time) + tri_start_time;
+        }
+        #endif // OLD_METHOD
 
         if(!any_t)
         {
