@@ -923,7 +923,7 @@ struct dynamic_feature_config
     #endif // DYNAMIC_FLOAT_FEATURES
 
     #ifdef DYNAMIC_BOOL_FEATURES
-    bool DYNAMIC_BOOL_FEATURES;
+    int DYNAMIC_BOOL_FEATURES;
     #endif // DYNAMIC_BOOL_FEATURES
 };
 
