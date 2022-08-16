@@ -922,6 +922,14 @@ struct dynamic_feature_config
     bool DYNAMIC_BOOL_FEATURES;
 };
 
+#ifdef KERNEL_IS_STATIC
+#define GET_FEATURE(name, dfg) name
+#endif // KERNEL_IS_STATIC
+
+#ifdef KERNEL_IS_DYNAMIC
+#define GET_FEATURE(name, dfg) dfg->name
+#endif // KERNEL_IS_DYNAMIC
+
 #define dynamic_config_space __constant
 
 #ifndef GENERIC_BIG_METRIC
