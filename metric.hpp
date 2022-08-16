@@ -278,8 +278,6 @@ namespace metrics
         OTHER
     };
 
-    struct config;
-
     struct metric_config
     {
         std::string name;
@@ -663,13 +661,8 @@ namespace metrics
         VERLET
     };
 
-    struct config
-    {
-        float max_precision_radius = 10;
-    };
-
     inline
-    std::string build_argument_string(const metric& in, const metric_impl<std::string>& impl, bool is_static, const config& cfg, const dynamic_feature_config& dfg,
+    std::string build_argument_string(const metric& in, const metric_impl<std::string>& impl, bool is_static, const dynamic_feature_config& dfg,
                                       const std::map<std::string, std::string>& substitution_map)
     {
         std::string argument_string = " -DRS_IMPL=1 -DC_IMPL=1 ";
@@ -832,8 +825,6 @@ namespace metrics
         }
 
         argument_string += " -DDISTANCE_FUNC=" + impl.distance_function;
-
-        argument_string += " -DMAX_PRECISION_RADIUS=" + std::to_string(cfg.max_precision_radius);
 
         const config_variables& dynamic_vars = in.sand.cfg;
 

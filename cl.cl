@@ -5005,8 +5005,6 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
     float subambient_precision = 0.5;
     float ambient_precision = 0.2;
 
-    float rs = 1;
-
     float uniform_coordinate_precision_divisor = max(max(W_V1, W_V2), max(W_V3, W_V4));
 
     int loop_limit = 4096  * 2;
@@ -5038,8 +5036,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
         acceleration.z = 0;
         #endif // IS_CONSTANT_THETA
 
-        float new_max = MAX_PRECISION_RADIUS * rs;
-        float new_min = 3 * rs;
+        float new_max = GET_FEATURE(max_precision_radius, dfg);
+        float new_min = 3;
 
         float4 polar_position = generic_to_spherical(position, cfg);
 
@@ -5467,8 +5465,6 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
     float subambient_precision = 0.5;
     float ambient_precision = 0.2;
 
-    float rs = 1;
-
     int stride_out = *generic_count_in;
     int bufc = 0;
 
@@ -5481,8 +5477,8 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         acceleration.z = 0;
         #endif // IS_CONSTANT_THETA
 
-        float new_max = MAX_PRECISION_RADIUS * rs;
-        float new_min = 3 * rs;
+        float new_max = GET_FEATURE(max_precision_radius, dfg);
+        float new_min = 3;
 
         float4 polar_position = generic_to_spherical(position, cfg);
 

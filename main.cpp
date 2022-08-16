@@ -856,15 +856,8 @@ int main(int argc, char* argv[])
     dfg.add_feature<float>("max_acceleration_change");
     dfg.set_feature("max_acceleration_change", 0.01f);
 
-    metrics::config cfg;
-    ///necessary for double schwarzs
-    //cfg.error_override = 100.f;
-    //cfg.error_override = 0.000001f;
-    //cfg.error_override = 0.000001f;
-    //cfg.error_override = 0.00001f;
-    //cfg.redshift = true;
-
-    metrics::config current_cfg = cfg;
+    dfg.add_feature<float>("max_precision_radius");
+    dfg.set_feature("max_precision_radius", 10.f);
 
     //print("WLs %f %f %f\n", chromaticity::srgb_to_wavelength({1, 0, 0}), chromaticity::srgb_to_wavelength({0, 1, 0}), chromaticity::srgb_to_wavelength({0, 0, 1}));
 
@@ -1631,27 +1624,28 @@ int main(int argc, char* argv[])
                         }
 
                         float max_acceleration_change = dfg.get_feature<float>("max_acceleration_change");
-
-                        if(ImGui::InputFloat("Error Tolerance", &max_acceleration_change, 0.0000001f, 0.00001f, "%.8f"))
-                        {
-                            dfg.set_feature("max_acceleration_change", max_acceleration_change);
-                            should_soft_recompile = true;
-                        }
+                        ImGui::InputFloat("Error Tolerance", &max_acceleration_change, 0.0000001f, 0.00001f, "%.8f");
+                        dfg.set_feature("max_acceleration_change", max_acceleration_change);
 
                         float universe_size = dfg.get_feature<float>("universe_size");
+                        ImGui::DragFloat("Universe Size", &universe_size, 1, 1, 0, "%.1f");
+                        dfg.set_feature("universe_size", universe_size);
 
-                        if(ImGui::DragFloat("Universe Size", &universe_size, 1, 1, 0, "%.1f"))
-                        {
-                            dfg.set_feature("universe_size", universe_size);
-                            should_soft_recompile = true;
-                        }
+                        float max_precision_radius = dfg.get_feature<float>("max_precision_radius");
+                        ImGui::DragFloat("Precision Radius", &max_precision_radius, 1, 0.0001f, dfg.get_feature<float>("universe_size"), "%.1f");
 
-                        ImGui::DragFloat("Precision Radius", &cfg.max_precision_radius, 1, 0.0001f, dfg.get_feature<float>("universe_size"), "%.1f");
+                        if(max_precision_radius < 1)
+                            max_precision_radius = 1;
+
+                        dfg.set_feature("max_precision_radius", max_precision_radius);
 
                         if(ImGui::IsItemHovered())
                         {
                             ImGui::SetTooltip("Radius at which lightrays raise their precision checking unconditionally");
                         }
+
+                        if(dfg.is_dirty)
+                            should_soft_recompile = true;
 
                         should_recompile |= ImGui::Button("Update");
 
@@ -1768,11 +1762,6 @@ int main(int argc, char* argv[])
                 ImGui::End();
             }
 
-            if(should_recompile)
-            {
-                current_cfg = cfg;
-            }
-
             //if(time_progresses)
             //    camera.v[0] += time / 1000.f;
 
@@ -1786,7 +1775,7 @@ int main(int argc, char* argv[])
             }
 
             if(metric_manage.check_recompile(should_recompile, should_soft_recompile, parent_directories,
-                                          all_content, metric_names, dynamic_config, clctx.cqueue, cfg, dfg,
+                                          all_content, metric_names, dynamic_config, clctx.cqueue, dfg,
                                           sett, clctx.ctx, termination_buffer))
             {
                 phys.needs_trace = true;
