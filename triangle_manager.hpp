@@ -126,9 +126,12 @@ namespace triangle_rendering
         float time_width = 80.f;
         int max_memory_size = 1024 * 1024 * 1024; ///1GB
 
-        acceleration(cl::context& ctx, cl::command_queue& cqueue);
+        acceleration(cl::context& ctx);
 
+        void check_allocated(cl::command_queue& cqueue);
         void build(cl::command_queue& cqueue, manager& tris, physics& phys, cl::buffer& dynamic_config);
+
+        bool is_allocated = false;
     };
 }
 

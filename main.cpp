@@ -251,6 +251,7 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
                                                triangle_rendering::acceleration& accel,
                                                int num_rays,
                                                bool use_device_side_enqueue,
+                                               dynamic_feature_config& dfg,
                                                cl::buffer& dynamic_config,
                                                cl::buffer& dynamic_feature_config)
 {
@@ -278,16 +279,19 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
         intersections_count.set_to_zero(cqueue);
         potential_intersections_count.set_to_zero(cqueue);
 
-        cl_int my_min = INT_MAX;
-        cl_int my_max = INT_MIN;
-
-        accel.ray_time_min.write(cqueue, std::vector<cl_int>{my_min});
-        accel.ray_time_max.write(cqueue, std::vector<cl_int>{my_max});
-
-        if(accel.use_cell_based_culling)
+        if(dfg.get_feature<bool>("use_triangle_rendering"))
         {
-            accel.cell_time_min.fill(cqueue, my_min);
-            accel.cell_time_max.fill(cqueue, my_max);
+            cl_int my_min = INT_MAX;
+            cl_int my_max = INT_MIN;
+
+            accel.ray_time_min.write(cqueue, std::vector<cl_int>{my_min});
+            accel.ray_time_max.write(cqueue, std::vector<cl_int>{my_max});
+
+            if(accel.use_cell_based_culling)
+            {
+                accel.cell_time_min.fill(cqueue, my_min);
+                accel.cell_time_max.fill(cqueue, my_max);
+            }
         }
 
         cl::args run_args;
@@ -1203,10 +1207,13 @@ int main(int argc, char* argv[])
     #endif // CUBE_INTO_HORIZON
 
     physics phys(clctx.ctx);
+    triangle_rendering::acceleration accel(clctx.ctx);
 
-    triangle_rendering::acceleration accel(clctx.ctx, clctx.cqueue);
-    tris.build(clctx.cqueue, accel.offset_width / accel.offset_size.x());
-    phys.setup(clctx.cqueue, tris);
+    if(dfg.get_feature<bool>("use_triangle_rendering"))
+    {
+        tris.build(clctx.cqueue, accel.offset_width / accel.offset_size.x());
+        phys.setup(clctx.cqueue, tris);
+    }
 
     print("Pre main\n");
 
@@ -1712,6 +1719,12 @@ int main(int argc, char* argv[])
 
                         dfg.set_feature("use_triangle_rendering", use_triangle_rendering);
 
+                        if(dfg.is_dirty && use_triangle_rendering)
+                        {
+                            tris.build(clctx.cqueue, accel.offset_width / accel.offset_size.x());
+                            phys.setup(clctx.cqueue, tris);
+                        }
+
                         if(dfg.is_dirty)
                             should_soft_recompile = true;
 
@@ -1789,7 +1802,7 @@ int main(int argc, char* argv[])
 
             dfg.alloc_and_write_gpu_buffer(clctx.cqueue, dynamic_feature_buffer);
 
-            if(should_chuck_object && last_camera_pos_polar.has_value())
+            if(dfg.get_feature<bool>("use_triangle_rendering") && should_chuck_object && last_camera_pos_polar.has_value())
             {
                 ///ideally this would be in generic, but would need to have tetrad based triangle collisions heh
                 ///H E H
@@ -1815,6 +1828,7 @@ int main(int argc, char* argv[])
 
                 obj->velocity = chuck_dir * object_chuck_speed;
 
+                accel.check_allocated(clctx.cqueue);
                 tris.build(clctx.cqueue, accel.offset_width / accel.offset_size.x());
                 phys.setup(clctx.cqueue, tris);
 
@@ -2023,6 +2037,7 @@ int main(int argc, char* argv[])
 
             clctx.cqueue.exec("clear", clr, {width, height}, {16, 16});
 
+            if(dfg.get_feature<bool>("use_triangle_rendering"))
             {
                 tris.update_objects(clctx.cqueue);
 
@@ -2032,6 +2047,12 @@ int main(int argc, char* argv[])
                 //phys.push_object_positions(clctx.cqueue, tris, dynamic_config, set_camera_time);
 
                 accel.build(clctx.cqueue, tris, phys, dynamic_config);
+            }
+            else
+            {
+                tris = triangle_rendering::manager(clctx.ctx);
+                phys = physics(clctx.ctx);
+                accel = triangle_rendering::acceleration(clctx.ctx);
             }
 
             {
@@ -2076,7 +2097,7 @@ int main(int argc, char* argv[])
 
                     int rays_num = calculate_ray_count(prepass_width, prepass_height);
 
-                    execute_kernel(clctx.cqueue, schwarzs_prepass, schwarzs_scratch, finished_1, schwarzs_count_prepass, schwarzs_count_scratch, finished_count_1, tris, gpu_intersections, gpu_intersections_count, potential_intersections, potential_intersection_count, accel, rays_num, false, dynamic_config, dynamic_feature_buffer);
+                    execute_kernel(clctx.cqueue, schwarzs_prepass, schwarzs_scratch, finished_1, schwarzs_count_prepass, schwarzs_count_scratch, finished_count_1, tris, gpu_intersections, gpu_intersections_count, potential_intersections, potential_intersection_count, accel, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer);
 
                     cl::args singular_args;
                     singular_args.push_back(finished_1);
@@ -2111,7 +2132,7 @@ int main(int argc, char* argv[])
 
                 int rays_num = calculate_ray_count(width, height);
 
-                execute_kernel(clctx.cqueue, schwarzs_1, schwarzs_scratch, finished_1, schwarzs_count_1, schwarzs_count_scratch, finished_count_1, tris, gpu_intersections, gpu_intersections_count, potential_intersections, potential_intersection_count, accel, rays_num, false, dynamic_config, dynamic_feature_buffer);
+                execute_kernel(clctx.cqueue, schwarzs_1, schwarzs_scratch, finished_1, schwarzs_count_1, schwarzs_count_scratch, finished_count_1, tris, gpu_intersections, gpu_intersections_count, potential_intersections, potential_intersection_count, accel, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer);
 
                 cl::args texture_args;
                 texture_args.push_back(finished_1);
@@ -2167,6 +2188,7 @@ int main(int argc, char* argv[])
             }
             #endif // 0
 
+            if(dfg.get_feature<bool>("use_triangle_rendering"))
             {
                 cl::args intersect_args;
                 intersect_args.push_back(gpu_intersections);

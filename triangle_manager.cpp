@@ -336,8 +336,16 @@ void triangle_rendering::manager::force_update_objects(cl::command_queue& cqueue
     update_objects(cqueue);
 }
 
-triangle_rendering::acceleration::acceleration(cl::context& ctx, cl::command_queue& cqueue) : offsets(ctx), counts(ctx), memory(ctx), start_times_memory(ctx), delta_times_memory(ctx), memory_count(ctx), unculled_counts(ctx), ray_time_min(ctx), ray_time_max(ctx), cell_time_min(ctx), cell_time_max(ctx), any_visible(ctx)
+triangle_rendering::acceleration::acceleration(cl::context& ctx) : offsets(ctx), counts(ctx), memory(ctx), start_times_memory(ctx), delta_times_memory(ctx), memory_count(ctx), unculled_counts(ctx), ray_time_min(ctx), ray_time_max(ctx), cell_time_min(ctx), cell_time_max(ctx), any_visible(ctx)
 {
+
+}
+
+void triangle_rendering::acceleration::check_allocated(cl::command_queue& cqueue)
+{
+    if(is_allocated)
+        return;
+
     memory_count.alloc(sizeof(cl_int));
 
     int cells = offset_size.x() * offset_size.y() * offset_size.z() * offset_size.w();
@@ -357,10 +365,14 @@ triangle_rendering::acceleration::acceleration(cl::context& ctx, cl::command_que
 
     any_visible.alloc(sizeof(cl_int));
     any_visible.set_to_zero(cqueue);
+
+    is_allocated = true;
 }
 
 void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager& tris, physics& phys, cl::buffer& dynamic_config)
 {
+    check_allocated(cqueue);
+
     //if(!tris.acceleration_needs_rebuild)
     //    return;
 

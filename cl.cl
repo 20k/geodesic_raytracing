@@ -4964,6 +4964,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
     float4 velocity = ray->velocity;
     float4 acceleration = ray->acceleration;
 
+    if(GET_FEATURE(use_triangle_rendering, dfg))
     {
         atomic_min(ray_time_min, (int)floor(position.x));
         atomic_max(ray_time_max, (int)ceil(position.x));
@@ -5020,7 +5021,10 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
     float4 ray_quat = ray->initial_quat;
 
-    int any_visible_tris = *any_visible;
+    int any_visible_tris = 0;
+
+    if(GET_FEATURE(use_triangle_rendering, dfg))
+        any_visible_tris = *any_visible;
 
     //#pragma unroll
     for(int i=0; i < loop_limit; i++)
@@ -5079,8 +5083,12 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
         #ifndef UNCONDITIONALLY_NONSINGULAR
         if(fabs(velocity.x) > 1000 + f_in_x && fabs(acceleration.x) > 100)
         {
-            atomic_min(ray_time_min, (int)floor(my_min));
-            atomic_max(ray_time_max, (int)ceil(my_max));
+            if(GET_FEATURE(use_triangle_rendering, dfg))
+            {
+                atomic_min(ray_time_min, (int)floor(my_min));
+                atomic_max(ray_time_max, (int)ceil(my_max));
+            }
+
             return;
         }
         #endif // UNCONDITIONALLY_NONSINGULAR
@@ -5319,8 +5327,11 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
         if(should_terminate)
         {
-            atomic_min(ray_time_min, (int)floor(my_min));
-            atomic_max(ray_time_max, (int)ceil(my_max));
+            if(GET_FEATURE(use_triangle_rendering, dfg))
+            {
+                atomic_min(ray_time_min, (int)floor(my_min));
+                atomic_max(ray_time_max, (int)ceil(my_max));
+            }
 
             int out_id = atomic_inc(finished_count_out);
 
@@ -5394,8 +5405,11 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
         }
     }
 
-    atomic_min(ray_time_min, (int)floor(my_min));
-    atomic_max(ray_time_max, (int)ceil(my_max));
+    if(GET_FEATURE(use_triangle_rendering, dfg))
+    {
+        atomic_min(ray_time_min, (int)floor(my_min));
+        atomic_max(ray_time_max, (int)ceil(my_max));
+    }
 
     int out_id = atomic_inc(generic_count_out);
 
