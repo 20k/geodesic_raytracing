@@ -23,8 +23,6 @@ struct dynamic_feature_config
     }
 
     bool is_enabled(const std::string& feature);
-    void enable(const std::string& feature);
-    void disable(const std::string& feature);
 
     template<typename T>
     void set_feature(const std::string& feature, const T& val)
