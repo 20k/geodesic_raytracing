@@ -169,7 +169,7 @@ void dynamic_feature_config::alloc_and_write_gpu_buffer(cl::command_queue& cqueu
         }
     }
 
-    int struct_size = sizeof(cl_float) * float_features.size() + sizeof(cl_bool) * bool_features.size();
+    int struct_size = sizeof(cl_float) * float_features.size() + sizeof(cl_int) * bool_features.size();
 
     if(inout.alloc_size != struct_size)
         inout.alloc(struct_size);
@@ -190,11 +190,11 @@ void dynamic_feature_config::alloc_and_write_gpu_buffer(cl::command_queue& cqueu
 
     for(int i=0; i < (int)bool_features.size(); i++)
     {
-        cl_bool val = bool_features[i].second;
+        cl_int val = bool_features[i].second;
 
         memcpy(buf_ptr, &val, sizeof(val));
 
-        buf_ptr += sizeof(cl_bool);
+        buf_ptr += sizeof(cl_int);
     }
 
     inout.write(cqueue, buf);
