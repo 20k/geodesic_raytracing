@@ -4748,31 +4748,6 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
         float3 hit_pos = pos.yzw + dir.yzw * which_t;
 
-        #if 0
-        float3 to_upper_edge = point_to_line(end_0, end_1 - end_0, hit_pos);
-        float3 to_lower_edge = point_to_line(base_0, base_1 - base_0, hit_pos);
-
-        float full_length = length(to_upper_edge) + length(to_lower_edge);
-
-        float value_at_upper = tri_end_time;
-        float value_at_lower = tri_start_time;
-
-        ///if 0, we're situated at the upper line
-        ///if 1, we're situated at the lower line
-        //float fraction_from_upper = length(to_upper_edge) / full_length;
-
-        float fraction_from_upper = 0.f;
-
-        if(full_length > 0.00001f)
-        {
-            fraction_from_upper = length(to_upper_edge) / full_length;
-        }
-
-        fraction_from_upper = clamp(fraction_from_upper, 0.f, 1.f);
-
-        float my_time = value_at_upper * (1 - fraction_from_upper) + value_at_lower * fraction_from_upper;
-        #endif // 0
-
         #if 1
         ///up vector is toblerone normal
         ///use triangle base as right
