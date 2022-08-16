@@ -858,7 +858,6 @@ int main(int argc, char* argv[])
 
     metrics::config cfg;
     ///necessary for double schwarzs
-    cfg.use_device_side_enqueue = false;
     //cfg.error_override = 100.f;
     //cfg.error_override = 0.000001f;
     //cfg.error_override = 0.000001f;
@@ -2082,7 +2081,7 @@ int main(int argc, char* argv[])
 
                     int rays_num = calculate_ray_count(prepass_width, prepass_height);
 
-                    execute_kernel(clctx.cqueue, schwarzs_prepass, schwarzs_scratch, finished_1, schwarzs_count_prepass, schwarzs_count_scratch, finished_count_1, tris, gpu_intersections, gpu_intersections_count, potential_intersections, potential_intersection_count, accel, rays_num, cfg.use_device_side_enqueue, dynamic_config, dynamic_feature_buffer);
+                    execute_kernel(clctx.cqueue, schwarzs_prepass, schwarzs_scratch, finished_1, schwarzs_count_prepass, schwarzs_count_scratch, finished_count_1, tris, gpu_intersections, gpu_intersections_count, potential_intersections, potential_intersection_count, accel, rays_num, false, dynamic_config, dynamic_feature_buffer);
 
                     cl::args singular_args;
                     singular_args.push_back(finished_1);
@@ -2117,7 +2116,7 @@ int main(int argc, char* argv[])
 
                 int rays_num = calculate_ray_count(width, height);
 
-                execute_kernel(clctx.cqueue, schwarzs_1, schwarzs_scratch, finished_1, schwarzs_count_1, schwarzs_count_scratch, finished_count_1, tris, gpu_intersections, gpu_intersections_count, potential_intersections, potential_intersection_count, accel, rays_num, cfg.use_device_side_enqueue, dynamic_config, dynamic_feature_buffer);
+                execute_kernel(clctx.cqueue, schwarzs_1, schwarzs_scratch, finished_1, schwarzs_count_1, schwarzs_count_scratch, finished_count_1, tris, gpu_intersections, gpu_intersections_count, potential_intersections, potential_intersection_count, accel, rays_num, false, dynamic_config, dynamic_feature_buffer);
 
                 cl::args texture_args;
                 texture_args.push_back(finished_1);

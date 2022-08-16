@@ -666,7 +666,6 @@ namespace metrics
     struct config
     {
         integration_type type = integration_type::VERLET;
-        bool use_device_side_enqueue = true;
         float max_precision_radius = 10;
     };
 
