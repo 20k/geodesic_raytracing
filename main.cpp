@@ -845,7 +845,7 @@ int main(int argc, char* argv[])
 
     dynamic_feature_config dfg;
     dfg.add_feature<bool>("use_triangle_rendering");
-    dfg.set_feature("use_triangle_rendering", true);
+    dfg.set_feature("use_triangle_rendering", false);
 
     dfg.add_feature<bool>("redshift");
     dfg.set_feature("redshift", false);
@@ -1039,8 +1039,6 @@ int main(int argc, char* argv[])
     schwarzs_count_prepass.alloc(sizeof(int));
     finished_count_1.alloc(sizeof(int));
 
-    triangle_rendering::acceleration accel(clctx.ctx, clctx.cqueue);
-
     int potential_intersection_size = 10;
 
     cl::buffer potential_intersections(clctx.ctx);
@@ -1131,7 +1129,7 @@ int main(int argc, char* argv[])
         }
     }*/
 
-    #define TEAPOTS
+    //#define TEAPOTS
     #ifdef TEAPOTS
     //#define INDIVIDUAL_GEODESICS
     #ifndef INDIVIDUAL_GEODESICS
@@ -1204,9 +1202,10 @@ int main(int argc, char* argv[])
     obj->velocity = {0, 0.1f, 0};
     #endif // CUBE_INTO_HORIZON
 
-    tris.build(clctx.cqueue, accel.offset_width / accel.offset_size.x());
-
     physics phys(clctx.ctx);
+
+    triangle_rendering::acceleration accel(clctx.ctx, clctx.cqueue);
+    tris.build(clctx.cqueue, accel.offset_width / accel.offset_size.x());
     phys.setup(clctx.cqueue, tris);
 
     print("Pre main\n");
