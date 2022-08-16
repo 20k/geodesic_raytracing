@@ -107,8 +107,6 @@ std::string dynamic_feature_config::generate_dynamic_argument_string()const
     {
         if(val.index() == 0)
         {
-            std::cout << "HAS FEATURE " << std::get<0>(val) << std::endl;
-
             bool_features.push_back(name);
         }
 
