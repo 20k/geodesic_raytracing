@@ -1122,7 +1122,7 @@ int main(int argc, char* argv[])
         }
     }*/
 
-    //#define TEAPOTS
+    #define TEAPOTS
     #ifdef TEAPOTS
     //#define INDIVIDUAL_GEODESICS
     #ifndef INDIVIDUAL_GEODESICS
@@ -1186,12 +1186,14 @@ int main(int argc, char* argv[])
     obj->tris = make_cube({0, 0, 0});
     obj->pos = {0, -5, 0, 0};*/
 
+    #ifdef CUBE_INTO_HORIZON
     ///event horizon tester
     std::shared_ptr<triangle_rendering::object> obj = tris.make_new();
 
     obj->tris = make_cube({0, 0, 0});
     obj->pos = {0, -5, -1, 0};
     obj->velocity = {0, 0.1f, 0};
+    #endif // CUBE_INTO_HORIZON
 
     tris.build(clctx.cqueue, accel.offset_width / accel.offset_size.x());
 

@@ -2028,7 +2028,8 @@ float4 matrix_to_quat(float m[9])
     return l;
 }
 
-float4 parallel_transport_get_acceleration(float4 X, float4 geodesic_position, float4 geodesic_velocity, dynamic_config_space struct dynamic_config* cfg)
+///https://physics.stackexchange.com/questions/524242/parallel-transport-of-a-vectors
+float4 parallel_transport_get_velocity(float4 X, float4 geodesic_position, float4 geodesic_velocity, dynamic_config_space struct dynamic_config* cfg)
 {
     float X_arr[4] = {X.x, X.y, X.z, X.w};
     float Y_arr[4] = {geodesic_velocity.x, geodesic_velocity.y, geodesic_velocity.z, geodesic_velocity.w};
@@ -2053,7 +2054,7 @@ float4 parallel_transport_get_acceleration(float4 X, float4 geodesic_position, f
         get_christoffel_generic(g_metric, g_partials, christoffel);
     }
 
-    float accel[4] = {0};
+    float vel[4] = {0};
 
     for(int a=0; a < 4; a++)
     {
@@ -2067,10 +2068,10 @@ float4 parallel_transport_get_acceleration(float4 X, float4 geodesic_position, f
             }
         }
 
-        accel[a] = -sum;
+        vel[a] = -sum;
     }
 
-    return (float4){accel[0], accel[1], accel[2], accel[3]};
+    return (float4){vel[0], vel[1], vel[2], vel[3]};
 }
 
 __kernel
@@ -2498,14 +2499,18 @@ void parallel_transport_quantity(__global float4* geodesic_path, __global float4
 
         float ds = ds_in[current_idx];
 
-        float4 current_pos = geodesic_path[current_idx];
-        float4 next_pos = geodesic_path[next_idx];
+        float4 current_position = geodesic_path[current_idx];
+        float4 next_position = geodesic_path[next_idx];
 
-        float4 f_x = parallel_transport_get_acceleration(current_quantity, geodesic_path[current_idx], geodesic_velocity[current_idx], cfg);
+        float4 current_velocity = geodesic_velocity[current_idx];
+        float4 next_velocity = geodesic_velocity[next_idx];
+
+        ///this isn't verlet, its generic 2nd order integration
+        float4 f_x = parallel_transport_get_velocity(current_quantity, current_position, current_velocity, cfg);
 
         float4 intermediate_next = current_quantity + f_x * ds;
 
-        float4 next = current_quantity + 0.5f * ds * (f_x + parallel_transport_get_acceleration(intermediate_next, geodesic_path[next_idx], geodesic_velocity[next_idx], cfg));
+        float4 next = current_quantity + 0.5f * ds * (f_x + parallel_transport_get_velocity(intermediate_next, next_position, next_velocity, cfg));
 
         ///so. quantity_out[0] ends up being initial, quantity_out[1] = after one transport
         quantity_out[current_idx] = current_quantity;
