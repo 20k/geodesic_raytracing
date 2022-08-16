@@ -853,6 +853,9 @@ int main(int argc, char* argv[])
     dfg.add_feature<float>("universe_size");
     dfg.set_feature("universe_size", 20.f);
 
+    dfg.add_feature<float>("max_acceleration_change");
+    dfg.set_feature("max_acceleration_change", 0.01f);
+
     metrics::config cfg;
     ///necessary for double schwarzs
     cfg.use_device_side_enqueue = false;
@@ -1628,7 +1631,13 @@ int main(int argc, char* argv[])
                             should_soft_recompile = true;
                         }
 
-                        ImGui::InputFloat("Error Tolerance", &cfg.error_override, 0.0000001f, 0.00001f, "%.8f");
+                        float max_acceleration_change = dfg.get_feature<float>("max_acceleration_change");
+
+                        if(ImGui::InputFloat("Error Tolerance", &max_acceleration_change, 0.0000001f, 0.00001f, "%.8f"))
+                        {
+                            dfg.set_feature("max_acceleration_change", max_acceleration_change);
+                            should_soft_recompile = true;
+                        }
 
                         float universe_size = dfg.get_feature<float>("universe_size");
 
@@ -1783,6 +1792,8 @@ int main(int argc, char* argv[])
             {
                 phys.needs_trace = true;
             }
+
+            dfg.alloc_and_write_gpu_buffer(clctx.cqueue, dynamic_feature_buffer);
 
             if(should_chuck_object && last_camera_pos_polar.has_value())
             {

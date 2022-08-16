@@ -666,7 +666,6 @@ namespace metrics
     struct config
     {
         integration_type type = integration_type::VERLET;
-        float error_override = 0;
         bool use_device_side_enqueue = true;
         float max_precision_radius = 10;
     };
@@ -789,11 +788,6 @@ namespace metrics
         if(in.metric_cfg.adaptive_precision)
         {
             argument_string += " -DADAPTIVE_PRECISION";
-
-            if(cfg.error_override == 0)
-                argument_string += " -DMAX_ACCELERATION_CHANGE=" + dual_types::to_string_s(in.metric_cfg.max_acceleration_change);
-            else
-                argument_string += " -DMAX_ACCELERATION_CHANGE=" + dual_types::to_string_s(cfg.error_override);
 
             if(in.metric_cfg.detect_singularities)
             {

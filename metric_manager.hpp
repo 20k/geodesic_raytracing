@@ -46,7 +46,7 @@ struct metric_manager
 
             assert(current_metric);
 
-            cfg.error_override = current_metric->metric_cfg.max_acceleration_change;
+            dfg.set_feature("max_acceleration_change", current_metric->metric_cfg.max_acceleration_change);
 
             printj("ALLOCATING DYNCONFIG ", current_metric->sand.cfg.default_values.size());
 

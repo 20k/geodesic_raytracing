@@ -4992,7 +4992,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
     float next_ds = 0.00001;
 
     #ifdef ADAPTIVE_PRECISION
-    (void)acceleration_to_precision(acceleration, MAX_ACCELERATION_CHANGE, &next_ds);
+    (void)acceleration_to_precision(acceleration, GET_FEATURE(max_acceleration_change, dfg), &next_ds);
     #endif // ADAPTIVE_PRECISION
 
     ///results:
@@ -5364,7 +5364,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
         if(fabs(r_value) < new_max)
         {
-            int res = calculate_ds_error(ds, next_acceleration, acceleration, MAX_ACCELERATION_CHANGE, &next_ds);
+            int res = calculate_ds_error(ds, next_acceleration, acceleration, GET_FEATURE(max_acceleration_change, dfg), &next_ds);
 
             if(res == DS_RETURN)
                 return;
@@ -5455,7 +5455,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
     #endif // IS_CONSTANT_THETA
 
     #ifdef ADAPTIVE_PRECISION
-    float max_accel = min(0.00001000f, MAX_ACCELERATION_CHANGE);
+    float max_accel = min(0.00001000f, GET_FEATURE(max_acceleration_change, dfg));
     #endif // ADAPTIVE_PRECISION
 
     float next_ds = 0.00001;
