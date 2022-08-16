@@ -31,6 +31,20 @@ bool valid_feature(const dynamic_feature_config& cfg, const std::string& feature
     return cfg.features_enabled.find(feature) != cfg.features_enabled.end();
 }
 
+void dynamic_feature_config::add_feature_impl(const std::string& feature, const std::type_info& inf)
+{
+    is_dirty = true;
+
+    if(inf == typeid(bool))
+        features_enabled[feature] = bool();
+
+    else if(inf == typeid(float))
+        features_enabled[feature] = float();
+
+    else
+        assert(false);
+}
+
 bool dynamic_feature_config::is_enabled(const std::string& feature)
 {
     assert(valid_feature(*this, feature));
@@ -127,4 +141,58 @@ std::string dynamic_feature_config::generate_static_argument_string()
     append_feature_values(str, bool_features);
 
     return str;
+}
+
+void dynamic_feature_config::alloc_and_write_gpu_buffer(cl::command_queue& cqueue, cl::buffer& inout)
+{
+    if(!is_dirty)
+        return;
+
+    std::vector<std::pair<std::string, bool>> bool_features;
+    std::vector<std::pair<std::string, float>> float_features;
+
+    for(auto& [name, val] : features_enabled)
+    {
+        if(val.index() == 0)
+        {
+            bool_features.push_back({name, std::get<0>(val)});
+        }
+
+        if(val.index() == 1)
+        {
+            float_features.push_back({name, std::get<0>(val)});
+        }
+    }
+
+    int struct_size = sizeof(cl_float) * float_features.size() + sizeof(cl_bool) * bool_features.size();
+
+    if(inout.alloc_size != struct_size)
+        inout.alloc(struct_size);
+
+    std::vector<cl_char> buf;
+    buf.resize(struct_size);
+
+    cl_char* buf_ptr = buf.data();
+
+    for(int i=0; i < (int)float_features.size(); i++)
+    {
+        cl_float val = float_features[i].second;
+
+        memcpy(buf_ptr, &val, sizeof(val));
+
+        buf_ptr += sizeof(cl_float);
+    }
+
+    for(int i=0; i < (int)bool_features.size(); i++)
+    {
+        cl_bool val = bool_features[i].second;
+
+        memcpy(buf_ptr, &val, sizeof(val));
+
+        buf_ptr += sizeof(cl_bool);
+    }
+
+    inout.write(cqueue, buf);
+
+    is_dirty = false;
 }

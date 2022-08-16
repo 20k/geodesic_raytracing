@@ -29,12 +29,15 @@ struct dynamic_feature_config
     {
         assert(features_enabled.find(feature) != features_enabled.end());
 
+        if(val != features_enabled[feature])
+            is_dirty = true;
+
         features_enabled[feature] = val;
     }
 
     std::string generate_dynamic_argument_string();
     std::string generate_static_argument_string();
-    void alloc_and_write_gpu_buffer(cl::buffer& in, cl::command_queue& cqueue);
+    void alloc_and_write_gpu_buffer(cl::command_queue& cqueue, cl::buffer& inout);
 
 private:
     void add_feature_impl(const std::string& feature, const std::type_info& inf);
