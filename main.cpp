@@ -251,7 +251,8 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
                                                triangle_rendering::acceleration& accel,
                                                int num_rays,
                                                bool use_device_side_enqueue,
-                                               cl::buffer& dynamic_config)
+                                               cl::buffer& dynamic_config,
+                                               cl::buffer& dynamic_feature_config)
 {
     if(use_device_side_enqueue)
     {
@@ -320,6 +321,7 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
         run_args.push_back(accel.ray_time_min);
         run_args.push_back(accel.ray_time_max);
         run_args.push_back(dynamic_config);
+        run_args.push_back(dynamic_feature_config);
 
         cqueue.exec("do_generic_rays", run_args, {num_rays}, {256});
     }
@@ -1224,6 +1226,8 @@ int main(int argc, char* argv[])
 
     while(!win.should_close() && !menu.should_quit && fullscreen.open)
     {
+        dfg.alloc_and_write_gpu_buffer(clctx.cqueue, dynamic_feature_buffer);
+
         if(menu.dirty_settings)
         {
             current_settings = menu.sett;
@@ -2048,7 +2052,7 @@ int main(int argc, char* argv[])
 
                     int rays_num = calculate_ray_count(prepass_width, prepass_height);
 
-                    execute_kernel(clctx.cqueue, schwarzs_prepass, schwarzs_scratch, finished_1, schwarzs_count_prepass, schwarzs_count_scratch, finished_count_1, tris, gpu_intersections, gpu_intersections_count, potential_intersections, potential_intersection_count, accel, rays_num, cfg.use_device_side_enqueue, dynamic_config);
+                    execute_kernel(clctx.cqueue, schwarzs_prepass, schwarzs_scratch, finished_1, schwarzs_count_prepass, schwarzs_count_scratch, finished_count_1, tris, gpu_intersections, gpu_intersections_count, potential_intersections, potential_intersection_count, accel, rays_num, cfg.use_device_side_enqueue, dynamic_config, dynamic_feature_buffer);
 
                     cl::args singular_args;
                     singular_args.push_back(finished_1);
@@ -2083,7 +2087,7 @@ int main(int argc, char* argv[])
 
                 int rays_num = calculate_ray_count(width, height);
 
-                execute_kernel(clctx.cqueue, schwarzs_1, schwarzs_scratch, finished_1, schwarzs_count_1, schwarzs_count_scratch, finished_count_1, tris, gpu_intersections, gpu_intersections_count, potential_intersections, potential_intersection_count, accel, rays_num, cfg.use_device_side_enqueue, dynamic_config);
+                execute_kernel(clctx.cqueue, schwarzs_1, schwarzs_scratch, finished_1, schwarzs_count_1, schwarzs_count_scratch, finished_count_1, tris, gpu_intersections, gpu_intersections_count, potential_intersections, potential_intersection_count, accel, rays_num, cfg.use_device_side_enqueue, dynamic_config, dynamic_feature_buffer);
 
                 cl::args texture_args;
                 texture_args.push_back(finished_1);

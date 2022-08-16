@@ -918,8 +918,13 @@ struct dynamic_config
 
 struct dynamic_feature_config
 {
+    #ifdef DYNAMIC_FLOAT_FEATURES
     float DYNAMIC_FLOAT_FEATURES;
+    #endif // DYNAMIC_FLOAT_FEATURES
+
+    #ifdef DYNAMIC_BOOL_FEATURES
     bool DYNAMIC_BOOL_FEATURES;
+    #endif // DYNAMIC_BOOL_FEATURES
 };
 
 #ifdef KERNEL_IS_STATIC
@@ -4938,7 +4943,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                       __global int* cell_time_min, __global int* cell_time_max,
                       __global struct object* objs,
                       __global int* ray_time_min, __global int* ray_time_max,
-                      dynamic_config_space struct dynamic_config* cfg)
+                      dynamic_config_space struct dynamic_config* cfg,
+                      dynamic_config_space struct dynamic_feature_config* dfg)
 {
     int id = get_global_id(0);
 
@@ -5081,7 +5087,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
         }
         #endif // UNCONDITIONALLY_NONSINGULAR
 
-        if((i % 8) == 0 && any_visible_tris > 0)
+        if(GET_FEATURE(use_triangle_rendering, dfg) && (i % 8) == 0 && any_visible_tris > 0)
         {
             float4 out_position = generic_to_cartesian(position, cfg);
 

@@ -47,6 +47,8 @@ void dynamic_feature_config::add_feature_impl(const std::string& feature, const 
 
 void dynamic_feature_config::remove_feature(const std::string& feature)
 {
+    is_dirty = true;
+
     features_enabled.erase(features_enabled.find(feature));
 }
 
@@ -57,14 +59,12 @@ bool dynamic_feature_config::is_enabled(const std::string& feature)
     return std::get<0>(features_enabled[feature]);
 }
 
-void append_features(std::string& accum, const std::string& name, const std::string& null_name, const std::vector<std::string>& names)
+void append_features(std::string& accum, const std::string& name, const std::vector<std::string>& names)
 {
-    accum += "-D" + name + "=";
-
     if(names.size() == 0)
-    {
-        accum += null_name;
-    }
+        return;
+
+    accum += "-D" + name + "=";
 
     for(const std::string& name : names)
     {
@@ -107,6 +107,8 @@ std::string dynamic_feature_config::generate_dynamic_argument_string()const
     {
         if(val.index() == 0)
         {
+            std::cout << "HAS FEATURE " << std::get<0>(val) << std::endl;
+
             bool_features.push_back(name);
         }
 
@@ -116,8 +118,8 @@ std::string dynamic_feature_config::generate_dynamic_argument_string()const
         }
     }
 
-    append_features(str, "DYNAMIC_FLOAT_FEATURES", "fl_none", float_features);
-    append_features(str, "DYNAMIC_BOOL_FEATURES", "bl_none", bool_features);
+    append_features(str, "DYNAMIC_FLOAT_FEATURES", float_features);
+    append_features(str, "DYNAMIC_BOOL_FEATURES", bool_features);
 
     return str;
 }
