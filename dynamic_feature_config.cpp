@@ -45,6 +45,11 @@ void dynamic_feature_config::add_feature_impl(const std::string& feature, const 
         assert(false);
 }
 
+void dynamic_feature_config::remove_feature(const std::string& feature)
+{
+    features_enabled.erase(features_enabled.find(feature));
+}
+
 bool dynamic_feature_config::is_enabled(const std::string& feature)
 {
     assert(valid_feature(*this, feature));

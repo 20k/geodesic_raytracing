@@ -22,6 +22,8 @@ struct dynamic_feature_config
         add_feature_impl(feature, typeid(T));
     }
 
+    void remove_feature(const std::string& feature);
+
     bool is_enabled(const std::string& feature);
 
     template<typename T>
