@@ -665,7 +665,6 @@ namespace metrics
 
     struct config
     {
-        float universe_size = 200000;
         integration_type type = integration_type::VERLET;
         float error_override = 0;
         bool use_device_side_enqueue = true;
@@ -841,8 +840,6 @@ namespace metrics
         }
 
         argument_string += " -DDISTANCE_FUNC=" + impl.distance_function;
-
-        argument_string += " -DUNIVERSE_SIZE=" + std::to_string(cfg.universe_size);
 
         argument_string += " -DMAX_PRECISION_RADIUS=" + std::to_string(cfg.max_precision_radius);
 

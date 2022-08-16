@@ -72,7 +72,7 @@ struct physics
         cqueue.exec("pull_object_positions", args, {manage.gpu_object_count}, {256});
     }
 
-    void trace(cl::command_queue& cqueue, triangle_rendering::manager& manage, cl::buffer& dynamic_config)
+    void trace(cl::command_queue& cqueue, triangle_rendering::manager& manage, cl::buffer& dynamic_config, cl::buffer& dynamic_feature_buffer)
     {
         if(!needs_trace)
             return;
@@ -163,6 +163,7 @@ struct physics
             snapshot_args.push_back(gpu_object_count);
             snapshot_args.push_back(max_path_length);
             snapshot_args.push_back(dynamic_config);
+            snapshot_args.push_back(dynamic_feature_buffer);
             snapshot_args.push_back(counts);
 
             cqueue.exec("get_geodesic_path", snapshot_args, {object_count}, {256});

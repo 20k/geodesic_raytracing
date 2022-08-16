@@ -138,7 +138,7 @@ std::string dynamic_feature_config::generate_static_argument_string() const
 
         if(val.index() == 1)
         {
-            float_features.push_back({name, std::get<0>(val)});
+            float_features.push_back({name, std::get<1>(val)});
         }
     }
 
@@ -165,7 +165,7 @@ void dynamic_feature_config::alloc_and_write_gpu_buffer(cl::command_queue& cqueu
 
         if(val.index() == 1)
         {
-            float_features.push_back({name, std::get<0>(val)});
+            float_features.push_back({name, std::get<1>(val)});
         }
     }
 

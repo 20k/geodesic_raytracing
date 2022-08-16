@@ -5067,7 +5067,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
             //ds = (0.1 * pow((fabs(r_value) - new_max), 2) / (uniform_coordinate_precision_divisor * uniform_coordinate_precision_divisor)) + subambient_precision;
         }
 
-        bool should_terminate = fabs(polar_position.y) >= UNIVERSE_SIZE;
+        bool should_terminate = fabs(polar_position.y) >= GET_FEATURE(universe_size, dfg);
 
         #ifdef SINGULAR
         should_terminate |= fabs(polar_position.y) < rs*SINGULAR_TERMINATOR;
@@ -5422,7 +5422,9 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
                        __global float* ds_out,
                        __global int* generic_count_in,
                        int max_path_length,
-                       dynamic_config_space struct dynamic_config* cfg, __global int* count_out)
+                       dynamic_config_space struct dynamic_config* cfg,
+                       dynamic_config_space struct dynamic_feature_config* dfg,
+                       __global int* count_out)
 {
     int id = get_global_id(0);
 
@@ -5510,9 +5512,9 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         bool should_break = false;
 
         #ifndef SINGULAR
-        if(fabs(polar_position.y) >= UNIVERSE_SIZE)
+        if(fabs(polar_position.y) >= GET_FEATURE(universe_size, dfg))
         #else
-        if(fabs(polar_position.y) < rs*SINGULAR_TERMINATOR || fabs(polar_position.y) >= UNIVERSE_SIZE)
+        if(fabs(polar_position.y) < rs*SINGULAR_TERMINATOR || fabs(polar_position.y) >= GET_FEATURE(universe_size, dfg))
         #endif // SINGULAR
         {
             //printf("Escaped\n");
@@ -5691,7 +5693,8 @@ void calculate_singularities(__global struct lightray* finished_rays, __global i
 #endif // GENERIC_METRIC
 
 __kernel
-void calculate_texture_coordinates(__global struct lightray* finished_rays, __global int* finished_count_in, __global float2* texture_coordinates, int width, int height)
+void calculate_texture_coordinates(__global struct lightray* finished_rays, __global int* finished_count_in, __global float2* texture_coordinates, int width, int height,
+                                   dynamic_config_space struct dynamic_feature_config* dfg)
 {
     int id = get_global_id(0);
 
@@ -5712,11 +5715,10 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
     velocity.z = 0;
     #endif // IS_CONSTANT_THETA
 
-    #if defined(UNIVERSE_SIZE)
     {
-        if(fabs(position.y) >= UNIVERSE_SIZE)
+        if(fabs(position.y) >= GET_FEATURE(universe_size, dfg))
         {
-            position.yzw = fix_ray_position(position.yzw, velocity.yzw, UNIVERSE_SIZE, true);
+            position.yzw = fix_ray_position(position.yzw, velocity.yzw, GET_FEATURE(universe_size, dfg), true);
         }
 
         ///I'm not 100% sure this is working as well as it could be
@@ -5727,7 +5729,6 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
         }
         #endif
     }
-    #endif
 
     float rs = 1;
     float r_value = position.y;
@@ -5918,11 +5919,10 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
     velocity.z = 0;
     #endif // IS_CONSTANT_THETA
 
-    #if defined(UNIVERSE_SIZE)
     {
-        if(fabs(position.y) >= UNIVERSE_SIZE)
+        if(fabs(position.y) >= GET_FEATURE(universe_size, dfg))
         {
-            position.yzw = fix_ray_position(position.yzw, velocity.yzw, UNIVERSE_SIZE, true);
+            position.yzw = fix_ray_position(position.yzw, velocity.yzw, GET_FEATURE(universe_size, dfg), true);
         }
 
         #if defined(SINGULAR) && defined(TRAVERSABLE_EVENT_HORIZON)
@@ -5932,7 +5932,6 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
         }
         #endif
     }
-    #endif
 
     float rs = 1;
     float r_value = position.y;

@@ -850,9 +850,11 @@ int main(int argc, char* argv[])
     dfg.add_feature<bool>("redshift");
     dfg.set_feature("redshift", false);
 
+    dfg.add_feature<float>("universe_size");
+    dfg.set_feature("universe_size", 20.f);
+
     metrics::config cfg;
     ///necessary for double schwarzs
-    cfg.universe_size = 20;
     cfg.use_device_side_enqueue = false;
     //cfg.error_override = 100.f;
     //cfg.error_override = 0.000001f;
@@ -1628,9 +1630,15 @@ int main(int argc, char* argv[])
 
                         ImGui::InputFloat("Error Tolerance", &cfg.error_override, 0.0000001f, 0.00001f, "%.8f");
 
-                        ImGui::DragFloat("Universe Size", &cfg.universe_size, 1, 1, 0, "%.1f");;
+                        float universe_size = dfg.get_feature<float>("universe_size");
 
-                        ImGui::DragFloat("Precision Radius", &cfg.max_precision_radius, 1, 0.0001f, cfg.universe_size, "%.1f");
+                        if(ImGui::DragFloat("Universe Size", &universe_size, 1, 1, 0, "%.1f"))
+                        {
+                            dfg.set_feature("universe_size", universe_size);
+                            should_soft_recompile = true;
+                        }
+
+                        ImGui::DragFloat("Precision Radius", &cfg.max_precision_radius, 1, 0.0001f, dfg.get_feature<float>("universe_size"), "%.1f");
 
                         if(ImGui::IsItemHovered())
                         {
@@ -1890,12 +1898,14 @@ int main(int argc, char* argv[])
                 cl_float2 cl_mouse = {delta.x(), delta.y()};
                 cl_float4 cl_translation = {translation_delta.x(), translation_delta.y(), translation_delta.z(), 0};
 
+                float universe_size = dfg.get_feature<float>("universe_size");
+
                 cl::args controls_args;
                 controls_args.push_back(g_camera_pos_cart);
                 controls_args.push_back(g_camera_quat);
                 controls_args.push_back(cl_mouse);
                 controls_args.push_back(cl_translation);
-                controls_args.push_back(current_cfg.universe_size);
+                controls_args.push_back(universe_size);
                 controls_args.push_back(dynamic_config);
 
                 clctx.cqueue.exec("handle_controls_free", controls_args, {1}, {1});
@@ -2011,7 +2021,7 @@ int main(int argc, char* argv[])
             {
                 tris.update_objects(clctx.cqueue);
 
-                phys.trace(clctx.cqueue, tris, dynamic_config);
+                phys.trace(clctx.cqueue, tris, dynamic_config, dynamic_feature_buffer);
 
                 ///this is only good for the case when we're tracing constant t
                 //phys.push_object_positions(clctx.cqueue, tris, dynamic_config, set_camera_time);
@@ -2104,6 +2114,7 @@ int main(int argc, char* argv[])
                 texture_args.push_back(texture_coordinates);
                 texture_args.push_back(width);
                 texture_args.push_back(height);
+                texture_args.push_back(dynamic_feature_buffer);
 
                 clctx.cqueue.exec("calculate_texture_coordinates", texture_args, {width * height}, {256});
 
@@ -2243,6 +2254,7 @@ int main(int argc, char* argv[])
 
                 snapshot_args.push_back(max_trace_length);
                 snapshot_args.push_back(dynamic_config);
+                snapshot_args.push_back(dynamic_feature_buffer);
                 snapshot_args.push_back(geodesic_count_buffer);
 
                 clctx.cqueue.exec("get_geodesic_path", snapshot_args, {1}, {1});
