@@ -4758,9 +4758,9 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
             /*float3 pseudo_normal;
 
             if(hit_1)
-                pseudo_normal = -triangle_normal(tri_0_0, tri_0_1, tri_0_2);
+                pseudo_normal = triangle_normal(tri_0_0, tri_0_1, tri_0_2);
             else
-                pseudo_normal = -triangle_normal(tri_1_0, tri_1_1, tri_1_2);
+                pseudo_normal = triangle_normal(tri_1_0, tri_1_1, tri_1_2);
 
             float3 pseudo_origin = base_0;*/
 
