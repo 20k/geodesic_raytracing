@@ -665,7 +665,6 @@ namespace metrics
 
     struct config
     {
-        integration_type type = integration_type::VERLET;
         float max_precision_radius = 10;
     };
 
@@ -758,12 +757,12 @@ namespace metrics
 
         argument_string += " -DGENERIC_METRIC";
 
-        if(cfg.type == integration_type::EULER)
+        /*if(cfg.type == integration_type::EULER)
         {
             argument_string += " -DEULER_INTEGRATION_GENERIC";
         }
 
-        if(cfg.type == integration_type::VERLET)
+        if(cfg.type == integration_type::VERLET)*/
         {
             argument_string += " -DVERLET_INTEGRATION_GENERIC";
         }
