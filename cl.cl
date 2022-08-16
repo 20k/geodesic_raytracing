@@ -4846,7 +4846,7 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
                 {
                     // Quadratic form. Take positive root for CCW winding with V-up
                     float discrim = B*B - 4*A*C;
-                    uv.y = 0.5 * (-B + -sqrt(discrim)) / A;
+                    uv.y = 0.5 * (-B + -native_sqrt(discrim)) / A;
                 }
 
                 // Solve for u, using largest-magnitude component
