@@ -4837,7 +4837,7 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
 
                 float2 uv;
 
-                if(fabs(A) < 0.001)
+                if(fabs(A) < 0.00001f)
                 {
                     // Linear form
                     uv.y = -C/B;
