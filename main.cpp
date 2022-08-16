@@ -1647,8 +1647,6 @@ int main(int argc, char* argv[])
                         if(dfg.is_dirty)
                             should_soft_recompile = true;
 
-                        should_recompile |= ImGui::Button("Update");
-
                         ImGui::Unindent();
 
                         ImGui::EndTabItem();
@@ -1707,8 +1705,17 @@ int main(int argc, char* argv[])
                         ImGui::EndTabItem();
                     }
 
-                    if(ImGui::BeginTabItem("Physics"))
+                    if(ImGui::BeginTabItem("Object Physics"))
                     {
+                        bool use_triangle_rendering = dfg.get_feature<bool>("use_triangle_rendering");
+
+                        ImGui::Checkbox("Use Triangle Rendering", &use_triangle_rendering);
+
+                        dfg.set_feature("use_triangle_rendering", use_triangle_rendering);
+
+                        if(dfg.is_dirty)
+                            should_soft_recompile = true;
+
                         for(int idx = 0; idx < (int)tris.cpu_objects.size(); idx++)
                         {
                             std::shared_ptr<triangle_rendering::object> obj = tris.cpu_objects[idx];
