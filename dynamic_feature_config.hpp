@@ -37,6 +37,14 @@ struct dynamic_feature_config
         features_enabled[feature] = val;
     }
 
+    template<typename T>
+    T get_feature(const std::string& feature)
+    {
+        assert(features_enabled.find(feature) != features_enabled.end());
+
+        return std::get<T>(features_enabled[feature]);
+    }
+
     std::string generate_dynamic_argument_string() const;
     std::string generate_static_argument_string() const;
     void alloc_and_write_gpu_buffer(cl::command_queue& cqueue, cl::buffer& inout);

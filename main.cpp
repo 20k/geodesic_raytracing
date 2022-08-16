@@ -847,6 +847,9 @@ int main(int argc, char* argv[])
     dfg.add_feature<bool>("use_triangle_rendering");
     dfg.set_feature("use_triangle_rendering", true);
 
+    dfg.add_feature<bool>("redshift");
+    dfg.set_feature("redshift", false);
+
     metrics::config cfg;
     ///necessary for double schwarzs
     cfg.universe_size = 20;
@@ -1615,7 +1618,13 @@ int main(int argc, char* argv[])
 
                         ImGui::Indent();
 
-                        ImGui::Checkbox("Redshift", &cfg.redshift);
+                        bool has_redshift = dfg.get_feature<bool>("redshift");
+
+                        if(ImGui::Checkbox("Redshift", &has_redshift))
+                        {
+                            dfg.set_feature("redshift", has_redshift);
+                            should_soft_recompile = true;
+                        }
 
                         ImGui::InputFloat("Error Tolerance", &cfg.error_override, 0.0000001f, 0.00001f, "%.8f");
 
@@ -2108,6 +2117,7 @@ int main(int argc, char* argv[])
                 render_args.push_back(height);
                 render_args.push_back(texture_coordinates);
                 render_args.push_back(current_settings.anisotropy);
+                render_args.push_back(dynamic_feature_buffer);
 
                 clctx.cqueue.exec("render", render_args, {width * height}, {256});
 

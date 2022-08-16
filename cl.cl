@@ -928,7 +928,7 @@ struct dynamic_feature_config
 };
 
 #ifdef KERNEL_IS_STATIC
-#define GET_FEATURE(name, dfg) name
+#define GET_FEATURE(name, dfg) FEATURE_##name
 #endif // KERNEL_IS_STATIC
 
 #ifdef KERNEL_IS_DYNAMIC
@@ -5892,7 +5892,7 @@ float4 read_mipmap(image2d_array_t mipmap1, image2d_array_t mipmap2, float posit
 __kernel
 void render(__global struct lightray* finished_rays, __global int* finished_count_in, __write_only image2d_t out,
             __read_only image2d_array_t mip_background, __read_only image2d_array_t mip_background2,
-            int width, int height, __global float2* texture_coordinates, int maxProbes)
+            int width, int height, __global float2* texture_coordinates, int maxProbes, dynamic_config_space struct dynamic_feature_config* dfg)
 {
     int id = get_global_id(0);
 
@@ -6163,156 +6163,155 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
     float4 end_result = read_mipmap(mip_background, mip_background2, position.y, sam, (float2){sxf, syf}, 0);
     #endif // MIPMAPPING
 
-    #ifdef REDSHIFT
-    ///[-1, +infinity]
-    float z_shift = (velocity.x / -ray->ku_uobsu) - 1;
-
-    z_shift = max(z_shift, -0.999f);
-
-    /*if(sx == width/2 && sy == height/2)
+    if(GET_FEATURE(redshift, dfg))
     {
-        printf("Vx %f ray %f\n", velocity.x, -ray->ku_uobsu);
-    }*/
+        ///[-1, +infinity]
+        float z_shift = (velocity.x / -ray->ku_uobsu) - 1;
 
-    ///linf / le = z + 1
-    ///le =  linf / (z + 1)
+        z_shift = max(z_shift, -0.999f);
 
-    ///So, this is an incredibly, incredibly gross approximation
-    ///there are several problems here
-    ///1. Fundamentally I do not have a spectrographic map of the surrounding universe, which means any data is very approximate
-    ///EG blueshifting of infrared into visible light is therefore impossible
-    ///2. Converting sRGB information into wavelengths is possible, but also unphysical
-    ///This might be a worthwhile approximation as it might correctly bunch frequencies together
-    ///3. Its not possible to correctly render red/blueshifting, so it maps the range [-1, +inf] to [red, blue], mixing the colours with parameter [x <= 0 -> abs(x), x > 0 -> tanh(x)]]
-    ///this means that even if I did all the above correctly, its still a mess
-
-    ///This estimates luminance from the rgb value, which should be pretty ok at least!
-
-    float3 lin_result = srgb_to_lin(end_result.xyz);
-
-    float real_sol = 299792458;
-
-    //#define DOMINANT_COLOUR
-    #ifndef DOMINANT_COLOUR
-    ///Pick an arbitrary wavelength, the peak of human vision
-    float test_wavelength = 555 / real_sol;
-    #else
-
-    float r_wavelength = 612;
-    float g_wavelength = 549;
-    float b_wavelength = 464;
-
-    float r_angle = -2.161580;
-    float g_angle = 1.695013;
-    float b_angle = -0.010759;
-
-    float3 as_xyz = linear_rgb_to_XYZ(lin_result);
-
-    float sum = as_xyz.x + as_xyz.y + as_xyz.z;
-
-    if(sum < 0.00001f)
-        sum = 0.00001f;
-
-    float2 as_xy = (float2)(as_xyz.x / sum, as_xyz.y / sum);
-
-    float2 as_vec = as_xy - (float2)(0.3333f, 0.3333f);
-
-    float angle = atan2(as_xy.y, as_xy.x);
-
-    float2 v_r = {cos(r_angle), sin(r_angle)};
-    float2 v_g = {cos(g_angle), sin(g_angle)};
-    float2 v_b = {cos(b_angle), sin(b_angle)};
-
-    float2 p1;
-    float2 p2;
-    float w1, w2;
-
-    if(vector_lies_between(v_r, v_g, as_vec))
-    {
-        p1 = v_r;
-        p2 = v_g;
-        w1 = r_wavelength;
-        w2 = g_wavelength;
-    }
-
-    else if(vector_lies_between(v_g, v_b, as_vec))
-    {
-        p1 = v_g;
-        p2 = v_b;
-        w1 = g_wavelength;
-        w2 = b_wavelength;
-    }
-
-    else
-    {
-        p1 = v_r;
-        p2 = v_b;
-        w1 = r_wavelength;
-        w2 = b_wavelength;
-    }
-
-    float fraction = angle_between_vectors(p1, as_vec) / angle_between_vectors(p1, p2);
-
-    float test_wavelength = mix(w1, w2, fraction) / real_sol;
-
-    /*if(sx == 700 && sy == 400)
-    {
-        printf("wave %f\n", test_wavelength * real_sol);
-    }*/
-
-    #endif // DOMINANT_COLOUR
-
-    float local_wavelength = test_wavelength / (z_shift + 1);
-
-    ///this is relative luminance instead of absolute specific intensity, but relative_luminance / wavelength^3 should still be lorenz invariant (?)
-    float relative_luminance = 0.2126f * lin_result.x + 0.7152f * lin_result.y + 0.0722f * lin_result.z;
-
-    ///Iv = I1 / v1^3, where Iv is lorenz invariant
-    ///Iv = I2 / v2^3 in our new frame of reference
-    ///therefore we can calculate the new intensity in our new frame of reference as...
-    ///I1/v1^3 = I2 / v2^3
-    ///I2 = v2^3 * I1/v1^3
-
-    float new_relative_luminance = pow(local_wavelength, 3) * relative_luminance / pow(test_wavelength, 3);
-
-    new_relative_luminance = clamp(new_relative_luminance, 0.f, 1.f);
-
-    if(relative_luminance > 0.00001)
-    {
-        lin_result = (new_relative_luminance / relative_luminance) * lin_result;
-
-        lin_result = clamp(lin_result, 0.f, 1.f);
-    }
-
-    /*if(sx == 700 && sy == 400)
-    {
-        printf("Shift %f vx %f obvsu %f\n", z_shift, velocity.x, -ray->ku_uobsu);
-    }*/
-
-    if(fabs(r_value) > rs * 2)
-    {
         /*if(sx == width/2 && sy == height/2)
         {
-            printf("ZShift %f\n", z_shift);
+            printf("Vx %f ray %f\n", velocity.x, -ray->ku_uobsu);
         }*/
 
-        lin_result = redshift(lin_result, z_shift);
+        ///linf / le = z + 1
+        ///le =  linf / (z + 1)
 
-        lin_result = clamp(lin_result, 0.f, 1.f);
+        ///So, this is an incredibly, incredibly gross approximation
+        ///there are several problems here
+        ///1. Fundamentally I do not have a spectrographic map of the surrounding universe, which means any data is very approximate
+        ///EG blueshifting of infrared into visible light is therefore impossible
+        ///2. Converting sRGB information into wavelengths is possible, but also unphysical
+        ///This might be a worthwhile approximation as it might correctly bunch frequencies together
+        ///3. Its not possible to correctly render red/blueshifting, so it maps the range [-1, +inf] to [red, blue], mixing the colours with parameter [x <= 0 -> abs(x), x > 0 -> tanh(x)]]
+        ///this means that even if I did all the above correctly, its still a mess
+
+        ///This estimates luminance from the rgb value, which should be pretty ok at least!
+
+        float3 lin_result = srgb_to_lin(end_result.xyz);
+
+        float real_sol = 299792458;
+
+        //#define DOMINANT_COLOUR
+        #ifndef DOMINANT_COLOUR
+        ///Pick an arbitrary wavelength, the peak of human vision
+        float test_wavelength = 555 / real_sol;
+        #else
+
+        float r_wavelength = 612;
+        float g_wavelength = 549;
+        float b_wavelength = 464;
+
+        float r_angle = -2.161580;
+        float g_angle = 1.695013;
+        float b_angle = -0.010759;
+
+        float3 as_xyz = linear_rgb_to_XYZ(lin_result);
+
+        float sum = as_xyz.x + as_xyz.y + as_xyz.z;
+
+        if(sum < 0.00001f)
+            sum = 0.00001f;
+
+        float2 as_xy = (float2)(as_xyz.x / sum, as_xyz.y / sum);
+
+        float2 as_vec = as_xy - (float2)(0.3333f, 0.3333f);
+
+        float angle = atan2(as_xy.y, as_xy.x);
+
+        float2 v_r = {cos(r_angle), sin(r_angle)};
+        float2 v_g = {cos(g_angle), sin(g_angle)};
+        float2 v_b = {cos(b_angle), sin(b_angle)};
+
+        float2 p1;
+        float2 p2;
+        float w1, w2;
+
+        if(vector_lies_between(v_r, v_g, as_vec))
+        {
+            p1 = v_r;
+            p2 = v_g;
+            w1 = r_wavelength;
+            w2 = g_wavelength;
+        }
+
+        else if(vector_lies_between(v_g, v_b, as_vec))
+        {
+            p1 = v_g;
+            p2 = v_b;
+            w1 = g_wavelength;
+            w2 = b_wavelength;
+        }
+
+        else
+        {
+            p1 = v_r;
+            p2 = v_b;
+            w1 = r_wavelength;
+            w2 = b_wavelength;
+        }
+
+        float fraction = angle_between_vectors(p1, as_vec) / angle_between_vectors(p1, p2);
+
+        float test_wavelength = mix(w1, w2, fraction) / real_sol;
+
+        /*if(sx == 700 && sy == 400)
+        {
+            printf("wave %f\n", test_wavelength * real_sol);
+        }*/
+
+        #endif // DOMINANT_COLOUR
+
+        float local_wavelength = test_wavelength / (z_shift + 1);
+
+        ///this is relative luminance instead of absolute specific intensity, but relative_luminance / wavelength^3 should still be lorenz invariant (?)
+        float relative_luminance = 0.2126f * lin_result.x + 0.7152f * lin_result.y + 0.0722f * lin_result.z;
+
+        ///Iv = I1 / v1^3, where Iv is lorenz invariant
+        ///Iv = I2 / v2^3 in our new frame of reference
+        ///therefore we can calculate the new intensity in our new frame of reference as...
+        ///I1/v1^3 = I2 / v2^3
+        ///I2 = v2^3 * I1/v1^3
+
+        float new_relative_luminance = pow(local_wavelength, 3) * relative_luminance / pow(test_wavelength, 3);
+
+        new_relative_luminance = clamp(new_relative_luminance, 0.f, 1.f);
+
+        if(relative_luminance > 0.00001)
+        {
+            lin_result = (new_relative_luminance / relative_luminance) * lin_result;
+
+            lin_result = clamp(lin_result, 0.f, 1.f);
+        }
+
+        /*if(sx == 700 && sy == 400)
+        {
+            printf("Shift %f vx %f obvsu %f\n", z_shift, velocity.x, -ray->ku_uobsu);
+        }*/
+
+        if(fabs(r_value) > rs * 2)
+        {
+            /*if(sx == width/2 && sy == height/2)
+            {
+                printf("ZShift %f\n", z_shift);
+            }*/
+
+            lin_result = redshift(lin_result, z_shift);
+
+            lin_result = clamp(lin_result, 0.f, 1.f);
+        }
+
+        #ifndef LINEAR_FRAMEBUFFER
+        end_result.xyz = lin_to_srgb(lin_result);
+        #else
+        end_result.xyz = lin_result;
+        #endif // LINEAR_FRAMEBUFFER
     }
 
-    #ifndef LINEAR_FRAMEBUFFER
-    end_result.xyz = lin_to_srgb(lin_result);
-    #else
-    end_result.xyz = lin_result;
-    #endif // LINEAR_FRAMEBUFFER
-
-    #endif // REDSHIFT
-
     #ifdef LINEAR_FRAMEBUFFER
-    #ifndef REDSHIFT //redshift already handles this for roundtrip accuracy reasons
-    end_result.xyz = srgb_to_lin(end_result.xyz);
-    #endif // REDSHIFT
+    if(!GET_FEATURE(redshift, dfg)) //redshift already handles this for roundtrip accuracy reasons
+        end_result.xyz = srgb_to_lin(end_result.xyz);
     #endif // LINEAR_FRAMEBUFFER
 
     write_imagef(out, (int2){sx, sy}, end_result);

@@ -84,7 +84,7 @@ void append_feature_values(std::string& accum, const std::vector<std::pair<std::
     {
         std::string val_as_string = to_string_s(val);
 
-        accum += "-D" + name + "=" + val_as_string + " ";
+        accum += "-DFEATURE_" + name + "=" + val_as_string + " ";
     }
 }
 

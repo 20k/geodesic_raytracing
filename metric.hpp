@@ -668,7 +668,6 @@ namespace metrics
         float universe_size = 200000;
         integration_type type = integration_type::VERLET;
         float error_override = 0;
-        bool redshift = false;
         bool use_device_side_enqueue = true;
         float max_precision_radius = 10;
     };
@@ -839,11 +838,6 @@ namespace metrics
         if(in.metric_cfg.unconditionally_nonsingular)
         {
             argument_string += " -DUNCONDITIONALLY_NONSINGULAR";
-        }
-
-        if(cfg.redshift)
-        {
-            argument_string += " -DREDSHIFT";
         }
 
         argument_string += " -DDISTANCE_FUNC=" + impl.distance_function;
