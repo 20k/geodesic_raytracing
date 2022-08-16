@@ -4,6 +4,8 @@
 #include <map>
 #include <string>
 #include <toolkit/opencl.hpp>
+#include <variant>
+#include <typeinfo>
 
 ///this class provides a gpu compatible struct that's dynamically generated
 ///but also provides defines so that the struct may be bypassed
@@ -12,17 +14,32 @@
 struct dynamic_feature_config
 {
     bool is_dirty = false;
-    std::map<std::string, bool> features_enabled;
+    std::map<std::string, std::variant<bool, float>> features_enabled;
 
-    void add_feature(const std::string& feature);
+    template<typename T>
+    void add_feature(const std::string& feature)
+    {
+        add_feature_impl(feature, typeid(T));
+    }
 
     bool is_enabled(const std::string& feature);
     void enable(const std::string& feature);
     void disable(const std::string& feature);
 
+    template<typename T>
+    void set_feature(const std::string& feature, const T& val)
+    {
+        assert(features_enabled.find(feature) != features_enabled.end());
+
+        features_enabled[feature] = val;
+    }
+
     std::string generate_dynamic_argument_string();
     std::string generate_static_argument_string();
     void alloc_and_write_gpu_buffer(cl::buffer& in, cl::command_queue& cqueue);
+
+private:
+    void add_feature_impl(const std::string& feature, const std::type_info& inf);
 };
 
 #endif // DYNAMIC_FEATURE_CONFIG_HPP_INCLUDED

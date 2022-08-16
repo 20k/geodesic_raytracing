@@ -27,6 +27,7 @@
 #include "triangle.hpp"
 #include "triangle_manager.hpp"
 #include "physics.hpp"
+#include "dynamic_feature_config.hpp"
 //#include "dual_complex.hpp"
 
 /**
