@@ -84,11 +84,11 @@ void append_feature_values(std::string& accum, const std::vector<std::pair<std::
     {
         std::string val_as_string = to_string_s(val);
 
-        accum += name + "=" + val_as_string + " ";
+        accum += "-D" + name + "=" + val_as_string + " ";
     }
 }
 
-std::string dynamic_feature_config::generate_dynamic_argument_string()
+std::string dynamic_feature_config::generate_dynamic_argument_string()const
 {
     ///so. On the OpenCL side I need to be able to query something, and have it not be a disaster
     ///OpenCL needs to be able to use one singular token, always
@@ -103,7 +103,7 @@ std::string dynamic_feature_config::generate_dynamic_argument_string()
     std::vector<std::string> bool_features;
     std::vector<std::string> float_features;
 
-    for(auto& [name, val] : features_enabled)
+    for(const auto& [name, val] : features_enabled)
     {
         if(val.index() == 0)
         {
@@ -122,7 +122,7 @@ std::string dynamic_feature_config::generate_dynamic_argument_string()
     return str;
 }
 
-std::string dynamic_feature_config::generate_static_argument_string()
+std::string dynamic_feature_config::generate_static_argument_string() const
 {
     std::string str = "-DKERNEL_IS_STATIC ";
 
@@ -156,7 +156,7 @@ void dynamic_feature_config::alloc_and_write_gpu_buffer(cl::command_queue& cqueu
     std::vector<std::pair<std::string, bool>> bool_features;
     std::vector<std::pair<std::string, float>> float_features;
 
-    for(auto& [name, val] : features_enabled)
+    for(const auto& [name, val] : features_enabled)
     {
         if(val.index() == 0)
         {

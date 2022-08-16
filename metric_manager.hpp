@@ -1,6 +1,8 @@
 #ifndef METRIC_MANAGER_HPP_INCLUDED
 #define METRIC_MANAGER_HPP_INCLUDED
 
+#include "dynamic_feature_config.hpp"
+
 struct metric_manager
 {
     int current_idx = -1;
@@ -15,7 +17,7 @@ struct metric_manager
     ///this is a bit of a giant mess
     bool check_recompile(bool should_recompile, bool should_soft_recompile,
                          const std::vector<content*>& parent_directories, content_manager& all_content, std::vector<std::string>& metric_names,
-                         cl::buffer& dynamic_config, cl::command_queue& cqueue, metrics::config& cfg, render_settings& sett, cl::context& context, cl::buffer& termination_buffer)
+                         cl::buffer& dynamic_config, cl::command_queue& cqueue, metrics::config& cfg, dynamic_feature_config& dfg, render_settings& sett, cl::context& context, cl::buffer& termination_buffer)
     {
         if(!(should_recompile || current_idx == -1 || should_soft_recompile))
             return false;
@@ -81,7 +83,7 @@ struct metric_manager
             using_swapped = false;
 
             printj("Building");
-            std::string dynamic_argument_string = argument_string_prefix + build_argument_string(*current_metric, current_metric->desc.abstract, cfg, {});
+            std::string dynamic_argument_string = argument_string_prefix + build_argument_string(*current_metric, current_metric->desc.abstract, false, cfg, dfg, {});
 
             file::write("./argument_string.txt", dynamic_argument_string, file::mode::TEXT);
 
@@ -137,7 +139,7 @@ struct metric_manager
 
             metrics::metric_impl<std::string> substituted_impl = metrics::build_concrete(substitution_map, current_metric->desc.raw);
 
-            std::string substituted_argument_string = argument_string_prefix + build_argument_string(*current_metric, substituted_impl, cfg, substitution_map);
+            std::string substituted_argument_string = argument_string_prefix + build_argument_string(*current_metric, substituted_impl, true, cfg, dfg, substitution_map);
 
             if(substituted_program_opt.has_value())
             {

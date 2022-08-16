@@ -7,6 +7,7 @@
 #include "js_interop.hpp"
 #include <vec/tensor.hpp>
 #include <span>
+#include "dynamic_feature_config.hpp"
 
 namespace metrics
 {
@@ -656,9 +657,6 @@ namespace metrics
         sandbox sand;
     };
 
-    inline
-    std::string build_argument_string(const metric& in, const config& cfg);
-
     enum integration_type
     {
         EULER,
@@ -676,7 +674,8 @@ namespace metrics
     };
 
     inline
-    std::string build_argument_string(const metric& in, const metric_impl<std::string>& impl, const config& cfg, const std::map<std::string, std::string>& substitution_map)
+    std::string build_argument_string(const metric& in, const metric_impl<std::string>& impl, bool is_static, const config& cfg, const dynamic_feature_config& dfg,
+                                      const std::map<std::string, std::string>& substitution_map)
     {
         std::string argument_string = " -DRS_IMPL=1 -DC_IMPL=1 ";
 
@@ -905,6 +904,17 @@ namespace metrics
 
             argument_string += " " + extra_string;
         }
+
+        while(argument_string.back() == ' ')
+            argument_string.pop_back();
+
+        if(is_static)
+            argument_string += " " + dfg.generate_static_argument_string();
+        else
+            argument_string += " " + dfg.generate_dynamic_argument_string();
+
+        while(argument_string.back() == ' ')
+            argument_string.pop_back();
 
         return argument_string;
     }

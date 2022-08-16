@@ -839,6 +839,12 @@ int main(int argc, char* argv[])
 
     all_content.add_content_folder("./scripts");
 
+    cl::buffer dynamic_feature_buffer(clctx.ctx);
+
+    dynamic_feature_config dfg;
+    dfg.add_feature<bool>("use_triangle_rendering");
+    dfg.set_feature("use_triangle_rendering", true);
+
     metrics::config cfg;
     ///necessary for double schwarzs
     cfg.universe_size = 20;
@@ -1751,7 +1757,7 @@ int main(int argc, char* argv[])
             }
 
             if(metric_manage.check_recompile(should_recompile, should_soft_recompile, parent_directories,
-                                          all_content, metric_names, dynamic_config, clctx.cqueue, cfg,
+                                          all_content, metric_names, dynamic_config, clctx.cqueue, cfg, dfg,
                                           sett, clctx.ctx, termination_buffer))
             {
                 phys.needs_trace = true;

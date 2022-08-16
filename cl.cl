@@ -916,11 +916,11 @@ struct dynamic_config
     #endif // DYNVARS
 };
 
-/*struct dynamic_feature_config
+struct dynamic_feature_config
 {
     float DYNAMIC_FLOAT_FEATURES;
     bool DYNAMIC_BOOL_FEATURES;
-};*/
+};
 
 #define dynamic_config_space __constant
 
