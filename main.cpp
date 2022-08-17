@@ -281,6 +281,8 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
 
         if(dfg.get_feature<bool>("use_triangle_rendering"))
         {
+            assert(accel.is_allocated);
+
             cl_int my_min = INT_MAX;
             cl_int my_max = INT_MIN;
 
@@ -1746,7 +1748,6 @@ int main(int argc, char* argv[])
                                 if(dirty)
                                 {
                                     phys.needs_trace = true;
-                                    obj->dirty = true;
                                 }
 
                                 float vel_max = 0.9999f;

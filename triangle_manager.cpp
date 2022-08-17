@@ -211,6 +211,9 @@ void triangle_rendering::manager::build(cl::command_queue& cqueue, float acceler
 
     for(auto& i : cpu_objects)
     {
+        i->last_pos = i->pos;
+        i->last_velocity = i->velocity;
+
         int parent = gpu_objects.size();
 
         for(triangle& t : i->tris)
@@ -311,8 +314,11 @@ void triangle_rendering::manager::update_objects(cl::command_queue& cqueue)
         if(obj->gpu_offset == -1)
             continue;
 
-        if(!obj->dirty)
+        if(obj->pos != obj->last_pos && obj->velocity != obj->last_velocity)
             continue;
+
+        obj->last_pos = obj->pos;
+        obj->last_velocity = obj->velocity;
 
         gpu_object gobj(*obj);
         cl_float3 next_velocity = {obj->velocity.x(), obj->velocity.y(), obj->velocity.z()};
@@ -320,19 +326,12 @@ void triangle_rendering::manager::update_objects(cl::command_queue& cqueue)
         objects.write(cqueue, (const char*)&gobj, sizeof(gpu_object), sizeof(gpu_object) * obj->gpu_offset);
         objects_velocity.write(cqueue, (const char*)&next_velocity, sizeof(cl_float3), sizeof(cl_float3) * obj->gpu_offset);
 
-        obj->dirty = false;
-
         acceleration_needs_rebuild = true;
     }
 }
 
 void triangle_rendering::manager::force_update_objects(cl::command_queue& cqueue)
 {
-    for(std::shared_ptr<object>& obj : cpu_objects)
-    {
-        obj->dirty = true;
-    }
-
     update_objects(cqueue);
 }
 

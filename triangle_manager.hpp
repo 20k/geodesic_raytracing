@@ -22,17 +22,16 @@ namespace triangle_rendering
         std::vector<triangle> tris;
         float scale = 1;
 
+        vec4f last_pos;
+        vec3f last_velocity;
+
         int gpu_offset = -1;
         int physics_offset = -1;
 
         void set_pos(vec4f in)
         {
             pos = in;
-
-            dirty = true;
         }
-
-        bool dirty = false;
 
         std::vector<triangle> get_tris_with_scale()
         {
