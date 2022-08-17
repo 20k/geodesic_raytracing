@@ -10,7 +10,11 @@ struct triangle
     float v2x, v2y, v2z;
 };
 
-#define TRI_PRECESSION
+#if (FEATURE_precession == 1)
+//#define TRI_PRECESSION
+#endif // FEATURE_precession
+
+//#define TRI_PRECESSION
 #ifdef TRI_PRECESSION
 struct computed_triangle
 {

@@ -865,6 +865,10 @@ int main(int argc, char* argv[])
     dfg.add_feature<float>("max_precision_radius");
     dfg.set_feature("max_precision_radius", 10.f);
 
+    dfg.add_feature<bool>("precession");
+    dfg.set_feature("precession", true);
+    dfg.set_always_static("precession", true);
+
     //print("WLs %f %f %f\n", chromaticity::srgb_to_wavelength({1, 0, 0}), chromaticity::srgb_to_wavelength({0, 1, 0}), chromaticity::srgb_to_wavelength({0, 0, 1}));
 
     int last_supersample_mult = 2;

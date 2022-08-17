@@ -2,6 +2,7 @@
 #define DYNAMIC_FEATURE_CONFIG_HPP_INCLUDED
 
 #include <map>
+#include <set>
 #include <string>
 #include <toolkit/opencl.hpp>
 #include <variant>
@@ -15,6 +16,7 @@ struct dynamic_feature_config
 {
     bool is_dirty = false;
     std::map<std::string, std::variant<bool, float>> features_enabled;
+    std::set<std::string> always_static;
 
     template<typename T>
     void add_feature(const std::string& feature)
@@ -36,6 +38,8 @@ struct dynamic_feature_config
 
         features_enabled[feature] = val;
     }
+
+    void set_always_static(const std::string& feature, bool val);
 
     template<typename T>
     T get_feature(const std::string& feature)

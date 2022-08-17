@@ -1,6 +1,7 @@
 #include "dynamic_feature_config.hpp"
 #include <sstream>
 #include <iomanip>
+#include <iostream>
 
 namespace
 {
@@ -31,6 +32,11 @@ bool valid_feature(const dynamic_feature_config& cfg, const std::string& feature
     return cfg.features_enabled.find(feature) != cfg.features_enabled.end();
 }
 
+bool is_always_static(const dynamic_feature_config& cfg, const std::string& feature)
+{
+    return cfg.always_static.find(feature) != cfg.always_static.end();
+}
+
 void dynamic_feature_config::add_feature_impl(const std::string& feature, const std::type_info& inf)
 {
     is_dirty = true;
@@ -59,22 +65,47 @@ bool dynamic_feature_config::is_enabled(const std::string& feature)
     return std::get<0>(features_enabled[feature]);
 }
 
-void append_features(std::string& accum, const std::string& name, const std::vector<std::string>& names)
+void dynamic_feature_config::set_always_static(const std::string& feature, bool val)
+{
+    if(val)
+    {
+        always_static.insert(feature);
+    }
+    else
+    {
+        auto it = always_static.find(feature);
+
+        if(it != always_static.end())
+            always_static.erase(it);
+    }
+}
+
+template<typename T>
+void append_features(const dynamic_feature_config& cfg, std::string& accum, const std::string& name, const std::vector<std::pair<std::string, T>>& names)
 {
     if(names.size() == 0)
         return;
 
-    accum += "-D" + name + "=";
+    std::string dynamic_vars = "-D" + name + "=";
 
-    for(const std::string& name : names)
+    std::string static_vars;
+
+    for(const auto& [name, val] : names)
     {
-        accum += name + ",";
+        if(is_always_static(cfg, name))
+        {
+            static_vars += "-DFEATURE_" + name + "=" + to_string_s(val) + " ";
+        }
+        else
+        {
+            dynamic_vars += name + ",";
+        }
     }
 
-    if(accum.back() == ',')
-        accum.pop_back();
+    if(dynamic_vars.back() == ',')
+        dynamic_vars.pop_back();
 
-    accum += " ";
+    accum += dynamic_vars + " " + static_vars;
 }
 
 template<typename T>
@@ -100,24 +131,24 @@ std::string dynamic_feature_config::generate_dynamic_argument_string()const
     ///same as GET_FEATURE_VALUE, so actually no reason to reimpl
     std::string str = "-DKERNEL_IS_DYNAMIC ";
 
-    std::vector<std::string> bool_features;
-    std::vector<std::string> float_features;
+    std::vector<std::pair<std::string, bool>> bool_features;
+    std::vector<std::pair<std::string, float>> float_features;
 
-    for(const auto& [name, val] : features_enabled)
+    for(auto& [name, val] : features_enabled)
     {
         if(val.index() == 0)
         {
-            bool_features.push_back(name);
+            bool_features.push_back({name, std::get<0>(val)});
         }
 
         if(val.index() == 1)
         {
-            float_features.push_back(name);
+            float_features.push_back({name, std::get<1>(val)});
         }
     }
 
-    append_features(str, "DYNAMIC_FLOAT_FEATURES", float_features);
-    append_features(str, "DYNAMIC_BOOL_FEATURES", bool_features);
+    append_features(*this, str, "DYNAMIC_FLOAT_FEATURES", float_features);
+    append_features(*this, str, "DYNAMIC_BOOL_FEATURES", bool_features);
 
     return str;
 }
@@ -158,6 +189,9 @@ void dynamic_feature_config::alloc_and_write_gpu_buffer(cl::command_queue& cqueu
 
     for(const auto& [name, val] : features_enabled)
     {
+        if(is_always_static(*this, name))
+            continue;
+
         if(val.index() == 0)
         {
             bool_features.push_back({name, std::get<0>(val)});
@@ -179,18 +213,18 @@ void dynamic_feature_config::alloc_and_write_gpu_buffer(cl::command_queue& cqueu
 
     cl_char* buf_ptr = buf.data();
 
-    for(int i=0; i < (int)float_features.size(); i++)
+    for(const auto& [name, tval] : float_features)
     {
-        cl_float val = float_features[i].second;
+        cl_float val = tval;
 
         memcpy(buf_ptr, &val, sizeof(val));
 
         buf_ptr += sizeof(cl_float);
     }
 
-    for(int i=0; i < (int)bool_features.size(); i++)
+    for(const auto& [name, tval] : bool_features)
     {
-        cl_int val = bool_features[i].second;
+        cl_int val = tval;
 
         memcpy(buf_ptr, &val, sizeof(val));
 
