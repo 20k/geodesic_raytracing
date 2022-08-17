@@ -15,6 +15,7 @@
 struct dynamic_feature_config
 {
     bool is_dirty = false;
+    bool is_static_dirty = false;
     std::map<std::string, std::variant<bool, float>> features_enabled;
     std::set<std::string> always_static;
 
@@ -34,7 +35,12 @@ struct dynamic_feature_config
         assert(features_enabled.find(feature) != features_enabled.end());
 
         if(val != std::get<T>(features_enabled[feature]))
+        {
             is_dirty = true;
+
+            if(always_static.count(feature) == 1)
+                is_static_dirty = true;
+        }
 
         features_enabled[feature] = val;
     }

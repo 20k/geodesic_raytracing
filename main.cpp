@@ -1798,6 +1798,12 @@ int main(int argc, char* argv[])
                 camera_time_progresses = false;
             }
 
+            if(dfg.is_static_dirty)
+            {
+                should_recompile = true;
+                dfg.is_static_dirty = false;
+            }
+
             if(metric_manage.check_recompile(should_recompile, should_soft_recompile, parent_directories,
                                           all_content, metric_names, dynamic_config, clctx.cqueue, dfg,
                                           sett, clctx.ctx, termination_buffer))
