@@ -11,7 +11,7 @@ struct triangle
 };
 
 #if (FEATURE_precession == 1)
-//#define TRI_PRECESSION
+#define TRI_PRECESSION
 #endif // FEATURE_precession
 
 //#define TRI_PRECESSION

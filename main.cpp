@@ -866,7 +866,7 @@ int main(int argc, char* argv[])
     dfg.set_feature("max_precision_radius", 10.f);
 
     dfg.add_feature<bool>("precession");
-    dfg.set_feature("precession", true);
+    dfg.set_feature("precession", false);
     dfg.set_always_static("precession", true);
 
     //print("WLs %f %f %f\n", chromaticity::srgb_to_wavelength({1, 0, 0}), chromaticity::srgb_to_wavelength({0, 1, 0}), chromaticity::srgb_to_wavelength({0, 0, 1}));
@@ -1720,10 +1720,12 @@ int main(int argc, char* argv[])
                     if(ImGui::BeginTabItem("Object Physics"))
                     {
                         bool use_triangle_rendering = dfg.get_feature<bool>("use_triangle_rendering");
-
                         ImGui::Checkbox("Use Triangle Rendering", &use_triangle_rendering);
-
                         dfg.set_feature("use_triangle_rendering", use_triangle_rendering);
+
+                        bool precession = dfg.get_feature<bool>("precession");
+                        ImGui::Checkbox("Use Precession (Slow)", &precession);
+                        dfg.set_feature("precession", precession);
 
                         if(dfg.is_dirty && use_triangle_rendering)
                         {
