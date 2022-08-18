@@ -147,11 +147,16 @@ struct lightray
 
 #define GENERIC_METRIC
 
-cl::image load_mipped_image(const std::string& fname, opencl_context& clctx)
+sf::Image load_image(const std::string& fname)
 {
     sf::Image img;
     img.loadFromFile(fname);
 
+    return img;
+}
+
+cl::image load_mipped_image(sf::Image& img, opencl_context& clctx)
+{
     std::vector<uint8_t> as_uint8;
 
     for(int y=0; y < (int)img.getSize().y; y++)
@@ -888,8 +893,34 @@ int main(int argc, char* argv[])
     cl::gl_rendertexture rtex{clctx.ctx};
     rtex.create_from_texture(tex.handle);
 
-    cl::image background_mipped = load_mipped_image("background.png", clctx);
-    cl::image background_mipped2 = load_mipped_image("background2.png", clctx);
+    cl::image background_mipped(clctx.ctx);
+    cl::image background_mipped2(clctx.ctx);
+
+    {
+        sf::Image img_1 = load_image("background.png");
+
+        background_mipped = load_mipped_image(img_1, clctx);
+
+        sf::Image img_2 = load_image("background2.png");
+
+        bool is_eq = false;
+
+        if(img_1.getSize().x == img_2.getSize().x && img_1.getSize().y == img_2.getSize().y)
+        {
+            size_t len = size_t{img_1.getSize().x} * size_t{img_1.getSize().y} * 4;
+
+            if(memcmp(img_1.getPixelsPtr(), img_2.getPixelsPtr(), len) == 0)
+            {
+                background_mipped2 = background_mipped;
+
+                is_eq = true;
+            }
+        }
+
+        if(!is_eq)
+            background_mipped2 = load_mipped_image(img_2, clctx);
+    }
+
 
     #ifdef USE_DEVICE_SIDE_QUEUE
     print("Pre dqueue\n");
