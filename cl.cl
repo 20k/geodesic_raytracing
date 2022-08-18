@@ -4241,13 +4241,6 @@ void swap3f(float3* i1, float3* i2)
     *i2 = v;
 }
 
-struct potential_intersection
-{
-    int cx, cy;
-    float st, sx, sy, sz;
-    float et, ex, ey, ez;
-};
-
 ///todo: winding order
 float3 triangle_normal(float3 v0, float3 v1, float3 v2)
 {
@@ -4939,7 +4932,6 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                       __global int* restrict finished_count_out,
                       //__global float4* path_out, __global int* counts_out,
                       __global struct triangle* tris, int tri_count, __global struct intersection* intersections_out, __global int* intersection_count,
-                      __global struct potential_intersection* intersections_p, __global int* intersection_count_p,
                       __global int* counts, __global int* offsets, __global struct computed_triangle* linear_mem, __global float* linear_start_times, __global float* linear_delta_times,
                       __global int* unculled_counts,
                       __constant int* any_visible,

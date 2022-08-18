@@ -252,7 +252,6 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
                                                cl::buffer& count_finished,
                                                //cl::buffer& visual_path, cl::buffer& visual_ray_counts,
                                                triangle_rendering::manager& manage, cl::buffer& intersections, cl::buffer& intersections_count,
-                                               cl::buffer& potential_intersections, cl::buffer& potential_intersections_count,
                                                triangle_rendering::acceleration& accel,
                                                int num_rays,
                                                bool use_device_side_enqueue,
@@ -282,7 +281,6 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
         count_out.set_to_zero(cqueue);
         count_finished.set_to_zero(cqueue);
         intersections_count.set_to_zero(cqueue);
-        potential_intersections_count.set_to_zero(cqueue);
 
         if(dfg.get_feature<bool>("use_triangle_rendering"))
         {
@@ -314,8 +312,6 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
         run_args.push_back(manage.tri_count);
         run_args.push_back(intersections);
         run_args.push_back(intersections_count);
-        run_args.push_back(potential_intersections);
-        run_args.push_back(potential_intersections_count);
         run_args.push_back(accel.counts);
         run_args.push_back(accel.offsets);
         run_args.push_back(accel.memory);
@@ -1079,15 +1075,6 @@ int main(int argc, char* argv[])
     schwarzs_count_scratch.alloc(sizeof(int));
     schwarzs_count_prepass.alloc(sizeof(int));
     finished_count_1.alloc(sizeof(int));
-
-    int potential_intersection_size = 10;
-
-    cl::buffer potential_intersections(clctx.ctx);
-    potential_intersections.alloc(potential_intersection_size * 1024 * 1024 * 160);
-
-    cl::buffer potential_intersection_count(clctx.ctx);
-    potential_intersection_count.alloc(sizeof(cl_int));
-
 
     read_queue_pool<cl_float4> camera_q;
     read_queue_pool<cl_float4> geodesic_q;
@@ -2141,7 +2128,7 @@ int main(int argc, char* argv[])
 
                     int rays_num = calculate_ray_count(prepass_width, prepass_height);
 
-                    execute_kernel(clctx.cqueue, schwarzs_prepass, schwarzs_scratch, finished_1, schwarzs_count_prepass, schwarzs_count_scratch, finished_count_1, tris, gpu_intersections, gpu_intersections_count, potential_intersections, potential_intersection_count, accel, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer);
+                    execute_kernel(clctx.cqueue, schwarzs_prepass, schwarzs_scratch, finished_1, schwarzs_count_prepass, schwarzs_count_scratch, finished_count_1, tris, gpu_intersections, gpu_intersections_count, accel, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer);
 
                     cl::args singular_args;
                     singular_args.push_back(finished_1);
@@ -2176,7 +2163,7 @@ int main(int argc, char* argv[])
 
                 int rays_num = calculate_ray_count(width, height);
 
-                execute_kernel(clctx.cqueue, schwarzs_1, schwarzs_scratch, finished_1, schwarzs_count_1, schwarzs_count_scratch, finished_count_1, tris, gpu_intersections, gpu_intersections_count, potential_intersections, potential_intersection_count, accel, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer);
+                execute_kernel(clctx.cqueue, schwarzs_1, schwarzs_scratch, finished_1, schwarzs_count_1, schwarzs_count_scratch, finished_count_1, tris, gpu_intersections, gpu_intersections_count, accel, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer);
 
                 cl::args texture_args;
                 texture_args.push_back(finished_1);
@@ -2214,23 +2201,6 @@ int main(int argc, char* argv[])
 
                 clctx.cqueue.exec("interpolate_debug2", dbg, {width, height}, {16, 16});*/
             }
-
-            #if 0
-            {
-                cl::args intersect_args;
-                intersect_args.push_back(potential_intersections);
-                intersect_args.push_back(potential_intersection_count);
-                intersect_args.push_back(accel_counts);
-                intersect_args.push_back(accel_offsets);
-                intersect_args.push_back(accel_generic_buffer);
-                intersect_args.push_back(offset_width);
-                intersect_args.push_back(offset_size.x());
-                intersect_args.push_back(gpu_tris);
-                intersect_args.push_back(rtex);
-
-                clctx.cqueue.exec("render_potential_intersections", intersect_args, {1920 * 1080 * 10}, {256});
-            }
-            #endif // 0
 
             if(dfg.get_feature<bool>("use_triangle_rendering"))
             {
