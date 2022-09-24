@@ -4,5 +4,5 @@
 	"detect_singularities": false,
 	"max_acceleration_change": 0.00001,
 	"inherit_settings": "cartesian_base",
-	"description": "A krasnikov tube is a kind of FTL space tunnel connecting two distant points in space and time over a much shorter distance" 
+	"description": "A krasnikov tube is a kind of FTL space tunnel connecting two distant points in space and time over a much shorter distance\nMake sure to adjust the camera time, as it forms dynamically" 
 }

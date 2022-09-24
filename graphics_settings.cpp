@@ -16,6 +16,8 @@ DEFINE_SERIALISE_FUNCTION(graphics_settings)
     DO_FSERIALISE(mouse_sensitivity);
     DO_FSERIALISE(keyboard_sensitivity);
     DO_FSERIALISE(use_steam_screenshots);
+    DO_FSERIALISE(anisotropy);
+    DO_FSERIALISE(no_gpu_reads);
 }
 
 bool graphics_settings::display_video_settings()
@@ -34,6 +36,15 @@ bool graphics_settings::display_video_settings()
     ImGui::InputInt("Screenshot Height", &screenshot_height);
 
     ImGui::Checkbox("Save screenshots to steam", &use_steam_screenshots);
+
+    ImGui::DragInt("Anisotropic Filtering", &anisotropy, 1, 1, 256);
+
+    ImGui::Checkbox("No GPU reads", &no_gpu_reads);
+
+    if(ImGui::IsItemHovered())
+    {
+        ImGui::SetTooltip("May improve performance");
+    }
 
     ImGui::NewLine();
 

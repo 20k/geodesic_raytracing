@@ -9,7 +9,6 @@
 #include "dual_value.hpp"
 #include "metric.hpp"
 #include "chromaticity.hpp"
-#include "numerical.hpp"
 #include <imgui/misc/freetype/imgui_freetype.h>
 #include <imgui/imgui_internal.h>
 #include "js_interop.hpp"
@@ -24,6 +23,7 @@
 #include "graphics_settings.hpp"
 #include <networking/serialisable.hpp>
 #include "input_manager.hpp"
+#include "print.hpp"
 //#include "dual_complex.hpp"
 
 /**
@@ -107,6 +107,9 @@ https://core.ac.uk/download/pdf/25279526.pdf - binary black hole approximation?
 
 https://hal.archives-ouvertes.fr/hal-01862911/document - natario warp drive
 
+https://arxiv.org/pdf/1908.10757.pdf - good tetrad reference
+https://academic.oup.com/ptep/article/2015/4/043E02/1524372 - interesting kerr coordinate system
+
 "how do i convert rgb to wavelengths"
 https://github.com/colour-science/smits1999
 https://github.com/appleseedhq/appleseed/blob/54ce23fc940087180511cb5659d8a7aac33712fb/src/appleseed/foundation/image/colorspace.h#L956
@@ -131,6 +134,7 @@ struct lightray
     cl_float4 position;
     cl_float4 velocity;
     cl_float4 acceleration;
+    cl_float4 initial_quat;
     cl_uint sx, sy;
     cl_float ku_uobsu;
     cl_float original_theta;
@@ -139,75 +143,7 @@ struct lightray
 
 #define GENERIC_METRIC
 
-vec4f interpolate_geodesic(const std::vector<cl_float4>& geodesic, float coordinate_time)
-{
-    for(int i=0; i < (int)geodesic.size() - 1; i++)
-    {
-        vec4f cur = {geodesic[i].s[0], geodesic[i].s[1], geodesic[i].s[2], geodesic[i].s[3]};
-        vec4f next = {geodesic[i + 1].s[0], geodesic[i + 1].s[1], geodesic[i + 1].s[2], geodesic[i + 1].s[3]};
-
-        if(next.x() < cur.x())
-            std::swap(next, cur);
-
-        if(coordinate_time >= cur.x() && coordinate_time < next.x())
-        {
-            vec3f as_cart1 = polar_to_cartesian<float>({fabs(cur.y()), cur.z(), cur.w()});
-            vec3f as_cart2 = polar_to_cartesian<float>({fabs(next.y()), next.z(), next.w()});
-
-            float r1 = cur.y();
-            float r2 = next.y();
-
-            ///this might be why things bug out, the division here could easily be singular
-            float dx = (coordinate_time - cur.x()) / (next.x() - cur.x());
-
-            vec3f next_cart = cartesian_to_polar(mix(as_cart1, as_cart2, dx));
-            float next_r = mix(r1, r2, dx);
-
-            next_cart.x() = next_r;
-
-            return {coordinate_time, next_cart.x(), next_cart.y(), next_cart.z()};
-        }
-    }
-
-    if(geodesic.size() == 0)
-        return {0,0,0,0};
-
-    cl_float4 selected_geodesic = {0,0,0,0};
-
-    if(coordinate_time >= geodesic.back().s[0])
-        selected_geodesic = geodesic.back();
-    else
-        selected_geodesic = geodesic.front();
-
-    return {selected_geodesic.s[0], selected_geodesic.s[1], selected_geodesic.s[2], selected_geodesic.s[3]};
-}
-
-vec2f get_geodesic_intersection(const metrics::metric& met, const std::vector<cl_float4>& geodesic)
-{
-    for(int i=0; i < (int)geodesic.size() - 2; i++)
-    {
-        vec4f cur = {geodesic[i].s[0], geodesic[i].s[1], geodesic[i].s[2], geodesic[i].s[3]};
-        vec4f next = {geodesic[i + 1].s[0], geodesic[i + 1].s[1], geodesic[i + 1].s[2], geodesic[i + 1].s[3]};
-
-        if(signum(geodesic[i].s[1]) != signum(geodesic[i + 1].s[1]))
-        {
-            float total_r = fabs(geodesic[i].s[1]) + fabs(geodesic[i + 1].s[1]);
-
-            float dx = fabs(geodesic[i].s[1]) / total_r;
-
-            vec3f as_cart1 = polar_to_cartesian<float>({fabs(cur.y()), cur.z(), cur.w()});
-            vec3f as_cart2 = polar_to_cartesian<float>({fabs(next.y()), next.z(), next.w()});
-
-            vec3f next_cart = cartesian_to_polar(mix(as_cart1, as_cart2, dx));
-
-            return {next_cart.y(), next_cart.z()};
-        }
-    }
-
-    return {M_PI/2, 0};
-}
-
-cl::image_with_mipmaps load_mipped_image(const std::string& fname, opencl_context& clctx)
+cl::image load_mipped_image(const std::string& fname, opencl_context& clctx)
 {
     sf::Image img;
     img.loadFromFile(fname);
@@ -235,34 +171,68 @@ cl::image_with_mipmaps load_mipped_image(const std::string& fname, opencl_contex
     texture opengl_tex;
     opengl_tex.load_from_memory(bsett, &as_uint8[0]);
 
-    #define MIP_LEVELS 20
+    #define MIP_LEVELS 10
 
     int max_mips = floor(log2(std::min(img.getSize().x, img.getSize().y))) + 1;
 
     max_mips = std::min(max_mips, MIP_LEVELS);
 
-    cl::image_with_mipmaps image_mipped(clctx.ctx);
-    image_mipped.alloc((vec2i){img.getSize().x, img.getSize().y}, max_mips, {CL_RGBA, CL_FLOAT});
+    cl::image image_mipped(clctx.ctx);
+    image_mipped.alloc((vec3i){img.getSize().x, img.getSize().y, max_mips}, {CL_RGBA, CL_FLOAT}, cl::image_flags::ARRAY);
 
+    ///and all of THIS is to work around a bug in AMDs drivers, where you cant write to a specific array level!
     int swidth = img.getSize().x;
     int sheight = img.getSize().y;
 
+    std::vector<std::vector<vec4f>> all_mip_levels;
+    all_mip_levels.reserve(max_mips);
+
     for(int i=0; i < max_mips; i++)
     {
-        printf("I is %i\n", i);
-
-        int cwidth = swidth;
-        int cheight = sheight;
-
-        swidth /= 2;
-        sheight /= 2;
-
-        std::vector<vec4f> converted = opengl_tex.read(i);
-
-        assert((int)converted.size() == (cwidth * cheight));
-
-        image_mipped.write(clctx.cqueue, (char*)&converted[0], vec<2, size_t>{0, 0}, vec<2, size_t>{cwidth, cheight}, i);
+        all_mip_levels.push_back(opengl_tex.read(i));
     }
+
+    std::vector<std::vector<vec4f>> uniformly_padded;
+
+    for(int i=0; i < max_mips; i++)
+    {
+        int cwidth = swidth / pow(2, i);
+        int cheight = sheight / pow(2, i);
+
+        assert(cwidth * cheight == all_mip_levels[i].size());
+
+        std::vector<vec4f> replacement;
+        replacement.resize(swidth * sheight);
+
+        for(int y = 0; y < sheight; y++)
+        {
+            for(int x=0; x < swidth; x++)
+            {
+                ///clamp to border
+                int lx = std::min(x, cwidth - 1);
+                int ly = std::min(y, cheight - 1);
+
+                replacement[y * swidth + x] = all_mip_levels[i][ly * cwidth + lx];
+            }
+        }
+
+        uniformly_padded.push_back(replacement);
+    }
+
+    std::vector<vec4f> as_uniform;
+
+    for(auto& i : uniformly_padded)
+    {
+        for(auto& j : i)
+        {
+            as_uniform.push_back(j);
+        }
+    }
+
+    vec<3, size_t> origin = {0, 0, 0};
+    vec<3, size_t> region = {swidth, sheight, max_mips};
+
+    image_mipped.write(clctx.cqueue, (char*)as_uniform.data(), origin, region);
 
     return image_mipped;
 }
@@ -312,9 +282,8 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
 
 int calculate_ray_count(int width, int height)
 {
-    return (height - 1) * width + width - 1;
+    return height * width;
 }
-
 
 struct main_menu
 {
@@ -497,9 +466,116 @@ struct main_menu
     }
 };
 
-///i need the ability to have dynamic parameters
-int main()
+template<typename T>
+struct read_queue
 {
+    struct element
+    {
+        T data = T{};
+        cl::event evt;
+        cl::buffer gpu_buffer;
+
+        element(cl::context& ctx) : gpu_buffer(ctx){}
+    };
+
+    std::vector<element*> q;
+
+    void start_read(cl::context& ctx, cl::command_queue& async_q, cl::buffer&& buf, cl::event wait_on)
+    {
+        element* e = new element(ctx);
+
+        e->gpu_buffer = std::move(buf);
+
+        e->evt = e->gpu_buffer.read_async(async_q, (char*)&e->data, sizeof(T), {wait_on});
+
+        q.push_back(e);
+    }
+
+    std::vector<std::pair<T, cl::buffer>> fetch()
+    {
+        std::vector<std::pair<T, cl::buffer>> ret;
+
+        for(int i=0; i < (int)q.size(); i++)
+        {
+            element* e = q[i];
+
+            if(e->evt.is_finished())
+            {
+                ret.push_back({e->data, std::move(e->gpu_buffer)});
+
+                q.erase(q.begin() + i);
+                i--;
+                delete e;
+                continue;
+            }
+        }
+
+        return ret;
+    }
+};
+
+template<typename T>
+struct read_queue_pool
+{
+    read_queue<T> q;
+
+    std::vector<cl::buffer> pool;
+
+    cl::buffer get_buffer(cl::context& ctx)
+    {
+        if(pool.size() > 0)
+        {
+            cl::buffer next = pool.back();
+            pool.pop_back();
+            return next;
+        }
+
+        cl::buffer buf(ctx);
+        buf.alloc(sizeof(T));
+
+        return buf;
+    }
+
+    void start_read(cl::context& ctx, cl::command_queue& async_q, cl::buffer&& buf, cl::event wait_on)
+    {
+        q.start_read(ctx, async_q, std::move(buf), wait_on);
+    }
+
+    std::vector<T> fetch()
+    {
+        std::vector<T> ret;
+
+        std::vector<std::pair<T, cl::buffer>> impl_fetch = q.fetch();
+
+        for(auto& [d, buf] : impl_fetch)
+        {
+            ret.push_back(std::move(d));
+            pool.push_back(buf);
+        }
+
+        return ret;
+    }
+};
+
+///i need the ability to have dynamic parameters
+int main(int argc, char* argv[])
+{
+    std::optional<std::string> start_metric;
+    bool should_print_frametime = false;
+
+    for(int i=1; i < argc - 1; i++)
+    {
+        std::string current = argv[i];
+        std::string next = argv[i + 1];
+
+        if(current == "-bench")
+        {
+            start_metric = next;
+            should_debug = false;
+            should_print_frametime = true;
+        }
+    }
+
     bool has_new_content = false;
 
     steam_info steam;
@@ -537,7 +613,7 @@ int main()
     sett.width = 800;
     sett.height = 600;
     sett.opencl = true;
-    sett.no_double_buffer = true;
+    sett.no_double_buffer = false;
     sett.is_srgb = true;
     sett.no_decoration = true;
     sett.viewports = false;
@@ -568,6 +644,8 @@ int main()
 
     assert(win.clctx);
 
+    //std::cout << "extensions " << cl::get_extensions(win.clctx->ctx) << std::endl;
+
     ImFontAtlas* atlas = ImGui::GetIO().Fonts;
     atlas->FontBuilderFlags = ImGuiFreeTypeBuilderFlags_LCD | ImGuiFreeTypeBuilderFlags_FILTER_DEFAULT | ImGuiFreeTypeBuilderFlags_LoadColor;
 
@@ -581,6 +659,8 @@ int main()
     io.Fonts->AddFontFromFileTTF("VeraMono.ttf", 14, &font_cfg);
 
     opencl_context& clctx = *win.clctx;
+
+    cl::command_queue async_queue(clctx.ctx, CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE);
 
     std::filesystem::path scripts_dir{"./scripts"};
 
@@ -610,7 +690,9 @@ int main()
     //cfg.error_override = 0.00001f;
     //cfg.redshift = true;
 
-    //printf("WLs %f %f %f\n", chromaticity::srgb_to_wavelength({1, 0, 0}), chromaticity::srgb_to_wavelength({0, 1, 0}), chromaticity::srgb_to_wavelength({0, 0, 1}));
+    metrics::config current_cfg = cfg;
+
+    //print("WLs %f %f %f\n", chromaticity::srgb_to_wavelength({1, 0, 0}), chromaticity::srgb_to_wavelength({0, 1, 0}), chromaticity::srgb_to_wavelength({0, 0, 1}));
 
     int last_supersample_mult = 2;
 
@@ -629,15 +711,18 @@ int main()
     cl::gl_rendertexture rtex{clctx.ctx};
     rtex.create_from_texture(tex.handle);
 
-    cl::image_with_mipmaps background_mipped = load_mipped_image("background.png", clctx);
-    cl::image_with_mipmaps background_mipped2 = load_mipped_image("background2.png", clctx);
+    cl::image background_mipped = load_mipped_image("background.png", clctx);
+    cl::image background_mipped2 = load_mipped_image("background2.png", clctx);
 
-    printf("Pre dqueue\n");
+    #ifdef USE_DEVICE_SIDE_QUEUE
+    print("Pre dqueue\n");
 
     cl::device_command_queue dqueue(clctx.ctx);
 
-    printf("Post dqueue\n");
+    print("Post dqueue\n");
+    #endif // USE_DEVICE_SIDE_QUEUE
 
+    /*
     ///t, x, y, z
     //vec4f camera = {0, -2, -2, 0};
     //vec4f camera = {0, -2, -8, 0};
@@ -649,7 +734,29 @@ int main()
     quat q;
     q.load_from_axis_angle({1, 0, 0, -M_PI/2});
 
-    camera_quat = q * camera_quat;
+    camera_quat = q * camera_quat;*/
+
+    ///in polar, were .x = t
+    cl::buffer g_camera_pos_cart(clctx.ctx);
+    cl::buffer g_camera_pos_polar(clctx.ctx);
+    cl::buffer g_camera_quat(clctx.ctx);
+
+    g_camera_pos_cart.alloc(sizeof(cl_float4));
+    g_camera_pos_polar.alloc(sizeof(cl_float4));
+    g_camera_quat.alloc(sizeof(cl_float4));
+
+    {
+        cl_float4 camera_start_pos = {0, 0, -4, 0};
+
+        quat camera_start_quat;
+        camera_start_quat.load_from_axis_angle({1, 0, 0, -M_PI/2});
+
+        g_camera_pos_cart.write(clctx.cqueue, std::span{&camera_start_pos, 1});
+
+        cl_float4 as_cl_camera_quat = {camera_start_quat.q.x(), camera_start_quat.q.y(), camera_start_quat.q.z(), camera_start_quat.q.w()};
+
+        g_camera_quat.write(clctx.cqueue, std::span{&as_cl_camera_quat, 1});
+    }
 
     //camera_quat.load_from_matrix(axis_angle_to_mat({0, 0, 0}, 0));
 
@@ -657,7 +764,7 @@ int main()
 
     int ray_count = start_width * start_height;
 
-    printf("Pre buffer declarations\n");
+    print("Pre buffer declarations\n");
 
     cl::buffer schwarzs_1(clctx.ctx);
     cl::buffer schwarzs_scratch(clctx.ctx);
@@ -673,34 +780,99 @@ int main()
 
     cl::buffer dynamic_config(clctx.ctx);
 
-    printf("Post buffer declarations\n");
+    print("Post buffer declarations\n");
 
     termination_buffer.alloc(start_width * start_height * sizeof(cl_int));
 
-    printf("Allocated termination buffer\n");
+    print("Allocated termination buffer\n");
 
     termination_buffer.set_to_zero(clctx.cqueue);
 
-    printf("Zero termination buffer\n");
+    print("Zero termination buffer\n");
 
     cl::buffer geodesic_count_buffer(clctx.ctx);
     geodesic_count_buffer.alloc(sizeof(cl_int));
 
-    cl::buffer geodesic_trace_buffer(clctx.ctx);
-    geodesic_trace_buffer.alloc(64000 * sizeof(cl_float4));
+    int max_trace_length = 64000;
 
-    printf("Alloc trace buffer\n");
+    cl::buffer geodesic_trace_buffer(clctx.ctx);
+    geodesic_trace_buffer.alloc(max_trace_length * sizeof(cl_float4));
+
+    cl::buffer geodesic_vel_buffer(clctx.ctx);
+    geodesic_vel_buffer.alloc(max_trace_length * sizeof(cl_float4));
+
+    cl::buffer geodesic_dT_ds_buffer(clctx.ctx);
+    geodesic_dT_ds_buffer.alloc(max_trace_length * sizeof(cl_float));
+
+    cl::buffer geodesic_ds_buffer(clctx.ctx);
+    geodesic_ds_buffer.alloc(max_trace_length * sizeof(cl_float));
+
+    geodesic_count_buffer.set_to_zero(clctx.cqueue);
+    geodesic_trace_buffer.set_to_zero(clctx.cqueue);
+    geodesic_vel_buffer.set_to_zero(clctx.cqueue);
+    geodesic_dT_ds_buffer.set_to_zero(clctx.cqueue);
+    geodesic_ds_buffer.set_to_zero(clctx.cqueue);
+
+    cl::buffer generic_geodesic_buffer(clctx.ctx);
+    generic_geodesic_buffer.alloc(sizeof(cl_float4) * 1024);
+
+    cl::buffer generic_geodesic_count(clctx.ctx);
+    generic_geodesic_count.alloc(sizeof(cl_int));
+    generic_geodesic_count.set_to_zero(clctx.cqueue);
+
+    cl::buffer g_geodesic_basis_speed(clctx.ctx);
+    g_geodesic_basis_speed.alloc(sizeof(cl_float4));
+    g_geodesic_basis_speed.set_to_zero(clctx.cqueue);
+
+    std::array<cl::buffer, 4> tetrad{clctx.ctx, clctx.ctx, clctx.ctx, clctx.ctx};
+    std::array<cl::buffer, 4> geodesic_tetrad{clctx.ctx, clctx.ctx, clctx.ctx, clctx.ctx};
+
+    for(int i=0; i < 4; i++)
+    {
+        tetrad[i].alloc(sizeof(cl_float4));
+        tetrad[i].set_to_zero(clctx.cqueue);
+
+        geodesic_tetrad[i].alloc(sizeof(cl_float4));
+        geodesic_tetrad[i].set_to_zero(clctx.cqueue);
+    }
+
+    std::array<cl::buffer, 4> parallel_transported_tetrads{clctx.ctx, clctx.ctx, clctx.ctx, clctx.ctx};
+
+    for(int i=0; i < 4; i++)
+    {
+        parallel_transported_tetrads[i].alloc(max_trace_length * sizeof(cl_float4));
+        parallel_transported_tetrads[i].set_to_zero(clctx.cqueue);
+    }
+
+    cl::buffer timelike_geodesic_pos{clctx.ctx};
+    timelike_geodesic_pos.alloc(sizeof(cl_float4));
+    timelike_geodesic_pos.set_to_zero(clctx.cqueue);
+
+    cl::buffer timelike_geodesic_vel{clctx.ctx};
+    timelike_geodesic_vel.alloc(sizeof(cl_float4));
+    timelike_geodesic_vel.set_to_zero(clctx.cqueue);
+
+    std::array<cl::buffer, 4> reference_basis{clctx.ctx, clctx.ctx, clctx.ctx, clctx.ctx};
+
+    for(auto& i : reference_basis)
+    {
+        i.alloc(sizeof(cl_float4));
+        i.set_to_zero(clctx.cqueue);
+    }
+
+    print("Alloc trace buffer\n");
 
     std::vector<cl_float4> current_geodesic_path;
+    std::vector<cl_float> current_geodesic_dT_ds;
 
-    printf("Pre texture coordinates\n");
+    print("Pre texture coordinates\n");
 
     cl::buffer texture_coordinates{clctx.ctx};
 
     texture_coordinates.alloc(start_width * start_height * sizeof(float) * 2);
     texture_coordinates.set_to_zero(clctx.cqueue);
 
-    printf("Post texture coordinates\n");
+    print("Post texture coordinates\n");
 
     schwarzs_1.alloc(sizeof(lightray) * ray_count);
     schwarzs_scratch.alloc(sizeof(lightray) * ray_count);
@@ -712,25 +884,14 @@ int main()
     schwarzs_count_prepass.alloc(sizeof(int));
     finished_count_1.alloc(sizeof(int));
 
-    printf("Alloc rays and counts\n");
+    print("Alloc rays and counts\n");
 
-    cl_sampler_properties sampler_props[] = {
-    CL_SAMPLER_NORMALIZED_COORDS, CL_TRUE,
-    CL_SAMPLER_ADDRESSING_MODE, CL_ADDRESS_REPEAT,
-    CL_SAMPLER_FILTER_MODE, CL_FILTER_LINEAR,
-    CL_SAMPLER_MIP_FILTER_MODE_KHR, CL_FILTER_LINEAR,
-    //CL_SAMPLER_LOD_MIN_KHR, 0.0f,
-    //CL_SAMPLER_LOD_MAX_KHR, FLT_MAX,
-    0
-    };
+    read_queue_pool<cl_float4> camera_q;
+    read_queue_pool<cl_float4> geodesic_q;
 
-    cl_sampler sam = clCreateSamplerWithProperties(clctx.ctx.native_context.data, sampler_props, nullptr);
+    print("Finished async read queue init\n");
 
-    printf("Created sampler\n");
-
-    std::optional<cl::event> last_event;
-
-    std::cout << "Supports shared events? " << cl::supports_extension(clctx.ctx, "cl_khr_gl_event") << std::endl;
+    printj("Supports shared events? ", cl::supports_extension(clctx.ctx, "cl_khr_gl_event"));
 
     bool last_supersample = false;
     bool should_take_screenshot = false;
@@ -740,10 +901,15 @@ int main()
     float current_geodesic_time = 0;
     bool camera_on_geodesic = false;
     bool camera_time_progresses = false;
-    bool camera_geodesics_go_foward = true;
-    vec2f base_angle = {M_PI/2, 0};
+    float camera_geodesic_time_progression_speed = 1.f;
+    float set_camera_time = 0;
+    bool parallel_transport_observer = true;
+    cl_float4 cartesian_basis_speed = {0,0,0,0};
+    float linear_basis_speed = 0.f;
 
-    printf("Pre main\n");
+    bool has_geodesic = false;
+
+    print("Pre fullscreen\n");
 
     steady_timer workshop_poll;
     steady_timer frametime_timer;
@@ -774,6 +940,13 @@ int main()
     current_settings.height = win.get_window_size().y();
     current_settings.vsync_enabled = win.backend->is_vsync();
     current_settings.fullscreen = win.backend->is_maximised();
+
+    print("Pre main\n");
+
+    bool reset_camera = true;
+
+    std::optional<cl_float4> last_camera_pos;
+    std::optional<cl_float4> last_geodesic_velocity;
 
     while(!win.should_close() && !menu.should_quit && fullscreen.open)
     {
@@ -851,6 +1024,8 @@ int main()
 
         win.poll();
 
+        ImGui::PushAllowKeyboardFocus(false);
+
         if(input.is_key_pressed("toggle_mouse"))
             raw_input_manager.set_enabled(win, !raw_input_manager.is_enabled);
 
@@ -889,6 +1064,23 @@ int main()
             }
         }
 
+        if(start_metric && metric_manage.selected_idx == -1)
+        {
+            for(int selected = 0; selected < (int)metric_names.size(); selected++)
+            {
+                std::string name = metric_names[selected];
+
+                if(name == start_metric.value())
+                {
+                    metric_manage.selected_idx = selected;
+                    should_recompile = true;
+                    break;
+                }
+            }
+
+            start_metric = std::nullopt;
+        }
+
         if(!hide_ui)
         {
             if(ImGui::BeginMenuBar())
@@ -906,7 +1098,7 @@ int main()
                 if(valid_selected_idx)
                     preview = metric_names[metric_manage.selected_idx];
 
-                if(ImGui::BeginCombo("Metrics Box", preview.c_str()))
+                if(ImGui::BeginCombo("##Metrics Box", preview.c_str()))
                 {
                     for(int selected = 0; selected < (int)metric_names.size(); selected++)
                     {
@@ -996,11 +1188,6 @@ int main()
 
             if((vec2i){super_adjusted_width.x(), super_adjusted_width.y()} != win.get_window_size() || taking_screenshot || last_supersample != current_settings.supersample || last_supersample_mult != current_settings.supersample_factor || menu.dirty_settings)
             {
-                if(last_event.has_value())
-                    last_event.value().block();
-
-                last_event = std::nullopt;
-
                 int width = 16;
                 int height = 16;
 
@@ -1052,108 +1239,26 @@ int main()
 
             rtex.acquire(clctx.cqueue);
 
-            float speed = 0.1;
-
-            if(!menu.is_open && !ImGui::GetIO().WantCaptureKeyboard)
-            {
-                if(input.is_key_down("speed_10x"))
-                    speed *= 10;
-
-                if(input.is_key_down("speed_superslow"))
-                    speed = 0.00001;
-
-                if(input.is_key_down("speed_100th"))
-                    speed /= 100;
-
-                if(input.is_key_down("speed_100x"))
-                    speed *= 100;
-
-                if(input.is_key_down("camera_reset"))
-                {
-                    camera = {0, 0, 0, -4};
-                }
-
-                if(input.is_key_down("camera_centre"))
-                {
-                    camera = {0, 0, 0, 0};
-                }
-
-                vec2f delta;
-
-                if(!raw_input_manager.is_enabled)
-                {
-                    delta.x() = (float)input.is_key_down("camera_turn_right") - (float)input.is_key_down("camera_turn_left");
-                    delta.y() = (float)input.is_key_down("camera_turn_up") - (float)input.is_key_down("camera_turn_down");
-                }
-                else
-                {
-                    delta = {ImGui::GetIO().MouseDelta.x, ImGui::GetIO().MouseDelta.y};
-
-                    delta.y() = -delta.y();
-
-                    float mouse_sensitivity_mult = 0.05;
-
-                    delta *= mouse_sensitivity_mult;
-                }
-
-                if(delta.x() != 0.f)
-                {
-                    quat q;
-                    q.load_from_axis_angle({0, 0, -1, current_settings.mouse_sensitivity * delta.x() * M_PI/128});
-
-                    camera_quat = q * camera_quat;
-                }
-
-                if(input.is_key_pressed("toggle_wormhole_space"))
-                {
-                    flip_sign = !flip_sign;
-                }
-
-                vec3f up = {0, 0, -1};
-                vec3f right = rot_quat({1, 0, 0}, camera_quat);
-                vec3f forward_axis = rot_quat({0, 0, 1}, camera_quat);
-
-                if(delta.y() != 0.f)
-                {
-                    quat q;
-                    q.load_from_axis_angle({right.x(), right.y(), right.z(), current_settings.mouse_sensitivity * delta.y() * M_PI/128});
-
-                    camera_quat = q * camera_quat;
-                }
-
-                vec3f offset = {0,0,0};
-
-                offset += current_settings.keyboard_sensitivity * controls_multiplier * forward_axis * ((input.is_key_down("forward") - input.is_key_down("back")) * speed);
-                offset += current_settings.keyboard_sensitivity * controls_multiplier * right * (input.is_key_down("right") - input.is_key_down("left")) * speed;
-                offset += current_settings.keyboard_sensitivity * controls_multiplier * up * (input.is_key_down("down") - input.is_key_down("up")) * speed;
-
-                camera.y() += offset.x();
-                camera.z() += offset.y();
-                camera.w() += offset.z();
-            }
-
-            vec4f scamera = cartesian_to_schwarz(camera);
-
-            if(flip_sign)
-                scamera.y() = -scamera.y();
-
             float time = clk.restart().asMicroseconds() / 1000.;
 
-            if(camera_on_geodesic)
             {
-                scamera = interpolate_geodesic(current_geodesic_path, current_geodesic_time);
+                std::vector<cl_float4> cam_data = camera_q.fetch();
+                std::vector<cl_float4> geodesic_data = geodesic_q.fetch();
 
-                if(metric_manage.current_metric)
+                if(cam_data.size() > 0)
                 {
-                    base_angle = get_geodesic_intersection(*metric_manage.current_metric, current_geodesic_path);
+                    last_camera_pos = cam_data.back();
                 }
-            }
-            else
-            {
-                base_angle = {M_PI/2, 0.f};
+
+                if(geodesic_data.size() > 0)
+                {
+                    last_geodesic_velocity = geodesic_data.back();
+                }
             }
 
             bool should_soft_recompile = false;
+            bool should_update_camera_time = false;
+            bool should_set_observer_velocity = false;
 
             if(!taking_screenshot && !hide_ui && !menu.is_first_time_main_menu_open())
             {
@@ -1163,16 +1268,24 @@ int main()
                 {
                     if(ImGui::BeginTabItem("General"))
                     {
-                        ImGui::DragFloat3("Polar Pos", &scamera.v[1]);
-                        ImGui::DragFloat3("Cart Pos", &camera.v[1]);
-                        ImGui::SliderFloat("Camera Time", &camera.v[0], 0.f, 100.f);
+                        if(!current_settings.no_gpu_reads)
+                        {
+                            if(last_camera_pos.has_value())
+                            {
+                                ImGui::DragFloat4("Camera Position", &last_camera_pos.value().s[0]);
+                            }
+                        }
+
+                        if(ImGui::SliderFloat("Camera Time", &set_camera_time, 0.f, 100.f))
+                        {
+                            should_update_camera_time = true;
+                        }
 
                         ImGui::DragFloat("Frametime", &time);
 
                         ImGui::Checkbox("Time Progresses", &time_progresses);
 
-                        if(time_progresses)
-                            camera.v[0] += time / 1000.f;
+                        ImGui::Checkbox("Put Camera into negative space", &flip_sign);
 
                         if(ImGui::Button("Screenshot"))
                             should_take_screenshot = true;
@@ -1235,21 +1348,53 @@ int main()
 
                     if(ImGui::BeginTabItem("Paths"))
                     {
-                        ImGui::DragFloat("Geodesic Camera Time", &current_geodesic_time, 0.1, 0.f, 0.f);
-
-                        ImGui::Checkbox("Use Camera Geodesic", &camera_on_geodesic);
-
-                        ImGui::Checkbox("Camera Time Progresses", &camera_time_progresses);
-
-                        if(camera_time_progresses)
-                            current_geodesic_time += time / 1000.f;
-
                         if(ImGui::Button("Snapshot Camera Geodesic"))
                         {
                             should_snapshot_geodesic = true;
                         }
 
-                        ImGui::Checkbox("Camera Snapshot Geodesic goes forward", &camera_geodesics_go_foward);
+                        if(has_geodesic)
+                        {
+                            ImGui::SameLine();
+
+                            if(ImGui::Button("Clear"))
+                            {
+                                has_geodesic = false;
+                            }
+                        }
+
+                        if(ImGui::DragFloat("Observer Velocity", &linear_basis_speed, 0.001f, -0.9999999f, 0.9999999f))
+                        {
+                            should_set_observer_velocity = true;
+                        }
+
+                        if(has_geodesic)
+                        {
+                            ImGui::Separator();
+
+                            if(!current_settings.no_gpu_reads)
+                            {
+                                if(last_camera_pos.has_value())
+                                {
+                                    ImGui::DragFloat4("Geodesic Position", &last_camera_pos.value().s[0]);
+                                }
+
+                                if(last_geodesic_velocity.has_value())
+                                {
+                                    ImGui::DragFloat4("Geodesic Velocity", &last_geodesic_velocity.value().s[0]);
+                                }
+                            }
+
+                            ImGui::DragFloat("Proper Time", &current_geodesic_time, 0.1, 0.f, 0.f);
+
+                            ImGui::Checkbox("Proper Time Progresses", &camera_time_progresses);
+
+                            ImGui::SliderFloat("Proper Time Progession Rate", &camera_geodesic_time_progression_speed, 0.f, 4.f, "%.2f");
+
+                            ImGui::Checkbox("Attach Camera to Geodesic", &camera_on_geodesic);
+
+                            ImGui::Checkbox("Transport observer along geodesic", &parallel_transport_observer);
+                        }
 
                         ImGui::EndTabItem();
                     }
@@ -1260,11 +1405,209 @@ int main()
                 ImGui::End();
             }
 
+            if(should_recompile)
+            {
+                current_cfg = cfg;
+            }
+
+            //if(time_progresses)
+            //    camera.v[0] += time / 1000.f;
+
+            if(camera_time_progresses)
+                current_geodesic_time += camera_geodesic_time_progression_speed * time / 1000.f;
+
+            if(!has_geodesic)
+            {
+                camera_on_geodesic = false;
+                camera_time_progresses = false;
+            }
+
             metric_manage.check_recompile(should_recompile, should_soft_recompile, parent_directories,
                                           all_content, metric_names, dynamic_config, clctx.cqueue, cfg,
                                           sett, clctx.ctx, termination_buffer);
 
             metric_manage.check_substitution(clctx.ctx);
+
+            if(time_progresses)
+            {
+                set_camera_time += time / 1000.f;
+
+                cl::args args;
+                args.push_back(g_camera_pos_cart);
+                args.push_back(set_camera_time);
+
+                clctx.cqueue.exec("set_time", args, {1}, {1});
+            }
+
+            if(should_update_camera_time)
+            {
+                cl::args args;
+                args.push_back(g_camera_pos_cart);
+                args.push_back(set_camera_time);
+
+                clctx.cqueue.exec("set_time", args, {1}, {1});
+                should_update_camera_time = false;
+            }
+
+            float speed = 0.1;
+
+            if(!menu.is_open && !ImGui::GetIO().WantCaptureKeyboard)
+            {
+                if(input.is_key_down("speed_10x"))
+                    speed *= 10;
+
+                if(input.is_key_down("speed_superslow"))
+                    speed = 0.00001;
+
+                if(input.is_key_down("speed_100th"))
+                    speed /= 100;
+
+                if(input.is_key_down("speed_100x"))
+                    speed *= 100;
+
+                if(input.is_key_down("camera_reset"))
+                {
+                    reset_camera = true;
+                    set_camera_time = 0;
+                    g_camera_pos_cart.write(clctx.cqueue, std::vector<cl_float4>{{0, 0, 0, -4}});
+                }
+
+                if(input.is_key_down("camera_centre"))
+                {
+                    reset_camera = true;
+                    set_camera_time = 0;
+                    g_camera_pos_cart.write(clctx.cqueue, std::vector<cl_float4>{{0, 0, 0, 0}});
+                }
+
+                vec2f delta;
+
+                if(!raw_input_manager.is_enabled)
+                {
+                    delta.x() = (float)input.is_key_down("camera_turn_right") - (float)input.is_key_down("camera_turn_left");
+                    delta.y() = (float)input.is_key_down("camera_turn_up") - (float)input.is_key_down("camera_turn_down");
+                }
+                else
+                {
+                    delta = {ImGui::GetIO().MouseDelta.x, ImGui::GetIO().MouseDelta.y};
+
+                    delta.y() = -delta.y();
+
+                    float mouse_sensitivity_mult = 0.05;
+
+                    delta *= mouse_sensitivity_mult;
+                }
+
+                delta *= current_settings.mouse_sensitivity * M_PI/128;
+
+                vec3f translation_delta = {input.is_key_down("forward") - input.is_key_down("back"),
+                                           input.is_key_down("right") - input.is_key_down("left"),
+                                           input.is_key_down("down") - input.is_key_down("up")};
+
+                translation_delta *= current_settings.keyboard_sensitivity * controls_multiplier * speed;
+
+                cl_float2 cl_mouse = {delta.x(), delta.y()};
+                cl_float4 cl_translation = {translation_delta.x(), translation_delta.y(), translation_delta.z(), 0};
+
+                cl::args controls_args;
+                controls_args.push_back(g_camera_pos_cart);
+                controls_args.push_back(g_camera_quat);
+                controls_args.push_back(cl_mouse);
+                controls_args.push_back(cl_translation);
+                controls_args.push_back(current_cfg.universe_size);
+                controls_args.push_back(dynamic_config);
+
+                clctx.cqueue.exec("handle_controls_free", controls_args, {1}, {1});
+            }
+
+            //if(should_set_observer_velocity)
+            {
+                cl::args args;
+                args.push_back(g_camera_quat);
+                args.push_back(linear_basis_speed);
+                args.push_back(g_geodesic_basis_speed);
+
+                clctx.cqueue.exec("init_basis_speed", args, {1}, {1});
+            }
+
+            if(camera_on_geodesic)
+            {
+                cl::buffer next_geodesic_velocity = geodesic_q.get_buffer(clctx.ctx);
+
+                cl_int transport = parallel_transport_observer;
+
+                cl::args interpolate_args;
+                interpolate_args.push_back(geodesic_trace_buffer);
+                interpolate_args.push_back(geodesic_vel_buffer);
+                interpolate_args.push_back(geodesic_dT_ds_buffer);
+                interpolate_args.push_back(geodesic_ds_buffer);
+                interpolate_args.push_back(g_camera_pos_polar);
+
+                for(auto& i : parallel_transported_tetrads)
+                {
+                    interpolate_args.push_back(i);
+                }
+
+                for(auto& i : tetrad)
+                {
+                    interpolate_args.push_back(i);
+                }
+
+                interpolate_args.push_back(current_geodesic_time);
+                interpolate_args.push_back(geodesic_count_buffer);
+                interpolate_args.push_back(transport);
+                interpolate_args.push_back(g_geodesic_basis_speed);
+                interpolate_args.push_back(next_geodesic_velocity);
+                interpolate_args.push_back(dynamic_config);
+
+                cl::event evt = clctx.cqueue.exec("handle_interpolating_geodesic", interpolate_args, {1}, {1});
+
+                geodesic_q.start_read(clctx.ctx, async_queue, std::move(next_geodesic_velocity), evt);
+            }
+
+            if(!camera_on_geodesic)
+            {
+                {
+                    cl::args args;
+
+                    args.push_back(g_camera_pos_polar);
+                    args.push_back(g_camera_pos_cart);
+
+                    cl_float clflip = flip_sign;
+
+                    args.push_back(clflip);
+
+                    clctx.cqueue.exec("camera_cart_to_polar", args, {1}, {1});
+                }
+
+                {
+                    cl::args tetrad_args;
+                    tetrad_args.push_back(g_camera_pos_polar);
+                    tetrad_args.push_back(g_camera_quat);
+                    tetrad_args.push_back(cartesian_basis_speed);
+
+                    for(int i=0; i < 4; i++)
+                    {
+                        tetrad_args.push_back(tetrad[i]);
+                    }
+
+                    tetrad_args.push_back(dynamic_config);
+
+                    clctx.cqueue.exec("init_basis_vectors", tetrad_args, {1}, {1});
+                }
+            }
+
+            {
+                cl::buffer next_generic_camera = camera_q.get_buffer(clctx.ctx);
+
+                cl::args args;
+                args.push_back(g_camera_pos_polar);
+                args.push_back(next_generic_camera);
+                args.push_back(dynamic_config);
+
+                cl::event evt = clctx.cqueue.exec("camera_polar_to_generic", args, {1}, {1});
+
+                camera_q.start_read(clctx.ctx, async_queue, std::move(next_generic_camera), evt);
+            }
 
             int width = rtex.size<2>().x();
             int height = rtex.size<2>().y();
@@ -1274,22 +1617,11 @@ int main()
 
             clctx.cqueue.exec("clear", clr, {width, height}, {16, 16});
 
-            cl::event next;
-
             {
-                int isnap = should_snapshot_geodesic;
+                ///should invert geodesics is unused for the moment
+                int isnap = 0;
 
-                if(should_snapshot_geodesic)
-                {
-                    if(camera_geodesics_go_foward)
-                    {
-                        isnap = 1;
-                    }
-                    else
-                    {
-                        isnap = 0;
-                    }
-                }
+                float on_geodesic = camera_on_geodesic ? 1 : 0;
 
                 cl_int prepass_width = width/16;
                 cl_int prepass_height = height/16;
@@ -1305,8 +1637,8 @@ int main()
 
                     cl::args init_args_prepass;
 
-                    init_args_prepass.push_back(scamera);
-                    init_args_prepass.push_back(camera_quat);
+                    init_args_prepass.push_back(g_camera_pos_polar);
+                    init_args_prepass.push_back(g_camera_quat);
                     init_args_prepass.push_back(schwarzs_prepass);
                     init_args_prepass.push_back(schwarzs_count_prepass);
                     init_args_prepass.push_back(prepass_width);
@@ -1315,7 +1647,12 @@ int main()
                     init_args_prepass.push_back(prepass_width);
                     init_args_prepass.push_back(prepass_height);
                     init_args_prepass.push_back(isnap);
-                    init_args_prepass.push_back(base_angle);
+
+                    for(auto& i : tetrad)
+                    {
+                        init_args_prepass.push_back(i);
+                    }
+
                     init_args_prepass.push_back(dynamic_config);
 
                     clctx.cqueue.exec("init_rays_generic", init_args_prepass, {prepass_width*prepass_height}, {256});
@@ -1335,8 +1672,8 @@ int main()
                 }
 
                 cl::args init_args;
-                init_args.push_back(scamera);
-                init_args.push_back(camera_quat);
+                init_args.push_back(g_camera_pos_polar);
+                init_args.push_back(g_camera_quat);
                 init_args.push_back(schwarzs_1);
                 init_args.push_back(schwarzs_count_1);
                 init_args.push_back(width);
@@ -1345,45 +1682,19 @@ int main()
                 init_args.push_back(prepass_width);
                 init_args.push_back(prepass_height);
                 init_args.push_back(isnap);
-                init_args.push_back(base_angle);
+
+                for(auto& i : tetrad)
+                {
+                    init_args.push_back(i);
+                }
+
                 init_args.push_back(dynamic_config);
 
                 clctx.cqueue.exec("init_rays_generic", init_args, {width*height}, {16*16});
 
-                if(should_snapshot_geodesic)
-                {
-                    int idx = (height/2) * width + width/2;
-
-                    geodesic_trace_buffer.set_to_zero(clctx.cqueue);
-                    geodesic_count_buffer.set_to_zero(clctx.cqueue);
-
-                    cl::args snapshot_args;
-                    snapshot_args.push_back(schwarzs_1);
-                    snapshot_args.push_back(geodesic_trace_buffer);
-                    snapshot_args.push_back(schwarzs_count_1);
-                    snapshot_args.push_back(idx);
-                    snapshot_args.push_back(width);
-                    snapshot_args.push_back(height);
-                    snapshot_args.push_back(scamera);
-                    snapshot_args.push_back(camera_quat);
-                    snapshot_args.push_back(base_angle);
-                    snapshot_args.push_back(dynamic_config);
-                    snapshot_args.push_back(geodesic_count_buffer);
-
-                    clctx.cqueue.exec("get_geodesic_path", snapshot_args, {1}, {1});
-
-                    current_geodesic_path = geodesic_trace_buffer.read<cl_float4>(clctx.cqueue);
-                    int count = geodesic_count_buffer.read<cl_int>(clctx.cqueue)[0];
-
-                    printf("Found geodesic count %i\n", count);
-
-                    current_geodesic_path.resize(count);
-                }
-
                 int rays_num = calculate_ray_count(width, height);
 
                 execute_kernel(clctx.cqueue, schwarzs_1, schwarzs_scratch, finished_1, schwarzs_count_1, schwarzs_count_scratch, finished_count_1, rays_num, cfg.use_device_side_enqueue, dynamic_config);
-
 
                 cl::args texture_args;
                 texture_args.push_back(finished_1);
@@ -1391,9 +1702,8 @@ int main()
                 texture_args.push_back(texture_coordinates);
                 texture_args.push_back(width);
                 texture_args.push_back(height);
-                texture_args.push_back(scamera);
-                texture_args.push_back(camera_quat);
-                texture_args.push_back(base_angle);
+                texture_args.push_back(g_camera_pos_polar);
+                texture_args.push_back(g_camera_quat);
 
                 clctx.cqueue.exec("calculate_texture_coordinates", texture_args, {width * height}, {256});
 
@@ -1406,23 +1716,113 @@ int main()
                 render_args.push_back(width);
                 render_args.push_back(height);
                 render_args.push_back(texture_coordinates);
-                render_args.push_back(sam);
+                render_args.push_back(current_settings.anisotropy);
 
-                next = clctx.cqueue.exec("render", render_args, {width * height}, {256});
+                clctx.cqueue.exec("render", render_args, {width * height}, {256});
+            }
+
+            if(should_snapshot_geodesic)
+            {
+                current_geodesic_time = 0;
+                has_geodesic = true;
+                camera_on_geodesic = true;
+
+                ///lorentz boost tetrad by the basis speed
+                ///g_geodesic_basis_speed is defined locally
+                ///so first i calculate a timelike vector from the existing tetrad from the speed
+                ///and then interpret this is an observer velocity, and boost the tetrads
+                {
+                    cl::args lorentz;
+                    lorentz.push_back(g_camera_pos_polar);
+                    lorentz.push_back(g_geodesic_basis_speed);
+
+                    for(auto& i : tetrad)
+                    {
+                        lorentz.push_back(i);
+                    }
+
+                    lorentz.push_back(dynamic_config);
+
+                    clctx.cqueue.exec("boost_tetrad", lorentz, {1}, {1});
+                }
+
+                {
+                    generic_geodesic_count.set_to_zero(clctx.cqueue);
+
+                    cl::args args;
+                    args.push_back(g_camera_pos_polar);
+                    args.push_back(generic_geodesic_buffer);
+                    args.push_back(generic_geodesic_count);
+
+                    for(auto& i : tetrad)
+                    {
+                        args.push_back(i);
+                    }
+
+                    args.push_back(g_geodesic_basis_speed);
+                    args.push_back(dynamic_config);
+
+                    clctx.cqueue.exec("init_inertial_ray", args, {1}, {1});
+                }
+
+                int idx = 0;
+
+                geodesic_trace_buffer.set_to_zero(clctx.cqueue);
+                geodesic_dT_ds_buffer.set_to_zero(clctx.cqueue);
+                geodesic_count_buffer.set_to_zero(clctx.cqueue);
+                geodesic_vel_buffer.set_to_zero(clctx.cqueue);
+                geodesic_ds_buffer.set_to_zero(clctx.cqueue);
+
+                cl::args snapshot_args;
+                snapshot_args.push_back(generic_geodesic_buffer);
+                snapshot_args.push_back(geodesic_trace_buffer);
+                snapshot_args.push_back(geodesic_vel_buffer);
+                snapshot_args.push_back(geodesic_dT_ds_buffer);
+                snapshot_args.push_back(geodesic_ds_buffer);
+                snapshot_args.push_back(generic_geodesic_count);
+                snapshot_args.push_back(idx);
+                snapshot_args.push_back(width);
+                snapshot_args.push_back(height);
+                snapshot_args.push_back(g_camera_pos_polar);
+                snapshot_args.push_back(g_camera_quat);
+
+                snapshot_args.push_back(dynamic_config);
+                snapshot_args.push_back(geodesic_count_buffer);
+
+                clctx.cqueue.exec("get_geodesic_path", snapshot_args, {1}, {1});
+
+                for(int i=0; i < (int)tetrad.size(); i++)
+                {
+                    cl::copy(clctx.cqueue, tetrad[i], geodesic_tetrad[i]);
+                }
+
+                for(int i=0; i < (int)parallel_transported_tetrads.size(); i++)
+                {
+                    cl::args pt_args;
+                    pt_args.push_back(geodesic_trace_buffer);
+                    pt_args.push_back(geodesic_vel_buffer);
+                    pt_args.push_back(geodesic_ds_buffer);
+                    pt_args.push_back(geodesic_tetrad[i]);
+                    pt_args.push_back(geodesic_count_buffer);
+                    pt_args.push_back(parallel_transported_tetrads[i]);
+                    pt_args.push_back(dynamic_config);
+
+                    clctx.cqueue.exec("parallel_transport_quantity", pt_args, {1}, {1});
+                }
             }
 
             rtex.unacquire(clctx.cqueue);
 
             if(taking_screenshot)
             {
-                printf("Taking screenie\n");
+                print("Taking screenie\n");
 
                 clctx.cqueue.block();
 
                 int high_width = current_settings.screenshot_width * current_settings.supersample_factor;
                 int high_height = current_settings.screenshot_height * current_settings.supersample_factor;
 
-                printf("Blocked\n");
+                print("Blocked\n");
 
                 std::cout << "WIDTH " << high_width << " HEIGHT "<< high_height << std::endl;
 
@@ -1453,6 +1853,8 @@ int main()
                 auto duration = now.time_since_epoch();
                 auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
 
+                file::mkdir("./screenshots");
+
                 std::string fname = "./screenshots/" + metric_manage.current_metric->metric_cfg.name + "_" + std::to_string(millis) + ".png";
 
                 img.saveToFile(fname);
@@ -1479,11 +1881,6 @@ int main()
                     SteamAPI_ISteamScreenshots_WriteScreenshot(iss, as_rgb.data(), sizeof(vec<3, char>) * as_rgb.size(), high_width, high_height);
                }
             }
-
-            if(last_event.has_value())
-                last_event.value().block();
-
-            last_event = next;
         }
 
         {
@@ -1508,10 +1905,20 @@ int main()
             lst->AddImage((void*)rtex.texture_id, tl, br, ImVec2(0, 0), ImVec2(1, 1));
         }
 
+        ImGui::PopAllowKeyboardFocus();
+
         win.display();
+
+        if(should_print_frametime)
+        {
+            float frametime_ms = frametime_s * 1000;
+
+            ///Don't replace this printf
+            ///do not change this string
+            printf("Frametime Elapsed: %f\n", frametime_ms);
+        }
     }
 
-    last_event = std::nullopt;
 
     clctx.cqueue.block();
 

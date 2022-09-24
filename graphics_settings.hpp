@@ -25,6 +25,10 @@ struct graphics_settings : serialisable, free_function
 
     bool use_steam_screenshots = true;
 
+    int anisotropy = 8;
+
+    bool no_gpu_reads = false;
+
     ///Returns true if we need to refresh our opencl context
     bool display_video_settings();
     bool display_control_settings();

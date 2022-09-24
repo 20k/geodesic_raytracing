@@ -5,9 +5,20 @@
 #include "dual_value.hpp"
 #include <nlohmann/json.hpp>
 #include "js_interop.hpp"
+#include <vec/tensor.hpp>
 
 namespace metrics
 {
+    inline
+    std::array<dual, 4> cartesian_to_polar_v(const dual& t, const dual& x, const dual& y, const dual& z)
+    {
+        dual r = sqrt(x * x + y * y + z * z);
+        dual theta = atan2(sqrt(x*x + y*y), z);
+        dual phi = atan2(y, x);
+
+        return {t, r, theta, phi};
+    }
+
     template<typename Func, typename... T>
     inline
     std::pair<std::vector<value>, std::vector<value>> evaluate_metric2D(Func&& f, T... raw_variables)
@@ -51,6 +62,136 @@ namespace metrics
 
         return {raw_eq, raw_derivatives};
     }
+
+    struct metric_info
+    {
+        metric<value, 4, 4> met;
+        tensor<value, 4, 4, 4> partials;
+
+        bool is_diagonal()
+        {
+            for(int i=0; i < 4; i++)
+            {
+                for(int j=0; j < 4; j++)
+                {
+                    if(i == j)
+                        continue;
+
+                    if(type_to_string(met.idx(i, j)) != "0" && type_to_string(met.idx(i, j)) != "0.0")
+                        return false;
+                }
+            }
+
+            return true;
+        }
+
+        template<typename Func>
+        metric_info(Func&& f)
+        {
+            auto [v_met, v_partials] = evaluate_metric2D(f, "v1", "v2", "v3", "v4");
+
+            assert(v_met.size() == 16);
+            assert(v_partials.size() == 64);
+
+            for(int i=0; i < 4; i++)
+            {
+                for(int j=0; j < 4; j++)
+                {
+                    met.idx(i,j) = v_met[i * 4 + j];
+                }
+            }
+
+            for(int i=0; i < 4; i++)
+            {
+                for(int j=0; j < 4; j++)
+                {
+                    for(int k=0; k < 4; k++)
+                    {
+                        partials.idx(i, j, k) = v_partials[i * 16 + j * 4 + k];
+                    }
+                }
+            }
+        }
+    };
+
+    inline
+    tensor<value, 4> fix_light_velocity(metric_info& inf, const tensor<value, 4>& v)
+    {
+        tensor<value, 3> spatial_v = {v.y(), v.z(), v.w()};
+        tensor<value, 3> spatial_m = {inf.met.idx(1, 1), inf.met.idx(2, 2), inf.met.idx(3, 3)};
+
+        value tvl_2 = sum_multiply(spatial_m, spatial_v * spatial_v) / -inf.met.idx(0, 0);
+
+        value sign = dual_types::if_v(v.x() < 0, -1.f, 1.f);
+
+        tensor<value, 4> ret = v;
+
+        ret.x() = sign * sqrt(tvl_2);
+
+        return ret;
+    }
+
+    inline
+    tensor<value, 4> calculate_acceleration(metric_info& inf)
+    {
+        tensor<value, 4> velocity = {"iv1", "iv2", "iv3", "iv4"};
+
+        if(inf.is_diagonal())
+        {
+            value is_lightlike = "always_lightlike";
+
+            tensor<value, 4> fixed = fix_light_velocity(inf, velocity);
+
+            for(int i=0; i < 4; i++)
+            {
+                velocity.idx(i) = dual_types::if_v(is_lightlike, fixed.idx(i), velocity.idx(i));
+            }
+        }
+
+        inverse_metric<value, 4, 4> inv = inf.met.invert();
+
+        tensor<value, 4, 4, 4> christoff2;
+
+        for(int i=0; i < 4; i++)
+        {
+            for(int k=0; k < 4; k++)
+            {
+                for(int l=0; l < 4; l++)
+                {
+                    value sum = 0;
+
+                    for(int m=0; m < 4; m++)
+                    {
+                        sum += inv.idx(i, m) * inf.partials.idx(l, m, k);
+                        sum += inv.idx(i, m) * inf.partials.idx(k, m, l);
+                        sum += -inv.idx(i, m) * inf.partials.idx(m, k, l);
+                    }
+
+                    christoff2.idx(i, k, l) = 0.5f * sum;
+                }
+            }
+        }
+
+        tensor<value, 4> accel;
+
+        for(int uu=0; uu < 4; uu++)
+        {
+            value sum = 0;
+
+            for(int aa = 0; aa < 4; aa++)
+            {
+                for(int bb = 0; bb < 4; bb++)
+                {
+                    sum += velocity[aa] * velocity[bb] * christoff2.idx(uu, aa, bb);
+                }
+            }
+
+            accel.idx(uu) = -sum;
+        }
+
+        return accel;
+    }
+
 
     template<typename Func, typename... T>
     inline
@@ -137,6 +278,8 @@ namespace metrics
 
         std::string inherit_settings;
 
+        bool unconditionally_nonsingular = false;
+
         void load(nlohmann::json& js)
         {
             for(auto& [key, value] : js.items())
@@ -203,6 +346,9 @@ namespace metrics
                 else if(key == "cylindrical_terminator")
                     cylindrical_terminator = value;
 
+                else if(key == "unconditionally_nonsingular")
+                    unconditionally_nonsingular = value;
+
                 else
                     std::cout << "Warning, unknown key name " << key << std::endl;
             }
@@ -212,6 +358,8 @@ namespace metrics
     template<typename T>
     struct metric_impl
     {
+        std::vector<T> accel;
+
         std::vector<T> real_eq;
         std::vector<T> derivatives;
 
@@ -242,6 +390,8 @@ namespace metrics
     {
         metric_impl<std::string> ret;
 
+        ret.accel = stringify_vector(raw.accel);
+
         ret.real_eq = stringify_vector(raw.real_eq);
         ret.derivatives = stringify_vector(raw.derivatives);
 
@@ -260,6 +410,11 @@ namespace metrics
     metric_impl<std::string> build_concrete(const std::map<std::string, std::string>& mapping, const metric_impl<value>& raw)
     {
         metric_impl<value> raw_copy = raw;
+
+        for(value& v : raw_copy.accel)
+        {
+            v.substitute(mapping);
+        }
 
         for(value& v : raw_copy.real_eq)
         {
@@ -302,9 +457,84 @@ namespace metrics
         metric_impl<std::string> abstract;
         metric_impl<std::string> concrete;
 
+        bool is_spherical = false;
+
+        bool is_polar_spherically_symmetric(const std::vector<value>& met)
+        {
+            int sin_count = 0;
+
+            ///theta
+            value var = "v3";
+            value sin_theta = sin(var);
+
+            auto substitute = [&](const value& in) -> std::optional<value>
+            {
+                if(sin_count >= 2)
+                    return std::nullopt;
+
+                if(equivalent(sin_theta, in))
+                {
+                    sin_count++;
+
+                    return value{1};
+                }
+
+                return std::nullopt;
+            };
+
+            value theta;
+            value phi;
+
+            if(met.size() == 4)
+            {
+                theta = met[2];
+                phi = met[3];
+            }
+            else if(met.size() == 16)
+            {
+                ///so, if there are dtdr components that's fine, but otherwise its borked
+                ///that means the metric must be in the following form
+
+                /**
+                [dt, dtdr, 0,           0,
+                     dr,   0,           0,
+                           X*r*r*dtheta,
+                                        X*r*r*sin(t)*sin(t)*dphi
+                */
+
+                std::vector<int> bad_offdiagonals{0 * 4 + 2, 0 * 4 + 3, 1 * 4 + 2, 1 * 4 + 3};
+
+                for(int idx : bad_offdiagonals)
+                {
+                    if(!equivalent(met[idx], value{0}))
+                    {
+                        return false;
+                    }
+                }
+
+                theta = met[2 * 4 + 2];
+                phi = met[3 * 4 + 3];
+            }
+
+            phi.substitute_generic(substitute);
+
+            if(sin_count < 2)
+                return false;
+
+            phi = phi.flatten(true);
+
+            return equivalent(theta, phi);
+        }
+
         template<typename T, typename U, typename V, typename W>
         void load(T& func, U& func1, V& func2, W& func3)
         {
+            metric_info inf(func);
+
+            tensor<value, 4> accel_as_tensor = calculate_acceleration(inf);
+
+            raw.accel = {accel_as_tensor.x(), accel_as_tensor.y(), accel_as_tensor.z(), accel_as_tensor.w()};
+
             std::tie(raw.real_eq, raw.derivatives) = evaluate_metric2D(func, "v1", "v2", "v3", "v4");
 
             std::tie(raw.to_polar, raw.dt_to_spherical) = total_diff(func1, "v1", "v2", "v3", "v4");
@@ -315,6 +545,8 @@ namespace metrics
             debiggen();
 
             abstract = stringify(raw);
+
+            is_spherical = is_polar_spherically_symmetric(raw.real_eq);
         }
 
         void debiggen()
@@ -337,7 +569,7 @@ namespace metrics
                 }
             }
 
-            std::cout << "Offdiagonal reduction" << std::endl;
+            printj("Offdiagonal reduction");
 
             std::vector<value> diagonal_equations;
             std::vector<value> diagonal_derivatives;
@@ -397,36 +629,18 @@ namespace metrics
         auto real_eq = impl.real_eq;
         auto derivatives = impl.derivatives;
 
+        printj("REAL EQ SIZE ", real_eq.size());
+
         for(int i=0; i < (int)real_eq.size(); i++)
         {
             argument_string += "-DF" + std::to_string(i + 1) + "_I=" + real_eq[i] + " ";
         }
 
-        ///only polar
-        bool is_polar_spherically_symmetric = false;
+        bool is_polar_spherically_symmetric = in.metric_cfg.system == X_Y_THETA_PHI && in.desc.is_spherical;
 
-        if(real_eq.size() == 4)
-            is_polar_spherically_symmetric = in.metric_cfg.system == X_Y_THETA_PHI;
-
-        if(real_eq.size() == 16)
+        if(is_polar_spherically_symmetric)
         {
-            bool no_offdiagonal_phi_components = true;
-
-            for(int i=0; i < 4; i++)
-            {
-                ///phi
-                int j = 3;
-
-                if(j == i)
-                    continue;
-
-                bool is_zero = real_eq[j * 4 + i] == "0" || real_eq[j * 4 + i] == "0.0";
-
-                if(!is_zero)
-                    no_offdiagonal_phi_components = false;
-            }
-
-            is_polar_spherically_symmetric = no_offdiagonal_phi_components && in.metric_cfg.system == X_Y_THETA_PHI;
+            print("Metric is spherically symmetric\n");
         }
 
         if(derivatives.size() == 16)
@@ -555,6 +769,11 @@ namespace metrics
             argument_string += " -DCYLINDRICAL_TERMINATOR=" + std::to_string(in.metric_cfg.cylindrical_terminator);
         }
 
+        if(in.metric_cfg.unconditionally_nonsingular)
+        {
+            argument_string += " -DUNCONDITIONALLY_NONSINGULAR";
+        }
+
         if(cfg.redshift)
         {
             argument_string += " -DREDSHIFT";
@@ -579,10 +798,35 @@ namespace metrics
 
             vars += dynamic_vars.names.back();
 
-            std::cout << "Dynamic variables " << vars << std::endl;
+            printj("Dynamic variables ", vars);
 
             argument_string += " -DDYNVARS=" + vars;
         }
+
+        std::vector<value> cart_to_polar;
+        std::vector<value> cart_to_polar_derivs;
+
+        std::tie(cart_to_polar, cart_to_polar_derivs) = total_diff(cartesian_to_polar_v, "v1", "v2", "v3", "v4");
+
+        assert(cart_to_polar.size());
+        assert(cart_to_polar_derivs.size());
+
+        for(int i=0; i < 4; i++)
+        {
+            argument_string += " -DCART_TO_POL" + std::to_string(i) + "=" + type_to_string(cart_to_polar[i]);
+        }
+
+        for(int i=0; i < 4; i++)
+        {
+            argument_string += " -DCART_TO_POL_D" + std::to_string(i) + "=" + type_to_string(cart_to_polar_derivs[i]);
+        }
+
+        for(int i=0; i < 4; i++)
+        {
+            argument_string += " -DGEO_ACCEL" + std::to_string(i) + "=" + impl.accel[i];
+        }
+
+        argument_string += " -DMETRIC_TIME_G00=" + real_eq[0];
 
         {
             std::string extra_string;

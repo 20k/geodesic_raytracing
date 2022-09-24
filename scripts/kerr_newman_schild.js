@@ -1,20 +1,19 @@
-
-///https://arxiv.org/pdf/0706.0622.pdf
+///https://en.wikipedia.org/wiki/Kerr%E2%80%93Newman_metric#Kerr%E2%80%93Schild_coordinates
 function kerr_schild_metric(t, x, y, z)
 {
-	$cfg.a.$default = -0.5;
+	$cfg.a.$default = -0.51;
 	$cfg.rs.$default = 1;
+	$cfg.Q.$default = 0.51;
 
     var a = $cfg.a;
 	var rs = $cfg.rs;
+	var Q = $cfg.Q;
 
     var R2 = x * x + y * y + z * z;
     var Rm2 = x * x + y * y - z * z;
 	
 	$pin(R2);
 	$pin(Rm2);
-
-    //dual r2 = (R2 - a*a + sqrt((R2 - a*a) * (R2 - a*a) + 4 * a*a * z*z))/2;
 
     var r2 = (-a*a + CMath.sqrt(a*a*a*a - 2*a*a * Rm2 + R2*R2) + R2) / 2;
 
@@ -31,7 +30,8 @@ function kerr_schild_metric(t, x, y, z)
 
 	$pin(lv);
 
-    var f = rs * r2 * r / (r2 * r2 + a*a * z*z);
+    var f = (rs * r - Q * Q) * r * r / (r2 * r2 + a*a * z*z);
+    //dual f = rs * r*r*r / (r*r*r*r + a*a * z*z);
 
 	$pin(f);
 

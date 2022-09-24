@@ -1,17 +1,3 @@
-/*__kernel
-void generate_mips(__global uchar4* in, int page_width, int page_height, int width, int height, int lower_level)
-{
-    int x = get_global_id(0);
-    int y = get_global_id(1);
-
-    if(x >= width || y >= height)
-        return;
-
-    uint4 avg = 0;
-
-    avg += in[lower_level * ]
-}*/
-
 #define M_PIf ((float)M_PI)
 
 float3 cartesian_to_polar(float3 in)
@@ -226,12 +212,6 @@ float3 unrotate_vector(float3 bx, float3 by, float3 bz, float3 v)
     return rotate_vector((float3){bx.x, by.x, bz.x}, (float3){bx.y, by.y, bz.y}, (float3){bx.z, by.z, bz.z}, v);
 }
 
-/*float4 unrotate_vector4(float4 bx, float4 by, float4 bz, float4 bw, float4 v)
-{
-
-}*/
-
-///normalize
 float3 rejection(float3 my_vector, float3 basis)
 {
     return normalize(my_vector - dot(my_vector, basis) * basis);
@@ -392,6 +372,280 @@ float4 tensor_contract(float t16[16], float4 vec)
     return res;
 }
 
+///[0, 1, 2, 3]
+///[4, 5, 6, 7]
+///[8, 9, 10,11]
+///[12,13,14,15]
+
+void metric_inverse(const float m[16], float invOut[16])
+{
+    float inv[16], det;
+    int i;
+
+    inv[0] = m[5] * m[10] * m[15] -
+             m[5] * m[11] * m[11] -
+             m[6] * m[6]  * m[15] +
+             m[6] * m[7]  * m[11] +
+             m[7] * m[6]  * m[11] -
+             m[7] * m[7]  * m[10];
+
+    inv[1] = -m[1] * m[10] * m[15] +
+              m[1] * m[11] * m[11] +
+              m[6] * m[2] * m[15] -
+              m[6] * m[3] * m[11] -
+              m[7] * m[2] * m[11] +
+              m[7] * m[3] * m[10];
+
+    inv[5] = m[0] * m[10] * m[15] -
+             m[0] * m[11] * m[11] -
+             m[2] * m[2] * m[15] +
+             m[2] * m[3] * m[11] +
+             m[3] * m[2] * m[11] -
+             m[3] * m[3] * m[10];
+
+
+    inv[2] = m[1] * m[6] * m[15] -
+             m[1] * m[7] * m[11] -
+             m[5] * m[2] * m[15] +
+             m[5] * m[3] * m[11] +
+             m[7] * m[2] * m[7] -
+             m[7] * m[3] * m[6];
+
+    inv[6] = -m[0] * m[6] * m[15] +
+              m[0] * m[7] * m[11] +
+              m[1] * m[2] * m[15] -
+              m[1] * m[3] * m[11] -
+              m[3] * m[2] * m[7] +
+              m[3] * m[3] * m[6];
+
+    inv[10] = m[0] * m[5] * m[15] -
+              m[0] * m[7] * m[7] -
+              m[1] * m[1] * m[15] +
+              m[1] * m[3] * m[7] +
+              m[3] * m[1] * m[7] -
+              m[3] * m[3] * m[5];
+
+    inv[3] = -m[1] * m[6] * m[11] +
+              m[1] * m[7] * m[10] +
+              m[5] * m[2] * m[11] -
+              m[5] * m[3] * m[10] -
+              m[6] * m[2] * m[7] +
+              m[6] * m[3] * m[6];
+
+    inv[7] = m[0] * m[6] * m[11] -
+             m[0] * m[7] * m[10] -
+             m[1] * m[2] * m[11] +
+             m[1] * m[3] * m[10] +
+             m[2] * m[2] * m[7] -
+             m[2] * m[3] * m[6];
+
+    inv[11] = -m[0] * m[5] * m[11] +
+               m[0] * m[7] * m[6] +
+               m[1] * m[1] * m[11] -
+               m[1] * m[3] * m[6] -
+               m[2] * m[1] * m[7] +
+               m[2] * m[3] * m[5];
+
+    inv[15] = m[0] * m[5] * m[10] -
+              m[0] * m[6] * m[6] -
+              m[1] * m[1] * m[10] +
+              m[1] * m[2] * m[6] +
+              m[2] * m[1] * m[6] -
+              m[2] * m[2] * m[5];
+
+    inv[4] = inv[1];
+    inv[8] = inv[2];
+    inv[12] = inv[3];
+    inv[9] = inv[6];
+    inv[13] = inv[7];
+    inv[14] = inv[11];
+
+    det = m[0] * inv[0] + m[1] * inv[4] + m[2] * inv[8] + m[3] * inv[12];
+
+    det = 1.0 / det;
+
+    for (i = 0; i < 16; i++)
+        invOut[i] = inv[i] * det;
+}
+
+void matrix_inverse(const float m[16], float invOut[16])
+{
+    float inv[16], det;
+    int i;
+
+    inv[0] = m[5]  * m[10] * m[15] -
+             m[5]  * m[11] * m[14] -
+             m[9]  * m[6]  * m[15] +
+             m[9]  * m[7]  * m[14] +
+             m[13] * m[6]  * m[11] -
+             m[13] * m[7]  * m[10];
+
+    inv[4] = -m[4]  * m[10] * m[15] +
+              m[4]  * m[11] * m[14] +
+              m[8]  * m[6]  * m[15] -
+              m[8]  * m[7]  * m[14] -
+              m[12] * m[6]  * m[11] +
+              m[12] * m[7]  * m[10];
+
+    inv[8] = m[4]  * m[9] * m[15] -
+             m[4]  * m[11] * m[13] -
+             m[8]  * m[5] * m[15] +
+             m[8]  * m[7] * m[13] +
+             m[12] * m[5] * m[11] -
+             m[12] * m[7] * m[9];
+
+    inv[12] = -m[4]  * m[9] * m[14] +
+               m[4]  * m[10] * m[13] +
+               m[8]  * m[5] * m[14] -
+               m[8]  * m[6] * m[13] -
+               m[12] * m[5] * m[10] +
+               m[12] * m[6] * m[9];
+
+    inv[1] = -m[1]  * m[10] * m[15] +
+              m[1]  * m[11] * m[14] +
+              m[9]  * m[2] * m[15] -
+              m[9]  * m[3] * m[14] -
+              m[13] * m[2] * m[11] +
+              m[13] * m[3] * m[10];
+
+    inv[5] = m[0]  * m[10] * m[15] -
+             m[0]  * m[11] * m[14] -
+             m[8]  * m[2] * m[15] +
+             m[8]  * m[3] * m[14] +
+             m[12] * m[2] * m[11] -
+             m[12] * m[3] * m[10];
+
+    inv[9] = -m[0]  * m[9] * m[15] +
+              m[0]  * m[11] * m[13] +
+              m[8]  * m[1] * m[15] -
+              m[8]  * m[3] * m[13] -
+              m[12] * m[1] * m[11] +
+              m[12] * m[3] * m[9];
+
+    inv[13] = m[0]  * m[9] * m[14] -
+              m[0]  * m[10] * m[13] -
+              m[8]  * m[1] * m[14] +
+              m[8]  * m[2] * m[13] +
+              m[12] * m[1] * m[10] -
+              m[12] * m[2] * m[9];
+
+    inv[2] = m[1]  * m[6] * m[15] -
+             m[1]  * m[7] * m[14] -
+             m[5]  * m[2] * m[15] +
+             m[5]  * m[3] * m[14] +
+             m[13] * m[2] * m[7] -
+             m[13] * m[3] * m[6];
+
+    inv[6] = -m[0]  * m[6] * m[15] +
+              m[0]  * m[7] * m[14] +
+              m[4]  * m[2] * m[15] -
+              m[4]  * m[3] * m[14] -
+              m[12] * m[2] * m[7] +
+              m[12] * m[3] * m[6];
+
+    inv[10] = m[0]  * m[5] * m[15] -
+              m[0]  * m[7] * m[13] -
+              m[4]  * m[1] * m[15] +
+              m[4]  * m[3] * m[13] +
+              m[12] * m[1] * m[7] -
+              m[12] * m[3] * m[5];
+
+    inv[14] = -m[0]  * m[5] * m[14] +
+               m[0]  * m[6] * m[13] +
+               m[4]  * m[1] * m[14] -
+               m[4]  * m[2] * m[13] -
+               m[12] * m[1] * m[6] +
+               m[12] * m[2] * m[5];
+
+    inv[3] = -m[1] * m[6] * m[11] +
+              m[1] * m[7] * m[10] +
+              m[5] * m[2] * m[11] -
+              m[5] * m[3] * m[10] -
+              m[9] * m[2] * m[7] +
+              m[9] * m[3] * m[6];
+
+    inv[7] = m[0] * m[6] * m[11] -
+             m[0] * m[7] * m[10] -
+             m[4] * m[2] * m[11] +
+             m[4] * m[3] * m[10] +
+             m[8] * m[2] * m[7] -
+             m[8] * m[3] * m[6];
+
+    inv[11] = -m[0] * m[5] * m[11] +
+               m[0] * m[7] * m[9] +
+               m[4] * m[1] * m[11] -
+               m[4] * m[3] * m[9] -
+               m[8] * m[1] * m[7] +
+               m[8] * m[3] * m[5];
+
+    inv[15] = m[0] * m[5] * m[10] -
+              m[0] * m[6] * m[9] -
+              m[4] * m[1] * m[10] +
+              m[4] * m[2] * m[9] +
+              m[8] * m[1] * m[6] -
+              m[8] * m[2] * m[5];
+
+    det = m[0] * inv[0] + m[1] * inv[4] + m[2] * inv[8] + m[3] * inv[12];
+
+    det = 1.0 / det;
+
+    for(i = 0; i < 16; i++)
+        invOut[i] = inv[i] * det;
+}
+
+void get_christoffel_generic(float g_metric_generic[], float g_partials_generic[], float christoff[64])
+{
+    #ifndef GENERIC_BIG_METRIC
+    ///diagonal of the metric, because it only has diagonals
+    float g_inv[4] = {1/g_metric_generic[0], 1/g_metric_generic[1], 1/g_metric_generic[2], 1/g_metric_generic[3]};
+
+    {
+        #pragma unroll
+        for(int i=0; i < 4; i++)
+        {
+            float ginvii = 0.5 * g_inv[i];
+
+            #pragma unroll
+            for(int m=0; m < 4; m++)
+            {
+                float adding = ginvii * g_partials_generic[i * 4 + m];
+
+                christoff[i * 16 + i * 4 + m] += adding;
+                christoff[i * 16 + m * 4 + i] += adding;
+                christoff[i * 16 + m * 4 + m] -= ginvii * g_partials_generic[m * 4 + i];
+            }
+        }
+    }
+    #else
+    float g_inv_big[16] = {0};
+    metric_inverse(g_metric_generic, g_inv_big);
+
+    #pragma unroll
+    for(int i = 0; i < 4; i++)
+    {
+        #pragma unroll
+        for(int k = 0; k < 4; k++)
+        {
+            #pragma unroll
+            for(int l = 0; l < 4; l++)
+            {
+                float sum = 0;
+
+                #pragma unroll
+                for (int m = 0; m < 4; m++)
+                {
+                    sum += g_inv_big[i * 4 + m] * g_partials_generic[l * 16 + m * 4 + k];
+                    sum += g_inv_big[i * 4 + m] * g_partials_generic[k * 16 + m * 4 + l];
+                    sum -= g_inv_big[i * 4 + m] * g_partials_generic[m * 16 + k * 4 + l];
+                }
+
+                christoff[i * 16 + k * 4 + l] = 0.5f * sum;
+            }
+        }
+    }
+    #endif
+}
+
 float4 calculate_acceleration(float4 lightray_velocity, float g_metric[4], float g_partials[16])
 {
     #ifdef IS_CONSTANT_THETA
@@ -471,6 +725,7 @@ struct lightray
 {
     float4 position;
     float4 velocity;
+    float4 initial_quat;
     float4 acceleration;
     int sx, sy;
     float ku_uobsu;
@@ -523,11 +778,52 @@ float4 raise_index_big(float4 vec, float g_metric_big_inv[])
     return (float4)(ret[0], ret[1], ret[2], ret[3]);
 }
 
+float4 raise_index(float4 vec, float g_metric_inv[])
+{
+    float4 ret;
+
+    ret.x = vec.x * g_metric_inv[0];
+    ret.y = vec.y * g_metric_inv[1];
+    ret.z = vec.z * g_metric_inv[2];
+    ret.w = vec.w * g_metric_inv[3];
+
+    return ret;
+}
+
+float4 raise_index_generic(float4 vec, float g_metric_inv[])
+{
+    #ifdef GENERIC_BIG_METRIC
+    return raise_index_big(vec, g_metric_inv);
+    #else
+    return raise_index(vec, g_metric_inv);
+    #endif // GENERIC_BIG_METRIC
+}
+
+float4 lower_index_generic(float4 vec, float g_metric[])
+{
+    #ifdef GENERIC_BIG_METRIC
+    return lower_index_big(vec, g_metric);
+    #else
+    return lower_index(vec, g_metric);
+    #endif // GENERIC_BIG_METRIC
+}
+
 float dot_product_big(float4 u, float4 v, float g_metric_big[])
 {
     float4 lowered = lower_index_big(u, g_metric_big);
 
     return dot(lowered, v);
+}
+
+float dot_product_generic(float4 u, float4 v, float g_metric[])
+{
+    #ifdef GENERIC_BIG_METRIC
+    return dot_product_big(u, v, g_metric);
+    #else
+    float4 lowered = lower_index(u, g_metric);
+
+    return dot(lowered, v);
+    #endif // GENERIC_BIG_METRIC
 }
 
 void small_to_big_metric(float g_metric[], float g_metric_big[])
@@ -646,6 +942,43 @@ void calculate_metric_generic_big(float4 spacetime_position, float g_metric_out[
 
 void calculate_partial_derivatives_generic_big(float4 spacetime_position, float g_metric_partials[], dynamic_config_space struct dynamic_config* cfg)
 {
+    //#define NUMERICAL_DIFFERENTIATION
+    #ifdef NUMERICAL_DIFFERENTIATION
+    float g_metric[16] = {0};
+
+    {
+         calculate_metric_generic_big(spacetime_position, g_metric, cfg);
+    }
+
+    #pragma unroll(4)
+    for(int d = 0; d < 4; d++)
+    {
+        float g_metric_m[16] = {0};
+
+        float eps = 1e-3f;
+
+        float4 evector = (float4)(0,0,0,0);
+
+        if(d == 0)
+            evector.x = eps;
+        if(d == 1)
+            evector.y = eps;
+        if(d == 2)
+            evector.z = eps;
+        if(d == 3)
+            evector.w = eps;
+
+        calculate_metric_generic_big(spacetime_position + evector, g_metric_m, cfg);
+
+        for(int k=0; k < 16; k++)
+        {
+            g_metric_partials[d * 16 + k] = (g_metric_m[k] - g_metric[k]) / eps;
+        }
+    }
+    #endif
+
+    #define ANALYTIC_DIFFERENTIATION
+    #ifdef ANALYTIC_DIFFERENTIATION
     float v1 = spacetime_position.x;
     float v2 = spacetime_position.y;
     float v3 = spacetime_position.z;
@@ -673,13 +1006,6 @@ void calculate_partial_derivatives_generic_big(float4 spacetime_position, float 
     //g_metric_partials[0 * 16 + 14] = F15_P;
     g_metric_partials[0 * 16 + 15] = F16_P;
 
-    g_metric_partials[0 * 16 + 4] = g_metric_partials[0 * 16 + 1];
-    g_metric_partials[0 * 16 + 8] = g_metric_partials[0 * 16 + 2];
-    g_metric_partials[0 * 16 + 12] = g_metric_partials[0 * 16 + 3];
-    g_metric_partials[0 * 16 + 9] = g_metric_partials[0 * 16 + 6];
-    g_metric_partials[0 * 16 + 13] = g_metric_partials[0 * 16 + 7];
-    g_metric_partials[0 * 16 + 14] = g_metric_partials[0 * 16 + 11];
-
     g_metric_partials[1 * 16 + 0] = F17_P;
     g_metric_partials[1 * 16 + 1] = F18_P;
     g_metric_partials[1 * 16 + 2] = F19_P;
@@ -696,13 +1022,6 @@ void calculate_partial_derivatives_generic_big(float4 spacetime_position, float 
     //g_metric_partials[1 * 16 + 13] = F30_P;
     //g_metric_partials[1 * 16 + 14] = F31_P;
     g_metric_partials[1 * 16 + 15] = F32_P;
-
-    g_metric_partials[1 * 16 + 4] = g_metric_partials[1 * 16 + 1];
-    g_metric_partials[1 * 16 + 8] = g_metric_partials[1 * 16 + 2];
-    g_metric_partials[1 * 16 + 12] = g_metric_partials[1 * 16 + 3];
-    g_metric_partials[1 * 16 + 9] = g_metric_partials[1 * 16 + 6];
-    g_metric_partials[1 * 16 + 13] = g_metric_partials[1 * 16 + 7];
-    g_metric_partials[1 * 16 + 14] = g_metric_partials[1 * 16 + 11];
 
     g_metric_partials[2 * 16 + 0] = F33_P;
     g_metric_partials[2 * 16 + 1] = F34_P;
@@ -721,13 +1040,6 @@ void calculate_partial_derivatives_generic_big(float4 spacetime_position, float 
     //g_metric_partials[2 * 16 + 14] = F47_P;
     g_metric_partials[2 * 16 + 15] = F48_P;
 
-    g_metric_partials[2 * 16 + 4] = g_metric_partials[2 * 16 + 1];
-    g_metric_partials[2 * 16 + 8] = g_metric_partials[2 * 16 + 2];
-    g_metric_partials[2 * 16 + 12] = g_metric_partials[2 * 16 + 3];
-    g_metric_partials[2 * 16 + 9] = g_metric_partials[2 * 16 + 6];
-    g_metric_partials[2 * 16 + 13] = g_metric_partials[2 * 16 + 7];
-    g_metric_partials[2 * 16 + 14] = g_metric_partials[2 * 16 + 11];
-
     g_metric_partials[3 * 16 + 0] = F49_P;
     g_metric_partials[3 * 16 + 1] = F50_P;
     g_metric_partials[3 * 16 + 2] = F51_P;
@@ -744,6 +1056,28 @@ void calculate_partial_derivatives_generic_big(float4 spacetime_position, float 
     //g_metric_partials[3 * 16 + 13] = F62_P;
     //g_metric_partials[3 * 16 + 14] = F63_P;
     g_metric_partials[3 * 16 + 15] = F64_P;
+    #endif
+
+    g_metric_partials[0 * 16 + 4] = g_metric_partials[0 * 16 + 1];
+    g_metric_partials[0 * 16 + 8] = g_metric_partials[0 * 16 + 2];
+    g_metric_partials[0 * 16 + 12] = g_metric_partials[0 * 16 + 3];
+    g_metric_partials[0 * 16 + 9] = g_metric_partials[0 * 16 + 6];
+    g_metric_partials[0 * 16 + 13] = g_metric_partials[0 * 16 + 7];
+    g_metric_partials[0 * 16 + 14] = g_metric_partials[0 * 16 + 11];
+
+    g_metric_partials[1 * 16 + 4] = g_metric_partials[1 * 16 + 1];
+    g_metric_partials[1 * 16 + 8] = g_metric_partials[1 * 16 + 2];
+    g_metric_partials[1 * 16 + 12] = g_metric_partials[1 * 16 + 3];
+    g_metric_partials[1 * 16 + 9] = g_metric_partials[1 * 16 + 6];
+    g_metric_partials[1 * 16 + 13] = g_metric_partials[1 * 16 + 7];
+    g_metric_partials[1 * 16 + 14] = g_metric_partials[1 * 16 + 11];
+
+    g_metric_partials[2 * 16 + 4] = g_metric_partials[2 * 16 + 1];
+    g_metric_partials[2 * 16 + 8] = g_metric_partials[2 * 16 + 2];
+    g_metric_partials[2 * 16 + 12] = g_metric_partials[2 * 16 + 3];
+    g_metric_partials[2 * 16 + 9] = g_metric_partials[2 * 16 + 6];
+    g_metric_partials[2 * 16 + 13] = g_metric_partials[2 * 16 + 7];
+    g_metric_partials[2 * 16 + 14] = g_metric_partials[2 * 16 + 11];
 
     g_metric_partials[3 * 16 + 4] = g_metric_partials[3 * 16 + 1];
     g_metric_partials[3 * 16 + 8] = g_metric_partials[3 * 16 + 2];
@@ -825,100 +1159,69 @@ float4 spherical_velocity_to_generic_velocity(float4 in, float4 inv, dynamic_con
     return (float4)(o1, o2, o3, o4);
 }
 
-///[0, 1, 2, 3]
-///[4, 5, 6, 7]
-///[8, 9, 10,11]
-///[12,13,14,15]
-
-void metric_inverse(const float m[16], float invOut[16])
+float4 generic_to_cartesian(float4 in, dynamic_config_space struct dynamic_config* cfg)
 {
-    float inv[16], det;
-    int i;
+    float4 spherical = generic_to_spherical(in, cfg);
 
-    inv[0] = m[5] * m[10] * m[15] -
-             m[5] * m[11] * m[11] -
-             m[6] * m[6]  * m[15] +
-             m[6] * m[7]  * m[11] +
-             m[7] * m[6]  * m[11] -
-             m[7] * m[7]  * m[10];
+    return (float4)(spherical.x, polar_to_cartesian(spherical.yzw));
+}
 
-    inv[1] = -m[1] * m[10] * m[15] +
-              m[1] * m[11] * m[11] +
-              m[6] * m[2] * m[15] -
-              m[6] * m[3] * m[11] -
-              m[7] * m[2] * m[11] +
-              m[7] * m[3] * m[10];
+float4 generic_velocity_to_cartesian_velocity(float4 in, float4 in_v, dynamic_config_space struct dynamic_config* cfg)
+{
+    float4 spherical = generic_to_spherical(in, cfg);
+    float4 spherical_v = generic_velocity_to_spherical_velocity(in, in_v, cfg);
 
-    inv[5] = m[0] * m[10] * m[15] -
-             m[0] * m[11] * m[11] -
-             m[2] * m[2] * m[15] +
-             m[2] * m[3] * m[11] +
-             m[3] * m[2] * m[11] -
-             m[3] * m[3] * m[10];
+    return (float4)(spherical_v.x, spherical_velocity_to_cartesian_velocity(spherical.yzw, spherical_v.yzw));
+}
 
+float4 cartesian_to_generic(float4 in, dynamic_config_space struct dynamic_config* cfg)
+{
+    float3 polar = cartesian_to_polar(in.yzw);
 
-    inv[2] = m[1] * m[6] * m[15] -
-             m[1] * m[7] * m[11] -
-             m[5] * m[2] * m[15] +
-             m[5] * m[3] * m[11] +
-             m[7] * m[2] * m[7] -
-             m[7] * m[3] * m[6];
+    return spherical_to_generic((float4)(in.x, polar), cfg);
+}
 
-    inv[6] = -m[0] * m[6] * m[15] +
-              m[0] * m[7] * m[11] +
-              m[1] * m[2] * m[15] -
-              m[1] * m[3] * m[11] -
-              m[3] * m[2] * m[7] +
-              m[3] * m[3] * m[6];
+float4 cartesian_velocity_to_generic_velocity(float4 in, float4 in_v, dynamic_config_space struct dynamic_config* cfg)
+{
+    float3 polar = cartesian_to_polar(in.yzw);
+    float3 polar_v = cartesian_velocity_to_polar_velocity(in.yzw, in_v.yzw);
 
-    inv[10] = m[0] * m[5] * m[15] -
-              m[0] * m[7] * m[7] -
-              m[1] * m[1] * m[15] +
-              m[1] * m[3] * m[7] +
-              m[3] * m[1] * m[7] -
-              m[3] * m[3] * m[5];
+    return spherical_velocity_to_generic_velocity((float4)(in.x, polar), (float4)(in_v.x, polar_v), cfg);
+}
 
-    inv[3] = -m[1] * m[6] * m[11] +
-              m[1] * m[7] * m[10] +
-              m[5] * m[2] * m[11] -
-              m[5] * m[3] * m[10] -
-              m[6] * m[2] * m[7] +
-              m[6] * m[3] * m[6];
+float3 cartesian_to_spherical_g(float3 v)
+{
+    float v1 = 0;
+    float v2 = v.x;
+    float v3 = v.y;
+    float v4 = v.z;
 
-    inv[7] = m[0] * m[6] * m[11] -
-             m[0] * m[7] * m[10] -
-             m[1] * m[2] * m[11] +
-             m[1] * m[3] * m[10] +
-             m[2] * m[2] * m[7] -
-             m[2] * m[3] * m[6];
+    float o1 = 0;
+    float o2 = CART_TO_POL1;
+    float o3 = CART_TO_POL2;
+    float o4 = CART_TO_POL3;
 
-    inv[11] = -m[0] * m[5] * m[11] +
-               m[0] * m[7] * m[6] +
-               m[1] * m[1] * m[11] -
-               m[1] * m[3] * m[6] -
-               m[2] * m[1] * m[7] +
-               m[2] * m[3] * m[5];
+    return (float3)(o2, o3, o4);
+}
 
-    inv[15] = m[0] * m[5] * m[10] -
-              m[0] * m[6] * m[6] -
-              m[1] * m[1] * m[10] +
-              m[1] * m[2] * m[6] +
-              m[2] * m[1] * m[6] -
-              m[2] * m[2] * m[5];
+float3 cartesian_velocity_to_spherical_velocity_g(float3 v, float3 inv)
+{
+    float v1 = 0;
+    float v2 = v.x;
+    float v3 = v.y;
+    float v4 = v.z;
 
-    inv[4] = inv[1];
-    inv[8] = inv[2];
-    inv[12] = inv[3];
-    inv[9] = inv[6];
-    inv[13] = inv[7];
-    inv[14] = inv[11];
+    float dv1 = 0;
+    float dv2 = inv.x;
+    float dv3 = inv.y;
+    float dv4 = inv.z;
 
-    det = m[0] * inv[0] + m[1] * inv[4] + m[2] * inv[8] + m[3] * inv[12];
+    float o1 = CART_TO_POL_D0;
+    float o2 = CART_TO_POL_D1;
+    float o3 = CART_TO_POL_D2;
+    float o4 = CART_TO_POL_D3;
 
-    det = 1.0 / det;
-
-    for (i = 0; i < 16; i++)
-        invOut[i] = inv[i] * det;
+    return (float3)(o2, o3, o4);
 }
 
 float stable_quad(float a, float d, float k, float sign)
@@ -931,7 +1234,7 @@ float stable_quad(float a, float d, float k, float sign)
 
 float4 fix_light_velocity_big(float4 v, float g_metric_big[])
 {
-    //return v;
+    return v;
 
     float4 c = tensor_contract(g_metric_big, v);
 
@@ -1067,6 +1370,65 @@ float4 calculate_acceleration_big(float4 lightray_velocity, float g_metric_big[1
     return acceleration;
 }
 
+float3 project(float3 u, float3 v)
+{
+    return (dot(u, v) / dot(u, u)) * u;
+}
+
+struct ortho_result
+{
+    float3 v1, v2, v3;
+};
+
+struct ortho_result orthonormalise(float3 i1, float3 i2, float3 i3)
+{
+    float3 u1 = i1;
+    float3 u2 = i2;
+    float3 u3 = i3;
+
+    u2 = u2 - project(u1, u2);
+
+    u3 = u3 - project(u1, u3);
+    u3 = u3 - project(u2, u3);
+
+    struct ortho_result result;
+    result.v1 = normalize(u1);
+    result.v2 = normalize(u2);
+    result.v3 = normalize(u3);
+
+    return result;
+};
+
+struct ortho_result4
+{
+    float3 v1, v2, v3, v4;
+};
+
+struct ortho_result4 orthonormalise4(float3 i1, float3 i2, float3 i3, float3 i4)
+{
+    float3 u1 = i1;
+    float3 u2 = i2;
+    float3 u3 = i3;
+    float3 u4 = i4;
+
+    u2 = u2 - project(u1, u2);
+
+    u3 = u3 - project(u1, u3);
+    u3 = u3 - project(u2, u3);
+
+    u4 = u4 - project(u1, u4);
+    u4 = u4 - project(u2, u4);
+    u4 = u4 - project(u3, u4);
+
+    struct ortho_result4 result;
+    result.v1 = normalize(u1);
+    result.v2 = normalize(u2);
+    result.v3 = normalize(u3);
+    result.v4 = normalize(u4);
+
+    return result;
+};
+
 struct frame_basis
 {
     float4 v1;
@@ -1085,11 +1447,63 @@ float4 gram_proj(float4 u, float4 v, float big_metric[])
 
 float4 normalize_big_metric(float4 in, float big_metric[])
 {
-    float dot = dot_product_big(in, in, big_metric);
+    float d = dot_product_big(in, in, big_metric);
 
-    return in / native_sqrt(fabs(dot));
+    return in / native_sqrt(fabs(d));
 }
 
+float4 gram_proj_generic(float4 u, float4 v, float metric[])
+{
+    float top = dot_product_generic(u, v, metric);
+    float bottom = dot_product_generic(u, u, metric);
+
+    return (top / bottom) * u;
+}
+
+float4 normalise_generic(float4 in, float metric[])
+{
+    float d = dot_product_generic(in, in, metric);
+
+    return in / native_sqrt(fabs(d));
+}
+
+///i1-4 are raised
+struct frame_basis orthonormalise4_metric(float4 i1, float4 i2, float4 i3, float4 i4, float metric[])
+{
+    float4 u1 = i1;
+
+    float4 u2 = i2;
+    u2 = u2 - gram_proj_generic(u1, u2, metric);
+
+    float4 u3 = i3;
+    u3 = u3 - gram_proj_generic(u1, u3, metric);
+    u3 = u3 - gram_proj_generic(u2, u3, metric);
+
+    float4 u4 = i4;
+    u4 = u4 - gram_proj_generic(u1, u4, metric);
+    u4 = u4 - gram_proj_generic(u2, u4, metric);
+    u4 = u4 - gram_proj_generic(u3, u4, metric);
+
+    u1 = normalize(u1);
+    u2 = normalize(u2);
+    u3 = normalize(u3);
+    u4 = normalize(u4);
+
+    u1 = normalise_generic(u1, metric);
+    u2 = normalise_generic(u2, metric);
+    u3 = normalise_generic(u3, metric);
+    u4 = normalise_generic(u4, metric);
+
+    struct frame_basis ret;
+    ret.v1 = u1;
+    ret.v2 = u2;
+    ret.v3 = u3;
+    ret.v4 = u4;
+
+    return ret;
+};
+
+///todo: generic orthonormalisation
 struct frame_basis calculate_frame_basis(float big_metric[])
 {
     ///while really i think it should be columns, the metric tensor is always symmetric
@@ -1107,37 +1521,7 @@ struct frame_basis calculate_frame_basis(float big_metric[])
     i3 = raise_index_big(i3, g_big_metric_inverse);
     i4 = raise_index_big(i4, g_big_metric_inverse);
 
-    float4 u1 = i1;
-
-    float4 u2 = i2;
-    u2 = u2 - gram_proj(u1, u2, big_metric);
-
-    float4 u3 = i3;
-    u3 = u3 - gram_proj(u1, u3, big_metric);
-    u3 = u3 - gram_proj(u2, u3, big_metric);
-
-    float4 u4 = i4;
-    u4 = u4 - gram_proj(u1, u4, big_metric);
-    u4 = u4 - gram_proj(u2, u4, big_metric);
-    u4 = u4 - gram_proj(u3, u4, big_metric);
-
-    u1 = normalize(u1);
-    u2 = normalize(u2);
-    u3 = normalize(u3);
-    u4 = normalize(u4);
-
-    u1 = normalize_big_metric(u1, big_metric);
-    u2 = normalize_big_metric(u2, big_metric);
-    u3 = normalize_big_metric(u3, big_metric);
-    u4 = normalize_big_metric(u4, big_metric);
-
-    struct frame_basis ret;
-    ret.v1 = u1;
-    ret.v2 = u2;
-    ret.v3 = u3;
-    ret.v4 = u4;
-
-    return ret;
+    return orthonormalise4_metric(i1, i2, i3, i4, big_metric);
 }
 
 void print_metric_big_trace(float g_metric_big[])
@@ -1302,6 +1686,11 @@ float3 get_phi_axis(float3 pixel_direction, float4 polar_camera_in)
 
 float4 get_theta_adjustment_quat(float3 pixel_direction, float4 polar_camera_in, float angle_sign, bool debug)
 {
+    if(fast_length(pixel_direction) < 0.00001f)
+    {
+        pixel_direction = (float3){0, 1, 0};
+    }
+
     float3 apolar = polar_camera_in.yzw;
     apolar.x = fabs(apolar.x);
 
@@ -1368,7 +1757,7 @@ float3 get_texture_constant_theta_rotation(float3 pixel_direction, float4 polar_
 	return polar_position;
 }
 
-float3 calculate_pixel_direction(int cx, int cy, float width, float height, float4 polar_camera, float4 camera_quat, float2 base_angle)
+float3 calculate_pixel_direction(int cx, int cy, float width, float height, float4 polar_camera, float4 camera_quat)
 {
     #define FOV 90
 
@@ -1382,105 +1771,302 @@ float3 calculate_pixel_direction(int cx, int cy, float width, float height, floa
     pixel_direction = normalize(pixel_direction);
     pixel_direction = rot_quat(pixel_direction, camera_quat);
 
-    float3 up = {0, 0, 1};
-
-    if(base_angle.y != 0)
-    {
-        float4 goff2 = aa_to_quat(up, base_angle.y);
-
-        if(polar_camera.y < 0)
-        {
-            goff2 = aa_to_quat(up, -base_angle.y);
-        }
-
-        pixel_direction = rot_quat(pixel_direction, goff2);
-    }
-
-    if(base_angle.x != M_PIf/2)
-    {
-        ///gets the rotation associated with the theta intersection of r=0
-        float base_theta_angle = cos_mix(M_PIf/2, base_angle.x, clamp(1 - fabs(polar_camera.y), 0.f, 1.f));
-
-        float4 theta_goff = aa_to_quat(get_theta_axis(pixel_direction, polar_camera), -(-base_theta_angle + M_PIf/2));
-
-        if(polar_camera.y < 0)
-        {
-            float3 theta_axis = get_theta_axis(pixel_direction, polar_camera);
-
-            float4 new_thetaquat = aa_to_quat(theta_axis, -(-polar_camera.z + M_PIf/2));
-
-            pixel_direction = rot_quat(pixel_direction, new_thetaquat);
-
-            float3 phi_axis = get_phi_axis(pixel_direction, polar_camera);
-
-            ///the phi axis... is a basis up axis?
-            float4 new_quat = aa_to_quat(phi_axis, -(polar_camera.w + M_PIf/2));
-
-            pixel_direction = rot_quat(pixel_direction, new_quat);
-
-            float4 new_quat2 = aa_to_quat(phi_axis, -(polar_camera.w - M_PIf/2));
-
-            pixel_direction = rot_quat(pixel_direction, new_quat2);
-
-            float4 new_thetaquat2 = aa_to_quat(theta_axis, -(-polar_camera.z + M_PIf/2));
-
-            pixel_direction = rot_quat(pixel_direction, new_thetaquat2);
-
-            theta_goff = aa_to_quat(get_theta_axis(pixel_direction, polar_camera), (-base_theta_angle + M_PIf/2));
-        }
-
-        pixel_direction = rot_quat(pixel_direction, theta_goff);
-    }
-
     return pixel_direction;
 }
 
 int should_early_terminate(int x, int y, int width, int height, __global int* termination_buffer)
 {
+    if(x < 0 || y < 0 || x > width-1 || y > height-1)
+        return false;
+
     x = clamp(x, 0, width-1);
     y = clamp(y, 0, height-1);
 
     return termination_buffer[y * width + x] == 1;
 }
 
-__kernel
-void init_rays_generic(float4 polar_camera_in, float4 camera_quat,
-                       __global struct lightray* metric_rays, __global int* metric_ray_count,
-                       int width, int height,
-                       __global int* termination_buffer,
-                       int prepass_width, int prepass_height,
-                       int flip_geodesic_direction, float2 base_angle, dynamic_config_space struct dynamic_config* cfg)
+void get_tetrad_inverse(float4 e0_hi, float4 e1_hi, float4 e2_hi, float4 e3_hi, float4* oe0_lo, float4* oe1_lo, float4* oe2_lo, float4* oe3_lo)
 {
-    int id = get_global_id(0);
+    /*float m[16] = {e0_hi.x, e0_hi.y, e0_hi.z, e0_hi.w,
+                   e1_hi.x, e1_hi.y, e1_hi.z, e1_hi.w,
+                   e2_hi.x, e2_hi.y, e2_hi.z, e2_hi.w,
+                   e3_hi.x, e3_hi.y, e3_hi.z, e3_hi.w};*/
 
-    if(id >= width * height)
+    float m[16] = {e0_hi.x, e1_hi.x, e2_hi.x, e3_hi.x,
+                   e0_hi.y, e1_hi.y, e2_hi.y, e3_hi.y,
+                   e0_hi.z, e1_hi.z, e2_hi.z, e3_hi.z,
+                   e0_hi.w, e1_hi.w, e2_hi.w, e3_hi.w};
+
+    float inv[16] = {0};
+
+    matrix_inverse(m, inv);
+
+    *oe0_lo = (float4){inv[0 * 4 + 0], inv[0 * 4 + 1], inv[0 * 4 + 2], inv[0 * 4 + 3]};
+    *oe1_lo = (float4){inv[1 * 4 + 0], inv[1 * 4 + 1], inv[1 * 4 + 2], inv[1 * 4 + 3]};
+    *oe2_lo = (float4){inv[2 * 4 + 0], inv[2 * 4 + 1], inv[2 * 4 + 2], inv[2 * 4 + 3]};
+    *oe3_lo = (float4){inv[3 * 4 + 0], inv[3 * 4 + 1], inv[3 * 4 + 2], inv[3 * 4 + 3]};
+}
+
+/// e upper i, lower mu, which must be inverse of tetrad to coordinate basis vectors
+float4 coordinate_to_tetrad_basis(float4 vec_up, float4 e0_lo, float4 e1_lo, float4 e2_lo, float4 e3_lo)
+{
+    float4 ret;
+
+    ret.x = dot(e0_lo, vec_up);
+    ret.y = dot(e1_lo, vec_up);
+    ret.z = dot(e2_lo, vec_up);
+    ret.w = dot(e3_lo, vec_up);
+
+    return ret;
+
+    //return vec_up.x * e0_lo + vec_up.y * e1_lo + vec_up.z * e2_lo + vec_up.w * e3_lo;
+}
+
+///so. The hi tetrads are the one we get out of gram schmidt
+///so this is lower i, upper mu, against a vec with upper i
+float4 tetrad_to_coordinate_basis(float4 vec_up, float4 e0_hi, float4 e1_hi, float4 e2_hi, float4 e3_hi)
+{
+    return vec_up.x * e0_hi + vec_up.y * e1_hi + vec_up.z * e2_hi + vec_up.w * e3_hi;
+}
+
+///specifically: cartesian minkowski
+void get_local_minkowski(float4 e0_hi, float4 e1_hi, float4 e2_hi, float4 e3_hi, float g_metric_big[], float minkowski[])
+{
+    ///a * 4 + mu
+    float m[16] = {e0_hi.x, e0_hi.y, e0_hi.z, e0_hi.w,
+                   e1_hi.x, e1_hi.y, e1_hi.z, e1_hi.w,
+                   e2_hi.x, e2_hi.y, e2_hi.z, e2_hi.w,
+                   e3_hi.x, e3_hi.y, e3_hi.z, e3_hi.w};
+
+    for(int a=0; a < 4; a++)
+    {
+        for(int b=0; b < 4; b++)
+        {
+            float sum = 0;
+
+            for(int mu=0; mu < 4; mu++)
+            {
+                for(int v=0; v < 4; v++)
+                {
+                    sum += g_metric_big[mu * 4 + v] * m[a * 4 + mu] * m[b * 4 + v];
+                }
+            }
+
+            minkowski[a * 4 + b] = sum;
+        }
+    }
+}
+
+void quat_to_matrix(float4 q, float m[9])
+{
+    float qx = q.x;
+    float qy = q.y;
+    float qz = q.z;
+    float qw = q.w;
+
+    m[0 * 3 + 0] = 1 - 2*qy*qy - 2*qz*qz;
+    m[0 * 3 + 1] = 2*qx*qy - 2*qz*qw;
+    m[0 * 3 + 2] = 2*qx*qz + 2*qy*qw;
+
+    m[1 * 3 + 0] = 2*qx*qy + 2*qz*qw;
+    m[1 * 3 + 1] = 1 - 2*qx*qx - 2*qz*qz;
+    m[1 * 3 + 2] = 2*qy*qz - 2*qx*qw;
+
+    m[2 * 3 + 0] = 2*qx*qz - 2*qy*qw;
+    m[2 * 3 + 1] = 2*qy*qz + 2*qx*qw;
+    m[2 * 3 + 2] = 1 - 2*qx*qx - 2*qy*qy;
+}
+
+float4 matrix_to_quat(float m[9])
+{
+    float4 l;
+
+    float m00 = m[0 * 3 + 0];
+    float m11 = m[1 * 3 + 1];
+    float m22 = m[2 * 3 + 2];
+
+    l.w = sqrt( max( 0.f, 1 + m00 + m11 + m22 ) ) / 2;
+    l.x = sqrt( max( 0.f, 1 + m00 - m11 - m22 ) ) / 2;
+    l.y = sqrt( max( 0.f, 1 - m00 + m11 - m22 ) ) / 2;
+    l.z = sqrt( max( 0.f, 1 - m00 - m11 + m22 ) ) / 2;
+
+    float m21 = m[2 * 3 + 1];
+    float m12 = m[1 * 3 + 2];
+    float m02 = m[0 * 3 + 2];
+    float m20 = m[2 * 3 + 0];
+    float m10 = m[1 * 3 + 0];
+    float m01 = m[0 * 3 + 1];
+
+    l.x = copysign( l.x, m21 - m12 );
+    l.y = copysign( l.y, m02 - m20 );
+    l.z = copysign( l.z, m10 - m01 );
+
+    return l;
+}
+
+float4 parallel_transport_get_acceleration(float4 X, float4 geodesic_position, float4 geodesic_velocity, dynamic_config_space struct dynamic_config* cfg)
+{
+    float X_arr[4] = {X.x, X.y, X.z, X.w};
+    float Y_arr[4] = {geodesic_velocity.x, geodesic_velocity.y, geodesic_velocity.z, geodesic_velocity.w};
+
+    float christoffel[64] = {0};
+
+    {
+        #ifndef GENERIC_BIG_METRIC
+        float g_metric[4] = {0};
+        float g_partials[16] = {0};
+
+        calculate_metric_generic(geodesic_position, g_metric, cfg);
+        calculate_partial_derivatives_generic(geodesic_position, g_partials, cfg);
+        #else
+        float g_metric[16] = {0};
+        float g_partials[64] = {0};
+
+        calculate_metric_generic_big(geodesic_position, g_metric, cfg);
+        calculate_partial_derivatives_generic_big(geodesic_position, g_partials, cfg);
+        #endif // GENERIC_BIG_METRIC
+
+        get_christoffel_generic(g_metric, g_partials, christoffel);
+    }
+
+    float accel[4] = {0};
+
+    for(int a=0; a < 4; a++)
+    {
+        float sum = 0;
+
+        for(int b=0; b < 4; b++)
+        {
+            for(int s=0; s < 4; s++)
+            {
+                sum += christoffel[a * 16 + b * 4 + s] * X_arr[b] * Y_arr[s];
+            }
+        }
+
+        accel[a] = -sum;
+    }
+
+    return (float4){accel[0], accel[1], accel[2], accel[3]};
+}
+
+__kernel
+void init_basis_speed(__global float4* camera_rot, float speed, __global float4* basis_speed_out)
+{
+    if(get_global_id(0) != 0)
         return;
 
-    const int cx = id % width;
-    const int cy = id / width;
+    float3 base = {0, 0, 1};
 
-    float3 pixel_direction = calculate_pixel_direction(cx, cy, width, height, polar_camera_in, camera_quat, base_angle);
+    float3 rotated = rot_quat(base, *camera_rot);
 
-    float4 polar_camera = polar_camera_in;
+    *basis_speed_out = (float4)(normalize(rotated) * speed, 0);
+}
 
-    #if defined(GENERIC_CONSTANT_THETA) || defined(DEBUG_CONSTANT_THETA)
+///ok I've been procrastinating this for a while
+///I want to parallel transport my camera vectors, if and only if I'm on a geodesic
+///so: I need to first define local camera vectors
+///then I need to get a local tetrad
+///then I need to multiply my camera vectors out by the tetrad to get them in global coordinates. This means converting from a tetrad basis, to a coordinate basis
+///once in global coordinates, I need to parallel transport them
+///then, to render, I.. want to convert them back to a tetrad basis?
+__kernel
+void handle_controls_free(__global float4* camera_pos_cart, __global float4* camera_rot,
+                          float2 mouse_delta, float4 unrotated_translation, float universe_size,
+                          dynamic_config_space struct dynamic_config* cfg)
+{
+    ///translation is: .x is forward - back, .y = right - left, .z = down - up
+    ///totally arbitrary, purely to pass to the GPU
+    if(get_global_id(0) != 0)
+        return;
+
+    float4 local_camera_quat = *camera_rot;
+
+    if(mouse_delta.x != 0)
     {
-        adjust_pixel_direction_and_camera_theta(pixel_direction, polar_camera, &pixel_direction, &polar_camera, cx==500&&cy==400);
-    }
-    #endif // GENERIC_CONSTANT_THETA
+        float4 q = aa_to_quat((float3)(0, 0, -1), mouse_delta.x);
 
-    if(cx == 500 && cy == 400)
+        local_camera_quat = quat_multiply(q, local_camera_quat);
+    }
+
     {
-        //printf("Pixel direction %f %f %f cam %f %f %f\n", pixel_direction.x, pixel_direction.y, pixel_direction.z, polar_camera.y, polar_camera.z, polar_camera.w);
+        float3 right = rot_quat((float3){1, 0, 0}, local_camera_quat);
+
+        if(mouse_delta.y != 0)
+        {
+            float4 q = aa_to_quat(right, mouse_delta.y);
+
+            local_camera_quat = quat_multiply(q, local_camera_quat);
+        }
     }
 
+    float4 local_camera_pos_cart = *camera_pos_cart;
+
+    float3 up = {0, 0, -1};
+    float3 right = rot_quat((float3){1, 0, 0}, local_camera_quat);
+    float3 forw = rot_quat((float3){0, 0, 1}, local_camera_quat);
+
+    float3 offset = {0,0,0};
+
+    offset += forw * unrotated_translation.x;
+    offset += right * unrotated_translation.y;
+    offset += up * unrotated_translation.z;
+
+    local_camera_pos_cart.y += offset.x;
+    local_camera_pos_cart.z += offset.y;
+    local_camera_pos_cart.w += offset.z;
+
+    {
+        float rad = length(local_camera_pos_cart.yzw);
+
+        if(rad > universe_size * 0.99f)
+        {
+            local_camera_pos_cart.yzw = normalize(local_camera_pos_cart.yzw) * universe_size * 0.99f;
+        }
+    }
+
+    *camera_pos_cart = local_camera_pos_cart;
+    *camera_rot = local_camera_quat;
+}
+
+/*__kernel
+void quat_to_basis(__global float4* camera_quat,
+                   __global float4* e0, __global float4* e1, __global float4* e2, __global float4* e3,
+                   __global float4* b0, __global float4* b1, __global float4* b2)
+{
+    if(get_global_id(0) != 0)
+
+}*/
+
+///https://arxiv.org/pdf/0904.4184.pdf 1.4.18
+float4 get_timelike_vector(float3 cartesian_basis_speed, float time_direction,
+                           float4 e0, float4 e1, float4 e2, float4 e3)
+{
+    float v = length(cartesian_basis_speed);
+    float Y = 1 / sqrt(1 - v*v);
+
+    float B = v;
+
+    float psi = B * Y;
+
+    float4 bT = time_direction * Y * e0;
+
+    float3 dir = normalize(cartesian_basis_speed);
+
+    if(v == 0)
+        dir = (float3)(0, 0, 1);
+
+    float4 bX = psi * dir.x * e1;
+    float4 bY = psi * dir.y * e2;
+    float4 bZ = psi * dir.z * e3;
+
+    return bT + bX + bY + bZ;
+}
+
+void calculate_tetrads(float4 polar_camera, float3 cartesian_basis_speed,
+                       float4* e0_out, float4* e1_out, float4* e2_out, float4* e3_out,
+                       dynamic_config_space struct dynamic_config* cfg, int should_orient)
+{
     float4 at_metric = spherical_to_generic(polar_camera, cfg);
-
-    /*if(cx == 500 && cy == 400)
-    {
-        printf("At %f %f %f %f\n", at_metric.x, at_metric.y, at_metric.z, at_metric.w);
-        printf("was %f %f %f %f\n", cartesian_camera_pos.x, cartesian_camera_pos.y, cartesian_camera_pos.z, cartesian_camera_pos.w);
-    }*/
 
     #ifndef GENERIC_BIG_METRIC
     float g_metric[4] = {};
@@ -1488,19 +2074,19 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat,
 
     float4 co_basis = (float4){native_sqrt(-g_metric[0]), native_sqrt(g_metric[1]), native_sqrt(g_metric[2]), native_sqrt(g_metric[3])};
 
-    float4 bT = (float4)(1/co_basis.x, 0, 0, 0); ///or bt
-    float4 bX = (float4)(0, 1/co_basis.y, 0, 0); ///or br
-    float4 btheta = (float4)(0, 0, 1/co_basis.z, 0);
-    float4 bphi = (float4)(0, 0, 0, 1/co_basis.w);
+    float4 e0 = (float4)(1/co_basis.x, 0, 0, 0); ///or bt
+    float4 e1 = (float4)(0, 1/co_basis.y, 0, 0); ///or br
+    float4 e2 = (float4)(0, 0, 1/co_basis.z, 0);
+    float4 e3 = (float4)(0, 0, 0, 1/co_basis.w);
     #else
     float g_metric_big[16] = {0};
     calculate_metric_generic_big(at_metric, g_metric_big, cfg);
 
     ///contravariant
-    float4 bT;
-    float4 bX;
-    float4 btheta;
-    float4 bphi;
+    float4 e0;
+    float4 e1;
+    float4 e2;
+    float4 e3;
 
     {
         struct frame_basis basis = calculate_frame_basis(g_metric_big);
@@ -1516,28 +2102,14 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat,
             printf("ORTHONORMAL? %f %f %f %f %f\n", d1, d2, d3, d4, d5);
         }*/
 
-        bT = basis.v1;
-        bX = basis.v2;
-        btheta = basis.v3;
-        bphi = basis.v4;
+        e0 = basis.v1;
+        e1 = basis.v2;
+        e2 = basis.v3;
+        e3 = basis.v4;
     }
     #endif // GENERIC_BIG_METRIC
 
-    #if 0
-    if(cx == 500 && cy == 400)
-    {
-        /*printf("BT %f %f %f %f\n", bT.x, bT.y, bT.z, bT.w);
-        printf("bX %f %f %f %f\n", bX.x, bX.y, bX.z, bX.w);
-        printf("btheta %f %f %f %f\n", btheta.x, btheta.y, btheta.z, btheta.w);
-        printf("bphi %f %f %f %f\n", bphi.x, bphi.y, bphi.z, bphi.w);*/
-
-        /*printf("oBT %f %f %f %f\n", obT.x, obT.y, obT.z, obT.w);
-        printf("obX %f %f %f %f\n", obX.x, obX.y, obX.z, obX.w);
-        printf("obtheta %f %f %f %f\n", obtheta.x, obtheta.y, obtheta.z, obtheta.w);
-        printf("obphi %f %f %f %f\n", obphi.x, obphi.y, obphi.z, obphi.w);*/
-    }
-    #endif // 0
-
+    /*
     ///???
     float4 observer_velocity = bT;
 
@@ -1555,29 +2127,662 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat,
     float4 sVx = tensor_contract(lorentz, btheta);
     float4 sVy = tensor_contract(lorentz, bphi);
     float4 sVz = tensor_contract(lorentz, bX);
+    */
 
-    float4 polar_x = generic_velocity_to_spherical_velocity(at_metric, sVx, cfg);
-    float4 polar_y = generic_velocity_to_spherical_velocity(at_metric, sVy, cfg);
-    float4 polar_z = generic_velocity_to_spherical_velocity(at_metric, sVz, cfg);
-
-    float3 apolar = polar_camera.yzw;
-    apolar.x = fabs(apolar.x);
-
-    float3 cartesian_cx = normalize(spherical_velocity_to_cartesian_velocity(apolar, polar_x.yzw));
-    float3 cartesian_cy = normalize(spherical_velocity_to_cartesian_velocity(apolar, polar_y.yzw));
-    float3 cartesian_cz = normalize(spherical_velocity_to_cartesian_velocity(apolar, polar_z.yzw));
-
-    /*if(cx == 500 && cy == 400)
+    if(should_orient)
     {
-        printf("ANGLES %f %f\n", base_angle.y, base_angle.x);
+        /*printf("Basis bT %f %f %f %f\n", e0.x, e0.y, e0.z, e0.w);
+        printf("Basis sVx %f %f %f %f\n", e1.x, e1.y, e1.z, e1.w);
+        printf("Basis sVy %f %f %f %f\n", e2.x, e2.y, e2.z, e2.w);
+        printf("Basis sVz %f %f %f %f\n", e3.x, e3.y, e3.z, e3.w);*/
+
+        ///void get_tetrad_inverse(float4 e0_hi, float4 e1_hi, float4 e2_hi, float4 e3_hi, float4* oe0_lo, float4* oe1_lo, float4* oe2_lo, float4* oe3_lo)
+
+        float4 le0;
+        float4 le1;
+        float4 le2;
+        float4 le3;
+
+        {
+            float3 apolar = polar_camera.yzw;
+            apolar.x = fabs(apolar.x);
+
+            float3 cart_camera = polar_to_cartesian(apolar);
+
+            float4 e_lo[4];
+            get_tetrad_inverse(e0, e1, e2, e3, &e_lo[0], &e_lo[1], &e_lo[2], &e_lo[3]);
+
+            float3 cx = (float3)(1, 0, 0);
+            float3 cy = (float3)(0, 1, 0);
+            float3 cz = (float3)(0, 0, 1);
+
+            float3 sx = cartesian_velocity_to_polar_velocity(cart_camera, cx);
+            float3 sy = cartesian_velocity_to_polar_velocity(cart_camera, cy);
+            float3 sz = cartesian_velocity_to_polar_velocity(cart_camera, cz);
+
+            if(polar_camera.y < 0)
+            {
+                sx.x = -sx.x;
+                sy.x = -sy.x;
+                sz.x = -sz.x;
+            }
+
+            float4 gx = spherical_velocity_to_generic_velocity(polar_camera, (float4)(0, sx), cfg);
+            float4 gy = spherical_velocity_to_generic_velocity(polar_camera, (float4)(0, sy), cfg);
+            float4 gz = spherical_velocity_to_generic_velocity(polar_camera, (float4)(0, sz), cfg);
+
+            /*float3 right = rot_quat((float3){1, 0, 0}, local_camera_quat);
+            float3 forw = rot_quat((float3){0, 0, 1}, local_camera_quat);*/
+
+            ///normalise with y first, so that the camera controls always work intuitively - as they are inherently a 'global' concept
+            float4 approximate_basis[3] = {gy, gx, gz};
+
+            float4 tE1 = coordinate_to_tetrad_basis(approximate_basis[0], e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
+            float4 tE2 = coordinate_to_tetrad_basis(approximate_basis[1], e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
+            float4 tE3 = coordinate_to_tetrad_basis(approximate_basis[2], e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
+
+            struct ortho_result result = orthonormalise(tE1.yzw, tE2.yzw, tE3.yzw);
+
+            float4 basis1 = (float4)(0, result.v1);
+            float4 basis2 = (float4)(0, result.v2);
+            float4 basis3 = (float4)(0, result.v3);
+
+            float4 x_basis = basis2;
+            float4 y_basis = basis1;
+            float4 z_basis = basis3;
+
+            float4 x_out = tetrad_to_coordinate_basis(x_basis, e0, e1, e2, e3);
+            float4 y_out = tetrad_to_coordinate_basis(y_basis, e0, e1, e2, e3);
+            float4 z_out = tetrad_to_coordinate_basis(z_basis, e0, e1, e2, e3);
+
+            le0 = e0;
+            le1 = x_out;
+            le2 = y_out;
+            le3 = z_out;
+        }
+
+        /*printf("Out Basis bT %f %f %f %f\n", le0.x, le0.y, le0.z, le0.w);
+        printf("Out Basis sVx %f %f %f %f\n", le1.x, le1.y, le1.z, le1.w);
+        printf("Out Basis sVy %f %f %f %f\n", le2.x, le2.y, le2.z, le2.w);
+        printf("Out Basis sVz %f %f %f %f\n", le3.x, le3.y, le3.z, le3.w);*/
+
+        e0 = le0;
+        e1 = le1;
+        e2 = le2;
+        e3 = le3;
+    }
+
+
+    {
+        float4 observer_velocity = get_timelike_vector(cartesian_basis_speed, 1, e0, e1, e2, e3);
+
+        float lorentz[16] = {};
+
+        #ifndef GENERIC_BIG_METRIC
+        float g_metric[4] = {};
+        calculate_metric_generic(at_metric, g_metric, cfg);
+        calculate_lorentz_boost(e0, observer_velocity, g_metric, lorentz);
+        #else
+        float g_metric_big[16] = {0};
+        calculate_metric_generic_big(at_metric, g_metric_big, cfg);
+        calculate_lorentz_boost_big(e0, observer_velocity, g_metric_big, lorentz);
+        #endif // GENERIC_METRIC
+
+        e0 = observer_velocity;
+        e1 = tensor_contract(lorentz, e1);
+        e2 = tensor_contract(lorentz, e2);
+        e3 = tensor_contract(lorentz, e3);
+    }
+
+
+    *e0_out = e0;
+    *e1_out = e1;
+    *e2_out = e2;
+    *e3_out = e3;
+}
+
+__kernel
+void boost_tetrad(__global float4* polar_position, __global float3* geodesic_basis_speed,
+                  __global float4* e0_io, __global float4* e1_io, __global float4* e2_io, __global float4* e3_io,
+                  dynamic_config_space struct dynamic_config* cfg)
+{
+    if(get_global_id(0) != 0)
+        return;
+
+    float4 at_metric = spherical_to_generic(*polar_position, cfg);
+
+    float4 e0 = *e0_io;
+    float4 e1 = *e1_io;
+    float4 e2 = *e2_io;
+    float4 e3 = *e3_io;
+
+    float4 observer_velocity = get_timelike_vector(*geodesic_basis_speed, 1, e0, e1, e2, e3);
+
+    float lorentz[16] = {};
+
+    #ifndef GENERIC_BIG_METRIC
+    float g_metric[4] = {};
+    calculate_metric_generic(at_metric, g_metric, cfg);
+    calculate_lorentz_boost(e0, observer_velocity, g_metric, lorentz);
+    #else
+    float g_metric_big[16] = {};
+    calculate_metric_generic_big(at_metric, g_metric_big, cfg);
+    calculate_lorentz_boost_big(e0, observer_velocity, g_metric_big, lorentz);
+    #endif // GENERIC_METRIC
+
+    e0 = observer_velocity;
+    e1 = tensor_contract(lorentz, e1);
+    e2 = tensor_contract(lorentz, e2);
+    e3 = tensor_contract(lorentz, e3);
+
+    *e0_io = e0;
+    *e1_io = e1;
+    *e2_io = e2;
+    *e3_io = e3;
+}
+
+__kernel
+void init_basis_vectors(__global float4* g_polar_camera_in, __global float4* g_camera_quat,
+                        float3 cartesian_basis_speed,
+                        __global float4* e0_out, __global float4* e1_out, __global float4* e2_out, __global float4* e3_out,
+                        dynamic_config_space struct dynamic_config* cfg)
+{
+    if(get_global_id(0) != 0)
+        return;
+
+    float4 polar_camera_in = *g_polar_camera_in;
+
+    float4 e0;
+    float4 e1;
+    float4 e2;
+    float4 e3;
+
+    calculate_tetrads(polar_camera_in, cartesian_basis_speed, &e0, &e1, &e2, &e3, cfg, 1);
+
+    *e0_out = e0;
+    *e1_out = e1;
+    *e2_out = e2;
+    *e3_out = e3;
+}
+
+float4 mix_spherical(float4 in1, float4 in2, float a)
+{
+    float4 ain1 = in1;
+    float4 ain2 = in2;
+
+    ain1.y = fabs(ain1.y);
+    ain2.y = fabs(ain2.y);
+
+    float3 cart1 = polar_to_cartesian(ain1.yzw);
+    float3 cart2 = polar_to_cartesian(ain2.yzw);
+
+    float r1 = in1.y;
+    float r2 = in2.y;
+
+    float3 mixed = mix(cart1, cart2, a);
+
+    float3 as_polar = cartesian_to_polar(mixed);
+
+    as_polar.x = mix(r1, r2, a);
+
+    float t = mix(in1.x, in2.x, a);
+
+    return (float4)(t, as_polar);
+}
+
+__kernel
+void parallel_transport_quantity(__global float4* geodesic_path, __global float4* geodesic_velocity, __global float* ds_in, __global float4* quantity, __global int* count_in, __global float4* quantity_out, dynamic_config_space struct dynamic_config* cfg)
+{
+    if(get_global_id(0) != 0)
+        return;
+
+    if(*count_in == 0)
+        return;
+
+    float4 current_quantity = *quantity;
+
+    quantity_out[0] = current_quantity;
+
+    int cnt = *count_in;
+
+    if(cnt == 1)
+        return;
+
+    for(int i=0; i < cnt - 1; i++)
+    {
+        float ds = ds_in[i];
+
+        float4 current_pos = geodesic_path[i];
+        float4 next_pos = geodesic_path[i + 1];
+
+        float4 f_x = parallel_transport_get_acceleration(current_quantity, geodesic_path[i], geodesic_velocity[i], cfg);
+
+        float4 intermediate_next = current_quantity + f_x * ds;
+
+        float4 next = current_quantity + 0.5f * ds * (f_x + parallel_transport_get_acceleration(intermediate_next, geodesic_path[i + 1], geodesic_velocity[i + 1], cfg));
+
+        ///so. quantity_out[0] ends up being initial, quantity_out[1] = after one transport
+        quantity_out[i] = current_quantity;
+
+        current_quantity = next;
+    }
+
+    ///need to write final one
+    quantity_out[cnt - 1] = current_quantity;
+}
+
+__kernel
+void handle_interpolating_geodesic(__global float4* geodesic_path, __global float4* geodesic_velocity, __global float* dT_ds, __global float* ds_in,
+                                   __global float4* g_camera_polar_out,
+                                   __global float4* t_e0_in, __global float4* t_e1_in, __global float4* t_e2_in, __global float4* t_e3_in,
+                                   __global float4* e0_out, __global float4* e1_out, __global float4* e2_out, __global float4* e3_out,
+                                   float target_time,
+                                   __global int* count_in,
+                                   int parallel_transport_observer,
+                                   __global float3* geodesic_basis_speed,
+                                   __global float4* interpolated_geodesic_velocity,
+                                   dynamic_config_space struct dynamic_config* cfg)
+{
+    if(get_global_id(0) != 0)
+        return;
+
+    if(*count_in == 0)
+        return;
+
+    float4 start_generic = geodesic_path[0];
+
+    if(!parallel_transport_observer)
+    {
+        float4 e0, e1, e2, e3;
+        calculate_tetrads(generic_to_spherical(start_generic, cfg), *geodesic_basis_speed, &e0, &e1, &e2, &e3, cfg, 1);
+
+        *e0_out = e0;
+        *e1_out = e1;
+        *e2_out = e2;
+        *e3_out = e3;
+    }
+    else
+    {
+        *e0_out = t_e0_in[0];
+        *e1_out = t_e1_in[0];
+        *e2_out = t_e2_in[0];
+        *e3_out = t_e3_in[0];
+    }
+
+    int cnt = *count_in;
+
+    //float current_time = geodesic_path[0].x;
+    float current_proper_time = 0;
+
+    *g_camera_polar_out = generic_to_spherical(start_generic, cfg);
+    *interpolated_geodesic_velocity = geodesic_velocity[0];
+
+    if(cnt == 1)
+        return;
+
+    for(int i=0; i < cnt - 1; i++)
+    {
+        float4 current_pos = geodesic_path[i];
+        float4 next_pos = geodesic_path[i + 1];
+
+        /*{
+            #ifndef GENERIC_BIG_METRIC
+            float g_metric[4] = {0};
+            calculate_metric_generic(next_pos, g_metric, cfg);
+            #else
+            float g_metric[16] = {0};
+            calculate_metric_generic_big(next_pos, g_metric, cfg);
+            #endif // GENERIC_BIG_METRIC
+
+            struct frame_basis basis = orthonormalise4_metric(ne0, ne1, ne2, ne3, g_metric);
+
+            ne0 = basis.v1;
+            ne1 = basis.v2;
+            ne2 = basis.v3;
+            ne3 = basis.v4;
+        }*/
+
+        if(next_pos.x < current_pos.x)
+        {
+            float4 im = current_pos;
+            current_pos = next_pos;
+            next_pos = im;
+        }
+
+        //float dt = next_pos.x - current_pos.x;
+        //float next_proper_time = current_proper_time + dT_dt[i] * dt;
+
+        float next_proper_time = current_proper_time + dT_ds[i] * ds_in[i];
+
+        #ifdef INTERPOLATE_USE_COORDINATE_TIME
+        if(target_time >= current_pos.x && target_time < next_pos.x || target_time < current_pos.x)
+        #else
+        if(target_time >= current_proper_time && target_time < next_proper_time || target_time < current_proper_time)
+        #endif
+        {
+            #ifdef INTERPOLATE_USE_COORDINATE_TIME
+            float dx = (target_time - current_pos.x) / (next_pos.x - current_pos.x);
+            #else
+            float dx = (target_time - current_proper_time) / (next_proper_time - current_proper_time);
+            #endif
+
+            #ifdef INTERPOLATE_USE_COORDINATE_TIME
+            if(target_time < current_pos.x)
+                dx = 0;
+            #else
+            if(target_time < current_proper_time)
+                dx = 0;
+            #endif
+
+            ///NEED TO BACKWARDS ROTATE POS FOR CONSTANT THETA
+            float4 spherical1 = generic_to_spherical(current_pos, cfg);
+            float4 spherical2 = generic_to_spherical(next_pos, cfg);
+
+            float4 fin_polar = mix_spherical(spherical1, spherical2, dx);
+            *g_camera_polar_out = fin_polar;
+
+            float4 e0 = t_e0_in[i];
+            float4 e1 = t_e1_in[i];
+            float4 e2 = t_e2_in[i];
+            float4 e3 = t_e3_in[i];
+
+            float4 ne0 = t_e0_in[i + 1];
+            float4 ne1 = t_e1_in[i + 1];
+            float4 ne2 = t_e2_in[i + 1];
+            float4 ne3 = t_e3_in[i + 1];
+
+            float4 oe0 = mix(e0, ne0, dx);
+            float4 oe1 = mix(e1, ne1, dx);
+            float4 oe2 = mix(e2, ne2, dx);
+            float4 oe3 = mix(e3, ne3, dx);
+
+            if(!parallel_transport_observer)
+            {
+                calculate_tetrads(fin_polar, *geodesic_basis_speed, &oe0, &oe1, &oe2, &oe3, cfg, 1);
+            }
+
+            *interpolated_geodesic_velocity = mix(geodesic_velocity[i], geodesic_velocity[i + 1], dx);
+
+            *e0_out = oe0;
+            *e1_out = oe1;
+            *e2_out = oe2;
+            *e3_out = oe3;
+
+            ///so. now we have the basis. Need to apply camera rotation to it
+            ///or... could just parallel transport the whole rotation initially?
+
+            return;
+        }
+
+        //current_time += dt;
+        current_proper_time = next_proper_time;
+    }
+
+    *g_camera_polar_out = generic_to_spherical(geodesic_path[cnt - 1], cfg);
+    *interpolated_geodesic_velocity = geodesic_velocity[cnt - 1];
+
+    if(!parallel_transport_observer)
+    {
+        float4 e0, e1, e2, e3;
+        calculate_tetrads(generic_to_spherical(geodesic_path[cnt - 1], cfg), *geodesic_basis_speed, &e0, &e1, &e2, &e3, cfg, 1);
+
+        *e0_out = e0;
+        *e1_out = e1;
+        *e2_out = e2;
+        *e3_out = e3;
+    }
+    else
+    {
+        *e0_out = t_e0_in[cnt - 1];
+        *e1_out = t_e1_in[cnt - 1];
+        *e2_out = t_e2_in[cnt - 1];
+        *e3_out = t_e3_in[cnt - 1];
+    }
+}
+
+struct corrected_lightray
+{
+    float4 position;
+    float4 velocity;
+    float4 inverse_quat;
+};
+
+struct corrected_lightray correct_lightray(float4 position, float4 velocity, dynamic_config_space struct dynamic_config* cfg)
+{
+    float4 extra_quat = (float4)(0, 0, 0, 1);
+
+    #if defined(GENERIC_CONSTANT_THETA) || defined(DEBUG_CONSTANT_THETA)
+    {
+        float4 polar_pos = generic_to_spherical(position, cfg);
+
+        float4 pos_spherical = generic_to_spherical(position, cfg);
+        float4 vel_spherical = generic_velocity_to_spherical_velocity(position, velocity, cfg);
+
+        float fsign = sign(pos_spherical.y);
+        pos_spherical.y = fabs(pos_spherical.y);
+
+        float3 pos_cart = polar_to_cartesian(pos_spherical.yzw);
+        float3 vel_cart = spherical_velocity_to_cartesian_velocity(pos_spherical.yzw, vel_spherical.yzw);
+
+        float4 quat = get_theta_adjustment_quat(vel_cart, polar_pos, 1, false);
+        extra_quat  = get_theta_adjustment_quat(vel_cart, polar_pos,-1, false);
+
+        pos_cart = rot_quat(pos_cart, quat);
+        vel_cart = rot_quat(vel_cart, quat);
+
+        float3 next_pos_spherical = cartesian_to_polar(pos_cart);
+        float3 next_vel_spherical = cartesian_velocity_to_polar_velocity(pos_cart, vel_cart);
+
+        if(fsign < 0)
+        {
+            next_pos_spherical.x = -next_pos_spherical.x;
+        }
+
+        float4 next_pos_generic = spherical_to_generic((float4)(pos_spherical.x, next_pos_spherical), cfg);
+        float4 next_vel_generic = spherical_velocity_to_generic_velocity((float4)(pos_spherical.x, next_pos_spherical), (float4)(vel_spherical.x, next_vel_spherical), cfg);
+
+        position = next_pos_generic;
+        velocity = next_vel_generic;
+    }
+    #endif // GENERIC_CONSTANT_THETA
+
+    struct corrected_lightray ret;
+
+    ret.position = position;
+    ret.velocity = velocity;
+    ret.inverse_quat = extra_quat;
+
+    return ret;
+};
+
+///fully set up except for ray.early_terminate
+struct lightray geodesic_to_render_ray(int cx, int cy, float4 position, float4 velocity, float4 observer_velocity, dynamic_config_space struct dynamic_config* cfg)
+{
+    struct corrected_lightray corrected = correct_lightray(position, velocity, cfg);
+
+    position = corrected.position;
+    velocity = corrected.velocity;
+
+    float4 lightray_acceleration = (float4)(0,0,0,0);
+
+    #ifdef IS_CONSTANT_THETA
+    position.z = M_PIf/2;
+    velocity.z = 0;
+    #endif // IS_CONSTANT_THETA
+
+    #ifndef GENERIC_BIG_METRIC
+    float g_metric[4] = {0};
+    #else
+    float g_metric_big[16] = {0};
+    #endif // GENERIC_BIG_METRIC
+
+    {
+        #ifndef GENERIC_BIG_METRIC
+        float g_partials[16] = {0};
+
+        calculate_metric_generic(position, g_metric, cfg);
+        calculate_partial_derivatives_generic(position, g_partials, cfg);
+
+        velocity = fix_light_velocity2(velocity, g_metric);
+        lightray_acceleration = calculate_acceleration(velocity, g_metric, g_partials);
+        #else
+        float g_partials_big[64] = {0};
+
+        calculate_metric_generic_big(position, g_metric_big, cfg);
+        calculate_partial_derivatives_generic_big(position, g_partials_big, cfg);
+
+        velocity = fix_light_velocity_big(velocity, g_metric_big);
+        lightray_acceleration = calculate_acceleration_big(velocity, g_metric_big, g_partials_big);
+        #endif // GENERIC_BIG_METRIC
+    }
+
+    struct lightray ray;
+    ray.sx = cx;
+    ray.sy = cy;
+    ray.position = position;
+    ray.velocity = velocity;
+    ray.acceleration = lightray_acceleration;
+    ray.initial_quat = corrected.inverse_quat;
+    ray.early_terminate = 0;
+
+    {
+        float4 uobsu_upper = observer_velocity;
+
+        #ifdef GENERIC_BIG_METRIC
+        float4 uobsu_lower = lower_index_big(uobsu_upper, g_metric_big);
+        #else
+        float4 uobsu_lower = lower_index(uobsu_upper, g_metric);
+        #endif // GENERIC_BIG_METRIC
+
+        float final_val = dot(velocity, uobsu_lower);
+
+        ray.ku_uobsu = final_val;
+    }
+
+    return ray;
+};
+
+struct lightray geodesic_to_trace_ray(float4 position, float4 velocity, dynamic_config_space struct dynamic_config* cfg)
+{
+    struct corrected_lightray corrected = correct_lightray(position, velocity, cfg);
+
+    position = corrected.position;
+    velocity = corrected.velocity;
+
+    float4 lightray_acceleration = (float4)(0,0,0,0);
+
+    #ifdef IS_CONSTANT_THETA
+    position.z = M_PIf/2;
+    velocity.z = 0;
+    #endif // IS_CONSTANT_THETA
+
+    #ifndef GENERIC_BIG_METRIC
+    float g_metric[4] = {0};
+    #else
+    float g_metric_big[16] = {0};
+    #endif // GENERIC_BIG_METRIC
+
+    {
+        #ifndef GENERIC_BIG_METRIC
+        float g_partials[16] = {0};
+
+        calculate_metric_generic(position, g_metric, cfg);
+        calculate_partial_derivatives_generic(position, g_partials, cfg);
+
+        lightray_acceleration = calculate_acceleration(velocity, g_metric, g_partials);
+        #else
+        float g_partials_big[64] = {0};
+
+        calculate_metric_generic_big(position, g_metric_big, cfg);
+        calculate_partial_derivatives_generic_big(position, g_partials_big, cfg);
+
+        lightray_acceleration = calculate_acceleration_big(velocity, g_metric_big, g_partials_big);
+        #endif // GENERIC_BIG_METRIC
+    }
+
+    struct lightray ray;
+    ray.sx = 0;
+    ray.sy = 0;
+    ray.position = position;
+    ray.velocity = velocity;
+    ray.acceleration = lightray_acceleration;
+    ray.initial_quat = corrected.inverse_quat;
+    ray.early_terminate = 0;
+    ray.ku_uobsu = 1;
+
+    return ray;
+};
+
+__kernel
+void init_inertial_ray(__global float4* g_polar_camera_in,
+                       __global struct lightray* metric_rays, __global int* metric_ray_count,
+                       __global float4* e0, __global float4* e1, __global float4* e2, __global float4* e3,
+                       __global float3* geodesic_basis_speed,
+                       dynamic_config_space struct dynamic_config* cfg)
+{
+    if(get_global_id(0) != 0)
+        return;
+
+    float4 velocity = get_timelike_vector(*geodesic_basis_speed, 1, *e0, *e1, *e2, *e3);
+
+    float4 position = spherical_to_generic(*g_polar_camera_in, cfg);
+
+    struct lightray trace = geodesic_to_trace_ray(position, velocity, cfg);
+
+    metric_rays[0] = trace;
+    *metric_ray_count = 1;
+}
+
+__kernel
+void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_camera_quat,
+                       __global struct lightray* metric_rays, __global int* metric_ray_count,
+                       int width, int height,
+                       __global int* termination_buffer,
+                       int prepass_width, int prepass_height,
+                       int flip_geodesic_direction,
+                       __global float4* e0, __global float4* e1, __global float4* e2, __global float4* e3,
+                       dynamic_config_space struct dynamic_config* cfg)
+{
+    int id = get_global_id(0);
+
+    if(id >= width * height)
+        return;
+
+    float4 polar_camera_in = *g_polar_camera_in;
+
+    const int cx = id % width;
+    const int cy = id / width;
+
+    float3 pixel_direction = calculate_pixel_direction(cx, cy, width, height, polar_camera_in, *g_camera_quat);
+
+    float4 polar_camera = polar_camera_in;
+
+    float4 at_metric = spherical_to_generic(polar_camera, cfg);
+
+    /*{
+        float g_metric[4] = {0};
+        calculate_metric_generic(at_metric, g_metric, cfg);
+
+        float len = dot_product_generic(timelike, timelike, g_metric);
+
+        if(cx == width/2 && cy == height/2)
+        {
+            printf("Len %f\n", len);
+        }
     }*/
 
-    pixel_direction = unrotate_vector(normalize(cartesian_cx), normalize(cartesian_cy), normalize(cartesian_cz), pixel_direction);
+    float4 bT = *e0;
+    float4 observer_velocity = *e0;
+
+    float4 le1 = *e1;
+    float4 le2 = *e2;
+    float4 le3 = *e3;
 
     pixel_direction = normalize(pixel_direction);
-    float4 pixel_x = pixel_direction.x * polar_x;
-    float4 pixel_y = pixel_direction.y * polar_y;
-    float4 pixel_z = pixel_direction.z * polar_z;
+
+    float4 pixel_x = pixel_direction.x * le1;
+    float4 pixel_y = pixel_direction.y * le2;
+    float4 pixel_z = pixel_direction.z * le3;
 
     ///when people say backwards in time, what they mean is backwards in affine time, not coordinate time
     ///going backwards in coordinate time however should be identical
@@ -1596,81 +2801,10 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat,
         pixel_t = -pixel_t;
     }
 
-    pixel_x = spherical_velocity_to_generic_velocity(polar_camera, pixel_x, cfg);
-    pixel_y = spherical_velocity_to_generic_velocity(polar_camera, pixel_y, cfg);
-    pixel_z = spherical_velocity_to_generic_velocity(polar_camera, pixel_z, cfg);
-
     float4 lightray_velocity = pixel_x + pixel_y + pixel_z + pixel_t;
     float4 lightray_spacetime_position = at_metric;
 
-    float4 lightray_acceleration = (float4)(0,0,0,0);
-
-    #ifdef IS_CONSTANT_THETA
-    lightray_spacetime_position.z = M_PIf/2;
-    lightray_velocity.z = 0;
-    lightray_acceleration.z = 0;
-    #endif // IS_CONSTANT_THETA
-
-    #if 1
-    {
-        #ifndef GENERIC_BIG_METRIC
-        float g_partials[16] = {0};
-
-        calculate_metric_generic(lightray_spacetime_position, g_metric, cfg);
-        calculate_partial_derivatives_generic(lightray_spacetime_position, g_partials, cfg);
-
-        lightray_velocity = fix_light_velocity2(lightray_velocity, g_metric);
-        lightray_acceleration = calculate_acceleration(lightray_velocity, g_metric, g_partials);
-        #else
-        float g_partials_big[64] = {0};
-
-        calculate_metric_generic_big(lightray_spacetime_position, g_metric_big, cfg);
-        calculate_partial_derivatives_generic_big(lightray_spacetime_position, g_partials_big, cfg);
-
-        //float4 prefix = lightray_velocity;
-
-        lightray_velocity = fix_light_velocity_big(lightray_velocity, g_metric_big);
-
-        /*if(cx == 500 && cy == 400)
-        {
-            printf("pre %f %f %f %f post %f %f %f %f", prefix.x, prefix.y, prefix.z, prefix.w,
-                                                         lightray_velocity.x, lightray_velocity.y, lightray_velocity.z, lightray_velocity.w);
-        }*/
-
-        lightray_acceleration = calculate_acceleration_big(lightray_velocity, g_metric_big, g_partials_big);
-        #endif // GENERIC_BIG_METRIC
-    }
-    #endif // 0
-
-    //if(cx == 500 && cy == 400)
-    //    printf("Posr %f %f %f\n", polar_camera.y, polar_camera.z, polar_camera.w);
-    //    printf("DS %f\n", dot_product_big(lightray_velocity, lightray_velocity, g_metric_big));
-
-    /*lightray_spacetime_position.z = M_PIf/2;
-    lightray_velocity.z = 0;
-    lightray_acceleration.z = 0;*/
-
-    struct lightray ray;
-    ray.sx = cx;
-    ray.sy = cy;
-    ray.position = lightray_spacetime_position;
-    ray.velocity = lightray_velocity;
-    ray.acceleration = lightray_acceleration;
-    ray.early_terminate = 0;
-
-    {
-        float4 uobsu_upper = observer_velocity;
-
-        #ifdef GENERIC_BIG_METRIC
-        float4 uobsu_lower = lower_index_big(uobsu_upper, g_metric_big);
-        #else
-        float4 uobsu_lower = lower_index(uobsu_upper, g_metric);
-        #endif // GENERIC_BIG_METRIC
-
-        float final_val = dot(lightray_velocity, uobsu_lower);
-
-        ray.ku_uobsu = final_val;
-    }
+    struct lightray ray = geodesic_to_render_ray(cx, cy, lightray_spacetime_position, lightray_velocity, observer_velocity, cfg);
 
     #define USE_PREPASS
     #ifdef USE_PREPASS
@@ -1694,7 +2828,7 @@ void init_rays_generic(float4 polar_camera_in, float4 camera_quat,
     #endif // USE_PREPASS
 
     if(id == 0)
-        *metric_ray_count = (height - 1) * width + width - 1;
+        *metric_ray_count = height * width;
 
     metric_rays[id] = ray;
 }
@@ -1865,8 +2999,9 @@ float4 rk4_f(float t, float4 position, float4 velocity)
 ///it would be useful to be able to combine data from multiple ticks which are separated by some delta, but where I don't have control over that delta
 ///I wonder if a taylor series expansion of F(y + dt) might be helpful
 ///this is actually regular velocity verlet with no modifications https://en.wikipedia.org/wiki/Verlet_integration#Velocity_Verlet
-void step_verlet(float4 position, float4 velocity, float4 acceleration, float ds, float4* position_out, float4* velocity_out, float4* acceleration_out, dynamic_config_space struct dynamic_config* cfg)
+void step_verlet(float4 position, float4 velocity, float4 acceleration, bool always_lightlike, float ds, float4* position_out, float4* velocity_out, float4* acceleration_out, float* dT_ds, dynamic_config_space struct dynamic_config* cfg)
 {
+    #ifdef OLD_METRIC_STEP
     #ifndef GENERIC_BIG_METRIC
     float g_metric[4] = {};
     float g_partials[16] = {};
@@ -1883,17 +3018,78 @@ void step_verlet(float4 position, float4 velocity, float4 acceleration, float ds
     calculate_metric_generic(next_position, g_metric, cfg);
     calculate_partial_derivatives_generic(next_position, g_partials, cfg);
 
+    if(g_00_out)
+    {
+        *g_00_out = g_metric[0];
+    }
+
     ///1ms
-    intermediate_next_velocity = fix_light_velocity2(intermediate_next_velocity, g_metric);
+    if(always_lightlike)
+        intermediate_next_velocity = fix_light_velocity2(intermediate_next_velocity, g_metric);
 
     float4 next_acceleration = calculate_acceleration(intermediate_next_velocity, g_metric, g_partials);
     #else
     calculate_metric_generic_big(next_position, g_metric_big, cfg);
     calculate_partial_derivatives_generic_big(next_position, g_partials_big, cfg);
 
+    if(g_00_out)
+    {
+        *g_00_out = g_metric_big[0];
+    }
+
     //intermediate_next_velocity = fix_light_velocity_big(intermediate_next_velocity, g_metric_big);
     float4 next_acceleration = calculate_acceleration_big(intermediate_next_velocity, g_metric_big, g_partials_big);
     #endif // GENERIC_BIG_METRIC
+    #endif // 0
+
+    if(dT_ds)
+    {
+        #ifndef GENERIC_BIG_METRIC
+        float g_metric[4] = {};
+        calculate_metric_generic(position, g_metric, cfg);
+        #else
+        float g_metric[16] = {};
+        calculate_metric_generic_big(position, g_metric, cfg);
+        #endif // GENERIC_BIG_METRIC
+
+        *dT_ds = native_sqrt(fabs(dot_product_generic(velocity, velocity, g_metric)));
+    }
+
+    float4 next_position = position + velocity * ds + 0.5f * acceleration * ds * ds;
+    float4 intermediate_next_velocity = velocity + acceleration * ds;
+
+    float4 next_acceleration;
+
+    ///handles always_lightlike on the cpu side
+    {
+        float v1 = next_position.x;
+        float v2 = next_position.y;
+        float v3 = next_position.z;
+        float v4 = next_position.w;
+
+        float iv1 = intermediate_next_velocity.x;
+        float iv2 = intermediate_next_velocity.y;
+        float iv3 = intermediate_next_velocity.z;
+        float iv4 = intermediate_next_velocity.w;
+
+        float TEMPORARIES0;
+
+        #ifdef GENERIC_CONSTANT_THETA
+        v3 = M_PI/2;
+        iv3 = 0;
+        #endif // GENERIC_CONSTANT_THETA
+
+        next_acceleration.x = GEO_ACCEL0;
+        next_acceleration.y = GEO_ACCEL1;
+
+        #ifndef GENERIC_CONSTANT_THETA
+        next_acceleration.z = GEO_ACCEL2;
+        #else
+        next_acceleration.z = 0;
+        #endif // GENERIC_CONSTANT_THETA
+
+        next_acceleration.w = GEO_ACCEL3;
+    }
 
     float4 next_velocity = velocity + 0.5f * (acceleration + next_acceleration) * ds;
 
@@ -1916,7 +3112,7 @@ void step_euler(float4 position, float4 velocity, float ds, float4* position_out
     calculate_metric_generic(position, g_metric, cfg);
     calculate_partial_derivatives_generic(position, g_partials, cfg);
 
-    velocity = fix_light_velocity2(velocity, g_metric);
+    //velocity = fix_light_velocity2(velocity, g_metric);
 
     float4 lacceleration = calculate_acceleration(velocity, g_metric, g_partials);
     #else
@@ -1956,7 +3152,7 @@ enum ds_result
 
 #define I_HATE_COMPUTERS (256*256)
 
-float acceleration_to_precision(float4 acceleration, float* next_ds_out)
+float acceleration_to_precision(float4 acceleration, float max_acceleration, float* next_ds_out)
 {
     float uniform_coordinate_precision_divisor = max(max(W_V1, W_V2), max(W_V3, W_V4));
 
@@ -1965,7 +3161,7 @@ float acceleration_to_precision(float4 acceleration, float* next_ds_out)
 
     float experienced_acceleration_change = current_acceleration_err;
 
-    float err = MAX_ACCELERATION_CHANGE;
+    float err = max_acceleration;
 
     //#define MIN_STEP 0.00001f
     #define MIN_STEP 0.000001f
@@ -1987,10 +3183,10 @@ float acceleration_to_precision(float4 acceleration, float* next_ds_out)
     return diff;
 }
 
-int calculate_ds_error(float current_ds, float4 next_acceleration, float4 acceleration, float* next_ds_out)
+int calculate_ds_error(float current_ds, float4 next_acceleration, float4 acceleration, float max_acceleration, float* next_ds_out)
 {
     float next_ds = 0;
-    float diff = acceleration_to_precision(next_acceleration, &next_ds);
+    float diff = acceleration_to_precision(next_acceleration, max_acceleration, &next_ds);
 
     ///produces strictly worse results for kerr
     next_ds = 0.99f * current_ds * clamp(next_ds / current_ds, 0.3f, 2.f);
@@ -1999,7 +3195,7 @@ int calculate_ds_error(float current_ds, float4 next_acceleration, float4 accele
 
     *next_ds_out = next_ds;
 
-    float err = MAX_ACCELERATION_CHANGE;
+    float err = max_acceleration;
 
     #ifdef SINGULARITY_DETECTION
     if(next_ds == MIN_STEP && (diff/I_HATE_COMPUTERS) > err * 10000)
@@ -2033,6 +3229,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
     float4 velocity = ray->velocity;
     float4 acceleration = ray->acceleration;
 
+    float f_in_x = fabs(velocity.x);
+
     int sx = ray->sx;
     int sy = ray->sy;
 
@@ -2054,7 +3252,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
     float next_ds = 0.00001;
 
     #ifdef ADAPTIVE_PRECISION
-    (void)acceleration_to_precision(acceleration, &next_ds);
+    (void)acceleration_to_precision(acceleration, MAX_ACCELERATION_CHANGE, &next_ds);
     #endif // ADAPTIVE_PRECISION
 
     ///results:
@@ -2137,6 +3335,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
             out_ray.sy = sy;
             out_ray.position = polar_position;
             out_ray.velocity = polar_velocity;
+            out_ray.initial_quat = ray->initial_quat;
             out_ray.acceleration = 0;
             out_ray.ku_uobsu = ray->ku_uobsu;
             out_ray.early_terminate = 0;
@@ -2161,13 +3360,13 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
         float4 next_position, next_velocity, next_acceleration;
 
-        step_verlet(position, velocity, acceleration, ds, &next_position, &next_velocity, &next_acceleration, cfg);
+        step_verlet(position, velocity, acceleration, true, ds, &next_position, &next_velocity, &next_acceleration, 0, cfg);
 
         #ifdef ADAPTIVE_PRECISION
 
         if(fabs(r_value) < new_max)
         {
-            int res = calculate_ds_error(ds, next_acceleration, acceleration, &next_ds);
+            int res = calculate_ds_error(ds, next_acceleration, acceleration, MAX_ACCELERATION_CHANGE, &next_ds);
 
             if(res == DS_RETURN)
                 return;
@@ -2175,8 +3374,12 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
             if(res == DS_SKIP)
                 continue;
         }
-
         #endif // ADAPTIVE_PRECISION
+
+        #ifndef UNCONDITIONALLY_NONSINGULAR
+        if(fabs(velocity.x) > 1000 + f_in_x && fabs(acceleration.x) > 100)
+            return;
+        #endif // UNCONDITIONALLY_NONSINGULAR
 
         position = next_position;
         //velocity = fix_light_velocity2(next_velocity, g_metric);
@@ -2187,6 +3390,11 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
         #ifdef RK4_GENERIC
         rk4_generic_big(&position, &velocity, &ds);
         #endif // RK4_GENERIC
+
+        /*if(sx == 1920/2 && sy == 1080/2)
+        {
+            printf("Pos %f %f %f %f vel %f %f %f %f\n", position.x, position.y, position.z, position.w, velocity.x, velocity.y, velocity.z, velocity.w);
+        }*/
 
         if(any(isnan(position)) || any(isnan(velocity)) || any(isnan(acceleration)))
         {
@@ -2202,18 +3410,22 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
     out_ray.position = position;
     out_ray.velocity = velocity;
     out_ray.acceleration = acceleration;
+    out_ray.initial_quat = ray->initial_quat;
     out_ray.ku_uobsu = ray->ku_uobsu;
     out_ray.early_terminate = 0;
 
     generic_rays_out[out_id] = out_ray;
 }
 
-
 __kernel
 void get_geodesic_path(__global struct lightray* generic_rays_in,
                        __global float4* positions_out,
+                       __global float4* velocities_out,
+                       __global float* dT_ds_out,
+                       __global float* ds_out,
                        __global int* generic_count_in, int geodesic_start, int width, int height,
-                       float4 polar_camera_pos, float4 camera_quat, float2 base_angle, dynamic_config_space struct dynamic_config* cfg, __global int* count_out)
+                       __global float4* g_polar_camera_pos, __global float4* g_camera_quat,
+                       dynamic_config_space struct dynamic_config* cfg, __global int* count_out)
 {
     int id = geodesic_start;
 
@@ -2225,21 +3437,21 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
 
     __global struct lightray* ray = &generic_rays_in[id];
 
+    float4 polar_camera_pos = *g_polar_camera_pos;
+    float4 camera_quat = *g_camera_quat;
+
     float4 position = ray->position;
     float4 velocity = ray->velocity;
     float4 acceleration = ray->acceleration;
 
-    int sx = ray->sx;
-    int sy = ray->sy;
-
-    #ifndef GENERIC_BIG_METRIC
+    /*#ifndef GENERIC_BIG_METRIC
     {
         float g_metric[4] = {0};
         calculate_metric_generic(position, g_metric, cfg);
 
         velocity = fix_light_velocity2(velocity, g_metric);
     }
-    #endif // GENERIC_BIG_METRIC
+    #endif // GENERIC_BIG_METRIC*/
 
     #ifdef IS_CONSTANT_THETA
     position.z = M_PIf/2;
@@ -2247,10 +3459,14 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
     acceleration.z = 0;
     #endif // IS_CONSTANT_THETA
 
+    #ifdef ADAPTIVE_PRECISION
+    float max_accel = min(0.00001000f, MAX_ACCELERATION_CHANGE);
+    #endif // ADAPTIVE_PRECISION
+
     float next_ds = 0.00001;
 
     #ifdef ADAPTIVE_PRECISION
-    (void)acceleration_to_precision(acceleration, &next_ds);
+    (void)acceleration_to_precision(acceleration, max_accel, &next_ds);
     #endif // ADAPTIVE_PRECISION
 
     float subambient_precision = 0.5;
@@ -2259,8 +3475,6 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
     float rs = 1;
 
     int bufc = 0;
-
-    float3 pixel_direction = calculate_pixel_direction(sx, sy, width, height, polar_camera_pos, camera_quat, base_angle);
 
     //#pragma unroll
     for(int i=0; i < 64000; i++)
@@ -2299,50 +3513,86 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
             ds = 0.1 * pow((fabs(r_value) - new_max), 1) + ambient_precision;
         }
 
+        bool should_break = false;
+
         #ifndef SINGULAR
         if(fabs(polar_position.y) >= UNIVERSE_SIZE)
         #else
         if(fabs(polar_position.y) < rs*SINGULAR_TERMINATOR || fabs(polar_position.y) >= UNIVERSE_SIZE)
         #endif // SINGULAR
         {
-            *count_out = bufc;
-            return;
+            should_break = true;
         }
 
         float4 next_position, next_velocity, next_acceleration;
+        float dT_ds = 0;
 
-        step_verlet(position, velocity, acceleration, ds, &next_position, &next_velocity, &next_acceleration, cfg);
+        step_verlet(position, velocity, acceleration, false, ds, &next_position, &next_velocity, &next_acceleration, &dT_ds, cfg);
 
         #ifdef ADAPTIVE_PRECISION
-
         if(fabs(r_value) < new_max)
         {
-            int res = calculate_ds_error(ds, next_acceleration, acceleration, &next_ds);
+            int res = calculate_ds_error(ds, next_acceleration, acceleration, max_accel, &next_ds);
 
             if(res == DS_RETURN)
-                return;
+            {
+                should_break = true;
+            }
 
             if(res == DS_SKIP)
                 continue;
         }
-
         #endif // ADAPTIVE_PRECISION
 
+        float4 generic_position_out = position;
+        float4 generic_velocity_out = velocity;
+
+        #if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC) || defined(DEBUG_CONSTANT_THETA)
+        {
+            float4 pos_spherical = generic_to_spherical(position, cfg);
+            float4 vel_spherical = generic_velocity_to_spherical_velocity(position, velocity, cfg);
+
+            float fsign = sign(pos_spherical.y);
+            pos_spherical.y = fabs(pos_spherical.y);
+
+            float3 pos_cart = polar_to_cartesian(pos_spherical.yzw);
+            float3 vel_cart = spherical_velocity_to_cartesian_velocity(pos_spherical.yzw, vel_spherical.yzw);
+
+            float4 quat = ray->initial_quat;
+
+            pos_cart = rot_quat(pos_cart, quat);
+            vel_cart = rot_quat(vel_cart, quat);
+
+            float3 next_pos_spherical = cartesian_to_polar(pos_cart);
+            float3 next_vel_spherical = cartesian_velocity_to_polar_velocity(pos_cart, vel_cart);
+
+            if(fsign < 0)
+            {
+                next_pos_spherical.x = -next_pos_spherical.x;
+            }
+
+            float4 next_pos_generic = spherical_to_generic((float4)(pos_spherical.x, next_pos_spherical), cfg);
+            float4 next_vel_generic = spherical_velocity_to_generic_velocity((float4)(pos_spherical.x, next_pos_spherical), (float4)(vel_spherical.x, next_vel_spherical), cfg);
+
+            generic_position_out = next_pos_generic;
+            generic_velocity_out = next_vel_generic;
+        }
+        #endif
+
+        if(any(isnan(next_position)) || any(isnan(next_velocity)) || any(isnan(next_acceleration)))
+            break;
+
         position = next_position;
-        //velocity = fix_light_velocity2(next_velocity, g_metric);
         velocity = next_velocity;
         acceleration = next_acceleration;
 
-        float4 polar_out = generic_to_spherical(position, cfg);
-
-        #if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC) || defined(DEBUG_CONSTANT_THETA)
-        polar_out.yzw = get_texture_constant_theta_rotation(pixel_direction, polar_camera_pos, polar_out);
-        #endif
-
-        positions_out[bufc] = polar_out;
+        positions_out[bufc] = generic_position_out;
+        velocities_out[bufc] = generic_velocity_out;
+        dT_ds_out[bufc] = dT_ds;
+        ds_out[bufc] = ds;
         bufc++;
 
-        if(any(isnan(position)) || any(isnan(velocity)) || any(isnan(acceleration)))
+        if(should_break)
         {
             *count_out = bufc;
             return;
@@ -2435,14 +3685,17 @@ void calculate_singularities(__global struct lightray* finished_rays, __global i
 #endif // GENERIC_METRIC
 
 __kernel
-void calculate_texture_coordinates(__global struct lightray* finished_rays, __global int* finished_count_in, __global float2* texture_coordinates, int width, int height, float4 polar_camera_pos, float4 camera_quat, float2 base_angle)
+void calculate_texture_coordinates(__global struct lightray* finished_rays, __global int* finished_count_in, __global float2* texture_coordinates, int width, int height, __global float4* g_polar_camera_pos, __global float4* g_camera_quat)
 {
     int id = get_global_id(0);
 
     if(id >= *finished_count_in)
         return;
 
-    struct lightray* ray = &finished_rays[id];
+    float4 polar_camera_pos = *g_polar_camera_pos;
+    float4 camera_quat = *g_camera_quat;
+
+    __global struct lightray* ray = &finished_rays[id];
 
     int pos = ray->sy * width + ray->sx;
     int sx = ray->sx;
@@ -2483,12 +3736,18 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
     }
     #endif
 
-    float3 pixel_direction = calculate_pixel_direction(sx, sy, width, height, polar_camera_pos, camera_quat, base_angle);
-
 	float3 npolar = position.yzw;
 
     #if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC) || defined(DEBUG_CONSTANT_THETA)
-	npolar = get_texture_constant_theta_rotation(pixel_direction, polar_camera_pos, position);
+	{
+        float4 quat = ray->initial_quat;
+
+	    float3 cart_pos = polar_to_cartesian(position.yzw);
+
+	    cart_pos = rot_quat(cart_pos, quat);
+
+	    npolar = cartesian_to_polar(cart_pos);
+	}
     #endif // GENERIC_CONSTANT_THETA
 
     float thetaf = fmod(npolar.y, 2 * M_PIf);
@@ -2589,17 +3848,48 @@ float3 redshift(float3 v, float z)
     return result;
 }
 
-float4 read_mipmap(image2d_t mipmap1, image2d_t mipmap2, float position_y, sampler_t sam, float2 pos, float lod)
+///this function is drastically complicated by nvidias terrible opencl support
+///can't believe i fully have to implement trilinear filtering, mipmapping, and anisotropic texture filtering in raw opencl
+///such is the terrible state of support across amd and nvidia
+///amd doesn't correctly support shared opengl textures with mipmaps, and there's no anisotropic filtering i can see
+///and nvidia don't support mipmapped textxures at all, or clCreateSampler
+///what a mess!
+float4 read_mipmap(image2d_array_t mipmap1, image2d_array_t mipmap2, float position_y, float2 pos, float lod)
 {
-    return position_y >= 0 ? read_imagef(mipmap1, sam, pos, lod) : read_imagef(mipmap2, sam, pos, lod);
+    lod = max(lod, 0.f);
+
+    sampler_t sam = CLK_NORMALIZED_COORDS_TRUE | CLK_ADDRESS_REPEAT | CLK_FILTER_LINEAR;
+
+    pos = fmod(pos, 1.f);
+
+    //lod = 0;
+
+    float mip_lower = floor(lod);
+    float mip_upper = ceil(lod);
+
+    float lower_divisor = pow(2.f, mip_lower);
+    float upper_divisor = pow(2.f, mip_upper);
+
+    float2 lower_coord = pos / lower_divisor;
+    float2 upper_coord = pos / upper_divisor;
+
+    float4 full_lower_coord = (float4)(lower_coord.xy, mip_lower, 0.f);
+    float4 full_upper_coord = (float4)(upper_coord.xy, mip_upper, 0.f);
+
+    float lower_weight = (lod - mip_lower);
+
+    float4 v1 = mix(read_imagef(mipmap1, sam, full_lower_coord), read_imagef(mipmap1, sam, full_upper_coord), lower_weight);
+    float4 v2 = mix(read_imagef(mipmap2, sam, full_lower_coord), read_imagef(mipmap2, sam, full_upper_coord), lower_weight);
+
+    return position_y >= 0 ? v1 : v2;
 }
 
 #define MIPMAP_CONDITIONAL(x) ((position.y >= 0) ? x(mip_background) : x(mip_background2))
 
 __kernel
 void render(__global struct lightray* finished_rays, __global int* finished_count_in, __write_only image2d_t out,
-            __read_only image2d_t mip_background, __read_only image2d_t mip_background2,
-            int width, int height, __global float2* texture_coordinates, sampler_t sam)
+            __read_only image2d_array_t mip_background, __read_only image2d_array_t mip_background2,
+            int width, int height, __global float2* texture_coordinates, int maxProbes)
 {
     int id = get_global_id(0);
 
@@ -2783,8 +4073,6 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
     float fProbes = 2 * (majorRadius / minorRadius) - 1;
     int iProbes = floor(fProbes + 0.5f);
 
-    int maxProbes = 8;
-
     iProbes = min(iProbes, maxProbes);
 
     if(iProbes < fProbes)
@@ -2792,7 +4080,7 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
 
     float levelofdetail = log2(minorRadius);
 
-    int maxLod = MIPMAP_CONDITIONAL(get_image_num_mip_levels) - 1;
+    int maxLod = MIPMAP_CONDITIONAL(get_image_array_size) - 1;
 
     if(levelofdetail > maxLod)
     {
@@ -2807,7 +4095,7 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
         if(iProbes < 1)
             levelofdetail = maxLod;
 
-        end_result = read_mipmap(mip_background, mip_background2, position.y, sam, (float2){sxf, syf}, levelofdetail);
+        end_result = read_mipmap(mip_background, mip_background2, position.y, (float2){sxf, syf}, levelofdetail);
     }
     else
     {
@@ -2853,7 +4141,7 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
             float cu = centreu + (currentN / 2.f) * sU;
             float cv = centrev + (currentN / 2.f) * sV;
 
-            float4 fval = read_mipmap(mip_background, mip_background2, position.y, sam, (float2){cu, cv}, levelofdetail);
+            float4 fval = read_mipmap(mip_background, mip_background2, position.y, (float2){cu, cv}, levelofdetail);
 
             totalWeight += relativeWeight * fval;
             accumulatedProbes += relativeWeight;
@@ -2875,6 +4163,13 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
     #ifdef REDSHIFT
     ///[-1, +infinity]
     float z_shift = (velocity.x / -ray->ku_uobsu) - 1;
+
+    z_shift = max(z_shift, -0.999f);
+
+    /*if(sx == width/2 && sy == height/2)
+    {
+        printf("Vx %f ray %f\n", velocity.x, -ray->ku_uobsu);
+    }*/
 
     ///linf / le = z + 1
     ///le =  linf / (z + 1)
@@ -2993,7 +4288,14 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
 
     if(fabs(r_value) > rs * 2)
     {
+        /*if(sx == width/2 && sy == height/2)
+        {
+            printf("ZShift %f\n", z_shift);
+        }*/
+
         lin_result = redshift(lin_result, z_shift);
+
+        lin_result = clamp(lin_result, 0.f, 1.f);
     }
 
     #ifndef LINEAR_FRAMEBUFFER
@@ -3011,4 +4313,47 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
     #endif // LINEAR_FRAMEBUFFER
 
     write_imagef(out, (int2){sx, sy}, end_result);
+}
+
+__kernel
+void camera_cart_to_polar(__global float4* g_camera_pos_polar_out, __global float4* g_camera_pos_cart, float flip)
+{
+    if(get_global_id(0) != 0)
+        return;
+
+    float3 cart = g_camera_pos_cart->yzw;
+
+    float3 polar = cartesian_to_polar(cart);
+
+    if(flip > 0)
+        polar.x = -polar.x;
+
+    *g_camera_pos_polar_out = (float4)(g_camera_pos_cart->x, polar.xyz);
+}
+
+__kernel
+void camera_polar_to_generic(__global float4* g_camera_pos_polar, __global float4* g_camera_pos_generic, dynamic_config_space struct dynamic_config* cfg)
+{
+    if(get_global_id(0) != 0)
+        return;
+
+    *g_camera_pos_generic = spherical_to_generic(*g_camera_pos_polar, cfg);
+}
+
+__kernel
+void advance_time(__global float4* camera, float time)
+{
+    if(get_global_id(0) != 0)
+        return;
+
+    camera->x += time;
+}
+
+__kernel
+void set_time(__global float4* camera, float time)
+{
+    if(get_global_id(0) != 0)
+        return;
+
+    camera->x = time;
 }

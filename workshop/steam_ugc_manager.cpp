@@ -133,8 +133,6 @@ std::vector<ugc_details> query_to_details(const SteamUGCQueryCompleted_t& query)
 {
     int num = query.m_unNumResultsReturned;
 
-    std::cout << "Found " << num << " published workshop items for user" << std::endl;
-
     std::vector<ugc_details> ret;
 
     ISteamUGC* ugc = SteamAPI_SteamUGC();

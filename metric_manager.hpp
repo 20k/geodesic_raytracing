@@ -12,6 +12,7 @@ struct metric_manager
     std::optional<cl::program> pending_dynamic_program_opt;
     bool has_built = false;
 
+    ///this is a bit of a giant mess
     void check_recompile(bool should_recompile, bool should_soft_recompile,
                          const std::vector<content*>& parent_directories, content_manager& all_content, std::vector<std::string>& metric_names,
                          cl::buffer& dynamic_config, cl::command_queue& cqueue, metrics::config& cfg, render_settings& sett, cl::context& context, cl::buffer& termination_buffer)
@@ -34,7 +35,7 @@ struct metric_manager
 
             if(next == nullptr)
             {
-                std::cout << "Broken metric " << metric_names[selected_idx] << std::endl;
+                printj("Broken metric ", metric_names[selected_idx]);
             }
             else
             {
@@ -45,7 +46,7 @@ struct metric_manager
 
             cfg.error_override = current_metric->metric_cfg.max_acceleration_change;
 
-            std::cout << "ALLOCATING DYNCONFIG " << current_metric->sand.cfg.default_values.size() << std::endl;
+            printj("ALLOCATING DYNCONFIG ", current_metric->sand.cfg.default_values.size());
 
             int dyn_config_bytes = current_metric->sand.cfg.default_values.size() * sizeof(cl_float);
 
@@ -63,7 +64,7 @@ struct metric_manager
         }
 
         current_idx = selected_idx;
-        std::string argument_string_prefix = "-O3 -cl-std=CL2.0 -cl-fast-relaxed-math ";
+        std::string argument_string_prefix = "-cl-std=CL1.2 -cl-fast-relaxed-math ";
 
         if(cfg.use_device_side_enqueue)
         {
@@ -79,7 +80,7 @@ struct metric_manager
         {
             using_swapped = false;
 
-            printf("Building\n");
+            printj("Building");
             std::string dynamic_argument_string = argument_string_prefix + build_argument_string(*current_metric, current_metric->desc.abstract, cfg, {});
 
             file::write("./argument_string.txt", dynamic_argument_string, file::mode::TEXT);
@@ -174,7 +175,7 @@ struct metric_manager
 
             if(pending.is_built())
             {
-                printf("Swapped\n");
+                printj("Swapped\n");
 
                 if(ctx.programs.size() > 0)
                     ctx.deregister_program(0);

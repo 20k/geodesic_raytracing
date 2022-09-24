@@ -738,32 +738,34 @@ namespace dual_types
                 if(args[0].is_constant_constraint(is_zero) || args[1].is_constant_constraint(is_zero))
                     return value(0);
 
+                //std::cout << "hello " << type_to_string(args[0]) << " with " << type_to_string(args[1]) << std::endl;
+
                 if(args[0].is_constant_constraint(is_value_equal<1>))
-                    return args[1];
+                    return args[1].flatten();
 
                 if(args[1].is_constant_constraint(is_value_equal<1>))
-                    return args[0];
+                    return args[0].flatten();
             }
 
             if(type == ops::PLUS)
             {
                 if(args[0].is_constant_constraint(is_zero))
-                    return args[1];
+                    return args[1].flatten();
 
                 if(args[1].is_constant_constraint(is_zero))
-                    return args[0];
+                    return args[0].flatten();
 
                 if(equivalent(args[0], args[1]))
-                    return 2 * args[0];
+                    return 2 * args[0].flatten();
             }
 
             if(type == ops::MINUS)
             {
                 if(args[0].is_constant_constraint(is_zero))
-                    return -args[1];
+                    return -args[1].flatten();
 
                 if(args[1].is_constant_constraint(is_zero))
-                    return args[0];
+                    return args[0].flatten();
 
                 if(equivalent(args[0], args[1]))
                     return value(0);
@@ -775,7 +777,7 @@ namespace dual_types
                     return value(0);
 
                 if(args[1].is_constant_constraint(is_value_equal<1>))
-                    return args[0];
+                    return args[0].flatten();
 
                 if(equivalent(args[0], args[1]))
                     return value(1);
@@ -786,7 +788,7 @@ namespace dual_types
             if(type == ops::POW)
             {
                 if(args[1].is_constant_constraint(is_value_equal<1>))
-                    return args[0];
+                    return args[0].flatten();
 
                 if(args[1].is_constant_constraint(is_zero))
                     return value(1);
@@ -1066,6 +1068,25 @@ namespace dual_types
             {
                 val.substitute(variables);
             }
+        }
+
+        template<typename T>
+        void substitute_generic(T&& func)
+        {
+            auto sub_opt = func(*this);
+
+            if(sub_opt.has_value())
+            {
+                *this = *sub_opt;
+                return;
+            }
+
+            for(auto& val : args)
+            {
+                val.substitute_generic(func);
+            }
+
+            *this = flatten();
         }
 
         value& operator+=(const value& d1)

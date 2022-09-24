@@ -1,9 +1,10 @@
 [
 "schwarzschild_accurate.js",
+"schwarzschild_ingoing_ef.js",
 "kerr_boyer.js",
 "kerr_newman_boyer.js",
 "kerr_rational_polynomial.js",
-"kerr_schild.js",
+"kerr_ingoing_ef.js",
 "alcubierre.js",
 "configurable_wormhole.js",
 "wormhole.js",
@@ -20,5 +21,7 @@
 "janis_newman_winicour.js",
 "schwarzschild.js",
 "minkowski.js",
-"symmetric_warp_drive.js"
+"symmetric_warp_drive.js",
+"kerr_schild.js",
+"kerr_newman_schild.js"
 ]
