@@ -98,6 +98,10 @@ namespace dual_types
             COSH,
             TANH,
 
+            ASINH,
+            ACOSH,
+            ATANH,
+
             LOG,
 
             ISFINITE,
@@ -177,6 +181,9 @@ namespace dual_types
         "sinh",
         "cosh",
         "tanh",
+        "asinh",
+        "acosh",
+        "atanh",
         "native_log",
         "isfinite",
         "signbit",
@@ -702,6 +709,9 @@ namespace dual_types
                 PROPAGATE1(SINH, std::sinh);
                 PROPAGATE1(COSH, std::cosh);
                 PROPAGATE1(TANH, std::tanh);
+                PROPAGATE1(ASINH, std::asinh);
+                PROPAGATE1(ACOSH, std::acosh);
+                PROPAGATE1(ATANH, std::atanh);
                 PROPAGATE1(LOG, std::log);
                 PROPAGATE1(ISFINITE, std::isfinite);
                 PROPAGATE1(SIGNBIT, signbit);
@@ -1310,6 +1320,9 @@ namespace dual_types
     UNARY(sinh, SINH);
     UNARY(cosh, COSH);
     UNARY(tanh, TANH);
+    UNARY(asinh, ASINH);
+    UNARY(acosh, ACOSH);
+    UNARY(atanh, ATANH);
     UNARY(asin, ASIN);
     UNARY(acos, ACOS);
     UNARY(atan, ATAN);
