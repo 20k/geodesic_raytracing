@@ -7,6 +7,7 @@
 #include <cmath>
 #include <map>
 #include <assert.h>
+#include <variant>
 
 namespace dual_types
 {
@@ -53,6 +54,28 @@ namespace dual_types
             return val;
 
         return std::nullopt;
+    }
+
+    inline
+    std::variant<std::string, double> get_value_or_string(std::string_view in)
+    {
+        auto result_opt = get_value(in);
+
+        if(result_opt.has_value())
+        {
+            return result_opt.value();
+        }
+
+        return std::string(in);
+    }
+
+    inline
+    std::string to_string_either(const std::variant<std::string, double>& in)
+    {
+        if(in.index() == 0)
+            return std::get<0>(in);
+
+        return to_string_s(std::get<1>(in));
     }
 
     struct operation_desc
@@ -290,13 +313,15 @@ namespace dual_types
 
         ops::type_t type = ops::NONE;
 
-        std::optional<std::string> value_payload;
+        std::optional<std::variant<std::string, double>> value_payload;
+
+        //std::optional<std::string> value_payload;
         std::vector<value> args;
 
         //value(){value_payload = to_string_s(0); type = ops::VALUE;}
-        value(){value_payload = to_string_s(0); type = ops::VALUE;}
+        value(){value_payload = 0.; type = ops::VALUE;}
         template<Arithmetic T>
-        value(T v){value_payload = to_string_s(v); type = ops::VALUE;}
+        value(T v){value_payload = static_cast<double>(v); type = ops::VALUE;}
         value(const std::string& str){value_payload = str; type = ops::VALUE;}
         value(const char* str){value_payload = std::string(str); type = ops::VALUE;}
 
@@ -307,7 +332,7 @@ namespace dual_types
 
         bool is_constant() const
         {
-            return is_value() && value_payload.has_value() && get_value(value_payload.value()).has_value();
+            return is_value() && value_payload.has_value() && value_payload.value().index() == 1;
         }
 
         template<typename T>
@@ -323,29 +348,29 @@ namespace dual_types
         {
             assert(is_constant());
 
-            return get_value(value_payload.value()).value();
+            return std::get<1>(value_payload.value());
         }
 
         double get(int idx) const
         {
-            return get_value(args[idx].value_payload.value()).value();
+            return std::get<1>(args[idx].value_payload.value());
         }
 
         void make_value(const std::string& str)
         {
-            value_payload = str;
+            value_payload = get_value_or_string(str);
             type = ops::VALUE;
         }
 
         void set_dual_constant()
         {
-            value_payload = to_string_s(0);
+            value_payload = 0.;
             type = ops::VALUE;
         }
 
         void set_dual_variable()
         {
-            value_payload = to_string_s(1);
+            value_payload = 1.;
             type = ops::VALUE;
         }
 
@@ -840,7 +865,7 @@ namespace dual_types
             {
                 dual_types::dual_v<value> ret;
 
-                if(value_payload.value() == sym)
+                if(value_payload.value().index() == 0 && std::get<0>(value_payload.value()) == sym)
                 {
                     ret.make_variable(*this);
                 }
@@ -941,9 +966,9 @@ namespace dual_types
 
         void substitute_impl(const std::string& sym, float value)
         {
-            if(type == ops::VALUE && value_payload.value() == sym)
+            if(type == ops::VALUE && value_payload.value().index() == 0 && std::get<0>(value_payload.value()) == sym)
             {
-                value_payload = to_string_s(value);
+                value_payload = double{value};
                 return;
             }
 
@@ -977,7 +1002,7 @@ namespace dual_types
                 if(is_constant())
                     return;
 
-                v.insert(value_payload.value());
+                v.insert(std::get<0>(value_payload.value()));
                 return;
             }
 
@@ -1038,12 +1063,15 @@ namespace dual_types
         {
             if(type == ops::VALUE)
             {
-                auto it = variables.find(value_payload.value());
+                if(is_constant())
+                    return;
+
+                auto it = variables.find(std::get<0>(value_payload.value()));
 
                 if(it == variables.end())
                     return;
 
-                value_payload = it->second;
+                value_payload = get_value_or_string(it->second);
                 return;
             }
 
@@ -1171,10 +1199,10 @@ namespace dual_types
             if(op.is_constant())
             {
                 if(op.get_constant() < 0)
-                    return "(" + prefix + op.value_payload.value() + ")";
+                    return "(" + prefix + to_string_either(op.value_payload.value()) + ")";
             }
 
-            return prefix + op.value_payload.value();
+            return prefix + to_string_either(op.value_payload.value());
         }
 
         const operation_desc desc = get_description(op.type);
