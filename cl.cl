@@ -1879,30 +1879,6 @@ float angle_between_vectors3(float3 v1, float3 v2)
     return acos(dot(v1, v2));
 }
 
-float3 get_theta_axis(float3 pixel_direction, float4 polar_camera_in)
-{
-    float3 apolar = polar_camera_in.yzw;
-    apolar.x = fabs(apolar.x);
-
-    float3 cartesian_camera_pos = polar_to_cartesian(apolar);
-
-    float3 by = normalize(-cartesian_camera_pos);
-
-    return normalize(-cross((float3)(0, 0, 1), by));
-}
-
-float3 get_phi_axis(float3 pixel_direction, float4 polar_camera_in)
-{
-    float3 apolar = polar_camera_in.yzw;
-    apolar.x = fabs(apolar.x);
-
-    float3 cartesian_camera_pos = polar_to_cartesian(apolar);
-
-    float3 by = normalize(-cartesian_camera_pos);
-
-    return -cross(get_theta_axis(pixel_direction, polar_camera_in), by);
-}
-
 float4 get_theta_adjustment_quat(float3 pixel_direction, float4 polar_camera_in, float angle_sign, bool debug)
 {
     if(fast_length(pixel_direction) < 0.00001f)
