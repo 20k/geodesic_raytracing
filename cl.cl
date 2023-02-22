@@ -3872,17 +3872,6 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
     int count = object_geodesic_counts[mine.object_parent];
 
-    float last_output_ds = -10;
-    float ds_accum = 0;
-    //float current_dt = object_geodesics[0 * stride + mine.object_parent];
-
-    ///this is super suboptimal in regions of high curvature
-    ///to future james: you cannot parameterise these curves by coordinate time, especially due to CTCs
-    float max_ds_step = 0.25f;
-    float ds_error = 0;
-
-    float voxel_cube_size = width / width_num;
-
     struct triangle my_tri = reference_tris[mine.parent];
 
     float lowest_time = *ray_time_min - 1;
