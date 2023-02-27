@@ -852,7 +852,7 @@ int main(int argc, char* argv[])
 
     dynamic_feature_config dfg;
     dfg.add_feature<bool>("use_triangle_rendering");
-    dfg.set_feature("use_triangle_rendering", false);
+    dfg.set_feature("use_triangle_rendering", true);
 
     dfg.add_feature<bool>("redshift");
     dfg.set_feature("redshift", false);
@@ -867,7 +867,7 @@ int main(int argc, char* argv[])
     dfg.set_feature("max_precision_radius", 10.f);
 
     dfg.add_feature<bool>("precession");
-    dfg.set_feature("precession", false);
+    dfg.set_feature("precession", true);
     dfg.set_always_static("precession", true);
 
     //print("WLs %f %f %f\n", chromaticity::srgb_to_wavelength({1, 0, 0}), chromaticity::srgb_to_wavelength({0, 1, 0}), chromaticity::srgb_to_wavelength({0, 0, 1}));

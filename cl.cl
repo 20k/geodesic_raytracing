@@ -3994,13 +3994,13 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
         local_tri.origin = native_current;
 
-        local_tri.v0 = s_coordinate_v0;
-        local_tri.v1 = s_coordinate_v1;
-        local_tri.v2 = s_coordinate_v2;
+        local_tri.v0 = s_coordinate_v0 + native_current;
+        local_tri.v1 = s_coordinate_v1 + native_current;
+        local_tri.v2 = s_coordinate_v2 + native_current;
 
-        local_tri.e0 = e_coordinate_v0;
-        local_tri.e1 = e_coordinate_v1;
-        local_tri.e2 = e_coordinate_v2;
+        local_tri.e0 = e_coordinate_v0 + native_next;
+        local_tri.e1 = e_coordinate_v1 + native_next;
+        local_tri.e2 = e_coordinate_v2 + native_next;
 
         float4 e_lo[4];
         get_tetrad_inverse(s_e0, s_e1, s_e2, s_e3, &e_lo[0], &e_lo[1], &e_lo[2], &e_lo[3]);
@@ -4443,7 +4443,13 @@ bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global str
     float4 t_pos = global_pos - ctri->origin;
 
     float4 pos = coordinate_to_tetrad_basis(t_pos, ctri->tet_e0_i, ctri->tet_e1_i, ctri->tet_e2_i, ctri->tet_e3_i);
-    float4 dir = coordinate_to_tetrad_basis(global_dir, ctri->tet_e0_i, ctri->tet_e1_i, ctri->tet_e2_i, ctri->tet_e3_i);
+    float4 dir = coordinate_to_tetrad_basis(global_pos + global_dir - ctri->origin, ctri->tet_e0_i, ctri->tet_e1_i, ctri->tet_e2_i, ctri->tet_e3_i) - pos;
+
+    if(debug)
+    {
+        printf("Pos %f %f %f %f dir %f %f %f %f orig %f %f %f %f\n", pos.x, pos.y, pos.z, pos.w, dir.x, dir.y, dir.z, dir.w, ctri->origin.x, ctri->origin.y, ctri->origin.z, ctri->origin.w);
+        printf("V %f %f %f %f E %f %f %f %f", fv0.x, fv0.y, fv0.z, fv0.w, fe0.x, fe0.y, fe0.z, fe0.w);
+    }
 
     float4 v04 = fv0;
     float4 v14 = fv1;
@@ -5232,7 +5238,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                             float ray_t = 0;
 
-                            if(ray_intersects_toblerone(rt_real_pos, next_rt_real_pos - rt_pos, ctri, start_time, end_time, &ray_t, sx == 1920/2 && sy == 1080/2))
+                            if(ray_intersects_toblerone(rt_real_pos, next_rt_real_pos - rt_real_pos, ctri, start_time, end_time, &ray_t, sx == 800/2 && sy == 600/2))
                             {
                                 if(ray_t < best_intersection)
                                 {
