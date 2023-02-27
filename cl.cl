@@ -14,12 +14,16 @@ struct triangle
 #define TRI_PRECESSION
 #endif // FEATURE_precession
 
-//#define TRI_PRECESSION
+#define TRI_PRECESSION
 #ifdef TRI_PRECESSION
 struct computed_triangle
 {
     float4 v0, v1, v2;
     float4 e0, e1, e2;
+    float4 origin;
+
+    float4 tet_e0_i, tet_e1_i, tet_e2_i, tet_e3_i;
+    //float4 p;
 };
 #else
 struct computed_triangle
@@ -3980,13 +3984,31 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
         struct computed_triangle local_tri;
 
-        local_tri.v0 = cart_s_coordinate_v0;
-        local_tri.v1 = cart_s_coordinate_v1;
-        local_tri.v2 = cart_s_coordinate_v2;
+        //local_tri.v0 = cart_s_coordinate_v0;
+        //local_tri.v1 = cart_s_coordinate_v1;
+        //local_tri.v2 = cart_s_coordinate_v2;
 
-        local_tri.e0 = cart_e_coordinate_v0;
-        local_tri.e1 = cart_e_coordinate_v1;
-        local_tri.e2 = cart_e_coordinate_v2;
+        //local_tri.e0 = cart_e_coordinate_v0;
+        //local_tri.e1 = cart_e_coordinate_v1;
+        //local_tri.e2 = cart_e_coordinate_v2;
+
+        local_tri.origin = native_current;
+
+        local_tri.v0 = s_coordinate_v0;
+        local_tri.v1 = s_coordinate_v1;
+        local_tri.v2 = s_coordinate_v2;
+
+        local_tri.e0 = e_coordinate_v0;
+        local_tri.e1 = e_coordinate_v1;
+        local_tri.e2 = e_coordinate_v2;
+
+        float4 e_lo[4];
+        get_tetrad_inverse(s_e0, s_e1, s_e2, s_e3, &e_lo[0], &e_lo[1], &e_lo[2], &e_lo[3]);
+
+        local_tri.tet_e0_i = e_lo[0];
+        local_tri.tet_e1_i = e_lo[1];
+        local_tri.tet_e2_i = e_lo[2];
+        local_tri.tet_e3_i = e_lo[3];
 
         //printf("Tetrad %f %f %f %f\n", s_e0.x, s_e0.y, s_e0.z, s_e0.w);
 
@@ -4368,7 +4390,7 @@ void interpolate_debug(__write_only image2d_t screen)
 }
 
 ///dir is not normalised, should really use a pos2
-bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_triangle* ctri, float tri_start_time, float tri_end_time, float* t_out, bool debug)
+bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global struct computed_triangle* ctri, float t_tri_start_time, float t_tri_end_time, float* t_out, bool debug)
 {
     #ifndef TRI_PRECESSION
     float3 to_v1 = (float3)(ctri->dv1x, ctri->dv1y, ctri->dv1z);
@@ -4387,21 +4409,49 @@ bool ray_intersects_toblerone(float4 pos, float4 dir, __global struct computed_t
     float3 e2 = v2 + t_diff;
     #else
     #define TRI_COLLIDE
-    float3 v0 = ctri->v0.yzw;
-    float3 v1 = ctri->v1.yzw;
-    float3 v2 = ctri->v2.yzw;
+    //float3 v0 = ctri->v0.yzw;
+    //float3 v1 = ctri->v1.yzw;
+    //float3 v2 = ctri->v2.yzw;
 
-    float3 e0 = ctri->e0.yzw;
-    float3 e1 = ctri->e1.yzw;
-    float3 e2 = ctri->e2.yzw;
+    float4 t_v0 = ctri->v0 - ctri->origin;
+    float4 t_v1 = ctri->v1 - ctri->origin;
+    float4 t_v2 = ctri->v2 - ctri->origin;
 
-    float4 v04 = ctri->v0;
-    float4 v14 = ctri->v1;
-    float4 v24 = ctri->v2;
+    float4 t_e0 = ctri->e0 - ctri->origin;
+    float4 t_e1 = ctri->e1 - ctri->origin;
+    float4 t_e2 = ctri->e2 - ctri->origin;
 
-    float4 e04 = ctri->e0;
-    float4 e14 = ctri->e1;
-    float4 e24 = ctri->e2;
+    float4 fv0 = coordinate_to_tetrad_basis(t_v0, ctri->tet_e0_i, ctri->tet_e1_i, ctri->tet_e2_i, ctri->tet_e3_i);
+    float4 fv1 = coordinate_to_tetrad_basis(t_v1, ctri->tet_e0_i, ctri->tet_e1_i, ctri->tet_e2_i, ctri->tet_e3_i);
+    float4 fv2 = coordinate_to_tetrad_basis(t_v2, ctri->tet_e0_i, ctri->tet_e1_i, ctri->tet_e2_i, ctri->tet_e3_i);
+
+    float4 fe0 = coordinate_to_tetrad_basis(t_e0, ctri->tet_e0_i, ctri->tet_e1_i, ctri->tet_e2_i, ctri->tet_e3_i);
+    float4 fe1 = coordinate_to_tetrad_basis(t_e1, ctri->tet_e0_i, ctri->tet_e1_i, ctri->tet_e2_i, ctri->tet_e3_i);
+    float4 fe2 = coordinate_to_tetrad_basis(t_e2, ctri->tet_e0_i, ctri->tet_e1_i, ctri->tet_e2_i, ctri->tet_e3_i);
+
+    float3 v0 = fv0.yzw;
+    float3 v1 = fv1.yzw;
+    float3 v2 = fv2.yzw;
+
+    float3 e0 = fe0.yzw;
+    float3 e1 = fe1.yzw;
+    float3 e2 = fe2.yzw;
+
+    float tri_start_time = coordinate_to_tetrad_basis((float4)(t_tri_start_time - ctri->origin.x, 0,0,0), ctri->tet_e0_i, ctri->tet_e1_i, ctri->tet_e2_i, ctri->tet_e3_i).x;
+    float tri_end_time = coordinate_to_tetrad_basis((float4)(t_tri_end_time - ctri->origin.x, 0,0,0), ctri->tet_e0_i, ctri->tet_e1_i, ctri->tet_e2_i, ctri->tet_e3_i).x;
+
+    float4 t_pos = global_pos - ctri->origin;
+
+    float4 pos = coordinate_to_tetrad_basis(t_pos, ctri->tet_e0_i, ctri->tet_e1_i, ctri->tet_e2_i, ctri->tet_e3_i);
+    float4 dir = coordinate_to_tetrad_basis(global_dir, ctri->tet_e0_i, ctri->tet_e1_i, ctri->tet_e2_i, ctri->tet_e3_i);
+
+    float4 v04 = fv0;
+    float4 v14 = fv1;
+    float4 v24 = fv2;
+
+    float4 e04 = fe0;
+    float4 e14 = fe1;
+    float4 e24 = fe2;
 
     bool is_static = all(v0 == e0) && all(v1 == e1) && all(v2 == e2);
     #endif // TRI_PRECESSION
@@ -4976,6 +5026,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
     #endif // DEVICE_SIDE_ENQUEUE
 
     float4 last_pos = (float4)(0,0,0,0);
+    float4 last_real_pos = (float4)(0,0,0,0);
 
     float my_min = position.x;
     float my_max = position.x;
@@ -5054,7 +5105,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
         }
         #endif // UNCONDITIONALLY_NONSINGULAR
 
-        if(GET_FEATURE(use_triangle_rendering, dfg) && (i % 8) == 0 && any_visible_tris > 0)
+        if(GET_FEATURE(use_triangle_rendering, dfg) && (i % 1) == 0 && any_visible_tris > 0)
         {
             float4 out_position = generic_to_cartesian(position, cfg);
 
@@ -5074,7 +5125,10 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
             #endif
 
             if(i == 0)
+            {
                 last_pos = out_position;
+                last_real_pos = position;
+            }
 
             bool should_check = true;
 
@@ -5082,7 +5136,10 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
             float4 rt_pos = last_pos;
             float4 next_rt_pos = out_position;
 
-            float4 rt_diff = next_rt_pos - rt_pos;
+            float4 rt_real_pos = last_real_pos;
+            float4 next_rt_real_pos = position;
+
+            //float4 rt_diff = next_rt_pos - rt_pos;
 
             //if(dot(rt_diff, rt_diff) > 1)
             //    should_check = true;
@@ -5090,10 +5147,13 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
             if((should_check || should_terminate) && !any(IS_DEGENERATE(out_position)))
             {
                 last_pos = next_rt_pos;
+                last_real_pos = position;
 
                 #if 1
 
                 {
+                    float4 start;
+
                     struct step_setup setup;
 
                     {
@@ -5117,6 +5177,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                     while(!is_step_finished(&setup))
                     {
                         unsigned int voxel_id = index_acceleration(&setup, accel_width_num);
+
+                        //float4 real_ray_pos = mix(rt_real_pos, next_rt_real_pos)
 
                         #ifdef USE_FEEDBACK_CULLING
                         float rmin = min(rt_pos.x, next_rt_pos.x);
@@ -5170,7 +5232,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                             float ray_t = 0;
 
-                            if(ray_intersects_toblerone(rt_pos, next_rt_pos - rt_pos, ctri, start_time, end_time, &ray_t, sx == 1920/2 && sy == 1080/2))
+                            if(ray_intersects_toblerone(rt_real_pos, next_rt_real_pos - rt_pos, ctri, start_time, end_time, &ray_t, sx == 1920/2 && sy == 1080/2))
                             {
                                 if(ray_t < best_intersection)
                                 {
