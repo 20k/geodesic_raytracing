@@ -5155,7 +5155,14 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                 out_position = (float4)(position.x, pos_cart);
 
-                native_position = cartesian_to_generic(out_position, cfg);
+                float3 next_pos_spherical = cartesian_to_polar(pos_cart);
+
+                if(fsign < 0)
+                {
+                    next_pos_spherical.x = -next_pos_spherical.x;
+                }
+
+                native_position = spherical_to_generic((float4)(pos_spherical.x, next_pos_spherical), cfg);
             }
             #endif
 
