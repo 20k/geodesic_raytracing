@@ -4445,11 +4445,11 @@ bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global str
     float4 pos = coordinate_to_tetrad_basis(t_pos, ctri->tet_e0_i, ctri->tet_e1_i, ctri->tet_e2_i, ctri->tet_e3_i);
     float4 dir = coordinate_to_tetrad_basis(global_pos + global_dir - ctri->origin, ctri->tet_e0_i, ctri->tet_e1_i, ctri->tet_e2_i, ctri->tet_e3_i) - pos;
 
-    if(debug)
+    /*if(debug)
     {
         printf("Pos %f %f %f %f dir %f %f %f %f orig %f %f %f %f\n", pos.x, pos.y, pos.z, pos.w, dir.x, dir.y, dir.z, dir.w, ctri->origin.x, ctri->origin.y, ctri->origin.z, ctri->origin.w);
         printf("V %f %f %f %f E %f %f %f %f", fv0.x, fv0.y, fv0.z, fv0.w, fe0.x, fe0.y, fe0.z, fe0.w);
-    }
+    }*/
 
     float4 v04 = fv0;
     float4 v14 = fv1;
