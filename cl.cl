@@ -4033,14 +4033,6 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         local_tri.e1 = e_coordinate_v1 + native_next;
         local_tri.e2 = e_coordinate_v2 + native_next;
 
-        //float4 e_lo[4];
-        //get_tetrad_inverse(s_e0, s_e1, s_e2, s_e3, &e_lo[0], &e_lo[1], &e_lo[2], &e_lo[3]);
-
-        /*local_tri.tet_e0_i = e_lo[0];
-        local_tri.tet_e1_i = e_lo[1];
-        local_tri.tet_e2_i = e_lo[2];
-        local_tri.tet_e3_i = e_lo[3];*/
-
         //printf("Tetrad %f %f %f %f\n", s_e0.x, s_e0.y, s_e0.z, s_e0.w);
 
         float4 coordinate_mine_start = tetrad_to_coordinate_basis((float4)(0.f, mine.x, mine.y, mine.z), s_e0, s_e1, s_e2, s_e3);
