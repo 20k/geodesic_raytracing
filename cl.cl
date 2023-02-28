@@ -3881,7 +3881,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
     float lowest_time = *ray_time_min - 1;
     float maximum_time = *ray_time_max + 1;
 
-    int skip = 8;
+    int skip = 1;
 
     ///if I'm doing bresenhams, then ds_stepping makes no sense and I am insane
     for(int cc=0; cc < count - skip; cc += skip)
@@ -5115,6 +5115,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
         {
             float4 out_position = generic_to_cartesian(position, cfg);
 
+            float4 native_position = position;
+
             #if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC) || defined(DEBUG_CONSTANT_THETA)
             {
                 float4 pos_spherical = generic_to_spherical(position, cfg);
@@ -5127,13 +5129,15 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                 pos_cart = rot_quat_norm(pos_cart, ray_quat);
 
                 out_position = (float4)(position.x, pos_cart);
+
+                native_position = cartesian_to_generic(out_position, cfg);
             }
             #endif
 
             if(i == 0)
             {
                 last_pos = out_position;
-                last_real_pos = position;
+                last_real_pos = native_position;
             }
 
             bool should_check = true;
@@ -5143,7 +5147,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
             float4 next_rt_pos = out_position;
 
             float4 rt_real_pos = last_real_pos;
-            float4 next_rt_real_pos = position;
+            float4 next_rt_real_pos = native_position;
 
             //float4 rt_diff = next_rt_pos - rt_pos;
 
@@ -5153,7 +5157,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
             if((should_check || should_terminate) && !any(IS_DEGENERATE(out_position)))
             {
                 last_pos = next_rt_pos;
-                last_real_pos = position;
+                last_real_pos = native_position;
 
                 #if 1
 
