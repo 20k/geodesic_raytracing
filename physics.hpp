@@ -19,6 +19,7 @@ struct physics
 
     std::array<cl::buffer, 4> tetrads;
     std::array<cl::buffer, 4> parallel_transported_tetrads;
+    std::array<cl::buffer, 4> inverted_tetrads;
     cl::buffer polar_positions;
     cl::buffer timelike_vectors;
 
@@ -28,7 +29,7 @@ struct physics
 
     physics(cl::context& ctx) : geodesic_paths(ctx), geodesic_velocities(ctx), geodesic_ds(ctx), positions(ctx), counts(ctx), basis_speeds(ctx),
                                 gpu_object_count(ctx),
-                                tetrads{ctx, ctx, ctx, ctx}, parallel_transported_tetrads{ctx, ctx, ctx, ctx}, polar_positions(ctx), timelike_vectors(ctx)
+                                tetrads{ctx, ctx, ctx, ctx}, parallel_transported_tetrads{ctx, ctx, ctx, ctx}, inverted_tetrads{ctx, ctx, ctx, ctx}, polar_positions(ctx), timelike_vectors(ctx)
     {
         gpu_object_count.alloc(sizeof(cl_int));
     }
@@ -52,6 +53,7 @@ struct physics
         {
             tetrads[i].alloc(clamped_count * sizeof(cl_float4));
             parallel_transported_tetrads[i].alloc(clamped_count * sizeof(cl_float4) * max_path_length);
+            inverted_tetrads[i].alloc(clamped_count * sizeof(cl_float4) * max_path_length);
         }
 
         polar_positions.alloc(clamped_count * sizeof(cl_float4));
@@ -183,6 +185,23 @@ struct physics
 
             cqueue.exec("parallel_transport_quantity", pt_args, {object_count}, {256});
         }
+
+
+        cl::args invert_args;
+        invert_args.push_back(counts);
+        invert_args.push_back(object_count);
+
+        for(int i=0; i < 4; i++)
+        {
+            invert_args.push_back(parallel_transported_tetrads[i]);
+        }
+
+        for(int i=0; i < 4; i++)
+        {
+            invert_args.push_back(inverted_tetrads[i]);
+        }
+
+        cqueue.exec("calculate_tetrad_inverse", invert_args, {object_count}, {256});
 
         needs_trace = false;
     }
