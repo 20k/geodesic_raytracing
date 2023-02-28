@@ -2104,7 +2104,7 @@ int main(int argc, char* argv[])
                 cl_int prepass_width = width/16;
                 cl_int prepass_height = height/16;
 
-                if(metric_manage.current_metric->metric_cfg.use_prepass && tris.cpu_objects.size() == 0)
+                if(metric_manage.current_metric->metric_cfg.use_prepass)
                 {
                     cl::args clear_args;
                     clear_args.push_back(termination_buffer);
@@ -2113,40 +2113,43 @@ int main(int argc, char* argv[])
 
                     clctx.cqueue.exec("clear_termination_buffer", clear_args, {prepass_width*prepass_height}, {256});
 
-                    cl::args init_args_prepass;
-
-                    init_args_prepass.push_back(g_camera_pos_polar);
-                    init_args_prepass.push_back(g_camera_quat);
-                    init_args_prepass.push_back(schwarzs_prepass);
-                    init_args_prepass.push_back(schwarzs_count_prepass);
-                    init_args_prepass.push_back(prepass_width);
-                    init_args_prepass.push_back(prepass_height);
-                    init_args_prepass.push_back(termination_buffer);
-                    init_args_prepass.push_back(prepass_width);
-                    init_args_prepass.push_back(prepass_height);
-                    init_args_prepass.push_back(isnap);
-
-                    for(auto& i : tetrad)
+                    if(tris.cpu_objects.size() == 0)
                     {
-                        init_args_prepass.push_back(i);
+                        cl::args init_args_prepass;
+
+                        init_args_prepass.push_back(g_camera_pos_polar);
+                        init_args_prepass.push_back(g_camera_quat);
+                        init_args_prepass.push_back(schwarzs_prepass);
+                        init_args_prepass.push_back(schwarzs_count_prepass);
+                        init_args_prepass.push_back(prepass_width);
+                        init_args_prepass.push_back(prepass_height);
+                        init_args_prepass.push_back(termination_buffer);
+                        init_args_prepass.push_back(prepass_width);
+                        init_args_prepass.push_back(prepass_height);
+                        init_args_prepass.push_back(isnap);
+
+                        for(auto& i : tetrad)
+                        {
+                            init_args_prepass.push_back(i);
+                        }
+
+                        init_args_prepass.push_back(dynamic_config);
+
+                        clctx.cqueue.exec("init_rays_generic", init_args_prepass, {prepass_width*prepass_height}, {256});
+
+                        int rays_num = calculate_ray_count(prepass_width, prepass_height);
+
+                        execute_kernel(clctx.cqueue, schwarzs_prepass, schwarzs_scratch, finished_1, schwarzs_count_prepass, schwarzs_count_scratch, finished_count_1, tris, gpu_intersections, gpu_intersections_count, accel, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer);
+
+                        cl::args singular_args;
+                        singular_args.push_back(finished_1);
+                        singular_args.push_back(finished_count_1);
+                        singular_args.push_back(termination_buffer);
+                        singular_args.push_back(prepass_width);
+                        singular_args.push_back(prepass_height);
+
+                        clctx.cqueue.exec("calculate_singularities", singular_args, {prepass_width*prepass_height}, {256});
                     }
-
-                    init_args_prepass.push_back(dynamic_config);
-
-                    clctx.cqueue.exec("init_rays_generic", init_args_prepass, {prepass_width*prepass_height}, {256});
-
-                    int rays_num = calculate_ray_count(prepass_width, prepass_height);
-
-                    execute_kernel(clctx.cqueue, schwarzs_prepass, schwarzs_scratch, finished_1, schwarzs_count_prepass, schwarzs_count_scratch, finished_count_1, tris, gpu_intersections, gpu_intersections_count, accel, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer);
-
-                    cl::args singular_args;
-                    singular_args.push_back(finished_1);
-                    singular_args.push_back(finished_count_1);
-                    singular_args.push_back(termination_buffer);
-                    singular_args.push_back(prepass_width);
-                    singular_args.push_back(prepass_height);
-
-                    clctx.cqueue.exec("calculate_singularities", singular_args, {prepass_width*prepass_height}, {256});
                 }
 
                 cl::args init_args;
