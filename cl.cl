@@ -4458,7 +4458,14 @@ bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global str
     float3 e1 = fe1.yzw;
     float3 e2 = fe2.yzw;
 
-    float tri_start_time = coordinate_to_tetrad_basis((float4)(t_tri_start_time - origin.x, 0,0,0), i_e0, i_e1, i_e2, i_e3).x;
+    /*if(debug)
+    {
+        printf("Time %f\n", t_tri_start_time - origin.x);
+    }*/
+
+    //float tri_start_time = coordinate_to_tetrad_basis((float4)(t_tri_start_time - origin.x, 0,0,0), i_e0, i_e1, i_e2, i_e3).x;
+
+    float tri_start_time = 0.f;
     float tri_end_time = coordinate_to_tetrad_basis((float4)(t_tri_end_time - origin.x, 0,0,0), i_e0, i_e1, i_e2, i_e3).x;
 
     float4 t_pos = global_pos - origin;
