@@ -3928,8 +3928,8 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         if(!range_overlaps(lowest_time, maximum_time, native_current.x, native_next.x))
             continue;
 
-        float4 current = generic_to_cartesian(native_current, cfg);
-        float4 next = generic_to_cartesian(native_next, cfg);
+        //float4 current = generic_to_cartesian(native_current, cfg);
+        //float4 next = generic_to_cartesian(native_next, cfg);
 
         #ifndef TRI_PRECESSION
         //if(should_store)
@@ -3978,8 +3978,8 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         float4 cartesian_mine_start = (float4)(0.f, mine.x, mine.y, mine.z);
         float4 cartesian_mine_next = (float4)(0.f, mine.x, mine.y, mine.z);
         #else
-        float delta_time = (next - current).x;
-        float output_time = current.x;
+        float delta_time = (native_next - native_current).x;
+        float output_time = native_current.x;
 
         #define PRECESS
         #ifdef PRECESS
@@ -4005,14 +4005,6 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         float4 e_coordinate_v1 = tetrad_to_coordinate_basis(vert_1, e_e0, e_e1, e_e2, e_e3);
         float4 e_coordinate_v2 = tetrad_to_coordinate_basis(vert_2, e_e0, e_e1, e_e2, e_e3);
 
-        float4 cart_s_coordinate_v0 = generic_velocity_to_cartesian_velocity(native_current, s_coordinate_v0, cfg) + current;
-        float4 cart_s_coordinate_v1 = generic_velocity_to_cartesian_velocity(native_current, s_coordinate_v1, cfg) + current;
-        float4 cart_s_coordinate_v2 = generic_velocity_to_cartesian_velocity(native_current, s_coordinate_v2, cfg) + current;
-
-        float4 cart_e_coordinate_v0 = generic_velocity_to_cartesian_velocity(native_next, e_coordinate_v0, cfg) + next;
-        float4 cart_e_coordinate_v1 = generic_velocity_to_cartesian_velocity(native_next, e_coordinate_v1, cfg) + next;
-        float4 cart_e_coordinate_v2 = generic_velocity_to_cartesian_velocity(native_next, e_coordinate_v2, cfg) + next;
-
         struct computed_triangle local_tri;
 
         //local_tri.v0 = cart_s_coordinate_v0;
@@ -4035,11 +4027,11 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
         //printf("Tetrad %f %f %f %f\n", s_e0.x, s_e0.y, s_e0.z, s_e0.w);
 
-        float4 coordinate_mine_start = tetrad_to_coordinate_basis((float4)(0.f, mine.x, mine.y, mine.z), s_e0, s_e1, s_e2, s_e3);
+        /*float4 coordinate_mine_start = tetrad_to_coordinate_basis((float4)(0.f, mine.x, mine.y, mine.z), s_e0, s_e1, s_e2, s_e3);
         float4 cartesian_mine_start = generic_velocity_to_cartesian_velocity(native_current, coordinate_mine_start, cfg);
 
         float4 coordinate_mine_next = tetrad_to_coordinate_basis((float4)(0.f, mine.x, mine.y, mine.z), e_e0, e_e1, e_e2, e_e3);
-        float4 cartesian_mine_next = generic_velocity_to_cartesian_velocity(native_next, coordinate_mine_next, cfg);
+        float4 cartesian_mine_next = generic_velocity_to_cartesian_velocity(native_next, coordinate_mine_next, cfg);*/
         #else
         struct computed_triangle local_tri;
 
@@ -4072,8 +4064,14 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         #endif // PRECESS
         #endif // TRI_PRECESSION
 
-        float4 pos = current + cartesian_mine_start;
-        float4 next_pos = next + cartesian_mine_next;
+        //float4 pos = current + cartesian_mine_start;
+        //float4 next_pos = next + cartesian_mine_next;
+
+        float4 mine_start_coordinate = tetrad_to_coordinate_basis((float4)(0.f, mine.x, mine.y, mine.z), s_e0, s_e1, s_e2, s_e3);
+        float4 mine_end_coordinate = tetrad_to_coordinate_basis((float4)(0.f, mine.x, mine.y, mine.z), e_e0, e_e1, e_e2, e_e3);
+
+        float4 pos = native_current + mine_start_coordinate;
+        float4 next_pos = native_next + mine_end_coordinate;
 
         float4 grid_pos = world_to_voxel4(pos, width, time_width, width_num);
         float4 next_grid_pos = world_to_voxel4(next_pos, width, time_width, width_num);
@@ -5168,15 +5166,15 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
             if(i == 0)
             {
-                last_pos = out_position;
+                //last_pos = out_position;
                 last_real_pos = native_position;
             }
 
             bool should_check = true;
 
             ///we could evaluate some of this with the metric tensor, ie angles
-            float4 rt_pos = last_pos;
-            float4 next_rt_pos = out_position;
+            //float4 rt_pos = last_pos;
+            //float4 next_rt_pos = out_position;
 
             float4 rt_real_pos = last_real_pos;
             float4 next_rt_real_pos = native_position;
@@ -5188,7 +5186,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
             if((should_check || should_terminate) && !any(IS_DEGENERATE(out_position)))
             {
-                last_pos = next_rt_pos;
+                //last_pos = next_rt_pos;
                 last_real_pos = native_position;
 
                 #if 1
@@ -5199,8 +5197,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                     struct step_setup setup;
 
                     {
-                        float4 current_pos = world_to_voxel4(rt_pos, accel_width, accel_time_width, accel_width_num);
-                        float4 next_pos = world_to_voxel4(next_rt_pos, accel_width, accel_time_width, accel_width_num);
+                        float4 current_pos = world_to_voxel4(rt_real_pos, accel_width, accel_time_width, accel_width_num);
+                        float4 next_pos = world_to_voxel4(next_rt_real_pos, accel_width, accel_time_width, accel_width_num);
 
                         setup = setup_step(current_pos, next_pos);
                     }
