@@ -4471,7 +4471,8 @@ bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global str
     float4 t_pos = global_pos - origin;
 
     float4 pos = coordinate_to_tetrad_basis(t_pos, i_e0, i_e1, i_e2, i_e3);
-    float4 dir = coordinate_to_tetrad_basis(global_pos + global_dir - origin, i_e0, i_e1, i_e2, i_e3) - pos;
+    //float4 dir = coordinate_to_tetrad_basis(global_pos + global_dir - origin, i_e0, i_e1, i_e2, i_e3) - pos;
+    float4 dir = coordinate_to_tetrad_basis(global_dir, i_e0, i_e1, i_e2, i_e3);
 
     /*if(debug)
     {
