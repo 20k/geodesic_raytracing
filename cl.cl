@@ -5518,6 +5518,8 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
     float4 velocity = ray->velocity;
     float4 acceleration = ray->acceleration;
 
+    float f_in_x = fabs(velocity.x);
+
     //printf("Pos %f %f %f %f\n", position.x,position.y,position.z,position.w);
 
     /*#ifndef GENERIC_BIG_METRIC
@@ -5620,6 +5622,13 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
                 continue;
         }
         #endif // ADAPTIVE_PRECISION
+
+        #ifndef UNCONDITIONALLY_NONSINGULAR
+        if(fabs(velocity.x) > 1000 + f_in_x && fabs(acceleration.x) > 100)
+        {
+            should_break = true;
+        }
+        #endif // UNCONDITIONALLY_NONSINGULAR
 
         float4 generic_position_out = position;
         float4 generic_velocity_out = velocity;
