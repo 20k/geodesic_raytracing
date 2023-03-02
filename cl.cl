@@ -4471,8 +4471,8 @@ bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global str
     float4 t_pos = global_pos - origin;
 
     float4 pos = coordinate_to_tetrad_basis(t_pos, i_e0, i_e1, i_e2, i_e3);
-    //float4 dir = coordinate_to_tetrad_basis(global_pos + global_dir - origin, i_e0, i_e1, i_e2, i_e3) - pos;
-    float4 dir = coordinate_to_tetrad_basis(global_dir, i_e0, i_e1, i_e2, i_e3);
+    float4 dir = coordinate_to_tetrad_basis(global_pos + global_dir - origin, i_e0, i_e1, i_e2, i_e3) - pos;
+    //float4 dir = coordinate_to_tetrad_basis(global_dir, i_e0, i_e1, i_e2, i_e3);
 
     /*if(debug)
     {
@@ -4533,8 +4533,8 @@ bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global str
     #ifdef TRI_COLLIDE
 
     bool any_t = false;
-    float min_t = 0;
-    float max_t = 0;
+    float min_t = FLT_MAX;
+    float max_t = -FLT_MAX;
 
     ///time of this triangle
     float interpolated_min_time = 0;
@@ -4701,30 +4701,10 @@ bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global str
         }
         #endif // 0
 
-        if(!any_t)
-        {
-            min_t = which_t;
-            max_t = which_t;
-
-            interpolated_min_time = my_time;
-            interpolated_max_time = my_time;
-        }
-        else
-        {
-            if(which_t < min_t)
-            {
-                min_t = which_t;
-                interpolated_min_time = my_time;
-            }
-
-            if(which_t > max_t)
-            {
-                max_t = which_t;
-                interpolated_max_time = my_time;
-            }
-        }
-
         any_t = true;
+
+        min_t = min(min_t, which_t);
+        max_t = max(max_t, which_t);
     }
 
     for(int i=0; i < 2; i++)
@@ -4740,39 +4720,35 @@ bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global str
 
         if(ray_intersects_triangle(pos.yzw, dir.yzw, tri_0_4.yzw, tri_1_4.yzw, tri_2_4.yzw, &which_t, &u, &v))
         {
-            float w = 1 - u - v;
-
-            float my_time = u * tri_0_4.x + v * tri_1_4.x + w * tri_2_4.x;
-
-            if(!any_t)
-            {
-                min_t = which_t;
-                max_t = which_t;
-
-                interpolated_min_time = my_time;
-                interpolated_max_time = my_time;
-            }
-            else
-            {
-                if(which_t < min_t)
-                {
-                    min_t = which_t;
-                    interpolated_min_time = my_time;
-                }
-
-                if(which_t > max_t)
-                {
-                    max_t = which_t;
-                    interpolated_max_time = my_time;
-                }
-            }
-
             any_t = true;
+
+            min_t = min(min_t, which_t);
+            max_t = max(max_t, which_t);
         }
     }
 
     if(!any_t)
         return false;
+
+    /*if(t_out)
+    {
+        *t_out = min_t;
+    }*/
+
+    //if(!range_overlaps(min_t - 0.0001f, max_t + 0.0001f, pos.x, pos.x + dir.x))
+    //    return false;
+
+    if(min_t < -0.01f || max_t > 1.01f)
+        return false;
+
+    if(!range_overlaps(tri_start_time, tri_end_time, pos.x, pos.x + dir.x))
+        return false;
+
+    if(t_out)
+        *t_out = clamp(pos.x, min_t, max_t);
+
+    return true;
+
     #else
     /*float3 planes[5 * 3] = {
         v0, v1, v2,
@@ -5284,7 +5260,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                             float4 i_e3 = inverse_e3s[ctri->geodesic_segment];
                             float4 origin = object_positions[ctri->geodesic_segment];
 
-                            float ray_t = 0;
+                            float ray_t = FLT_MAX;
 
                             if(ray_intersects_toblerone(rt_real_pos, next_rt_real_pos - rt_real_pos, ctri, origin, i_e0, i_e1, i_e2, i_e3, start_time, end_time, &ray_t, sx == 800/2 && sy == 600/2))
                             {
