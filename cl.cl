@@ -5252,7 +5252,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                             float ray_t = FLT_MAX;
 
-                            if(ray_intersects_toblerone(rt_real_pos, native_velocity, ctri, origin, i_e0, i_e1, i_e2, i_e3, start_time, end_time, &ray_t, sx == 800/2 && sy == 600/2))
+                            if(ray_intersects_toblerone(rt_real_pos, native_velocity * ds, ctri, origin, i_e0, i_e1, i_e2, i_e3, start_time, end_time, &ray_t, sx == 800/2 && sy == 600/2))
                             {
                                 if(ray_t < best_intersection)
                                 {
