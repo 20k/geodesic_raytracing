@@ -4471,12 +4471,12 @@ bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global str
     float4 t_pos = global_pos - origin;
 
     float4 pos = coordinate_to_tetrad_basis(t_pos, i_e0, i_e1, i_e2, i_e3);
-    float4 dir = coordinate_to_tetrad_basis(global_pos + global_dir - origin, i_e0, i_e1, i_e2, i_e3) - pos;
-    //float4 dir = coordinate_to_tetrad_basis(global_dir, i_e0, i_e1, i_e2, i_e3);
+    //float4 dir = coordinate_to_tetrad_basis(global_pos + global_dir - origin, i_e0, i_e1, i_e2, i_e3) - pos;
+    float4 dir = coordinate_to_tetrad_basis(global_dir, i_e0, i_e1, i_e2, i_e3);
 
     /*if(debug)
     {
-        printf("Pos %f %f %f %f dir %f %f %f %f orig %f %f %f %f\n", pos.x, pos.y, pos.z, pos.w, dir.x, dir.y, dir.z, dir.w, ctri->origin.x, ctri->origin.y, ctri->origin.z, ctri->origin.w);
+        printf("Pos %f %f %f %f dir %f %f %f %f orig %f %f %f %f\n", pos.x, pos.y, pos.z, pos.w, dir.x, dir.y, dir.z, dir.w, origin.x, origin.y, origin.z, origin.w);
         printf("V %f %f %f %f E %f %f %f %f", fv0.x, fv0.y, fv0.z, fv0.w, fe0.x, fe0.y, fe0.z, fe0.w);
     }*/
 
@@ -4586,7 +4586,7 @@ bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global str
 
         float3 hit_pos = pos.yzw + dir.yzw * which_t;
 
-        #if 1
+        #if 0
         ///up vector is toblerone normal
         ///use triangle base as right
         ///need to project both onto plane
@@ -4729,14 +4729,6 @@ bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global str
 
     if(!any_t)
         return false;
-
-    /*if(t_out)
-    {
-        *t_out = min_t;
-    }*/
-
-    //if(!range_overlaps(min_t - 0.0001f, max_t + 0.0001f, pos.x, pos.x + dir.x))
-    //    return false;
 
     if(min_t < -0.01f || max_t > 1.01f)
         return false;
@@ -5038,7 +5030,6 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
     loop_limit /= 125;
     #endif // DEVICE_SIDE_ENQUEUE
 
-    float4 last_pos = (float4)(0,0,0,0);
     float4 last_real_pos = (float4)(0,0,0,0);
 
     float my_min = position.x;
@@ -5120,45 +5111,47 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
         if(GET_FEATURE(use_triangle_rendering, dfg) && (i % 1) == 0 && any_visible_tris > 0)
         {
-            float4 out_position = generic_to_cartesian(position, cfg);
-
             float4 native_position = position;
+            float4 native_velocity = velocity;
 
             #if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC) || defined(DEBUG_CONSTANT_THETA)
             {
                 float4 pos_spherical = generic_to_spherical(position, cfg);
+                float4 vel_spherical = generic_velocity_to_spherical_velocity(position, velocity, cfg);
 
                 float fsign = sign(pos_spherical.y);
                 pos_spherical.y = fabs(pos_spherical.y);
 
                 float3 pos_cart = polar_to_cartesian(pos_spherical.yzw);
+                float3 vel_cart = spherical_velocity_to_cartesian_velocity(pos_spherical.yzw, vel_spherical.yzw);
 
-                pos_cart = rot_quat_norm(pos_cart, ray_quat);
+                float4 quat = ray_quat;
 
-                out_position = (float4)(position.x, pos_cart);
+                pos_cart = rot_quat_norm(pos_cart, quat);
+                vel_cart = rot_quat_norm(vel_cart, quat);
 
                 float3 next_pos_spherical = cartesian_to_polar(pos_cart);
+                float3 next_vel_spherical = cartesian_velocity_to_polar_velocity(pos_cart, vel_cart);
 
                 if(fsign < 0)
                 {
                     next_pos_spherical.x = -next_pos_spherical.x;
                 }
 
-                native_position = spherical_to_generic((float4)(pos_spherical.x, next_pos_spherical), cfg);
+                float4 next_pos_generic = spherical_to_generic((float4)(pos_spherical.x, next_pos_spherical), cfg);
+                float4 next_vel_generic = spherical_velocity_to_generic_velocity((float4)(pos_spherical.x, next_pos_spherical), (float4)(vel_spherical.x, next_vel_spherical), cfg);
+
+                native_position = next_pos_generic;
+                native_velocity = next_vel_generic;
             }
             #endif
 
             if(i == 0)
             {
-                //last_pos = out_position;
                 last_real_pos = native_position;
             }
 
             bool should_check = true;
-
-            ///we could evaluate some of this with the metric tensor, ie angles
-            //float4 rt_pos = last_pos;
-            //float4 next_rt_pos = out_position;
 
             float4 rt_real_pos = last_real_pos;
             float4 next_rt_real_pos = native_position;
@@ -5168,9 +5161,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
             //if(dot(rt_diff, rt_diff) > 1)
             //    should_check = true;
 
-            if((should_check || should_terminate) && !any(IS_DEGENERATE(out_position)))
+            if(should_check || should_terminate)
             {
-                //last_pos = next_rt_pos;
                 last_real_pos = native_position;
 
                 #if 1
@@ -5201,8 +5193,6 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                     while(!is_step_finished(&setup))
                     {
                         unsigned int voxel_id = index_acceleration(&setup, accel_width_num);
-
-                        //float4 real_ray_pos = mix(rt_real_pos, next_rt_real_pos)
 
                         #ifdef USE_FEEDBACK_CULLING
                         float rmin = min(rt_pos.x, next_rt_pos.x);
@@ -5262,7 +5252,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                             float ray_t = FLT_MAX;
 
-                            if(ray_intersects_toblerone(rt_real_pos, next_rt_real_pos - rt_real_pos, ctri, origin, i_e0, i_e1, i_e2, i_e3, start_time, end_time, &ray_t, sx == 800/2 && sy == 600/2))
+                            if(ray_intersects_toblerone(rt_real_pos, native_velocity, ctri, origin, i_e0, i_e1, i_e2, i_e3, start_time, end_time, &ray_t, sx == 800/2 && sy == 600/2))
                             {
                                 if(ray_t < best_intersection)
                                 {
