@@ -18,8 +18,12 @@ struct triangle
 #ifdef TRI_PRECESSION
 struct computed_triangle
 {
-    float4 v0, v1, v2;
+    /*float4 v0, v1, v2;
     float4 e0, e1, e2;
+    int geodesic_segment;*/
+
+    float4 tv0, tv1, tv2;
+    float4 te0, te1, te2;
     int geodesic_segment;
     //float4 p;
 };
@@ -3978,8 +3982,8 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         float4 cartesian_mine_start = (float4)(0.f, mine.x, mine.y, mine.z);
         float4 cartesian_mine_next = (float4)(0.f, mine.x, mine.y, mine.z);
         #else
-        float delta_time = (native_next - native_current).x;
-        float output_time = native_current.x;
+        //float delta_time = (native_next - native_current).x;
+        //float output_time = native_current.x;
 
         #define PRECESS
         #ifdef PRECESS
@@ -4017,13 +4021,29 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
         local_tri.geodesic_segment = cc * stride + mine.object_parent;
 
-        local_tri.v0 = s_coordinate_v0 + native_current;
-        local_tri.v1 = s_coordinate_v1 + native_current;
-        local_tri.v2 = s_coordinate_v2 + native_current;
+        float4 gv0 = s_coordinate_v0 + native_current;
+        float4 gv1 = s_coordinate_v1 + native_current;
+        float4 gv2 = s_coordinate_v2 + native_current;
 
-        local_tri.e0 = e_coordinate_v0 + native_next;
-        local_tri.e1 = e_coordinate_v1 + native_next;
-        local_tri.e2 = e_coordinate_v2 + native_next;
+        float4 ge0 = e_coordinate_v0 + native_next;
+        float4 ge1 = e_coordinate_v1 + native_next;
+        float4 ge2 = e_coordinate_v2 + native_next;
+
+        float4 origin = native_current;
+
+        float4 e_lo[4];
+        get_tetrad_inverse(s_e0, s_e1, s_e2, s_e3, &e_lo[0], &e_lo[1], &e_lo[2], &e_lo[3]);
+
+        local_tri.tv0 = coordinate_to_tetrad_basis(gv0 - origin, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
+        local_tri.tv1 = coordinate_to_tetrad_basis(gv1 - origin, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
+        local_tri.tv2 = coordinate_to_tetrad_basis(gv2 - origin, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
+
+        local_tri.te0 = coordinate_to_tetrad_basis(ge0 - origin, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
+        local_tri.te1 = coordinate_to_tetrad_basis(ge1 - origin, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
+        local_tri.te2 = coordinate_to_tetrad_basis(ge2 - origin, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
+
+        float output_time = 0.f;
+        float delta_time = coordinate_to_tetrad_basis((float4)(native_next.x - native_current.x, 0,0,0), e_lo[0], e_lo[1], e_lo[2], e_lo[3]).x;
 
         //printf("Tetrad %f %f %f %f\n", s_e0.x, s_e0.y, s_e0.z, s_e0.w);
 
@@ -4430,25 +4450,13 @@ bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global str
     float3 e2 = v2 + t_diff;
     #else
     #define TRI_COLLIDE
-    //float3 v0 = ctri->v0.yzw;
-    //float3 v1 = ctri->v1.yzw;
-    //float3 v2 = ctri->v2.yzw;
+    float4 fv0 = ctri->tv0;
+    float4 fv1 = ctri->tv1;
+    float4 fv2 = ctri->tv2;
 
-    float4 t_v0 = ctri->v0 - origin;
-    float4 t_v1 = ctri->v1 - origin;
-    float4 t_v2 = ctri->v2 - origin;
-
-    float4 t_e0 = ctri->e0 - origin;
-    float4 t_e1 = ctri->e1 - origin;
-    float4 t_e2 = ctri->e2 - origin;
-
-    float4 fv0 = coordinate_to_tetrad_basis(t_v0, i_e0, i_e1, i_e2, i_e3);
-    float4 fv1 = coordinate_to_tetrad_basis(t_v1, i_e0, i_e1, i_e2, i_e3);
-    float4 fv2 = coordinate_to_tetrad_basis(t_v2, i_e0, i_e1, i_e2, i_e3);
-
-    float4 fe0 = coordinate_to_tetrad_basis(t_e0, i_e0, i_e1, i_e2, i_e3);
-    float4 fe1 = coordinate_to_tetrad_basis(t_e1, i_e0, i_e1, i_e2, i_e3);
-    float4 fe2 = coordinate_to_tetrad_basis(t_e2, i_e0, i_e1, i_e2, i_e3);
+    float4 fe0 = ctri->te0;
+    float4 fe1 = ctri->te1;
+    float4 fe2 = ctri->te2;
 
     float3 v0 = fv0.yzw;
     float3 v1 = fv1.yzw;
@@ -4466,7 +4474,7 @@ bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global str
     //float tri_start_time = coordinate_to_tetrad_basis((float4)(t_tri_start_time - origin.x, 0,0,0), i_e0, i_e1, i_e2, i_e3).x;
 
     float tri_start_time = 0.f;
-    float tri_end_time = coordinate_to_tetrad_basis((float4)(t_tri_end_time - origin.x, 0,0,0), i_e0, i_e1, i_e2, i_e3).x;
+    float tri_end_time = t_tri_end_time;
 
     float4 t_pos = global_pos - origin;
 
@@ -5222,7 +5230,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                             ///so, I now know for a fact that start time < end_time
                             ///could sort this instead by end times, and then use end time as the quick check
-                            float start_time = linear_start_times[base_offset + t_off];
+                            /*float start_time = linear_start_times[base_offset + t_off];
 
                             #ifdef TIME_CULL
                             if(rt_pos.x < start_time - 0.0001f && (next_rt_pos - rt_pos).x < 0)
@@ -5234,7 +5242,10 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                             #ifdef TIME_CULL
                             if(!ray_toblerone_could_intersect(rt_pos, next_rt_pos - rt_pos, start_time, end_time))
                                 continue;
-                            #endif // TIME_CULL
+                            #endif // TIME_CULL*/
+
+                            float start_time = 0.f;
+                            float end_time = linear_delta_times[base_offset + t_off];
 
                             ///use dot current_pos tri centre pos (?) as distance metric
                             /*float3 pdiff = parent_pos.yzw - rt_pos.yzw;
@@ -6553,9 +6564,9 @@ void render_intersections(__global struct intersection* in, __global int* cnt, _
     float3 e1 = v1 + t_diff;
     float3 e2 = v2 + t_diff;
     #else
-    float3 v0 = ctri->v0.yzw;
-    float3 v1 = ctri->v1.yzw;
-    float3 v2 = ctri->v2.yzw;
+    float3 v0 = ctri->tv0.yzw;
+    float3 v1 = ctri->tv1.yzw;
+    float3 v2 = ctri->tv2.yzw;
     #endif
 
     //float3 N = triangle_normal(iv0, iv1, iv2);
