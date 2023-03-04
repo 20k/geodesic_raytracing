@@ -4474,19 +4474,23 @@ bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global str
         printf("Time %f\n", t_tri_start_time - origin.x);
     }*/
 
-    float tri_start_time = coordinate_to_tetrad_basis((float4)(t_tri_start_time - origin.x, 0,0,0), i_e0, i_e1, i_e2, i_e3).x;
-    float tri_end_time = coordinate_to_tetrad_basis((float4)(t_tri_end_time - origin.x, 0,0,0), i_e0, i_e1, i_e2, i_e3).x;
+    if(!range_overlaps(global_pos.x, global_pos.x + global_dir.x, t_tri_start_time, t_tri_end_time))
+        return false;
 
+    //float tri_start_time = coordinate_to_tetrad_basis((float4)(t_tri_start_time - origin.x, 0,0,0), i_e0, i_e1, i_e2, i_e3).x;
+
+    float tri_start_time = 0.f;
+    float tri_end_time = coordinate_to_tetrad_basis((float4)(t_tri_end_time - origin.x, 0,0,0), i_e0, i_e1, i_e2, i_e3).x;
     //float tri_start_time = 0.f;
     //float tri_end_time = t_tri_end_time;
 
     ///current rendering issues are if these are too far apart
     float4 t_pos = global_pos - origin;
 
-    //float len_sq = t_pos.x * t_pos.x + t_pos.y * t_pos.y + t_pos.z * t_pos.z + t_pos.w * t_pos.w;
+    float len_sq = dot(t_pos, t_pos);
 
-    //if(len_sq > 1)
-    //    return false;
+    if(len_sq > 5)
+        return false;
 
     float4 pos = coordinate_to_tetrad_basis(t_pos, i_e0, i_e1, i_e2, i_e3);
     //float4 dir = coordinate_to_tetrad_basis(global_pos + global_dir - origin, i_e0, i_e1, i_e2, i_e3) - pos;
@@ -4610,10 +4614,10 @@ bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global str
     if(t_out)
         *t_out = (clamp(time_at_intersect_min_t, tri_start_time, tri_end_time) - pos.x) / dir.x;
 
-    if(debug)
+    /*if(debug)
     {
         printf("Pos %f %f %f %f dir %f %f %f %f end %f c_tstart %f c_origin %f %f %f %f t_pos %f\n", pos.x, pos.y, pos.z, pos.w, dir.x, dir.y, dir.z, dir.w, tri_end_time, global_pos.x, origin.x, origin.y, origin.z, origin.w, t_pos.x);
-    }
+    }*/
 
     return true;
 }
