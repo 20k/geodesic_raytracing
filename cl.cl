@@ -4590,8 +4590,8 @@ bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global str
         return false;
 
     ///only check the current segment of ray
-    if(min_t < -0.1f || max_t > 1.1f)
-        return false;
+    //if(min_t < -0.1f || max_t > 1.1f)
+    //    return false;
 
     /*if(debug)
     {
