@@ -4434,7 +4434,7 @@ void interpolate_debug(__write_only image2d_t screen)
 }
 
 ///dir is not normalised, should really use a pos2
-bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global struct computed_triangle* ctri, float4 origin, float4 i_e0, float4 i_e1, float4 i_e2, float4 i_e3, float t_tri_start_time, float t_tri_end_time, float* t_out, bool debug)
+bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global struct computed_triangle* ctri, float4 origin, float4 i_e0, float4 i_e1, float4 i_e2, float4 i_e3, float t_tri_start_time, float t_tri_delta_time, float* t_out, bool debug)
 {
     #ifndef TRI_PRECESSION
     float3 to_v1 = (float3)(ctri->dv1x, ctri->dv1y, ctri->dv1z);
@@ -4474,13 +4474,13 @@ bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global str
         printf("Time %f\n", t_tri_start_time - origin.x);
     }*/
 
-    if(!range_overlaps(global_pos.x, global_pos.x + global_dir.x, t_tri_start_time, t_tri_end_time))
+    if(!range_overlaps(global_pos.x, global_pos.x + global_dir.x, t_tri_start_time, t_tri_start_time + t_tri_delta_time))
         return false;
 
     //float tri_start_time = coordinate_to_tetrad_basis((float4)(t_tri_start_time - origin.x, 0,0,0), i_e0, i_e1, i_e2, i_e3).x;
 
     float tri_start_time = 0.f;
-    float tri_end_time = coordinate_to_tetrad_basis((float4)(t_tri_end_time - origin.x, 0,0,0), i_e0, i_e1, i_e2, i_e3).x;
+    float tri_end_time = coordinate_to_tetrad_basis((float4)(t_tri_delta_time, 0,0,0), i_e0, i_e1, i_e2, i_e3).x;
     //float tri_start_time = 0.f;
     //float tri_end_time = t_tri_end_time;
 
@@ -4922,7 +4922,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                             //float start_time = 0.f;
 
                             float start_time = linear_start_times[base_offset + t_off];
-                            float end_time = linear_delta_times[base_offset + t_off];
+                            float delta_time = linear_delta_times[base_offset + t_off];
 
                             ///use dot current_pos tri centre pos (?) as distance metric
                             /*float3 pdiff = parent_pos.yzw - rt_pos.yzw;
@@ -4942,7 +4942,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                             bool debug = sx == 800/2 && sy == 600/2;
 
-                            if(ray_intersects_toblerone(rt_real_pos, rt_velocity * ds, ctri, origin, i_e0, i_e1, i_e2, i_e3, start_time, end_time, &ray_t, debug))
+                            if(ray_intersects_toblerone(rt_real_pos, rt_velocity * ds, ctri, origin, i_e0, i_e1, i_e2, i_e3, start_time, delta_time, &ray_t, debug))
                             {
                                 //if(debug)
                                 //    printf("Seggy %i\n", ctri->geodesic_segment);
