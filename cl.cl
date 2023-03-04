@@ -4755,9 +4755,6 @@ bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global str
     /*if(!range_overlaps(tri_start_time, tri_end_time, pos.x, pos.x + dir.x))
         return false;*/
 
-    //min_t = clamp(min_t, -0.01f, 1.01f);
-    //max_t = clamp(max_t, -0.01f, 1.01f);
-
     float time_at_intersect_min_t = pos.x + dir.x * min_t;
     float time_at_intersect_max_t = pos.x + dir.x * max_t;
 
@@ -4766,9 +4763,6 @@ bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global str
 
     if(!range_overlaps(tri_start_time, tri_end_time, time_at_intersect_min_t, time_at_intersect_max_t))
         return false;
-
-    //if(t_out)
-    //    *t_out = clamp(pos.x, min_t, max_t);
 
     ///todo: this should be in global coordinates? actually maybe not
     if(t_out)
