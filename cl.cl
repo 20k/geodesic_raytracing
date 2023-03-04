@@ -4576,7 +4576,7 @@ bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global str
         return false;
 
     ///only check the current segment of ray
-    if(min_t < -0.01f || max_t > 1.01f)
+    if(min_t < -0.1f || max_t > 1.1f)
         return false;
 
     /*if(!range_overlaps(tri_start_time, tri_end_time, pos.x, pos.x + dir.x))
@@ -4686,6 +4686,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
     #endif // DEVICE_SIDE_ENQUEUE
 
     float4 last_real_pos = (float4)(0,0,0,0);
+    float4 last_real_velocity = (float4)(0,0,0,0);
 
     float my_min = position.x;
     float my_max = position.x;
@@ -4804,12 +4805,14 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
             if(i == 0)
             {
                 last_real_pos = native_position;
+                last_real_velocity = native_velocity;
             }
 
             bool should_check = true;
 
             float4 rt_real_pos = last_real_pos;
             float4 next_rt_real_pos = native_position;
+            float4 rt_velocity = last_real_velocity;
 
             //float4 rt_diff = next_rt_pos - rt_pos;
 
@@ -4819,6 +4822,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
             if(should_check || should_terminate)
             {
                 last_real_pos = native_position;
+                last_real_velocity = native_velocity;
 
                 #if 1
 
@@ -4910,7 +4914,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                             float ray_t = FLT_MAX;
 
-                            if(ray_intersects_toblerone(rt_real_pos, native_velocity * ds, ctri, origin, i_e0, i_e1, i_e2, i_e3, start_time, end_time, &ray_t, sx == 800/2 && sy == 600/2))
+                            if(ray_intersects_toblerone(rt_real_pos, rt_velocity * ds, ctri, origin, i_e0, i_e1, i_e2, i_e3, start_time, end_time, &ray_t, sx == 800/2 && sy == 600/2))
                             {
                                 if(ray_t < best_intersection)
                                 {
