@@ -4482,6 +4482,9 @@ bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global str
     //float4 dir = coordinate_to_tetrad_basis(global_pos + global_dir - origin, i_e0, i_e1, i_e2, i_e3) - pos;
     float4 dir = coordinate_to_tetrad_basis(global_dir, i_e0, i_e1, i_e2, i_e3);
 
+    //if(pos.x < 0 && dir.x < 0 && tri_end_time > 0)
+    //    return false;
+
     /*if(debug)
     {
         printf("Pos %f %f %f %f dir %f %f %f %f orig %f %f %f %f\n", pos.x, pos.y, pos.z, pos.w, dir.x, dir.y, dir.z, dir.w, origin.x, origin.y, origin.z, origin.w);
@@ -4584,17 +4587,18 @@ bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global str
         float3 tri_1_1 = end_0;
         float3 tri_1_2 = end_1;
 
-        float which_t = 0;
+        float which_t1 = 0;
+        float which_t2 = 0;
 
-        bool hit_1 = ray_intersects_triangle(pos.yzw, dir.yzw, tri_0_0, tri_0_1, tri_0_2, &which_t, 0, 0);
-        bool hit_2 = ray_intersects_triangle(pos.yzw, dir.yzw, tri_1_0, tri_1_1, tri_1_2, &which_t, 0, 0);
+        bool hit_1 = ray_intersects_triangle(pos.yzw, dir.yzw, tri_0_0, tri_0_1, tri_0_2, &which_t1, 0, 0);
+        bool hit_2 = ray_intersects_triangle(pos.yzw, dir.yzw, tri_1_0, tri_1_1, tri_1_2, &which_t2, 0, 0);
 
         if(!hit_1 && !hit_2)
             continue;
 
-        float3 hit_pos = pos.yzw + dir.yzw * which_t;
-
         #if 0
+
+        float3 hit_pos = pos.yzw + dir.yzw * which_t;
         ///up vector is toblerone normal
         ///use triangle base as right
         ///need to project both onto plane
@@ -4711,8 +4715,17 @@ bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global str
 
         any_t = true;
 
-        min_t = min(min_t, which_t);
-        max_t = max(max_t, which_t);
+        if(hit_1)
+        {
+            min_t = min(min_t, which_t1);
+            max_t = max(max_t, which_t1);
+        }
+
+        if(hit_2)
+        {
+            min_t = min(min_t, which_t2);
+            max_t = max(max_t, which_t2);
+        }
     }
 
     for(int i=0; i < 2; i++)
@@ -4721,12 +4734,9 @@ bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global str
         float4 tri_1_4 = base_tris[i * 3 + 1];
         float4 tri_2_4 = base_tris[i * 3 + 2];
 
-        float u = 0;
-        float v = 0;
-
         float which_t = 0;
 
-        if(ray_intersects_triangle(pos.yzw, dir.yzw, tri_0_4.yzw, tri_1_4.yzw, tri_2_4.yzw, &which_t, &u, &v))
+        if(ray_intersects_triangle(pos.yzw, dir.yzw, tri_0_4.yzw, tri_1_4.yzw, tri_2_4.yzw, &which_t, 0, 0))
         {
             any_t = true;
 
@@ -4738,14 +4748,31 @@ bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global str
     if(!any_t)
         return false;
 
+    ///only check the current segment of ray
     if(min_t < -0.01f || max_t > 1.01f)
         return false;
 
-    if(!range_overlaps(tri_start_time, tri_end_time, pos.x, pos.x + dir.x))
+    /*if(!range_overlaps(tri_start_time, tri_end_time, pos.x, pos.x + dir.x))
+        return false;*/
+
+    //min_t = clamp(min_t, -0.01f, 1.01f);
+    //max_t = clamp(max_t, -0.01f, 1.01f);
+
+    float time_at_intersect_min_t = pos.x + dir.x * min_t;
+    float time_at_intersect_max_t = pos.x + dir.x * max_t;
+
+    sort2(&tri_start_time, &tri_end_time);
+    sort2(&time_at_intersect_min_t, &time_at_intersect_max_t);
+
+    if(!range_overlaps(tri_start_time, tri_end_time, time_at_intersect_min_t, time_at_intersect_max_t))
         return false;
 
+    //if(t_out)
+    //    *t_out = clamp(pos.x, min_t, max_t);
+
+    ///todo: this should be in global coordinates? actually maybe not
     if(t_out)
-        *t_out = clamp(pos.x, min_t, max_t);
+        *t_out = (clamp(time_at_intersect_min_t, tri_start_time, tri_end_time) - pos.x) / dir.x;
 
     return true;
 
