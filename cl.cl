@@ -4042,8 +4042,11 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         local_tri.te1 = coordinate_to_tetrad_basis(ge1 - origin, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
         local_tri.te2 = coordinate_to_tetrad_basis(ge2 - origin, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
 
-        float output_time = 0.f;
-        float delta_time = coordinate_to_tetrad_basis((float4)(native_next.x - native_current.x, 0,0,0), e_lo[0], e_lo[1], e_lo[2], e_lo[3]).x;
+        //float output_time = 0.f;
+        //float delta_time = coordinate_to_tetrad_basis((float4)(native_next.x - native_current.x, 0,0,0), e_lo[0], e_lo[1], e_lo[2], e_lo[3]).x;
+
+        float output_time = native_current.x;
+        float delta_time = (native_next - native_current).x;
 
         //printf("Tetrad %f %f %f %f\n", s_e0.x, s_e0.y, s_e0.z, s_e0.w);
 
@@ -4471,12 +4474,19 @@ bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global str
         printf("Time %f\n", t_tri_start_time - origin.x);
     }*/
 
-    //float tri_start_time = coordinate_to_tetrad_basis((float4)(t_tri_start_time - origin.x, 0,0,0), i_e0, i_e1, i_e2, i_e3).x;
+    float tri_start_time = coordinate_to_tetrad_basis((float4)(t_tri_start_time - origin.x, 0,0,0), i_e0, i_e1, i_e2, i_e3).x;
+    float tri_end_time = coordinate_to_tetrad_basis((float4)(t_tri_end_time - origin.x, 0,0,0), i_e0, i_e1, i_e2, i_e3).x;
 
-    float tri_start_time = 0.f;
-    float tri_end_time = t_tri_end_time;
+    //float tri_start_time = 0.f;
+    //float tri_end_time = t_tri_end_time;
 
+    ///current rendering issues are if these are too far apart
     float4 t_pos = global_pos - origin;
+
+    //float len_sq = t_pos.x * t_pos.x + t_pos.y * t_pos.y + t_pos.z * t_pos.z + t_pos.w * t_pos.w;
+
+    //if(len_sq > 1)
+    //    return false;
 
     float4 pos = coordinate_to_tetrad_basis(t_pos, i_e0, i_e1, i_e2, i_e3);
     //float4 dir = coordinate_to_tetrad_basis(global_pos + global_dir - origin, i_e0, i_e1, i_e2, i_e3) - pos;
@@ -4579,6 +4589,11 @@ bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global str
     if(min_t < -0.1f || max_t > 1.1f)
         return false;
 
+    /*if(debug)
+    {
+        printf("%f %f\n", min_t, max_t);
+    }*/
+
     /*if(!range_overlaps(tri_start_time, tri_end_time, pos.x, pos.x + dir.x))
         return false;*/
 
@@ -4594,6 +4609,11 @@ bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global str
     ///todo: this should be in global coordinates? actually maybe not
     if(t_out)
         *t_out = (clamp(time_at_intersect_min_t, tri_start_time, tri_end_time) - pos.x) / dir.x;
+
+    if(debug)
+    {
+        printf("Pos %f %f %f %f dir %f %f %f %f end %f c_tstart %f c_origin %f %f %f %f t_pos %f\n", pos.x, pos.y, pos.z, pos.w, dir.x, dir.y, dir.z, dir.w, tri_end_time, global_pos.x, origin.x, origin.y, origin.z, origin.w, t_pos.x);
+    }
 
     return true;
 }
@@ -4895,7 +4915,9 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                 continue;
                             #endif // TIME_CULL*/
 
-                            float start_time = 0.f;
+                            //float start_time = 0.f;
+
+                            float start_time = linear_start_times[base_offset + t_off];
                             float end_time = linear_delta_times[base_offset + t_off];
 
                             ///use dot current_pos tri centre pos (?) as distance metric
@@ -4914,8 +4936,13 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                             float ray_t = FLT_MAX;
 
-                            if(ray_intersects_toblerone(rt_real_pos, rt_velocity * ds, ctri, origin, i_e0, i_e1, i_e2, i_e3, start_time, end_time, &ray_t, sx == 800/2 && sy == 600/2))
+                            bool debug = sx == 800/2 && sy == 600/2;
+
+                            if(ray_intersects_toblerone(rt_real_pos, rt_velocity * ds, ctri, origin, i_e0, i_e1, i_e2, i_e3, start_time, end_time, &ray_t, debug))
                             {
+                                //if(debug)
+                                //    printf("Seggy %i\n", ctri->geodesic_segment);
+
                                 if(ray_t < best_intersection)
                                 {
                                     out.computed_parent = base_offset + t_off;
