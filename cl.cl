@@ -4464,6 +4464,11 @@ bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global str
     float3 e1 = fe1.yzw;
     float3 e2 = fe2.yzw;
 
+    //float mlen = max(max(dot(v0, v0), dot(v1, v1)), dot(v2, v2));
+    //float mlen2 = max(max(dot(e0, e0), dot(e1, e1)), dot(e2, e2));
+
+    //float len = max(mlen, mlen2);
+
     /*if(debug)
     {
         printf("Time %f\n", t_tri_start_time - origin.x);
@@ -4479,7 +4484,7 @@ bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global str
 
     float len_sq = dot(t_pos, t_pos);
 
-    if(len_sq > 5)
+    if(len_sq > 5.f)
         return false;
 
     ///this is fundamentally incorrect, they overlap multiple times
