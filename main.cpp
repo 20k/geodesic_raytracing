@@ -330,6 +330,7 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
         run_args.push_back(accel.ray_time_max);
 
         run_args.push_back(phys.geodesic_paths);
+        run_args.push_back(phys.geodesic_velocities);
 
         for(int i=0; i < 4; i++)
         {
