@@ -139,6 +139,10 @@ namespace dual_types
             MIN,
 
             LAMBERT_W0,
+
+            FMA,
+            MAD,
+
             UNKNOWN_FUNCTION,
 
             VALUE,
@@ -218,6 +222,8 @@ namespace dual_types
         "max",
         "min",
         "lambert_w0",
+        "fma",
+        "mad",
         "generated#function#failure",
         "ERROR"
         );
@@ -236,13 +242,13 @@ namespace dual_types
     }
 
     inline
-    float sign(float in)
+    double sign(double in)
     {
-        if(in == -0.0f)
-            return -0.0f;
+        if(in == -0.0)
+            return -0.0;
 
-        if(in == 0.0f)
-            return 0.0f;
+        if(in == 0.0)
+            return 0.0;
 
         if(in > 0)
             return 1;
@@ -263,6 +269,12 @@ namespace dual_types
             return v2;
 
         return v1;
+    }
+
+    inline
+    double mad(double a, double b, double c)
+    {
+        return a * b + c;
     }
 
     struct value;
@@ -459,6 +471,9 @@ namespace dual_types
                 PROPAGATE2(MAX, std::max);
                 PROPAGATE2(MIN, std::min);
                 //PROPAGATE2(LAMBERT_W0, lambert_w0);
+
+                ///FMA is not propagated as we can't actually simulate it? Does that matter?
+                PROPAGATE3(MAD, mad);
             }
 
             if(type == ops::SELECT)
@@ -540,6 +555,25 @@ namespace dual_types
 
                     return ret;
                 }*/
+            }
+
+            if(type == ops::FMA || type == ops::MAD)
+            {
+                ///a * 0 + c or 0 * b + c
+                if(args[0].is_constant_constraint(is_zero) || args[1].is_constant_constraint(is_zero))
+                    return args[2];
+
+                ///1 * b + c
+                if(args[0].is_constant_constraint(is_value_equal<1>))
+                    return args[1] + args[2];
+
+                ///a * 1 + c
+                if(args[1].is_constant_constraint(is_value_equal<1>))
+                    return args[0] + args[2];
+
+                ///a * b + 0
+                if(args[2].is_constant_constraint(is_zero))
+                    return args[0] * args[1];
             }
 
             value ret = *this;
