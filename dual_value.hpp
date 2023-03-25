@@ -27,6 +27,8 @@ namespace dual_types
         if(str.size() > 0 && str.back() == '.')
             str += "0";
 
+        str += "f";
+
         return str;
     }
 
@@ -318,6 +320,9 @@ namespace dual_types
 
     bool equivalent(const value& d1, const value& d2);
 
+    value fma(const value&, const value&, const value&);
+    value mad(const value&, const value&, const value&);
+
     struct value
     {
         using is_complex = std::false_type;
@@ -561,22 +566,47 @@ namespace dual_types
             {
                 ///a * 0 + c or 0 * b + c
                 if(args[0].is_constant_constraint(is_zero) || args[1].is_constant_constraint(is_zero))
-                    return args[2];
+                    return args[2].flatten();
 
                 ///1 * b + c
                 if(args[0].is_constant_constraint(is_value_equal<1>))
-                    return args[1] + args[2];
+                    return (args[1] + args[2]).flatten();
 
                 ///a * 1 + c
                 if(args[1].is_constant_constraint(is_value_equal<1>))
-                    return args[0] + args[2];
+                    return (args[0] + args[2]).flatten();
 
                 ///a * b + 0
                 if(args[2].is_constant_constraint(is_zero))
-                    return args[0] * args[1];
+                {
+                    return (args[0] * args[1]).flatten();
+                }
             }
 
             value ret = *this;
+
+            ///much worse than letting the compiler do it
+            #ifdef FMA_REPLACE
+            if(ret.type == ops::PLUS)
+            {
+                if(ret.args[0].type == ops::MULTIPLY)
+                {
+                    value c = ret.args[1];
+                    value a = ret.args[0].args[0];
+                    value b = ret.args[0].args[1];
+
+                    ret = fma(a, b, c);
+                }
+                else if(ret.args[1].type == ops::MULTIPLY)
+                {
+                    value c = ret.args[0];
+                    value a = ret.args[1].args[0];
+                    value b = ret.args[1].args[1];
+
+                    ret = fma(a, b, c);
+                }
+            }
+            #endif
 
             if(recurse)
             {
@@ -645,6 +675,11 @@ namespace dual_types
             if(type == LESS_EQUAL)
             {
                 return args[0].dual(sym) <= args[1].dual(sym);
+            }
+
+            if(type == FMA || type == MAD)
+            {
+                return args[0].dual(sym) * args[1].dual(sym) + args[2].dual(sym);
             }
 
             /*if(type == EQUAL)
@@ -1118,6 +1153,8 @@ namespace dual_types
     BINARY(max, MAX);
     BINARY(min, MIN);
     UNARY(lambert_w0, LAMBERT_W0);
+    TRINARY(mad, MAD);
+    TRINARY(fma, FMA);
 
     template<typename T>
     inline
