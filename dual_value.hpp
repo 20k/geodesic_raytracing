@@ -585,7 +585,7 @@ namespace dual_types
 
             value ret = *this;
 
-            ///much worse than letting the compiler do it
+            ///much worse than letting the compiler do it, even with mad
             #ifdef FMA_REPLACE
             if(ret.type == ops::PLUS)
             {
