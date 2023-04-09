@@ -8,14 +8,38 @@
 #include <map>
 #include <assert.h>
 #include <variant>
+#include <vec/vec.hpp>
 
 namespace dual_types
 {
     template<typename T>
     concept Arithmetic = std::is_arithmetic_v<T>;
 
+    struct device_double_tag{};
+    struct device_float_tag{};
+    struct device_half_tag{};
+    struct device_int_tag{};
+
+    template<typename device>
+    struct mixed_value : vec<1, double>
+    {
+        using device_t = device;
+        using host_t = double;
+
+        template<typename T>
+        constexpr bool device_is()
+        {
+            return std::is_same_v<T, device_t>();
+        }
+
+        constexpr bool device_is_integrable()
+        {
+            return std::is_same_v<device, device_int_tag>();
+        }
+    };
+
     inline
-    std::string to_string_s(float v)
+    std::string to_string_s(double v)
     {
         std::ostringstream oss;
         oss << std::setprecision(32) << std::fixed << std::showpoint << v;
@@ -28,6 +52,40 @@ namespace dual_types
             str += "0";
 
         str += "f";
+
+        return str;
+    }
+
+    template<typename T>
+    inline
+    std::string to_string_hd(const mixed_value<T>& v)
+    {
+        std::ostringstream oss;
+        oss << std::setprecision(32) << std::fixed << std::showpoint << v.v[0];
+        std::string str = oss.str();
+
+        while(str.size() > 0 && str.back() == '0')
+            str.pop_back();
+
+        if(str.size() > 0 && str.back() == '.')
+        {
+            if(v.device_is_integrable())
+            {
+                str.pop_back();
+                return str;
+            }
+
+            str += "0";
+        }
+
+        if(v.template device_is_integrable() && str.find('.') != std::string::npos)
+            assert(false);
+
+        if(v.template device_is<device_half_tag>())
+            str += "h";
+
+        if(v.template device_is<device_float_tag>())
+            str += "f";
 
         return str;
     }
@@ -279,15 +337,17 @@ namespace dual_types
         return a * b + c;
     }
 
+    template<typename device>
     struct value;
 
     std::string type_to_string(const value& op, bool is_int = false);
 
-    value make_op_value(const std::string& str);
-    template<Arithmetic T>
-    value make_op_value(const T& v);
-    template<typename... T>
-    value make_op(ops::type_t type, T&&... args);
+    template<typename device>
+    value<device> make_op_value(const std::string& str);
+    template<typename device, Arithmetic T>
+    value<device> make_op_value(const T& v);
+    //template<typename... T>
+    //value make_op(ops::type_t type, T&&... args);
 
     template<auto N>
     inline
@@ -296,14 +356,19 @@ namespace dual_types
         return f == (double)N;
     }
 
-    value operator<(const value& d1, const value& d2);
+    /*template<typename T>
+    value<T> operator<(const value<T>& d1, const value<T>& d2);
 
-    value operator<=(const value& d1, const value& d2);
+    template<typename T>
+    value<T> operator<=(const value<T>& d1, const value<T>& d2);
 
+    template<typename T>
     value operator>(const value& d1, const value& d2);
 
+    template<typename T>
     value operator>=(const value& d1, const value& d2);
 
+    template<typename T>
     value operator+(const value& d1, const value& d2);
 
     value operator-(const value& d1, const value& d2);
@@ -316,13 +381,18 @@ namespace dual_types
 
     value operator%(const value& d1, const value& d2);
 
-    value operator&(const value& d1, const value& d2);
+    value operator&(const value& d1, const value& d2);*/
 
-    bool equivalent(const value& d1, const value& d2);
+    template<typename T>
+    bool equivalent(const value<T>& d1, const value<T>& d2);
 
-    value fma(const value&, const value&, const value&);
-    value mad(const value&, const value&, const value&);
+    template<typename T>
+    value<T> fma(const value<T>&, const value<T>&, const value<T>&);
 
+    template<typename T>
+    value<T> mad(const value<T>&, const value<T>&, const value<T>&);
+
+    template<typename device>
     struct value
     {
         using is_complex = std::false_type;
@@ -330,17 +400,17 @@ namespace dual_types
 
         ops::type_t type = ops::NONE;
 
-        std::optional<std::variant<std::string, double>> value_payload;
+        std::optional<std::variant<std::string, mixed_value<device>>> value_payload;
 
         //std::optional<std::string> value_payload;
-        std::vector<value> args;
+        std::vector<value<device>> args;
 
         //value(){value_payload = to_string_s(0); type = ops::VALUE;}
         value(){value_payload = 0.; type = ops::VALUE;}
         template<Arithmetic T>
-        value(T v){value_payload = static_cast<double>(v); type = ops::VALUE;}
+        value(T v){value_payload = mixed_value<device>{static_cast<double>(v)}; type = ops::VALUE;}
         value(const std::string& str){value_payload = str; type = ops::VALUE;}
-        value(const char* str){value_payload = std::string(str); type = ops::VALUE;}
+        value(const char* str){assert(str); value_payload = std::string(str); type = ops::VALUE;}
 
         bool is_value() const
         {
@@ -375,27 +445,27 @@ namespace dual_types
 
         void make_value(const std::string& str)
         {
-            value_payload = get_value_or_string(str);
+            value_payload = mixed_value<device>{get_value_or_string(str)};
             type = ops::VALUE;
         }
 
         void set_dual_constant()
         {
-            value_payload = 0.;
+            value_payload = mixed_value<device>{0.};
             type = ops::VALUE;
         }
 
         void set_dual_variable()
         {
-            value_payload = 1.;
+            value_payload = mixed_value<device>{1.};
             type = ops::VALUE;
         }
 
-        #define PROPAGATE1(x, y) if(type == ops::x){return make_op_value(y(get(0)));}
-        #define PROPAGATE2(x, y) if(type == ops::x){return make_op_value(y(get(0), get(1)));}
-        #define PROPAGATE3(x, y) if(type == ops::x){return make_op_value(y(get(0), get(1), get(2)));}
+        #define PROPAGATE1(x, y) if(type == ops::x){return y(get(0));}
+        #define PROPAGATE2(x, y) if(type == ops::x){return y(get(0), get(1));}
+        #define PROPAGATE3(x, y) if(type == ops::x){return y(get(0), get(1), get(2));}
 
-        value flatten(bool recurse = false) const
+        value<device> flatten(bool recurse = false) const
         {
             if(type == ops::VALUE)
                 return *this;
@@ -414,19 +484,19 @@ namespace dual_types
             if(all_constant)
             {
                 if(type == ops::PLUS)
-                    return make_op_value(get(0) + get(1));
+                    return get(0) + get(1);
 
                 if(type == ops::UMINUS)
-                    return make_op_value(-get(0));
+                    return -get(0);
 
                 if(type == ops::MINUS)
-                    return make_op_value(get(0) - get(1));
+                    return get(0) - get(1);
 
                 if(type == ops::MULTIPLY)
-                    return make_op_value(get(0) * get(1));
+                    return get(0) * get(1);
 
                 if(type == ops::DIVIDE)
-                    return make_op_value(get(0) / get(1));
+                    return get(0) / get(1);
 
                 //if(type == ops::MODULUS)
                 //    return make_op_value(get(0) % get(1));
@@ -436,19 +506,19 @@ namespace dual_types
                 //    return make_op_value(get(0) & get(1));
 
                 if(type == ops::LESS)
-                    return make_op_value(get(0) < get(1));
+                    return get(0) < get(1);
 
                 if(type == ops::LESS_EQUAL)
-                    return make_op_value(get(0) <= get(1));
+                    return get(0) <= get(1);
 
                 if(type == ops::GREATER)
-                    return make_op_value(get(0) > get(1));
+                    return get(0) > get(1);
 
                 if(type == ops::GREATER_EQUAL)
-                    return make_op_value(get(0) >= get(1));
+                    return get(0) >= get(1);
 
                 if(type == ops::EQUAL)
-                    return make_op_value(get(0) == get(1));
+                    return get(0) == get(1);
 
                 PROPAGATE1(SIN, std::sin);
                 PROPAGATE1(COS, std::cos);
@@ -492,7 +562,7 @@ namespace dual_types
             if(type == ops::MULTIPLY)
             {
                 if(args[0].is_constant_constraint(is_zero) || args[1].is_constant_constraint(is_zero))
-                    return value(0);
+                    return 0;
 
                 //std::cout << "hello " << type_to_string(args[0]) << " with " << type_to_string(args[1]) << std::endl;
 
@@ -524,19 +594,19 @@ namespace dual_types
                     return args[0].flatten();
 
                 if(equivalent(args[0], args[1]))
-                    return value(0);
+                    return 0;
             }
 
             if(type == ops::DIVIDE)
             {
                 if(args[0].is_constant_constraint(is_zero))
-                    return value(0);
+                    return 0;
 
                 if(args[1].is_constant_constraint(is_value_equal<1>))
                     return args[0].flatten();
 
                 if(equivalent(args[0], args[1]))
-                    return value(1);
+                    return 1;
             }
 
             ///ops::MODULUS
@@ -547,7 +617,7 @@ namespace dual_types
                     return args[0].flatten();
 
                 if(args[1].is_constant_constraint(is_zero))
-                    return value(1);
+                    return 1;
 
                 /*if(args[1].is_constant())
                 {
@@ -583,7 +653,7 @@ namespace dual_types
                 }
             }
 
-            value ret = *this;
+            value<device> ret = *this;
 
             ///much worse than letting the compiler do it, even with mad
             #ifdef FMA_REPLACE
@@ -1038,11 +1108,11 @@ namespace dual_types
         return value(v);
     }
 
-    template<typename... T>
+    template<typename device, typename... T>
     inline
-    value make_op(ops::type_t type, T&&... args)
+    auto make_op(ops::type_t type, T&&... args)
     {
-        value ret;
+        value<device> ret;
         ret.type = type;
         ret.args = {args...};
         ret.value_payload = std::nullopt;
