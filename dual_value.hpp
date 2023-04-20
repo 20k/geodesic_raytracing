@@ -96,7 +96,10 @@ namespace dual_types
             MULTIPLY,
             DIVIDE,
             MODULUS, ///c style %
-            AND,
+            AND, ///&
+
+            LAND, ///&&
+            LOR,
 
             LESS,
             LESS_EQUAL,
@@ -130,6 +133,7 @@ namespace dual_types
             LOG,
 
             ISFINITE,
+            ISINF,
             SIGNBIT,
             SIGN,
             FABS,
@@ -167,7 +171,7 @@ namespace dual_types
         operation_desc ret;
 
         if(type == PLUS || type == MINUS || type == MULTIPLY || type == MODULUS || type == AND ||
-           type == LESS || type == LESS_EQUAL || type == GREATER || type == GREATER_EQUAL ||
+           type == LAND || type == LOR || type == LESS || type == LESS_EQUAL || type == GREATER || type == GREATER_EQUAL ||
            type == EQUAL)
         {
             ret.is_infix = true;
@@ -193,6 +197,8 @@ namespace dual_types
         #endif // NATIVE_DIVIDE
         "%",
         "&",
+        "&&",
+        "||",
         "<",
         "<=",
         ">",
@@ -215,6 +221,7 @@ namespace dual_types
         "atanh",
         "native_log",
         "isfinite",
+        "isinf",
         "signbit",
         "sign",
         "fabs",
@@ -303,6 +310,9 @@ namespace dual_types
     value operator>(const value& d1, const value& d2);
 
     value operator>=(const value& d1, const value& d2);
+
+    value operator&&(const value& d1, const value& d2);
+    value operator||(const value& d1, const value& d2);
 
     value operator+(const value& d1, const value& d2);
 
@@ -467,6 +477,7 @@ namespace dual_types
                 PROPAGATE1(ATANH, std::atanh);
                 PROPAGATE1(LOG, std::log);
                 PROPAGATE1(ISFINITE, std::isfinite);
+                PROPAGATE1(ISINF, std::isinf);
                 PROPAGATE1(SIGNBIT, signbit);
                 PROPAGATE1(SIGN, sign);
                 PROPAGATE1(FABS, std::fabs);
@@ -1050,6 +1061,19 @@ namespace dual_types
         return ret.flatten();
     }
 
+
+    inline
+    value operator&&(const value& d1, const value& d2)
+    {
+        return make_op(ops::LAND, d1, d2);
+    }
+
+    inline
+    value operator||(const value& d1, const value& d2)
+    {
+        return make_op(ops::LOR, d1, d2);
+    }
+
     inline
     value operator<(const value& d1, const value& d2)
     {
@@ -1146,6 +1170,7 @@ namespace dual_types
     UNARY(atan, ATAN);
     BINARY(atan2, ATAN2);
     UNARY(isfinite, ISFINITE);
+    UNARY(isinf, ISINF);
     UNARY(signbit, SIGNBIT);
     UNARY(sign, SIGN);
     TRINARY(select, SELECT);
@@ -1254,6 +1279,82 @@ namespace dual_types
 
         //std::cout << type_to_string(root_3) << std::endl;
     }
+
+    ///respecified behaviour. Essentially specifying that +inf acts like FLT_MAX
+    ///+inf + -inf = 0
+    ///-inf + +inf = 0
+    ///+inf - +inf = 0
+    ///-inf - -inf = 0
+
+    ///+0 * +inf = +0
+    ///-0 * +inf = -0
+    ///+0 * -inf = -0
+    ///-0 * -inf = +0
+
+    ///0/0 -> returns a user specified constant
+    ///inf/inf -> could return a constant? Could return 0?
+
+    ///potentially need to deal with pows
+    ///redefine eg 0.5 * +inf to be FLT_MAX/2
+    struct fvalue
+    {
+        value v;
+
+        #define WRAP_OP(x) friend inline \
+                           fvalue operator x (const fvalue& d1, const fvalue& d2) {return fvalue{d1.v x d2.v};}
+
+        WRAP_OP(<);
+        WRAP_OP(<=);
+        WRAP_OP(>);
+        WRAP_OP(>=);
+        WRAP_OP(==);
+
+        inline friend
+        fvalue operator+(const fvalue& d1, const fvalue& d2)
+        {
+            value inf = "HUGE_VALF";
+
+            value is_zero = (d1.v == inf && d2.v == -inf) || (d1.v == -inf && d2.v == inf);
+
+            value real = d1.v + d2.v;
+
+            value result = if_v(is_zero, value{0.f}, real);
+
+            return fvalue{result};
+        }
+
+        inline friend
+        fvalue operator-(const fvalue& d1, const fvalue& d2)
+        {
+            value inf = "HUGE_VALF";
+
+            value is_zero = (d1.v == inf && d2.v == inf) || (d1.v == -inf && d2.v == -inf);
+
+            value real = d1.v - d2.v;
+
+            value result = if_v(is_zero, value{0.f}, real);
+
+            return fvalue{result};
+        }
+
+        inline friend
+        fvalue operator-(const fvalue& d1)
+        {
+            return fvalue{-d1.v};
+        }
+
+        inline friend
+        fvalue operator*(const fvalue& d1, const fvalue& d2)
+        {
+            value inf = "HUGE_VALF";
+
+            value is_zero = d1.v == value{0.f} || d2.v == value{0.f};
+
+            return fvalue{if_v(is_zero, value{0.f}, d1.v * d2.v)};
+        }
+
+        //WRAP_OP(/);
+    };
 }
 
 template<typename T, typename U>
@@ -1272,6 +1373,13 @@ T divide_with_callback(const T& top, const T& bottom, U&& if_nonfinite)
     }
 
     return dual_types::if_v(is_finite, result, if_nonfinite(top, bottom));
+}
+
+template<typename U>
+inline
+dual_types::fvalue divide_with_callback(const dual_types::fvalue& top, const dual_types::fvalue& bot, U&& if_nonfinite)
+{
+    return dual_types::fvalue{divide_with_callback(top.v, bot.v, std::forward<U>(if_nonfinite))};
 }
 
 using dual = dual_types::dual_v<dual_types::value>;
