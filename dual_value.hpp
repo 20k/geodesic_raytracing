@@ -1180,13 +1180,10 @@ namespace dual_types
     }
 
     template<typename T>
-    inline
+    requires std::is_arithmetic_v<T>
     auto if_v(bool condition, const T& if_true, const T& if_false)
     {
-        if(condition)
-            return if_true;
-        else
-            return if_false;
+        return condition ? if_true : if_false;
     }
 
     template<typename T, typename U>
@@ -1257,6 +1254,24 @@ namespace dual_types
 
         //std::cout << type_to_string(root_3) << std::endl;
     }
+}
+
+template<typename T, typename U>
+inline
+T divide_with_callback(const T& top, const T& bottom, U&& if_nonfinite)
+{
+    using namespace std;
+
+    T result = top / bottom;
+
+    auto is_finite = isfinite(result);
+
+    if constexpr(std::is_same_v<T, float>)
+    {
+        static_assert(std::is_same_v<decltype(is_finite), bool>);
+    }
+
+    return dual_types::if_v(is_finite, result, if_nonfinite(top, bottom));
 }
 
 using dual = dual_types::dual_v<dual_types::value>;
