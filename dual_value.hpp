@@ -349,8 +349,8 @@ namespace dual_types
         value(){value_payload = 0.; type = ops::VALUE;}
         template<Arithmetic T>
         value(T v){value_payload = static_cast<double>(v); type = ops::VALUE;}
-        value(const std::string& str){value_payload = str; type = ops::VALUE;}
-        value(const char* str){value_payload = std::string(str); type = ops::VALUE;}
+        value(std::string_view str){value_payload = std::string{str}; type = ops::VALUE;}
+        //value(const char* str){assert(str); value_payload = std::string(str); type = ops::VALUE;}
 
         bool is_value() const
         {
@@ -1255,7 +1255,7 @@ namespace dual_types
 
         dual_v<value> test_operator = test_dual * 1111;
 
-        value v = std::string("v");
+        value v = "v";
 
         value test_op = 2 * (v/2);
 
@@ -1300,6 +1300,13 @@ namespace dual_types
     {
         value v;
 
+        fvalue(const std::string& in) : v(in){}
+        fvalue(std::string_view in) : v(in){}
+        fvalue(const value& in) : v(in){}
+        fvalue(const fvalue& in) : v(in.v){}
+        fvalue(double in) : v{in}{}
+        fvalue(){}
+
         #define WRAP_OP(x) friend inline \
                            fvalue operator x (const fvalue& d1, const fvalue& d2) {return fvalue{d1.v x d2.v};}
 
@@ -1321,6 +1328,22 @@ namespace dual_types
             value result = if_v(is_zero, value{0.f}, real);
 
             return fvalue{result};
+        }
+
+        template<typename T>
+        requires(!std::is_same_v<T, fvalue>)
+        inline friend
+        fvalue operator+(const T& d1, const fvalue& d2)
+        {
+            return fvalue{d1} + d2;
+        }
+
+        template<typename T>
+        requires(!std::is_same_v<T, fvalue>)
+        inline friend
+        fvalue operator+(const fvalue& d1, const T& d2)
+        {
+            return d1 + fvalue{d2};
         }
 
         inline friend
@@ -1353,8 +1376,49 @@ namespace dual_types
             return fvalue{if_v(is_zero, value{0.f}, d1.v * d2.v)};
         }
 
+        template<typename T>
+        requires(!std::is_same_v<T, fvalue>)
+        inline friend
+        fvalue operator*(const T& d1, const fvalue& d2)
+        {
+            return fvalue{d1} * d2;
+        }
+
+        template<typename T>
+        requires(!std::is_same_v<T, fvalue>)
+        inline friend
+        fvalue operator*(const fvalue& d1, const T& d2)
+        {
+            return d1 * fvalue{d2};
+        }
+
+        fvalue& operator+=(const fvalue& d1)
+        {
+            *this = *this + d1;
+
+            return *this;
+        }
+
         //WRAP_OP(/);
     };
+
+    inline
+    fvalue min(const fvalue& m1, const fvalue& m2)
+    {
+        return fvalue{min(m1.v, m2.v)};
+    }
+
+    inline
+    fvalue max(const fvalue& m1, const fvalue& m2)
+    {
+        return fvalue{max(m1.v, m2.v)};
+    }
+
+    inline
+    fvalue pow(const fvalue& m1, const fvalue& m2)
+    {
+        return fvalue{pow(m1.v, m2.v)};
+    }
 }
 
 template<typename T, typename U>
