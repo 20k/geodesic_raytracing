@@ -152,13 +152,6 @@ namespace dual_types
         };
     }
 
-    template<typename... T>
-    inline
-    auto make_array(T&&... args)
-    {
-        return std::array{args...};
-    }
-
     inline
     operation_desc get_description(ops::type_t type)
     {
@@ -181,54 +174,54 @@ namespace dual_types
         }
         #endif // NATIVE_DIVIDE
 
-        std::array syms = make_array(
-        "+",
-        "-",
-        "-",
-        "*",
-        #ifdef NATIVE_DIVIDE
-        "native_divide",
-        #else
-        "/",
-        #endif // NATIVE_DIVIDE
-        "%",
-        "&",
-        "<",
-        "<=",
-        ">",
-        ">=",
-        "==",
-        "native_sin",
-        "native_cos",
-        "native_tan",
-        "asin",
-        "acos",
-        "atan",
-        "atan2",
-        "native_exp",
-        "native_sqrt",
-        "sinh",
-        "cosh",
-        "tanh",
-        "asinh",
-        "acosh",
-        "atanh",
-        "native_log",
-        "isfinite",
-        "signbit",
-        "sign",
-        "fabs",
-        "abs",
-        "select",
-        "pow",
-        "max",
-        "min",
-        "lambert_w0",
-        "fma",
-        "mad",
-        "generated#function#failure",
-        "ERROR"
-        );
+        std::array syms = {
+            "+",
+            "-",
+            "-",
+            "*",
+            #ifdef NATIVE_DIVIDE
+            "native_divide",
+            #else
+            "/",
+            #endif // NATIVE_DIVIDE
+            "%",
+            "&",
+            "<",
+            "<=",
+            ">",
+            ">=",
+            "==",
+            "native_sin",
+            "native_cos",
+            "native_tan",
+            "asin",
+            "acos",
+            "atan",
+            "atan2",
+            "native_exp",
+            "native_sqrt",
+            "sinh",
+            "cosh",
+            "tanh",
+            "asinh",
+            "acosh",
+            "atanh",
+            "native_log",
+            "isfinite",
+            "signbit",
+            "sign",
+            "fabs",
+            "abs",
+            "select",
+            "pow",
+            "max",
+            "min",
+            "lambert_w0",
+            "fma",
+            "mad",
+            "generated#function#failure",
+            "ERROR"
+        };
 
         static_assert(syms.size() == ops::type_t::NONE);
 
