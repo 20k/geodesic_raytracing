@@ -33,7 +33,14 @@ namespace dual_types
     }
 
     inline
-    std::optional<double> get_value(std::string_view in)
+    std::string to_string_s(int v)
+    {
+        return std::to_string(v);
+    }
+
+    template<typename T>
+    inline
+    std::optional<T> get_value(std::string_view in)
     {
         if(in.size() == 0)
             throw std::runtime_error("Bad in size, 0");
@@ -58,10 +65,11 @@ namespace dual_types
         return std::nullopt;
     }
 
+    template<typename T>
     inline
-    std::variant<std::string, double> get_value_or_string(std::string_view in)
+    std::variant<std::string, T> get_value_or_string(std::string_view in)
     {
-        auto result_opt = get_value(in);
+        auto result_opt = get_value<T>(in);
 
         if(result_opt.has_value())
         {
@@ -71,8 +79,9 @@ namespace dual_types
         return std::string(in);
     }
 
+    template<typename T>
     inline
-    std::string to_string_either(const std::variant<std::string, double>& in)
+    std::string to_string_either(const std::variant<std::string, T>& in)
     {
         if(in.index() == 0)
             return std::get<0>(in);
@@ -230,20 +239,22 @@ namespace dual_types
         return ret;
     }
 
+    template<typename T>
     inline
-    double signbit(double in)
+    T signbit(T in)
     {
         return in < 0;
     }
 
+    template<typename T>
     inline
-    double sign(double in)
+    T sign(T in)
     {
-        if(in == -0.0)
-            return -0.0;
+        if(in == T{-0.0})
+            return T{-0.0};
 
-        if(in == 0.0)
-            return 0.0;
+        if(in == T{0.0})
+            return T{0.0};
 
         if(in > 0)
             return 1;
@@ -257,8 +268,10 @@ namespace dual_types
         throw std::runtime_error("Bad sign function");
     }
 
+    template<typename T>
+    requires std::is_arithmetic_v<T>
     inline
-    double select(double v1, double v2, double v3)
+    T select(T v1, T v2, T v3)
     {
         if(v3 > 0)
             return v2;
@@ -266,46 +279,54 @@ namespace dual_types
         return v1;
     }
 
+    template<typename T>
     inline
-    double mad(double a, double b, double c)
+    T mad(T a, T b, T c)
     {
         return a * b + c;
     }
 
+    template<typename T>
     struct value;
 
-    std::string type_to_string(const value& op, bool is_int = false);
+    template<typename T>
+    std::string type_to_string(const value<T>& op);
 
-    template<typename... T>
-    value make_op(ops::type_t type, T&&... args);
+    template<typename U, typename... T>
+    value<U> make_op(ops::type_t type, T&&... args);
 
-    template<auto N>
+    template<auto N, typename T>
     inline
-    bool is_value_equal(double f)
+    bool is_value_equal(T f)
     {
-        return f == (double)N;
+        return f == (T)N;
     }
 
-    bool equivalent(const value& d1, const value& d2);
+    template<typename T>
+    bool equivalent(const value<T>& d1, const value<T>& d2);
 
-    value fma(const value&, const value&, const value&);
-    value mad(const value&, const value&, const value&);
+    template<typename T>
+    value<T> fma(const value<T>&, const value<T>&, const value<T>&);
+    template<typename T>
+    value<T> mad(const value<T>&, const value<T>&, const value<T>&);
 
+    template<typename T>
     struct value
     {
+        using value_type = T;
         using is_complex = std::false_type;
         static constexpr bool is_dual = false;
 
         ops::type_t type = ops::NONE;
 
-        std::optional<std::variant<std::string, double>> value_payload;
+        std::optional<std::variant<std::string, T>> value_payload;
 
         //std::optional<std::string> value_payload;
         std::vector<value> args;
 
-        value(){value_payload = 0.; type = ops::VALUE;}
-        template<Arithmetic T>
-        value(T v){value_payload = static_cast<double>(v); type = ops::VALUE;}
+        value(){value_payload = T(0.); type = ops::VALUE;}
+        value(T v){value_payload = v; type = ops::VALUE;}
+        value(int v){value_payload = T(v); type = ops::VALUE;}
         value(const std::string& str){value_payload = str; type = ops::VALUE;}
         value(const char* str){assert(str); value_payload = std::string(str); type = ops::VALUE;}
 
@@ -319,8 +340,8 @@ namespace dual_types
             return is_value() && value_payload.has_value() && value_payload.value().index() == 1;
         }
 
-        template<typename T>
-        bool is_constant_constraint(T&& func) const
+        template<typename U>
+        bool is_constant_constraint(U&& func) const
         {
             if(!is_constant())
                 return false;
@@ -328,33 +349,33 @@ namespace dual_types
             return func(get_constant());
         }
 
-        double get_constant() const
+        T get_constant() const
         {
             assert(is_constant());
 
             return std::get<1>(value_payload.value());
         }
 
-        double get(int idx) const
+        T get(int idx) const
         {
             return std::get<1>(args[idx].value_payload.value());
         }
 
         void make_value(const std::string& str)
         {
-            value_payload = get_value_or_string(str);
+            value_payload = get_value_or_string<T>(str);
             type = ops::VALUE;
         }
 
         void set_dual_constant()
         {
-            value_payload = 0.;
+            value_payload = T(0.);
             type = ops::VALUE;
         }
 
         void set_dual_variable()
         {
-            value_payload = 1.;
+            value_payload = T(1.);
             type = ops::VALUE;
         }
 
@@ -454,7 +475,7 @@ namespace dual_types
                     return args[2].get_constant() > 0 ? args[1] : args[0];
             }
 
-            auto is_zero = [](double f){return f == 0;};
+            auto is_zero = [](T f){return f == 0;};
 
             if(type == ops::MULTIPLY)
             {
@@ -463,10 +484,10 @@ namespace dual_types
 
                 //std::cout << "hello " << type_to_string(args[0]) << " with " << type_to_string(args[1]) << std::endl;
 
-                if(args[0].is_constant_constraint(is_value_equal<1>))
+                if(args[0].is_constant_constraint(is_value_equal<1, T>))
                     return args[1].flatten();
 
-                if(args[1].is_constant_constraint(is_value_equal<1>))
+                if(args[1].is_constant_constraint(is_value_equal<1, T>))
                     return args[0].flatten();
             }
 
@@ -499,7 +520,7 @@ namespace dual_types
                 if(args[0].is_constant_constraint(is_zero))
                     return 0;
 
-                if(args[1].is_constant_constraint(is_value_equal<1>))
+                if(args[1].is_constant_constraint(is_value_equal<1, T>))
                     return args[0].flatten();
 
                 if(equivalent(args[0], args[1]))
@@ -510,7 +531,7 @@ namespace dual_types
 
             if(type == ops::POW)
             {
-                if(args[1].is_constant_constraint(is_value_equal<1>))
+                if(args[1].is_constant_constraint(is_value_equal<1, T>))
                     return args[0].flatten();
 
                 if(args[1].is_constant_constraint(is_zero))
@@ -536,11 +557,11 @@ namespace dual_types
                     return args[2].flatten();
 
                 ///1 * b + c
-                if(args[0].is_constant_constraint(is_value_equal<1>))
+                if(args[0].is_constant_constraint(is_value_equal<1, T>))
                     return (args[1] + args[2]).flatten();
 
                 ///a * 1 + c
-                if(args[1].is_constant_constraint(is_value_equal<1>))
+                if(args[1].is_constant_constraint(is_value_equal<1, T>))
                     return (args[0] + args[2]).flatten();
 
                 ///a * b + 0
@@ -584,7 +605,7 @@ namespace dual_types
             return ret;
         }
 
-        dual_types::dual_v<value> dual(const std::string& sym) const
+        dual_types::dual_v<value<T>> dual(const std::string& sym) const
         {
             #define DUAL_CHECK1(x, y) if(type == x) { return y(args[0].dual(sym)); }
             #define DUAL_CHECK2(x, y) if(type == x) { return y(args[0].dual(sym), args[1].dual(sym)); }
@@ -594,7 +615,7 @@ namespace dual_types
 
             if(type == VALUE)
             {
-                dual_types::dual_v<value> ret;
+                dual_types::dual_v<value<T>> ret;
 
                 if(value_payload.value().index() == 0 && std::get<0>(value_payload.value()) == sym)
                 {
@@ -684,7 +705,7 @@ namespace dual_types
 
             if(type == SELECT)
             {
-                return select(args[0].dual(sym), args[1].dual(sym), args[2]);
+                return dual_types::select(args[0].dual(sym), args[1].dual(sym), args[2]);
             }
 
             DUAL_CHECK2(POW, pow);
@@ -695,12 +716,12 @@ namespace dual_types
             assert(false);
         }
 
-        value differentiate(const std::string& sym) const
+        value<T> differentiate(const std::string& sym) const
         {
             return dual(sym).dual;
         }
 
-        void substitute_impl(const std::string& sym, float value)
+        void substitute_impl(const std::string& sym, T value)
         {
             if(type == ops::VALUE && value_payload.value().index() == 0 && std::get<0>(value_payload.value()) == sym)
             {
@@ -722,7 +743,7 @@ namespace dual_types
             *this = flatten();
         }
 
-        value substitute(const std::string& sym, float value) const
+        value substitute(const std::string& sym, T value) const
         {
             auto cp = *this;
 
@@ -763,8 +784,8 @@ namespace dual_types
             return ret;
         }
 
-        template<typename T>
-        void recurse_arguments(const T& in) const
+        template<typename U>
+        void recurse_arguments(const U& in) const
         {
             in(*this);
 
@@ -779,8 +800,8 @@ namespace dual_types
             }
         }
 
-        template<typename T>
-        void recurse_arguments(const T& in)
+        template<typename U>
+        void recurse_arguments(const U& in)
         {
             in(*this);
 
@@ -817,7 +838,7 @@ namespace dual_types
             }
         }
 
-        void substitute(const std::vector<std::pair<value, value>>& variables)
+        void substitute(const std::vector<std::pair<value<T>, value<T>>>& variables)
         {
             for(auto& [conc, rep] : variables)
             {
@@ -834,8 +855,8 @@ namespace dual_types
             }
         }
 
-        template<typename T>
-        void substitute_generic(T&& func)
+        template<typename U>
+        void substitute_generic(U&& func)
         {
             auto sub_opt = func(*this);
 
@@ -853,7 +874,7 @@ namespace dual_types
             *this = flatten();
         }
 
-        value& operator+=(const value& d1)
+        value<T>& operator+=(const value<T>& d1)
         {
             *this = *this + d1;
 
@@ -861,80 +882,82 @@ namespace dual_types
         }
 
         friend inline
-        value operator<(const value& d1, const value& d2)
+        value<T> operator<(const value<T>& d1, const value<T>& d2)
         {
-            return make_op(ops::LESS, d1, d2);
+            return make_op<T>(ops::LESS, d1, d2);
         }
 
         friend inline
-        value operator<=(const value& d1, const value& d2)
+        value<T> operator<=(const value<T>& d1, const value<T>& d2)
         {
-            return make_op(ops::LESS_EQUAL, d1, d2);
+            return make_op<T>(ops::LESS_EQUAL, d1, d2);
         }
 
         friend inline
-        value operator>(const value& d1, const value& d2)
+        value<T> operator>(const value<T>& d1, const value<T>& d2)
         {
-            return make_op(ops::GREATER, d1, d2);
+            return make_op<T>(ops::GREATER, d1, d2);
         }
 
         friend inline
-        value operator>=(const value& d1, const value& d2)
+        value<T> operator>=(const value<T>& d1, const value<T>& d2)
         {
-            return make_op(ops::GREATER_EQUAL, d1, d2);
+            return make_op<T>(ops::GREATER_EQUAL, d1, d2);
         }
 
         friend inline
-        value operator==(const value& d1, const value& d2)
+        value<T> operator==(const value<T>& d1, const value<T>& d2)
         {
-            return make_op(ops::EQUAL, d1, d2);
+            return make_op<T>(ops::EQUAL, d1, d2);
         }
 
         friend inline
-        value operator+(const value& d1, const value& d2)
+        value<T> operator+(const value<T>& d1, const value<T>& d2)
         {
-            return make_op(ops::PLUS, d1, d2);
+            return make_op<T>(ops::PLUS, d1, d2);
         }
 
         friend inline
-        value operator-(const value& d1, const value& d2)
+        value<T> operator-(const value<T>& d1, const value<T>& d2)
         {
-            return make_op(ops::PLUS, d1, make_op(ops::UMINUS, d2));
+            return make_op<T>(ops::MINUS, d1, d2);
+            //return make_op<T>(ops::PLUS, d1, make_op<T>(ops::UMINUS, d2));
         }
 
         friend inline
-        value operator-(const value& d1)
+        value<T> operator-(const value& d1)
         {
-            return make_op(ops::UMINUS, d1);
+            return make_op<T>(ops::UMINUS, d1);
         }
 
         friend inline
-        value operator*(const value& d1, const value& d2)
+        value<T> operator*(const value<T>& d1, const value<T>& d2)
         {
-            return make_op(ops::MULTIPLY, d1, d2);
+            return make_op<T>(ops::MULTIPLY, d1, d2);
         }
 
         friend inline
-        value operator/(const value& d1, const value& d2)
+        value<T> operator/(const value<T>& d1, const value<T>& d2)
         {
-            return make_op(ops::DIVIDE, d1, d2);
+            return make_op<T>(ops::DIVIDE, d1, d2);
         }
 
         friend inline
-        value operator%(const value& d1, const value& d2)
+        value<T> operator%(const value<T>& d1, const value<T>& d2)
         {
-            return make_op(ops::MODULUS, d1, d2);
+            return make_op<T>(ops::MODULUS, d1, d2);
         }
 
         friend inline
-        value operator&(const value& d1, const value& d2)
+        value<T> operator&(const value<T>& d1, const value<T>& d2)
         {
-            return make_op(ops::AND, d1, d2);
+            return make_op<T>(ops::AND, d1, d2);
         }
     };
 
+    template<typename T>
     inline
-    std::string get_function_name(const value& v)
+    std::string get_function_name(const value<T>& v)
     {
         assert(!v.is_value());
 
@@ -944,19 +967,21 @@ namespace dual_types
             return std::string(get_description(v.type).sym);
     }
 
+    template<typename T>
     inline
-    std::vector<value> get_function_args(const value& v)
+    std::vector<value<T>> get_function_args(const value<T>& v)
     {
         assert(!v.is_value());
 
         if(v.type == ops::UNKNOWN_FUNCTION)
-            return std::vector<value>(v.args.begin() + 1, v.args.end());
+            return std::vector<value<T>>(v.args.begin() + 1, v.args.end());
         else
             return v.args;
     }
 
+    template<typename T>
     inline
-    bool equivalent(const value& d1, const value& d2)
+    bool equivalent(const value<T>& d1, const value<T>& d2)
     {
         if(d1.type != d2.type)
             return false;
@@ -992,14 +1017,17 @@ namespace dual_types
         return true;
     }
 
+    template<typename T>
     inline
-    std::string type_to_string(const value& op, bool is_int)
+    std::string type_to_string(const value<T>& op)
     {
+        static_assert(std::is_same_v<T, double> || std::is_same_v<T, float> || std::is_same_v<T, int>);
+
         if(op.type == ops::VALUE)
         {
             std::string prefix = "";
 
-            if(is_int)
+            if constexpr(std::is_same_v<T, int>)
             {
                 prefix = "(int)";
             }
@@ -1017,12 +1045,12 @@ namespace dual_types
 
         if(desc.is_infix)
         {
-            return "(" + type_to_string(op.args[0], is_int) + std::string(desc.sym) + type_to_string(op.args[1], is_int) + ")";
+            return "(" + type_to_string(op.args[0]) + std::string(desc.sym) + type_to_string(op.args[1]) + ")";
         }
         else
         {
            if(op.type == ops::UMINUS)
-                return "(-(" + type_to_string(op.args[0], is_int) + "))";
+                return "(-(" + type_to_string(op.args[0]) + "))";
 
             std::string build;
 
@@ -1037,11 +1065,11 @@ namespace dual_types
                 ///starts at one, ignoring the first argument which is the function name
                 for(int i=1; i < (int)op.args.size() - 1; i++)
                 {
-                    build += type_to_string(op.args[i], is_int) + ",";
+                    build += type_to_string(op.args[i]) + ",";
                 }
 
                 if(op.args.size() > 1)
-                    build += type_to_string(op.args.back(), is_int);
+                    build += type_to_string(op.args.back());
 
                 build += ")";
             }
@@ -1051,11 +1079,11 @@ namespace dual_types
 
                 for(int i=0; i < (int)op.args.size() - 1; i++)
                 {
-                    build += type_to_string(op.args[i], is_int) + ",";
+                    build += type_to_string(op.args[i]) + ",";
                 }
 
                 if(op.args.size() > 0)
-                    build += type_to_string(op.args.back(), is_int);
+                    build += type_to_string(op.args.back());
 
                 build += ")";
             }
@@ -1064,11 +1092,11 @@ namespace dual_types
         }
     }
 
-    template<typename... T>
+    template<typename U, typename... T>
     inline
-    value make_op(ops::type_t type, T&&... args)
+    value<U> make_op(ops::type_t type, T&&... args)
     {
-        value ret;
+        value<U> ret;
         ret.type = type;
         ret.args = {args...};
         ret.value_payload = std::nullopt;
@@ -1076,9 +1104,9 @@ namespace dual_types
         return ret.flatten();
     }
 
-    #define UNARY(x, y) inline value x(const value& d1){return make_op(ops::y, d1);}
-    #define BINARY(x, y) inline value x(const value& d1, const value& d2){return make_op(ops::y, d1, d2);}
-    #define TRINARY(x, y) inline value x(const value& d1, const value& d2, const value& d3){return make_op(ops::y, d1, d2, d3);}
+    #define UNARY(x, y) template<typename T> inline value<T> x(const value<T>& d1){return make_op<T>(ops::y, d1);}
+    #define BINARY(x, y) template<typename T, typename U> inline value<T> x(const value<T>& d1, const U& d2){return make_op<T>(ops::y, d1, d2);}
+    #define TRINARY(x, y) template<typename T, typename U, typename V> inline value<T> x(const value<T>& d1, const U& d2, const V& d3){return make_op<T>(ops::y, d1, d2, d3);}
 
     UNARY(sqrt, SQRT);
     UNARY(psqrt, SQRT);
@@ -1102,13 +1130,20 @@ namespace dual_types
     UNARY(isfinite, ISFINITE);
     UNARY(signbit, SIGNBIT);
     UNARY(sign, SIGN);
-    TRINARY(select, SELECT);
+    //TRINARY(select, SELECT);
     BINARY(pow, POW);
     BINARY(max, MAX);
     BINARY(min, MIN);
     UNARY(lambert_w0, LAMBERT_W0);
     TRINARY(mad, MAD);
     TRINARY(fma, FMA);
+
+    template<typename T, typename U, typename V>
+    inline
+    value<V> select(const T& v1, const U& v2, const value<V>& v3)
+    {
+        return make_op<V>(ops::SELECT, value<V>(v1), value<V>(v2), v3);
+    }
 
     template<typename T>
     inline
@@ -1117,12 +1152,13 @@ namespace dual_types
         return min(max(val, lower), upper);
     }
 
+    template<typename T, typename U, typename V>
     inline
-    auto if_v(const value& condition, const value& if_true, const value& if_false)
+    value<T> if_v(const value<T>& condition, const U& if_true, const V& if_false)
     {
         if(condition.is_constant())
         {
-            double val = condition.get_constant();
+            T val = condition.get_constant();
 
             if(val == 0)
                 return if_false;
@@ -1130,7 +1166,7 @@ namespace dual_types
                 return if_true;
         }
 
-        return select(if_false, if_true, condition);
+        return select<V, U, T>(if_false, if_true, condition);
     }
 
     template<typename T>
@@ -1150,20 +1186,22 @@ namespace dual_types
             return dual_types::if_v(fabs(bottom) >= tol, top / bottom, limit);
     }
 
-    template<typename... T>
-    value apply(const value& name, T&&... args)
+    template<typename U, typename... T>
+    value<U> apply(const value<U>& name, T&&... args)
     {
-        return make_op(ops::UNKNOWN_FUNCTION, name, std::forward<T>(args)...);
+        return make_op<U>(ops::UNKNOWN_FUNCTION, name, std::forward<T>(args)...);
     }
 
+    template<typename T>
     inline
-    value conjugate(const value& d1)
+    value<T> conjugate(const value<T>& d1)
     {
         return d1;
     }
 
+    template<typename T>
     inline
-    complex<value> psqrt(const complex<value>& d1)
+    complex<value<T>> psqrt(const complex<value<T>>& d1)
     {
         if(d1.imaginary.is_constant() && d1.imaginary.get_constant() == 0)
         {
@@ -1176,36 +1214,36 @@ namespace dual_types
     inline
     void test_operation()
     {
-        value v1 = 1;
-        value v2 = 2;
+        value<float> v1 = 1;
+        value<float> v2 = 2;
 
-        value sum = v1 + v2;
+        value<float> sum = v1 + v2;
 
-        value root_3 = sqrt(sum);
+        value<float> root_3 = sqrt(sum);
 
-        dual_v<value> test_dual = 1234;
+        dual_v<value<float>> test_dual = 1234;
 
-        dual_v<value> test_operator = test_dual * 1111;
+        dual_v<value<float>> test_operator = test_dual * 1111;
 
-        value v = "v";
+        value<float> v = "v";
 
-        value test_op = 2 * (v/2);
+        value<float> test_op = 2 * (v/2);
 
         assert(type_to_string(test_op) == "v");
 
-        value test_op2 = (v * 2)/2;
+        value<float> test_op2 = (v * 2)/2;
 
         assert(type_to_string(test_op2) == "v");
 
-        value test_op3 = (2 * ((2 * v/2) / 2) * 2) / 2;
+        value<float> test_op3 = (2 * ((2 * v/2) / 2) * 2) / 2;
 
         assert(type_to_string(test_op3) == "v");
 
-        value test_op4 = (2 * v) / v;
+        value<float> test_op4 = (2 * v) / v;
 
         assert(type_to_string(test_op4) == "2.0");
 
-        value test_op5 = (2 * sin(v)) / sin(v);
+        value<float> test_op5 = (2 * sin(v)) / sin(v);
 
         assert(type_to_string(test_op5) == "2.0");
 
@@ -1231,8 +1269,8 @@ T divide_with_callback(const T& top, const T& bottom, U&& if_nonfinite)
     return dual_types::if_v(is_finite, result, if_nonfinite(top, bottom));
 }
 
-using dual = dual_types::dual_v<dual_types::value>;
-using dual_complex = dual_types::dual_v<dual_types::complex<dual_types::value>>;
-using value = dual_types::value;
+using dual = dual_types::dual_v<dual_types::value<float>>;
+using dual_complex = dual_types::dual_v<dual_types::complex<dual_types::value<float>>>;
+using value = dual_types::value<float>;
 
 #endif // DUAL2_HPP_INCLUDED

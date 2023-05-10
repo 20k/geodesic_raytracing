@@ -666,7 +666,7 @@ namespace dual_types
     inline
     auto dual_if(const T& condition, U&& if_true, V&& if_false)
     {
-        return select(if_false(), if_true(), condition);
+        return dual_types::select(if_false(), if_true(), condition);
     }
 
     template<typename T>
