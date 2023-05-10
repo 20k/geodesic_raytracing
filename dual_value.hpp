@@ -276,9 +276,6 @@ namespace dual_types
 
     std::string type_to_string(const value& op, bool is_int = false);
 
-    value make_op_value(const std::string& str);
-    template<Arithmetic T>
-    value make_op_value(const T& v);
     template<typename... T>
     value make_op(ops::type_t type, T&&... args);
 
@@ -288,28 +285,6 @@ namespace dual_types
     {
         return f == (double)N;
     }
-
-    value operator<(const value& d1, const value& d2);
-
-    value operator<=(const value& d1, const value& d2);
-
-    value operator>(const value& d1, const value& d2);
-
-    value operator>=(const value& d1, const value& d2);
-
-    value operator+(const value& d1, const value& d2);
-
-    value operator-(const value& d1, const value& d2);
-
-    value operator-(const value& d1);
-
-    value operator*(const value& d1, const value& d2);
-
-    value operator/(const value& d1, const value& d2);
-
-    value operator%(const value& d1, const value& d2);
-
-    value operator&(const value& d1, const value& d2);
 
     bool equivalent(const value& d1, const value& d2);
 
@@ -328,12 +303,11 @@ namespace dual_types
         //std::optional<std::string> value_payload;
         std::vector<value> args;
 
-        //value(){value_payload = to_string_s(0); type = ops::VALUE;}
         value(){value_payload = 0.; type = ops::VALUE;}
         template<Arithmetic T>
         value(T v){value_payload = static_cast<double>(v); type = ops::VALUE;}
         value(const std::string& str){value_payload = str; type = ops::VALUE;}
-        value(const char* str){value_payload = std::string(str); type = ops::VALUE;}
+        value(const char* str){assert(str); value_payload = std::string(str); type = ops::VALUE;}
 
         bool is_value() const
         {
@@ -384,9 +358,9 @@ namespace dual_types
             type = ops::VALUE;
         }
 
-        #define PROPAGATE1(x, y) if(type == ops::x){return make_op_value(y(get(0)));}
-        #define PROPAGATE2(x, y) if(type == ops::x){return make_op_value(y(get(0), get(1)));}
-        #define PROPAGATE3(x, y) if(type == ops::x){return make_op_value(y(get(0), get(1), get(2)));}
+        #define PROPAGATE1(x, y) if(type == ops::x){return y(get(0));}
+        #define PROPAGATE2(x, y) if(type == ops::x){return y(get(0), get(1));}
+        #define PROPAGATE3(x, y) if(type == ops::x){return y(get(0), get(1), get(2));}
 
         value flatten(bool recurse = false) const
         {
@@ -407,19 +381,19 @@ namespace dual_types
             if(all_constant)
             {
                 if(type == ops::PLUS)
-                    return make_op_value(get(0) + get(1));
+                    return get(0) + get(1);
 
                 if(type == ops::UMINUS)
-                    return make_op_value(-get(0));
+                    return -get(0);
 
                 if(type == ops::MINUS)
-                    return make_op_value(get(0) - get(1));
+                    return get(0) - get(1);
 
                 if(type == ops::MULTIPLY)
-                    return make_op_value(get(0) * get(1));
+                    return get(0) * get(1);
 
                 if(type == ops::DIVIDE)
-                    return make_op_value(get(0) / get(1));
+                    return get(0) / get(1);
 
                 //if(type == ops::MODULUS)
                 //    return make_op_value(get(0) % get(1));
@@ -429,19 +403,19 @@ namespace dual_types
                 //    return make_op_value(get(0) & get(1));
 
                 if(type == ops::LESS)
-                    return make_op_value(get(0) < get(1));
+                    return get(0) < get(1);
 
                 if(type == ops::LESS_EQUAL)
-                    return make_op_value(get(0) <= get(1));
+                    return get(0) <= get(1);
 
                 if(type == ops::GREATER)
-                    return make_op_value(get(0) > get(1));
+                    return get(0) > get(1);
 
                 if(type == ops::GREATER_EQUAL)
-                    return make_op_value(get(0) >= get(1));
+                    return get(0) >= get(1);
 
                 if(type == ops::EQUAL)
-                    return make_op_value(get(0) == get(1));
+                    return get(0) == get(1);
 
                 PROPAGATE1(SIN, std::sin);
                 PROPAGATE1(COS, std::cos);
@@ -517,19 +491,19 @@ namespace dual_types
                     return args[0].flatten();
 
                 if(equivalent(args[0], args[1]))
-                    return value(0);
+                    return 0;
             }
 
             if(type == ops::DIVIDE)
             {
                 if(args[0].is_constant_constraint(is_zero))
-                    return value(0);
+                    return 0;
 
                 if(args[1].is_constant_constraint(is_value_equal<1>))
                     return args[0].flatten();
 
                 if(equivalent(args[0], args[1]))
-                    return value(1);
+                    return 1;
             }
 
             ///ops::MODULUS
@@ -540,7 +514,7 @@ namespace dual_types
                     return args[0].flatten();
 
                 if(args[1].is_constant_constraint(is_zero))
-                    return value(1);
+                    return 1;
 
                 /*if(args[1].is_constant())
                 {
@@ -885,6 +859,78 @@ namespace dual_types
 
             return *this;
         }
+
+        friend inline
+        value operator<(const value& d1, const value& d2)
+        {
+            return make_op(ops::LESS, d1, d2);
+        }
+
+        friend inline
+        value operator<=(const value& d1, const value& d2)
+        {
+            return make_op(ops::LESS_EQUAL, d1, d2);
+        }
+
+        friend inline
+        value operator>(const value& d1, const value& d2)
+        {
+            return make_op(ops::GREATER, d1, d2);
+        }
+
+        friend inline
+        value operator>=(const value& d1, const value& d2)
+        {
+            return make_op(ops::GREATER_EQUAL, d1, d2);
+        }
+
+        friend inline
+        value operator==(const value& d1, const value& d2)
+        {
+            return make_op(ops::EQUAL, d1, d2);
+        }
+
+        friend inline
+        value operator+(const value& d1, const value& d2)
+        {
+            return make_op(ops::PLUS, d1, d2);
+        }
+
+        friend inline
+        value operator-(const value& d1, const value& d2)
+        {
+            return make_op(ops::PLUS, d1, make_op(ops::UMINUS, d2));
+        }
+
+        friend inline
+        value operator-(const value& d1)
+        {
+            return make_op(ops::UMINUS, d1);
+        }
+
+        friend inline
+        value operator*(const value& d1, const value& d2)
+        {
+            return make_op(ops::MULTIPLY, d1, d2);
+        }
+
+        friend inline
+        value operator/(const value& d1, const value& d2)
+        {
+            return make_op(ops::DIVIDE, d1, d2);
+        }
+
+        friend inline
+        value operator%(const value& d1, const value& d2)
+        {
+            return make_op(ops::MODULUS, d1, d2);
+        }
+
+        friend inline
+        value operator&(const value& d1, const value& d2)
+        {
+            return make_op(ops::AND, d1, d2);
+        }
     };
 
     inline
@@ -1018,19 +1064,6 @@ namespace dual_types
         }
     }
 
-    inline
-    value make_op_value(const std::string& str)
-    {
-        return value(str);
-    }
-
-    template<Arithmetic T>
-    inline
-    value make_op_value(const T& v)
-    {
-        return value(v);
-    }
-
     template<typename... T>
     inline
     value make_op(ops::type_t type, T&&... args)
@@ -1041,78 +1074,6 @@ namespace dual_types
         ret.value_payload = std::nullopt;
 
         return ret.flatten();
-    }
-
-    inline
-    value operator<(const value& d1, const value& d2)
-    {
-        return make_op(ops::LESS, d1, d2);
-    }
-
-    inline
-    value operator<=(const value& d1, const value& d2)
-    {
-        return make_op(ops::LESS_EQUAL, d1, d2);
-    }
-
-    inline
-    value operator>(const value& d1, const value& d2)
-    {
-        return make_op(ops::GREATER, d1, d2);
-    }
-
-    inline
-    value operator>=(const value& d1, const value& d2)
-    {
-        return make_op(ops::GREATER_EQUAL, d1, d2);
-    }
-
-    inline
-    value operator==(const value& d1, const value& d2)
-    {
-        return make_op(ops::EQUAL, d1, d2);
-    }
-
-    inline
-    value operator+(const value& d1, const value& d2)
-    {
-        return make_op(ops::PLUS, d1, d2);
-    }
-
-    inline
-    value operator-(const value& d1, const value& d2)
-    {
-        return make_op(ops::PLUS, d1, make_op(ops::UMINUS, d2));
-    }
-
-    inline
-    value operator-(const value& d1)
-    {
-        return make_op(ops::UMINUS, d1);
-    }
-
-    inline
-    value operator*(const value& d1, const value& d2)
-    {
-        return make_op(ops::MULTIPLY, d1, d2);
-    }
-
-    inline
-    value operator/(const value& d1, const value& d2)
-    {
-        return make_op(ops::DIVIDE, d1, d2);
-    }
-
-    inline
-    value operator%(const value& d1, const value& d2)
-    {
-        return make_op(ops::MODULUS, d1, d2);
-    }
-
-    inline
-    value operator&(const value& d1, const value& d2)
-    {
-        return make_op(ops::AND, d1, d2);
     }
 
     #define UNARY(x, y) inline value x(const value& d1){return make_op(ops::y, d1);}
@@ -1183,7 +1144,10 @@ namespace dual_types
     inline
     T divide_with_limit(const T& top, const T& bottom, const U& limit, float tol = 0.001f)
     {
-        return dual_types::if_v(bottom >= tol, top / bottom, limit);
+        if constexpr(std::is_arithmetic_v<T>)
+            return dual_types::if_v(std::fabs(bottom) >= tol, top / bottom, limit);
+        else
+            return dual_types::if_v(fabs(bottom) >= tol, top / bottom, limit);
     }
 
     template<typename... T>
@@ -1223,7 +1187,7 @@ namespace dual_types
 
         dual_v<value> test_operator = test_dual * 1111;
 
-        value v = std::string("v");
+        value v = "v";
 
         value test_op = 2 * (v/2);
 
