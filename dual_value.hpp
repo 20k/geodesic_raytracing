@@ -107,6 +107,7 @@ namespace dual_types
             DIVIDE,
             MODULUS, ///c style %
             AND,
+            ASSIGN,
 
             LESS,
             LESS_EQUAL,
@@ -171,7 +172,7 @@ namespace dual_types
 
         operation_desc ret;
 
-        if(type == PLUS || type == MINUS || type == MULTIPLY || type == MODULUS || type == AND ||
+        if(type == PLUS || type == MINUS || type == MULTIPLY || type == MODULUS || type == AND || type == ASSIGN ||
            type == LESS || type == LESS_EQUAL || type == GREATER || type == GREATER_EQUAL ||
            type == EQUAL)
         {
@@ -198,6 +199,7 @@ namespace dual_types
             #endif // NATIVE_DIVIDE
             "%",
             "&",
+            "=",
             "<",
             "<=",
             ">",
@@ -1243,12 +1245,14 @@ namespace dual_types
     template<typename T, int dimensions>
     struct buffer
     {
+        using value_type = T;
+
         std::string name;
         tensor<value<int>, dimensions> size;
-        std::string read_function;
-        std::string write_function;
+        //std::string read_function;
+        //std::string write_function;
 
-        template<typename... U>
+        /*template<typename... U>
         T read(U&&... u) const
         {
             return dual_types::apply(T(read_function), std::forward<U>(u)...);
@@ -1258,14 +1262,14 @@ namespace dual_types
         auto write(V&& what, U&&... u)
         {
             return dual_types::apply(T(write_function), std::forward<V>(what), std::forward<U>(u)...);
-        }
+        }*/
 
-        T operator[](const value<int>& in)
+        T operator[](const value<int>& in) const
         {
             return make_op(ops::BRACKET, value<T>(name), in);
         }
 
-        T operator[](const value<int>& ix, const value<int>& iy, const value<int>& iz)
+        T operator[](const value<int>& ix, const value<int>& iy, const value<int>& iz) const
         {
             value<int> index = iz * size.idx(0) * size.idx(1) + iy * size.idx(0) + ix;
 
@@ -1275,6 +1279,24 @@ namespace dual_types
             T hacky_convert = type_to_string(make_op<int>(ops::BRACKET, value<int>(name), index));
 
             return hacky_convert;
+        }
+
+        T assign(const T& location, const T& what)
+        {
+            return make_op<typename T::value_type>(ops::ASSIGN, location, what);
+        }
+    };
+
+    template<typename T>
+    struct literal
+    {
+        using value_type = T;
+
+        std::string name;
+
+        T get()
+        {
+            return T(name);
         }
     };
 
@@ -1344,5 +1366,7 @@ using value = dual_types::value<float>;
 using valuei = dual_types::value<int>;
 template<typename T, int N>
 using buffer = dual_types::buffer<T, N>;
+template<typename T>
+using literal = dual_types::literal<T>;
 
 #endif // DUAL2_HPP_INCLUDED
