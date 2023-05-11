@@ -1249,6 +1249,10 @@ namespace dual_types
 
         std::string name;
 
+        literal(){}
+        literal(const std::string& str) : name(str){}
+        literal(const char* str) : name(str){}
+
         T get()
         {
             return T(name);
