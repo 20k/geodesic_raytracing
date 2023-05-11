@@ -1242,6 +1242,19 @@ namespace dual_types
         return sqrt(d1);
     }
 
+    template<typename T>
+    struct literal
+    {
+        using value_type = T;
+
+        std::string name;
+
+        T get()
+        {
+            return T(name);
+        }
+    };
+
     template<typename T, int dimensions>
     struct buffer
     {
@@ -1284,19 +1297,6 @@ namespace dual_types
         T assign(const T& location, const T& what)
         {
             return make_op<typename T::value_type>(ops::ASSIGN, location, what);
-        }
-    };
-
-    template<typename T>
-    struct literal
-    {
-        using value_type = T;
-
-        std::string name;
-
-        T get()
-        {
-            return T(name);
         }
     };
 
