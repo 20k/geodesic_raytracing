@@ -155,6 +155,8 @@ namespace dual_types
             FMA,
             MAD,
 
+            BRACKET,
+
             UNKNOWN_FUNCTION,
 
             VALUE,
@@ -229,8 +231,9 @@ namespace dual_types
             "lambert_w0",
             "fma",
             "mad",
+            "bad#bracket",
             "generated#function#failure",
-            "ERROR"
+            "ERROR#"
         };
 
         static_assert(syms.size() == ops::type_t::NONE);
@@ -251,11 +254,11 @@ namespace dual_types
     inline
     T sign(T in)
     {
-        if(in == T{-0.0})
-            return T{-0.0};
+        if(in == T(-0.0))
+            return T(-0.0);
 
-        if(in == T{0.0})
-            return T{0.0};
+        if(in == T(0.0))
+            return T(0.0);
 
         if(in > 0)
             return 1;
@@ -1048,10 +1051,10 @@ namespace dual_types
         {
             std::string prefix = "";
 
-            if constexpr(std::is_same_v<T, int>)
+            /*if constexpr(std::is_same_v<T, int>)
             {
                 prefix = "(int)";
-            }
+            }*/
 
             if(op.is_constant())
             {
@@ -1060,6 +1063,11 @@ namespace dual_types
             }
 
             return prefix + to_string_either(op.value_payload.value());
+        }
+
+        if(op.type == ops::BRACKET)
+        {
+            return "(" + type_to_string(op.args[0]) + "[" + type_to_string(op.args[1]) + "])";
         }
 
         const operation_desc desc = get_description(op.type);
@@ -1236,7 +1244,7 @@ namespace dual_types
     struct buffer
     {
         std::string name;
-        tensor<T, dimensions> size;
+        tensor<value<int>, dimensions> size;
         std::string read_function;
         std::string write_function;
 
@@ -1250,6 +1258,23 @@ namespace dual_types
         auto write(V&& what, U&&... u)
         {
             return dual_types::apply(T(write_function), std::forward<V>(what), std::forward<U>(u)...);
+        }
+
+        T operator[](const value<int>& in)
+        {
+            return make_op(ops::BRACKET, value<T>(name), in);
+        }
+
+        T operator[](const value<int>& ix, const value<int>& iy, const value<int>& iz)
+        {
+            value<int> index = iz * size.idx(0) * size.idx(1) + iy * size.idx(0) + ix;
+
+            ///convert from value<int> to value<float> which is what the bracket operator actually returns
+            ///but the type system internally can't really represent that operations might yield a type
+            ///and bracket is literally the only one that does so
+            T hacky_convert = type_to_string(make_op<int>(ops::BRACKET, value<int>(name), index));
+
+            return hacky_convert;
         }
     };
 
@@ -1313,6 +1338,8 @@ T divide_with_callback(const T& top, const T& bottom, U&& if_nonfinite)
 
 using dual = dual_types::dual_v<dual_types::value<float>>;
 using dual_complex = dual_types::dual_v<dual_types::complex<dual_types::value<float>>>;
+template<typename T>
+using value_base = dual_types::value<T>;
 using value = dual_types::value<float>;
 using valuei = dual_types::value<int>;
 template<typename T, int N>
