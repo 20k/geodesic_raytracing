@@ -42,6 +42,72 @@ namespace dual_types
             real.set_dual_variable();
             imaginary.set_dual_variable();
         }
+
+        friend
+        complex<T> operator+(const complex<T>& c1, const complex<T>& c2)
+        {
+            return complex<T>(c1.real + c2.real, c1.imaginary + c2.imaginary);
+        }
+
+        template<typename U>
+        friend
+        complex<T> operator+(const complex<T>& c1, const U& c2)
+        {
+            return c1 + complex<T>(c2, 0.f);
+        }
+
+        template<typename U>
+        friend
+        complex<T> operator+(const U& c1, const complex<T>& c2)
+        {
+            return complex<T>(c1, 0.f) + c2;
+        }
+
+        friend
+        void operator+=(complex<T>& d1, const complex<T>& d2)
+        {
+            d1 = d1 + d2;
+        }
+
+        friend
+        complex<T> operator-(const complex<T>& c1, const complex<T>& c2)
+        {
+            return complex<T>(c1.real - c2.real, c1.imaginary - c2.imaginary);
+        }
+
+        friend
+        complex<T> operator-(const complex<T>& c1)
+        {
+            return complex<T>(-c1.real, -c1.imaginary);
+        }
+
+        friend
+        complex<T> operator*(const complex<T>& c1, const complex<T>& c2)
+        {
+            return complex<T>(c1.real * c2.real - c1.imaginary * c2.imaginary, c1.imaginary * c2.real + c1.real * c2.imaginary);
+        }
+
+        template<typename U>
+        friend
+        complex<T> operator*(const complex<T>& c1, const U& c2)
+        {
+            return c1 * complex<T>(c2, 0.f);
+        }
+
+        template<typename U>
+        friend
+        complex<T> operator*(const U& c1, const complex<T>& c2)
+        {
+            return complex<T>(c1, 0.f) * c2;
+        }
+
+        friend
+        complex<T> operator/(const complex<T>& c1, const complex<T>& c2)
+        {
+            T divisor = c2.real * c2.real + c2.imaginary * c2.imaginary;
+
+            return complex<T>((c1.real * c2.real + c1.imaginary * c2.imaginary) / divisor, (c1.imaginary * c2.real - c1.real * c2.imaginary) / divisor);
+        }
     };
 
     template<typename T>
@@ -98,78 +164,6 @@ namespace dual_types
         T positive_sqrt = sqrt(fabs(d1));
 
         return dual_types::complex<T>(select(positive_sqrt, 0, is_negative), select(0, positive_sqrt, is_negative));
-    }
-
-    template<typename T>
-    inline
-    complex<T> operator+(const complex<T>& c1, const complex<T>& c2)
-    {
-        return complex<T>(c1.real + c2.real, c1.imaginary + c2.imaginary);
-    }
-
-    template<typename T, typename U>
-    inline
-    complex<T> operator+(const complex<T>& c1, const U& c2)
-    {
-        return c1 + complex<T>(c2, 0.f);
-    }
-
-    template<typename T, typename U>
-    inline
-    complex<T> operator+(const U& c1, const complex<T>& c2)
-    {
-        return complex<T>(c1, 0.f) + c2;
-    }
-
-    template<typename T>
-    inline
-    void operator+=(complex<T>& d1, const complex<T>& d2)
-    {
-        d1 = d1 + d2;
-    }
-
-    template<typename T>
-    inline
-    complex<T> operator-(const complex<T>& c1, const complex<T>& c2)
-    {
-        return complex<T>(c1.real - c2.real, c1.imaginary - c2.imaginary);
-    }
-
-    template<typename T>
-    inline
-    complex<T> operator-(const complex<T>& c1)
-    {
-        return complex<T>(-c1.real, -c1.imaginary);
-    }
-
-    template<typename T>
-    inline
-    complex<T> operator*(const complex<T>& c1, const complex<T>& c2)
-    {
-        return complex<T>(c1.real * c2.real - c1.imaginary * c2.imaginary, c1.imaginary * c2.real + c1.real * c2.imaginary);
-    }
-
-    template<typename T, typename U>
-    inline
-    complex<T> operator*(const complex<T>& c1, const U& c2)
-    {
-        return c1 * complex<T>(c2, 0.f);
-    }
-
-    template<typename T, typename U>
-    inline
-    complex<T> operator*(const U& c1, const complex<T>& c2)
-    {
-        return complex<T>(c1, 0.f) * c2;
-    }
-
-    template<typename T>
-    inline
-    complex<T> operator/(const complex<T>& c1, const complex<T>& c2)
-    {
-        T divisor = c2.real * c2.real + c2.imaginary * c2.imaginary;
-
-        return complex<T>((c1.real * c2.real + c1.imaginary * c2.imaginary) / divisor, (c1.imaginary * c2.real - c1.real * c2.imaginary) / divisor);
     }
 
     template<typename T>

@@ -8,6 +8,7 @@
 #include <map>
 #include <assert.h>
 #include <variant>
+#include <vec/tensor.hpp>
 
 namespace dual_types
 {
@@ -325,8 +326,16 @@ namespace dual_types
         std::vector<value> args;
 
         value(){value_payload = T(0.); type = ops::VALUE;}
-        value(T v){value_payload = v; type = ops::VALUE;}
-        value(int v){value_payload = T(v); type = ops::VALUE;}
+        //value(T v){value_payload = v; type = ops::VALUE;}
+        //value(int v){value_payload = T(v); type = ops::VALUE;}
+
+        template<typename U>
+        requires std::is_arithmetic_v<U>
+        value(U u)
+        {
+            value_payload = static_cast<T>(u); type = ops::VALUE;
+        }
+
         value(const std::string& str){value_payload = str; type = ops::VALUE;}
         value(const char* str){assert(str); value_payload = std::string(str); type = ops::VALUE;}
 
@@ -881,74 +890,86 @@ namespace dual_types
             return *this;
         }
 
-        friend inline
+        friend
         value<T> operator<(const value<T>& d1, const value<T>& d2)
         {
             return make_op<T>(ops::LESS, d1, d2);
         }
 
-        friend inline
+        friend
         value<T> operator<=(const value<T>& d1, const value<T>& d2)
         {
             return make_op<T>(ops::LESS_EQUAL, d1, d2);
         }
 
-        friend inline
+        friend
         value<T> operator>(const value<T>& d1, const value<T>& d2)
         {
             return make_op<T>(ops::GREATER, d1, d2);
         }
 
-        friend inline
+        friend
         value<T> operator>=(const value<T>& d1, const value<T>& d2)
         {
             return make_op<T>(ops::GREATER_EQUAL, d1, d2);
         }
 
-        friend inline
+        friend
         value<T> operator==(const value<T>& d1, const value<T>& d2)
         {
             return make_op<T>(ops::EQUAL, d1, d2);
         }
 
-        friend inline
+        friend
         value<T> operator+(const value<T>& d1, const value<T>& d2)
         {
             return make_op<T>(ops::PLUS, d1, d2);
         }
 
-        friend inline
+        friend
         value<T> operator-(const value<T>& d1, const value<T>& d2)
         {
             return make_op<T>(ops::MINUS, d1, d2);
             //return make_op<T>(ops::PLUS, d1, make_op<T>(ops::UMINUS, d2));
         }
 
-        friend inline
+        friend
         value<T> operator-(const value& d1)
         {
             return make_op<T>(ops::UMINUS, d1);
         }
 
-        friend inline
+        friend
         value<T> operator*(const value<T>& d1, const value<T>& d2)
         {
             return make_op<T>(ops::MULTIPLY, d1, d2);
         }
 
-        friend inline
+        friend
+        value<T> operator*(const T& d1, const value<T>& d2)
+        {
+            return make_op<T>(ops::MULTIPLY, value<T>(d1), d2);
+        }
+
+        friend
+        value<T> operator*(const value<T>& d1, const T& d2)
+        {
+            return make_op<T>(ops::MULTIPLY, d1, value<T>(d2));
+        }
+
+        friend
         value<T> operator/(const value<T>& d1, const value<T>& d2)
         {
             return make_op<T>(ops::DIVIDE, d1, d2);
         }
 
-        friend inline
+        friend
         value<T> operator%(const value<T>& d1, const value<T>& d2)
         {
             return make_op<T>(ops::MODULUS, d1, d2);
         }
 
-        friend inline
+        friend
         value<T> operator&(const value<T>& d1, const value<T>& d2)
         {
             return make_op<T>(ops::AND, d1, d2);
@@ -1211,6 +1232,27 @@ namespace dual_types
         return sqrt(d1);
     }
 
+    template<typename T, int dimensions>
+    struct buffer
+    {
+        std::string name;
+        tensor<T, dimensions> size;
+        std::string read_function;
+        std::string write_function;
+
+        template<typename... U>
+        T read(U&&... u) const
+        {
+            return dual_types::apply(T(read_function), std::forward<U>(u)...);
+        }
+
+        template<typename V, typename... U>
+        auto write(V&& what, U&&... u)
+        {
+            return dual_types::apply(T(write_function), std::forward<V>(what), std::forward<U>(u)...);
+        }
+    };
+
     inline
     void test_operation()
     {
@@ -1272,5 +1314,8 @@ T divide_with_callback(const T& top, const T& bottom, U&& if_nonfinite)
 using dual = dual_types::dual_v<dual_types::value<float>>;
 using dual_complex = dual_types::dual_v<dual_types::complex<dual_types::value<float>>>;
 using value = dual_types::value<float>;
+using valuei = dual_types::value<int>;
+template<typename T, int N>
+using buffer = dual_types::buffer<T, N>;
 
 #endif // DUAL2_HPP_INCLUDED
