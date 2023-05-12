@@ -108,6 +108,8 @@ namespace dual_types
             MODULUS, ///c style %
             AND,
             ASSIGN,
+            RETURN,
+            IF_S,
 
             LESS,
             LESS_EQUAL,
@@ -200,6 +202,8 @@ namespace dual_types
             "%",
             "&",
             "=",
+            "return",
+            "if",
             "<",
             "<=",
             ">",
@@ -343,6 +347,25 @@ namespace dual_types
 
         value(const std::string& str){value_payload = str; type = ops::VALUE;}
         value(const char* str){assert(str); value_payload = std::string(str); type = ops::VALUE;}
+
+        template<typename U>
+        value<U> as() const
+        {
+            value<U> result;
+            result.type = type;
+
+            if(value_payload.has_value())
+            {
+                result.value_payload = to_string_either(value_payload.value());
+            }
+
+            for(const value& v : args)
+            {
+                result.args.push_back(v.template as<U>());
+            }
+
+            return result;
+        }
 
         bool is_value() const
         {
@@ -1072,6 +1095,16 @@ namespace dual_types
             return "(" + type_to_string(op.args[0]) + "[" + type_to_string(op.args[1]) + "])";
         }
 
+        if(op.type == ops::RETURN)
+        {
+            return "(return;)";
+        }
+
+        if(op.type == ops::IF_S)
+        {
+            return "if(" + type_to_string(op.args[0]) + "){" + type_to_string(op.args[1]) + ";}";
+        }
+
         const operation_desc desc = get_description(op.type);
 
         if(desc.is_infix)
@@ -1198,6 +1231,22 @@ namespace dual_types
         }
 
         return select<V, U, T>(if_false, if_true, condition);
+    }
+
+    template<typename T>
+    inline
+    value<T> return_s()
+    {
+        return make_op<T>(ops::RETURN);
+    }
+
+    template<typename T, typename U>
+    inline
+    value<T> if_s(const value<T>& condition, const value<U>& to_execute)
+    {
+        value<T> converted = to_execute.template as<T>();
+
+        return make_op<T>(ops::IF_S, condition, converted);
     }
 
     template<typename T>
