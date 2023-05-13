@@ -119,6 +119,10 @@ namespace dual_types
 
             EQUAL,
 
+            LAND,
+            LOR,
+            LNOT,
+
             SIN,
             COS,
             TAN,
@@ -176,7 +180,7 @@ namespace dual_types
 
         if(type == PLUS || type == MINUS || type == MULTIPLY || type == MODULUS || type == AND || type == ASSIGN ||
            type == LESS || type == LESS_EQUAL || type == GREATER || type == GREATER_EQUAL ||
-           type == EQUAL)
+           type == EQUAL || type == LAND || type == LOR || type == LNOT)
         {
             ret.is_infix = true;
         }
@@ -209,6 +213,9 @@ namespace dual_types
             ">",
             ">=",
             "==",
+            "&&",
+            "||",
+            "!",
             "native_sin",
             "native_cos",
             "native_tan",
@@ -1002,6 +1009,24 @@ namespace dual_types
         {
             return make_op<T>(ops::AND, d1, d2);
         }
+
+        friend
+        value<T> operator||(const value<T>& d1, const value<T>& d2)
+        {
+            return make_op<T>(ops::LOR, d1, d2);
+        }
+
+        friend
+        value<T> operator&&(const value<T>& d1, const value<T>& d2)
+        {
+            return make_op<T>(ops::LAND, d1, d2);
+        }
+
+        friend
+        value<T> operator!(const value<T>& d1)
+        {
+            return make_op<T>(ops::LNOT, d1);
+        }
     };
 
     template<typename T>
@@ -1097,7 +1122,7 @@ namespace dual_types
 
         if(op.type == ops::RETURN)
         {
-            return "(return;)";
+            return "return";
         }
 
         if(op.type == ops::IF_S)
@@ -1303,6 +1328,11 @@ namespace dual_types
         literal(const char* str) : name(str){}
 
         T get()
+        {
+            return T(name);
+        }
+
+        operator T()
         {
             return T(name);
         }
