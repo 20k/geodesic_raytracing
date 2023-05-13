@@ -9,9 +9,78 @@
 #include <assert.h>
 #include <variant>
 #include <vec/tensor.hpp>
+#include <CL/cl.h>
+#include <stdfloat>
+#include <concepts>
 
 namespace dual_types
 {
+    template<typename T>
+    struct value;
+
+    template<typename T>
+    inline
+    std::string name_type(T tag)
+    {
+        #define CMAP(x, y) if constexpr(std::is_same_v<T, x>) return #y;
+
+        CMAP(float, float);
+        CMAP(cl_float, float);
+
+        CMAP(double, double);
+        CMAP(cl_double, double);
+
+        CMAP(std::float16_t, half);
+        CMAP(cl_half, half);
+
+        CMAP(cl_int, int);
+        CMAP(int, int);
+
+        CMAP(cl_short, short);
+        CMAP(short, short);
+
+        CMAP(cl_uint, unsigned int);
+        CMAP(unsigned int, unsigned int);
+
+        CMAP(cl_ushort, unsigned short);
+        CMAP(unsigned short, unsigned short);
+
+        CMAP(cl_float4, float4);
+        CMAP(cl_float3, float3);
+        CMAP(cl_float2, float2);
+
+        CMAP(cl_int4, int4);
+        CMAP(cl_int3, int3);
+        CMAP(cl_int2, int2);
+
+        CMAP(cl_uint4, uint4);
+        CMAP(cl_uint3, uint3);
+        CMAP(cl_uint2, uint2);
+
+        CMAP(cl_short4, short4);
+        CMAP(cl_short3, short3);
+        CMAP(cl_short2, short2);
+
+        CMAP(cl_ushort4, ushort4);
+        CMAP(cl_ushort3, ushort3);
+        CMAP(cl_ushort2, ushort2);
+
+        if constexpr(std::is_same_v<T, tensor<value<float>, 4>>)
+            return "float4";
+
+        if constexpr(std::is_same_v<T, tensor<value<unsigned short>, 4>>)
+            return "ushort4";
+
+        #undef CMAP
+    }
+
+    template<typename T>
+    inline
+    std::string name_type(value<T> tag)
+    {
+        return name_type(typename value<T>::value_type());
+    }
+
     template<typename T>
     concept Arithmetic = std::is_arithmetic_v<T>;
 
@@ -34,7 +103,7 @@ namespace dual_types
     }
 
     inline
-    std::string to_string_s(int v)
+    std::string to_string_s(std::integral auto v)
     {
         return std::to_string(v);
     }
@@ -123,6 +192,9 @@ namespace dual_types
             LOR,
             LNOT,
 
+            IDOT,
+            CONVERT,
+
             SIN,
             COS,
             TAN,
@@ -180,7 +252,7 @@ namespace dual_types
 
         if(type == PLUS || type == MINUS || type == MULTIPLY || type == MODULUS || type == AND || type == ASSIGN ||
            type == LESS || type == LESS_EQUAL || type == GREATER || type == GREATER_EQUAL ||
-           type == EQUAL || type == LAND || type == LOR || type == LNOT)
+           type == EQUAL || type == LAND || type == LOR || type == LNOT || type == IDOT)
         {
             ret.is_infix = true;
         }
@@ -216,6 +288,8 @@ namespace dual_types
             "&&",
             "||",
             "!",
+            ".",
+            "(#err)",
             "native_sin",
             "native_cos",
             "native_tan",
@@ -304,9 +378,6 @@ namespace dual_types
     }
 
     template<typename T>
-    struct value;
-
-    template<typename T>
     std::string type_to_string(const value<T>& op);
 
     template<typename U, typename... T>
@@ -341,7 +412,7 @@ namespace dual_types
         //std::optional<std::string> value_payload;
         std::vector<value> args;
 
-        value(){value_payload = T(0.); type = ops::VALUE;}
+        value(){value_payload = T{}; type = ops::VALUE;}
         //value(T v){value_payload = v; type = ops::VALUE;}
         //value(int v){value_payload = T(v); type = ops::VALUE;}
 
@@ -373,6 +444,12 @@ namespace dual_types
 
             return result;
         }
+
+        /*template<typename U>
+        value<U> convert() const
+        {
+            return make_op<U>(ops::CONVERT, as<U>(), name_type<U>());
+        }*/
 
         bool is_value() const
         {
@@ -918,6 +995,45 @@ namespace dual_types
             *this = flatten();
         }
 
+        template<typename U>
+        value<U> x()
+        {
+            return make_op<U>(ops::IDOT, as<U>(), "x");
+        }
+
+        template<typename U>
+        value<U> y()
+        {
+            return make_op<U>(ops::IDOT, as<U>(), "y");
+        }
+
+        template<typename U>
+        value<U> z()
+        {
+            return make_op<U>(ops::IDOT, as<U>(), "z");
+        }
+
+        template<typename U>
+        value<U> w()
+        {
+            return make_op<U>(ops::IDOT, as<U>(), "w");
+        }
+
+        template<typename U>
+        value<U> index(int idx)
+        {
+            if(idx == 0)
+                return x<U>();
+            if(idx == 1)
+                return y<U>();
+            if(idx == 2)
+                return z<U>();
+            if(idx == 3)
+                return w<U>();
+
+            assert(false);
+        }
+
         value<T>& operator+=(const value<T>& d1)
         {
             *this = *this + d1;
@@ -1095,7 +1211,7 @@ namespace dual_types
     inline
     std::string type_to_string(const value<T>& op)
     {
-        static_assert(std::is_same_v<T, double> || std::is_same_v<T, float> || std::is_same_v<T, int>);
+        static_assert(std::is_same_v<T, double> || std::is_same_v<T, float> || std::is_same_v<T, int> || std::is_same_v<T, short> || std::is_same_v<T, unsigned short>);
 
         if(op.type == ops::VALUE)
         {
@@ -1128,6 +1244,11 @@ namespace dual_types
         if(op.type == ops::IF_S)
         {
             return "if(" + type_to_string(op.args[0]) + "){" + type_to_string(op.args[1]) + ";}";
+        }
+
+        if(op.type == ops::CONVERT)
+        {
+            return "((" + type_to_string(op.args[1]) + ")" + type_to_string(op.args[0]) + ")";
         }
 
         const operation_desc desc = get_description(op.type);
@@ -1360,9 +1481,30 @@ namespace dual_types
             return dual_types::apply(T(write_function), std::forward<V>(what), std::forward<U>(u)...);
         }*/
 
+        template<typename U>
+        static U parse_tensor(const U& tag, value<int> op)
+        {
+            return op.as<typename U::value_type>();
+        }
+
+        template<typename U, int N>
+        static tensor<U, N> parse_tensor(const tensor<U, N>& tag, value<int> op)
+        {
+            tensor<U, N> ret;
+
+            for(int i=0; i < N; i++)
+            {
+                ret.idx(i) = op.index<typename U::value_type>(i);
+            }
+
+            return ret;
+        }
+
         T operator[](const value<int>& in) const
         {
-            return make_op(ops::BRACKET, value<T>(name), in);
+            value<int> op = make_op<int>(ops::BRACKET, value<int>(name), in);
+
+            return parse_tensor(T(), op);
         }
 
         T operator[](const value<int>& ix, const value<int>& iy, const value<int>& iz) const
@@ -1372,9 +1514,13 @@ namespace dual_types
             ///convert from value<int> to value<float> which is what the bracket operator actually returns
             ///but the type system internally can't really represent that operations might yield a type
             ///and bracket is literally the only one that does so
-            T hacky_convert = type_to_string(make_op<int>(ops::BRACKET, value<int>(name), index));
+            //T hacky_convert = type_to_string();
 
-            return hacky_convert;
+            //return hacky_convert;
+
+            value<int> op = make_op<int>(ops::BRACKET, value<int>(name), index);
+
+            return parse_tensor(T(), op);
         }
 
         T assign(const T& location, const T& what)
@@ -1446,7 +1592,9 @@ using dual_complex = dual_types::dual_v<dual_types::complex<dual_types::value<fl
 template<typename T>
 using value_base = dual_types::value<T>;
 using value = dual_types::value<float>;
-using valuei = dual_types::value<int>;
+using value_i = dual_types::value<int>;
+using value_s = dual_types::value<short>;
+using value_us = dual_types::value<unsigned short>;
 template<typename T, int N>
 using buffer = dual_types::buffer<T, N>;
 template<typename T>
