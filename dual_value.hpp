@@ -22,27 +22,27 @@ namespace dual_types
     inline
     std::string name_type(T tag)
     {
-        #define CMAP(x, y) if constexpr(std::is_same_v<T, x>) return #y;
+        #define CMAP(x, y) if constexpr(std::is_same_v<T, x>) {printf("hi %s\n", #x); return #y;};
 
         CMAP(float, float);
-        CMAP(cl_float, float);
+        //CMAP(cl_float, float);
 
         CMAP(double, double);
-        CMAP(cl_double, double);
+        //CMAP(cl_double, double);
 
         CMAP(std::float16_t, half);
-        CMAP(cl_half, half);
+        //CMAP(cl_half, half);
 
-        CMAP(cl_int, int);
+        //CMAP(cl_int, int);
         CMAP(int, int);
 
-        CMAP(cl_short, short);
+        //CMAP(cl_short, short);
         CMAP(short, short);
 
-        CMAP(cl_uint, unsigned int);
+        //CMAP(cl_uint, unsigned int);
         CMAP(unsigned int, unsigned int);
 
-        CMAP(cl_ushort, unsigned short);
+        //CMAP(cl_ushort, unsigned short);
         CMAP(unsigned short, unsigned short);
 
         CMAP(cl_float4, float4);
@@ -75,6 +75,8 @@ namespace dual_types
             return "ushort4";
 
         #undef CMAP
+
+        assert(false);
     }
 
     template<typename T>
@@ -195,6 +197,8 @@ namespace dual_types
             LOR,
             LNOT,
 
+            COMMA,
+
             IDOT,
             CONVERT,
 
@@ -255,7 +259,7 @@ namespace dual_types
 
         if(type == PLUS || type == MINUS || type == MULTIPLY || type == MODULUS || type == AND || type == ASSIGN ||
            type == LESS || type == LESS_EQUAL || type == GREATER || type == GREATER_EQUAL ||
-           type == EQUAL || type == LAND || type == LOR || type == LNOT || type == IDOT)
+           type == EQUAL || type == LAND || type == LOR || type == LNOT || type == COMMA || type == IDOT)
         {
             ret.is_infix = true;
         }
@@ -291,6 +295,7 @@ namespace dual_types
             "&&",
             "||",
             "!",
+            ",",
             ".",
             "(#err)",
             "native_sin",
@@ -1152,6 +1157,14 @@ namespace dual_types
         {
             return make_op<T>(ops::LNOT, d1);
         }
+
+        template<typename U>
+        friend
+        value<U> operator,(const value<T>& d1, const value<U>& d2)
+        {
+            return make_op<U>(ops::COMMA, d1.as<U>(), d2);
+        }
+
     };
 
     template<typename T>
@@ -1224,20 +1237,13 @@ namespace dual_types
 
         if(op.type == ops::VALUE)
         {
-            std::string prefix = "";
-
-            /*if constexpr(std::is_same_v<T, int>)
-            {
-                prefix = "(int)";
-            }*/
-
             if(op.is_constant())
             {
                 if(op.get_constant() < 0)
-                    return "(" + prefix + to_string_either(op.value_payload.value()) + ")";
+                    return "(" + to_string_either(op.value_payload.value()) + ")";
             }
 
-            return prefix + to_string_either(op.value_payload.value());
+            return to_string_either(op.value_payload.value());
         }
 
         if(op.type == ops::BRACKET)
@@ -1253,6 +1259,11 @@ namespace dual_types
         if(op.type == ops::IF_S)
         {
             return "if(" + type_to_string(op.args[0]) + "){" + type_to_string(op.args[1]) + ";}";
+        }
+
+        if(op.type == ops::COMMA)
+        {
+            return "(" + type_to_string(op.args[0]) + ");" + type_to_string(op.args[1]);
         }
 
         if(op.type == ops::CONVERT)
@@ -1539,6 +1550,13 @@ namespace dual_types
         {
             return make_op<typename T::value_type>(ops::ASSIGN, location, what);
         }
+
+        /*T assign(const value<int>& ix, const value<int>& iy, const value<int>& iz, const T& what)
+        {
+            value<int> index = iz * size.idx(0) * size.idx(1) + iy * size.idx(0) + ix;
+
+            return make_op<typename T::value_type>(ops::ASSIGN, index, what);
+        }*/
     };
 
     inline
