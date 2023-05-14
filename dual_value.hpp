@@ -68,6 +68,9 @@ namespace dual_types
         if constexpr(std::is_same_v<T, tensor<value<float>, 4>>)
             return "float4";
 
+        if constexpr(std::is_same_v<T, tensor<value<int>, 4>>)
+            return "int4";
+
         if constexpr(std::is_same_v<T, tensor<value<unsigned short>, 4>>)
             return "ushort4";
 
@@ -445,11 +448,17 @@ namespace dual_types
             return result;
         }
 
-        /*template<typename U>
+        template<typename U>
         value<U> convert() const
         {
-            return make_op<U>(ops::CONVERT, as<U>(), name_type<U>());
-        }*/
+            return make_op<U>(ops::CONVERT, as<U>(), name_type(U()));
+        }
+
+        template<typename U>
+        explicit operator value<U>()
+        {
+            return convert<U>();
+        }
 
         bool is_value() const
         {
@@ -1437,6 +1446,25 @@ namespace dual_types
         return sqrt(d1);
     }
 
+    template<typename U>
+    static U parse_tensor(const U& tag, value<int> op)
+    {
+        return op.as<typename U::value_type>();
+    }
+
+    template<typename U, int N>
+    static tensor<U, N> parse_tensor(const tensor<U, N>& tag, value<int> op)
+    {
+        tensor<U, N> ret;
+
+        for(int i=0; i < N; i++)
+        {
+            ret.idx(i) = op.index<typename U::value_type>(i);
+        }
+
+        return ret;
+    }
+
     template<typename T>
     struct literal
     {
@@ -1450,12 +1478,14 @@ namespace dual_types
 
         T get()
         {
-            return T(name);
+            value<int> op(name);
+
+            return parse_tensor(T(), op);
         }
 
         operator T()
         {
-            return T(name);
+            return get();
         }
     };
 
@@ -1481,24 +1511,6 @@ namespace dual_types
             return dual_types::apply(T(write_function), std::forward<V>(what), std::forward<U>(u)...);
         }*/
 
-        template<typename U>
-        static U parse_tensor(const U& tag, value<int> op)
-        {
-            return op.as<typename U::value_type>();
-        }
-
-        template<typename U, int N>
-        static tensor<U, N> parse_tensor(const tensor<U, N>& tag, value<int> op)
-        {
-            tensor<U, N> ret;
-
-            for(int i=0; i < N; i++)
-            {
-                ret.idx(i) = op.index<typename U::value_type>(i);
-            }
-
-            return ret;
-        }
 
         T operator[](const value<int>& in) const
         {
