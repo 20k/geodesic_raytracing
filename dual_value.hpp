@@ -442,7 +442,16 @@ namespace dual_types
 
             if(value_payload.has_value())
             {
-                result.value_payload = to_string_either(value_payload.value());
+                if constexpr(std::is_same_v<T, std::monostate>)
+                {
+                    assert(value_payload.value().index() == 0);
+
+                    result.value_payload = std::get<0>(value_payload.value());
+                }
+                else
+                {
+                    result.value_payload = to_string_either(value_payload.value());
+                }
             }
 
             for(const value& v : args)
@@ -457,6 +466,29 @@ namespace dual_types
         value<U> convert() const
         {
             return make_op<U>(ops::CONVERT, as<U>(), name_type(U()));
+        }
+
+        value<std::monostate> as_generic() const
+        {
+            if constexpr(std::is_same_v<T, std::monostate>)
+                return *this;
+            else
+            {
+                value<std::monostate> result;
+                result.type = type;
+
+                if(value_payload.has_value())
+                {
+                    result.value_payload = to_string_either(value_payload.value());
+                }
+
+                for(const value& v : args)
+                {
+                    result.args.push_back(v.as_generic());
+                }
+
+                return result;
+            }
         }
 
         template<typename U>
@@ -1331,7 +1363,10 @@ namespace dual_types
         ret.args = {args...};
         ret.value_payload = std::nullopt;
 
-        return ret.flatten();
+        if constexpr(std::is_same_v<U, std::monostate>)
+            return ret;
+        else
+            return ret.flatten();
     }
 
     #define UNARY(x, y) template<typename T> inline value<T> x(const value<T>& d1){return make_op<T>(ops::y, d1);}
@@ -1399,20 +1434,17 @@ namespace dual_types
         return select<V, U, T>(if_false, if_true, condition);
     }
 
-    template<typename T>
     inline
-    value<T> return_s()
+    value<std::monostate> return_s()
     {
-        return make_op<T>(ops::RETURN);
+        return make_op<std::monostate>(ops::RETURN);
     }
 
     template<typename T, typename U>
     inline
-    value<T> if_s(const value<T>& condition, const value<U>& to_execute)
+    value<std::monostate> if_s(const value<T>& condition, const value<U>& to_execute)
     {
-        value<T> converted = to_execute.template as<T>();
-
-        return make_op<T>(ops::IF_S, condition, converted);
+        return make_op<std::monostate>(ops::IF_S, condition.as_generic(), to_execute.as_generic());
     }
 
     template<typename T>
@@ -1632,6 +1664,7 @@ using value = dual_types::value<float>;
 using value_i = dual_types::value<int>;
 using value_s = dual_types::value<short>;
 using value_us = dual_types::value<unsigned short>;
+using value_v = dual_types::value<std::monostate>;
 template<typename T, int N>
 using buffer = dual_types::buffer<T, N>;
 template<typename T>
