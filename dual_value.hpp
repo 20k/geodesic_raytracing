@@ -1500,6 +1500,13 @@ namespace dual_types
         }
     };
 
+    template<typename T>
+    inline
+    value<T> assign(const value<T>& location, const value<T>& what)
+    {
+        return make_op<typename T::value_type>(ops::ASSIGN, location, what);
+    }
+
     template<typename T, int dimensions>
     struct buffer
     {
