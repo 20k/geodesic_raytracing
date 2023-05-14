@@ -1504,7 +1504,7 @@ namespace dual_types
     inline
     value<T> assign(const value<T>& location, const value<T>& what)
     {
-        return make_op<typename T::value_type>(ops::ASSIGN, location, what);
+        return make_op<T>(ops::ASSIGN, location, what);
     }
 
     template<typename T, int dimensions>
