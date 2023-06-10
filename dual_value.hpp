@@ -1441,7 +1441,7 @@ namespace dual_types
         return make_op<std::monostate>(ops::RETURN);
     }
 
-    static inline value<std::monostate> return_s = make_return_s();
+    inline value<std::monostate> return_s = make_return_s();
 
     ///true branch
     template<typename T, typename U>
@@ -1566,7 +1566,6 @@ namespace dual_types
             return dual_types::apply(T(write_function), std::forward<V>(what), std::forward<U>(u)...);
         }*/
 
-
         T operator[](const value<int>& in) const
         {
             value<int> op = make_op<int>(ops::BRACKET, value<int>(name), in);
@@ -1674,6 +1673,6 @@ template<typename T, int N>
 using buffer = dual_types::buffer<T, N>;
 template<typename T>
 using literal = dual_types::literal<T>;
-using return_s = dual_types::return_s;
+inline auto return_s = dual_types::make_return_s();
 
 #endif // DUAL2_HPP_INCLUDED
