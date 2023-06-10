@@ -1417,6 +1417,7 @@ namespace dual_types
         return min(max(val, lower), upper);
     }
 
+    ///select
     template<typename T, typename U, typename V>
     inline
     value<T> if_v(const value<T>& condition, const U& if_true, const V& if_false)
@@ -1435,11 +1436,14 @@ namespace dual_types
     }
 
     inline
-    value<std::monostate> return_s()
+    value<std::monostate> make_return_s()
     {
         return make_op<std::monostate>(ops::RETURN);
     }
 
+    static inline value<std::monostate> return_s = make_return_s();
+
+    ///true branch
     template<typename T, typename U>
     inline
     value<std::monostate> if_s(const value<T>& condition, const value<U>& to_execute)
@@ -1447,6 +1451,7 @@ namespace dual_types
         return make_op<std::monostate>(ops::IF_S, condition.as_generic(), to_execute.as_generic());
     }
 
+    ///select
     template<typename T>
     requires std::is_arithmetic_v<T>
     auto if_v(bool condition, const T& if_true, const T& if_false)
@@ -1669,5 +1674,6 @@ template<typename T, int N>
 using buffer = dual_types::buffer<T, N>;
 template<typename T>
 using literal = dual_types::literal<T>;
+using return_s = dual_types::return_s;
 
 #endif // DUAL2_HPP_INCLUDED
