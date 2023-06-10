@@ -68,11 +68,38 @@ namespace dual_types
         if constexpr(std::is_same_v<T, tensor<value<float>, 4>>)
             return "float4";
 
+        if constexpr(std::is_same_v<T, tensor<value<float>, 3>>)
+            return "float3";
+
+        if constexpr(std::is_same_v<T, tensor<value<float>, 2>>)
+            return "float2";
+
         if constexpr(std::is_same_v<T, tensor<value<int>, 4>>)
             return "int4";
 
+        if constexpr(std::is_same_v<T, tensor<value<int>, 3>>)
+            return "int3";
+
+        if constexpr(std::is_same_v<T, tensor<value<int>, 2>>)
+            return "int2";
+
         if constexpr(std::is_same_v<T, tensor<value<unsigned short>, 4>>)
             return "ushort4";
+
+        if constexpr(std::is_same_v<T, tensor<value<unsigned short>, 3>>)
+            return "ushort3";
+
+        if constexpr(std::is_same_v<T, tensor<value<unsigned short>, 2>>)
+            return "ushort2";
+
+        if constexpr(std::is_same_v<T, tensor<value<std::float16_t>, 4>>)
+            return "half4";
+
+        if constexpr(std::is_same_v<T, tensor<value<std::float16_t>, 3>>)
+            return "half3";
+
+        if constexpr(std::is_same_v<T, tensor<value<std::float16_t>, 2>>)
+            return "half2";
 
         #undef CMAP
 
@@ -161,7 +188,14 @@ namespace dual_types
         if(in.index() == 0)
             return std::get<0>(in);
 
-        return to_string_s(std::get<1>(in));
+        if constexpr(std::is_same_v<T, std::monostate>)
+        {
+            assert(false);
+        }
+        else
+        {
+            return to_string_s(std::get<1>(in));
+        }
     }
 
     struct operation_desc
@@ -418,7 +452,7 @@ namespace dual_types
         std::optional<std::variant<std::string, T>> value_payload;
 
         //std::optional<std::string> value_payload;
-        std::vector<value> args;
+        std::vector<value<T>> args;
 
         value(){value_payload = T{}; type = ops::VALUE;}
         //value(T v){value_payload = v; type = ops::VALUE;}
@@ -439,6 +473,7 @@ namespace dual_types
         {
             value<U> result;
             result.type = type;
+            result.value_payload = std::nullopt;
 
             if(value_payload.has_value())
             {
@@ -476,13 +511,14 @@ namespace dual_types
             {
                 value<std::monostate> result;
                 result.type = type;
+                result.value_payload = std::nullopt;
 
                 if(value_payload.has_value())
                 {
                     result.value_payload = to_string_either(value_payload.value());
                 }
 
-                for(const value& v : args)
+                for(const value<T>& v : args)
                 {
                     result.args.push_back(v.as_generic());
                 }
@@ -1265,14 +1301,17 @@ namespace dual_types
     inline
     std::string type_to_string(const value<T>& op)
     {
-        static_assert(std::is_same_v<T, double> || std::is_same_v<T, float> || std::is_same_v<T, int> || std::is_same_v<T, short> || std::is_same_v<T, unsigned short>);
+        static_assert(std::is_same_v<T, double> || std::is_same_v<T, float> || std::is_same_v<T, int> || std::is_same_v<T, short> || std::is_same_v<T, unsigned short> || std::is_same_v<T, std::monostate>);
 
         if(op.type == ops::VALUE)
         {
-            if(op.is_constant())
+            if constexpr(!std::is_same_v<T, std::monostate>)
             {
-                if(op.get_constant() < 0)
-                    return "(" + to_string_either(op.value_payload.value()) + ")";
+                if(op.is_constant())
+                {
+                    if(op.get_constant() < 0)
+                        return "(" + to_string_either(op.value_payload.value()) + ")";
+                }
             }
 
             return to_string_either(op.value_payload.value());
@@ -1441,7 +1480,7 @@ namespace dual_types
         return make_op<std::monostate>(ops::RETURN);
     }
 
-    inline value<std::monostate> return_s = make_return_s();
+    const inline value<std::monostate> return_s = make_return_s();
 
     ///true branch
     template<typename T, typename U>
@@ -1577,13 +1616,6 @@ namespace dual_types
         {
             value<int> index = iz * size.idx(0) * size.idx(1) + iy * size.idx(0) + ix;
 
-            ///convert from value<int> to value<float> which is what the bracket operator actually returns
-            ///but the type system internally can't really represent that operations might yield a type
-            ///and bracket is literally the only one that does so
-            //T hacky_convert = type_to_string();
-
-            //return hacky_convert;
-
             value<int> op = make_op<int>(ops::BRACKET, value<int>(name), index);
 
             return parse_tensor(T(), op);
@@ -1593,13 +1625,6 @@ namespace dual_types
         {
             return make_op<typename T::value_type>(ops::ASSIGN, location, what);
         }
-
-        /*T assign(const value<int>& ix, const value<int>& iy, const value<int>& iz, const T& what)
-        {
-            value<int> index = iz * size.idx(0) * size.idx(1) + iy * size.idx(0) + ix;
-
-            return make_op<typename T::value_type>(ops::ASSIGN, index, what);
-        }*/
     };
 
     inline
@@ -1673,6 +1698,6 @@ template<typename T, int N>
 using buffer = dual_types::buffer<T, N>;
 template<typename T>
 using literal = dual_types::literal<T>;
-inline auto return_s = dual_types::make_return_s();
+const inline auto return_s = dual_types::make_return_s();
 
 #endif // DUAL2_HPP_INCLUDED
