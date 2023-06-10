@@ -22,7 +22,7 @@ namespace dual_types
     inline
     std::string name_type(T tag)
     {
-        #define CMAP(x, y) if constexpr(std::is_same_v<T, x>) {printf("hi %s\n", #x); return #y;};
+        #define CMAP(x, y) if constexpr(std::is_same_v<T, x>) {return #y;};
 
         CMAP(float, float);
         //CMAP(cl_float, float);
@@ -1342,10 +1342,17 @@ namespace dual_types
             return "((" + type_to_string(op.args[1]) + ")" + type_to_string(op.args[0]) + ")";
         }
 
+        if(op.type == ops::LNOT)
+        {
+            return "(!(" + type_to_string(op.args[0]) + "))";
+        }
+
         const operation_desc desc = get_description(op.type);
 
         if(desc.is_infix)
         {
+            assert(op.args.size() == 2);
+
             return "(" + type_to_string(op.args[0]) + std::string(desc.sym) + type_to_string(op.args[1]) + ")";
         }
         else
@@ -1515,11 +1522,20 @@ namespace dual_types
     }
 
     template<typename T>
+    auto assert_s(const value<T>& is_true)
+    {
+        value<std::monostate> print = "printf(\"Failed: %s\",\"" + type_to_string(is_true) + "\")";
+
+        return if_s(!is_true, print);
+    }
+
+    template<typename T>
     inline
     value<T> conjugate(const value<T>& d1)
     {
         return d1;
     }
+
 
     template<typename T>
     inline
