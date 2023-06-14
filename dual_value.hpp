@@ -1573,18 +1573,11 @@ namespace dual_types
     {
         using value_type = T;
 
-        std::optional<std::string> alias;
         std::string name;
 
         literal(){}
         literal(const std::string& str) : name(str){}
         literal(const char* str) : name(str){}
-
-        void set_name(const std::string& in)
-        {
-            alias = in;
-            name = in;
-        }
 
         T get()
         {
@@ -1611,7 +1604,6 @@ namespace dual_types
     {
         using value_type = T;
 
-        std::optional<std::string> alias;
         std::string name;
         tensor<value<int>, dimensions> size;
         //std::string read_function;
@@ -1628,12 +1620,6 @@ namespace dual_types
         {
             return dual_types::apply(T(write_function), std::forward<V>(what), std::forward<U>(u)...);
         }*/
-
-        void set_name(const std::string& in)
-        {
-            name = in;
-            alias = in;
-        }
 
         T operator[](const value<int>& in) const
         {
