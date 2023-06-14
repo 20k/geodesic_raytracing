@@ -1333,7 +1333,7 @@ namespace dual_types
 
         if(op.type == ops::COMMA)
         {
-            return "(" + type_to_string(op.args[0]) + ");" + type_to_string(op.args[1]);
+            return type_to_string(op.args[0]) + ";" + type_to_string(op.args[1]);
         }
 
         if(op.type == ops::CONVERT)
