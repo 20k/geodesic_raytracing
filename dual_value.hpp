@@ -997,6 +997,7 @@ namespace dual_types
             if(type == ops::UNKNOWN_FUNCTION)
                 start = 1;
 
+            ///iterating while modifying has unclear semantics
             for(int i=start; i < (int)args.size(); i++)
             {
                 args[i].recurse_arguments(in);
@@ -1077,41 +1078,36 @@ namespace dual_types
             *this = flatten();
         }
 
-        template<typename U>
-        value<U> x()
+        value x()
         {
-            return make_op<U>(ops::IDOT, as<U>(), "x");
+            return make_op<T>(ops::IDOT, *this, "x");
         }
 
-        template<typename U>
-        value<U> y()
+        value y()
         {
-            return make_op<U>(ops::IDOT, as<U>(), "y");
+            return make_op<T>(ops::IDOT, *this, "y");
         }
 
-        template<typename U>
-        value<U> z()
+        value z()
         {
-            return make_op<U>(ops::IDOT, as<U>(), "z");
+            return make_op<T>(ops::IDOT, *this, "z");
         }
 
-        template<typename U>
-        value<U> w()
+        value w()
         {
-            return make_op<U>(ops::IDOT, as<U>(), "w");
+            return make_op<T>(ops::IDOT, *this, "w");
         }
 
-        template<typename U>
-        value<U> index(int idx)
+        value<T> index(int idx)
         {
             if(idx == 0)
-                return x<U>();
+                return x();
             if(idx == 1)
-                return y<U>();
+                return y();
             if(idx == 2)
-                return z<U>();
+                return z();
             if(idx == 3)
-                return w<U>();
+                return w();
 
             assert(false);
         }
@@ -1448,11 +1444,11 @@ namespace dual_types
     TRINARY(mad, MAD);
     TRINARY(fma, FMA);
 
-    template<typename T, typename U, typename V>
+    template<typename T, typename V>
     inline
-    value<V> select(const T& v1, const U& v2, const value<V>& v3)
+    value<T> select(const value<T>& v1, const value<T>& v2, const value<V>& v3)
     {
-        return make_op<V>(ops::SELECT, value<V>(v1), value<V>(v2), v3);
+        return make_op<T>(ops::SELECT, v1, v2, v3.template as<T>());
     }
 
     template<typename T>
@@ -1463,13 +1459,13 @@ namespace dual_types
     }
 
     ///select
-    template<typename T, typename U, typename V>
+    template<typename T, typename U>
     inline
-    value<T> if_v(const value<T>& condition, const U& if_true, const V& if_false)
+    value<T> if_v(const value<U>& condition, const value<T>& if_true, const value<T>& if_false)
     {
         if(condition.is_constant())
         {
-            T val = condition.get_constant();
+            U val = condition.get_constant();
 
             if(val == 0)
                 return if_false;
@@ -1477,7 +1473,7 @@ namespace dual_types
                 return if_true;
         }
 
-        return select<V, U, T>(if_false, if_true, condition);
+        return select<T, U>(if_false, if_true, condition);
     }
 
     inline
@@ -1511,7 +1507,7 @@ namespace dual_types
         if constexpr(std::is_arithmetic_v<T>)
             return dual_types::if_v(std::fabs(bottom) >= tol, top / bottom, limit);
         else
-            return dual_types::if_v(fabs(bottom) >= tol, top / bottom, limit);
+            return dual_types::if_v(fabs(bottom) >= tol, top / bottom, T{limit});
     }
 
     template<typename U, typename... T>
@@ -1561,7 +1557,7 @@ namespace dual_types
 
         for(int i=0; i < N; i++)
         {
-            ret.idx(i) = op.index<typename U::value_type>(i);
+            ret.idx(i) = op.index(i).as<typename U::value_type>();
         }
 
         return ret;
@@ -1572,6 +1568,7 @@ namespace dual_types
     {
         using value_type = T;
 
+        bool permanent_name = false;
         std::string name;
 
         literal(){}
@@ -1603,6 +1600,7 @@ namespace dual_types
     {
         using value_type = T;
 
+        bool permanent_name = false;
         std::string name;
         tensor<value<int>, dimensions> size;
         //std::string read_function;
