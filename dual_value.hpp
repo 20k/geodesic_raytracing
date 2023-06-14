@@ -1228,11 +1228,10 @@ namespace dual_types
 
         template<typename U>
         friend
-        value<U> operator,(const value<T>& d1, const value<U>& d2)
+        value<std::monostate> operator,(const value<T>& d1, const value<U>& d2)
         {
-            return make_op<U>(ops::COMMA, d1.as<U>(), d2);
+            return make_op<std::monostate>(ops::COMMA, d1.as_generic(), d2.as_generic());
         }
-
     };
 
     template<typename T>
