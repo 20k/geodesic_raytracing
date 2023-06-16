@@ -1441,8 +1441,20 @@ namespace dual_types
     BINARY(max, MAX);
     BINARY(min, MIN);
     UNARY(lambert_w0, LAMBERT_W0);
-    TRINARY(mad, MAD);
-    TRINARY(fma, FMA);
+
+    template<typename T>
+    inline
+    value<T> mad(const value<T>& v1, const value<T>& v2, const value<T>& v3)
+    {
+        return make_op<T>(ops::MAD, v1, v2, v3);
+    }
+
+    template<typename T>
+    inline
+    value<T> fma(const value<T>& v1, const value<T>& v2, const value<T>& v3)
+    {
+        return make_op<T>(ops::FMA, v1, v2, v3);
+    }
 
     template<typename T, typename V>
     inline
