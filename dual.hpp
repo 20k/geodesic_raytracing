@@ -492,6 +492,13 @@ namespace dual_types
 
     template<typename T>
     inline
+    dual_types::dual_v<T> fma(const dual_types::dual_v<T>& d1, const dual_types::dual_v<T>& d2, const dual_types::dual_v<T>& d3)
+    {
+        return d1 * d2 + d3;
+    }
+
+    template<typename T>
+    inline
     dual_types::dual_v<T> exp(const dual_types::dual_v<T>& d1)
     {
         return dual_types::dual_v<T>(exp(d1.real), d1.dual * exp(d1.real));
