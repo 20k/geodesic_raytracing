@@ -740,17 +740,30 @@ namespace dual_types
                 if(args[1].is_constant_constraint(is_zero))
                     return 1;
 
-                /*if(args[1].is_constant())
+                if constexpr(std::is_arithmetic_v<T>)
                 {
-                    value ret = args[0];
-
-                    for(int i=0; i < args[1].get_constant() - 1; i++)
+                    ///according to amd, this is an unconditional win
+                    if(args[1].is_constant())
                     {
-                        ret = ret * args[0];
-                    }
+                        T cst = args[1].get_constant();
 
-                    return ret;
-                }*/
+                        if(cst == floor(cst) && abs(cst) < 32)
+                        {
+                            value ret = args[0];
+
+                            for(int i=0; i < abs(cst) - 1; i++)
+                            {
+                                ret = ret * args[0];
+                            }
+
+                            if(cst > 0)
+                                return ret;
+                            else
+                                return 1/ret;
+                        }
+                    }
+                }
+
             }
 
             if(type == ops::FMA || type == ops::MAD)
