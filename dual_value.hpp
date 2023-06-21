@@ -427,7 +427,7 @@ namespace dual_types
 
     template<auto N, typename T>
     inline
-    bool is_value_equal(T f)
+    bool is_value_equal(const T& f)
     {
         return f == (T)N;
     }
