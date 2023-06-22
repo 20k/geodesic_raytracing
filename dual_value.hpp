@@ -1473,6 +1473,9 @@ namespace dual_types
     inline
     value<T> select(const value<T>& v1, const value<T>& v2, const value<V>& v3)
     {
+        if(equivalent(v1, v2))
+            return v1;
+
         return make_op<T>(ops::SELECT, v1, v2, v3.template as<T>());
     }
 
