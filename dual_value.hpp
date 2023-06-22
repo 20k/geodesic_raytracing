@@ -787,7 +787,6 @@ namespace dual_types
                 }
             }
 
-            value ret = *this;
 
             ///much worse than letting the compiler do it, even with mad
             #ifdef FMA_REPLACE
@@ -814,11 +813,15 @@ namespace dual_types
 
             if(recurse)
             {
+                value ret = *this;
+
                 for(auto& i : ret.args)
                     i = i.flatten(true);
+
+                return ret;
             }
 
-            return ret;
+            return *this;
         }
 
         dual_types::dual_v<value<T>> dual(const std::string& sym) const
