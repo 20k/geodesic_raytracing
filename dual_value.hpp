@@ -1626,7 +1626,7 @@ namespace dual_types
         return make_op<T>(ops::ASSIGN, location, what);
     }
 
-    template<typename T, int dimensions>
+    template<typename T, int dimensions = 1>
     struct buffer
     {
         using value_type = T;
@@ -1658,6 +1658,8 @@ namespace dual_types
 
         T operator[](const value<int>& ix, const value<int>& iy, const value<int>& iz) const
         {
+            static_assert(dimensions == 3);
+
             value<int> index = iz * size.idx(0) * size.idx(1) + iy * size.idx(0) + ix;
 
             value<int> op = make_op<int>(ops::BRACKET, value<int>(name), index);
@@ -1744,5 +1746,14 @@ using buffer = dual_types::buffer<T, N>;
 template<typename T>
 using literal = dual_types::literal<T>;
 const inline auto return_s = dual_types::make_return_s();
+
+using v4f = tensor<value, 4>;
+using v4i = tensor<value_i, 4>;
+using v3f = tensor<value, 3>;
+using v3i = tensor<value_i, 3>;
+using v2f = tensor<value, 2>;
+using v2i = tensor<value_i, 2>;
+using v1f = tensor<value, 1>;
+using v1i = tensor<value_i, 1>;
 
 #endif // DUAL2_HPP_INCLUDED
