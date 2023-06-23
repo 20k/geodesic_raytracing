@@ -528,7 +528,7 @@ namespace dual_types
         }
 
         template<typename U>
-        explicit operator value<U>()
+        explicit operator value<U>() const
         {
             return convert<U>();
         }
