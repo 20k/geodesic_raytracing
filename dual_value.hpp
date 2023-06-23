@@ -1677,6 +1677,11 @@ namespace dual_types
             return parse_tensor(T(), op);
         }
 
+        T operator[](const tensor<value<int>, 3>& pos)
+        {
+            return operator[](pos.x(), pos.y(), pos.z());
+        }
+
         T assign(const T& location, const T& what)
         {
             return make_op<typename T::value_type>(ops::ASSIGN, location, what);
