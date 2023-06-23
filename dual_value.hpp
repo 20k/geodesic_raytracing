@@ -275,6 +275,10 @@ namespace dual_types
             FMA,
             MAD,
 
+            FLOOR,
+            CEIL,
+            ROUND,
+
             BRACKET,
 
             UNKNOWN_FUNCTION,
@@ -360,6 +364,9 @@ namespace dual_types
             "lambert_w0",
             "fma",
             "mad",
+            "floor",
+            "ceil",
+            "round",
             "bad#bracket",
             "generated#function#failure",
             "ERROR#"
@@ -1430,6 +1437,9 @@ namespace dual_types
     #define BINARY(x, y) template<typename T, typename U> inline value<T> x(const value<T>& d1, const U& d2){return make_op<T>(ops::y, d1, d2);}
     #define TRINARY(x, y) template<typename T, typename U, typename V> inline value<T> x(const value<T>& d1, const U& d2, const V& d3){return make_op<T>(ops::y, d1, d2, d3);}
 
+    UNARY(floor, FLOOR);
+    UNARY(ceil, CEIL);
+    UNARY(round, ROUND);
     UNARY(sqrt, SQRT);
     UNARY(psqrt, SQRT);
     UNARY(log, LOG);
@@ -1484,7 +1494,7 @@ namespace dual_types
 
     template<typename T>
     inline
-    T clamp(const T& val, const T& lower, const T& upper)
+    value<T> clamp(const value<T>& val, const value<T>& lower, const value<T>& upper)
     {
         return min(max(val, lower), upper);
     }
