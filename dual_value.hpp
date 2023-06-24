@@ -1647,6 +1647,10 @@ namespace dual_types
         //std::string read_function;
         //std::string write_function;
 
+        buffer(){}
+        buffer(const std::string& str) : name(str){}
+        buffer(const char* str) : name(str){}
+
         /*template<typename... U>
         T read(U&&... u) const
         {
@@ -1756,7 +1760,7 @@ using value_s = dual_types::value<short>;
 using value_us = dual_types::value<unsigned short>;
 using value_v = dual_types::value<std::monostate>;
 using value_h = dual_types::value<std::float16_t>;
-template<typename T, int N>
+template<typename T, int N=1>
 using buffer = dual_types::buffer<T, N>;
 template<typename T>
 using literal = dual_types::literal<T>;
