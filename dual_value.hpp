@@ -1681,7 +1681,7 @@ namespace dual_types
             return parse_tensor(T(), op);
         }
 
-        T operator[](const tensor<value<int>, 3>& pos)
+        T operator[](const tensor<value<int>, 3>& pos) const
         {
             return operator[](pos.x(), pos.y(), pos.z());
         }
