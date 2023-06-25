@@ -1347,7 +1347,10 @@ namespace dual_types
 
         if(op.type == ops::RETURN)
         {
-            return "return";
+            if(op.args.size() == 0)
+                return "return";
+            else
+                return "return " + type_to_string(op.args.at(0));
         }
 
         if(op.type == ops::IF_S)
@@ -1541,6 +1544,13 @@ namespace dual_types
         return make_op<std::monostate>(ops::RETURN);
     }
 
+    template<typename T>
+    inline
+    value<T> return_v(const value<T>& in)
+    {
+        return make_op<T>(ops::RETURN, in);
+    }
+
     const inline value<std::monostate> return_s = make_return_s();
 
     ///true branch
@@ -1668,7 +1678,7 @@ namespace dual_types
         literal(const std::string& str) : name(str){}
         literal(const char* str) : name(str){}
 
-        T get()
+        T get() const
         {
             value<int> op(name);
 
