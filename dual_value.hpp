@@ -1560,9 +1560,41 @@ namespace dual_types
     }
 
     template<typename U, typename... T>
+    inline
     value<U> apply(const value<U>& name, T&&... args)
     {
         return make_op<U>(ops::UNKNOWN_FUNCTION, name, std::forward<T>(args)...);
+    }
+
+    template<typename U, typename T>
+    inline
+    value<T> declare(U& executor, const value<T>& v1, const std::string& name = "")
+    {
+        if(name == "")
+        {
+            int id = executor.sequenced.size();
+
+            std::string fname = "declared" + std::to_string(id);
+            return declare(executor, v1, fname);
+        }
+
+        executor.exec(name_type(T()) + " " + name + "=" + type_to_string(v1));
+
+        return name;
+    }
+
+    template<typename U, typename T, int N>
+    inline
+    tensor<value<T>, N> declare(U& executor, const tensor<value<T>, N>& v1)
+    {
+        tensor<value<T>, N> ret;
+
+        for(int i=0; i < N; i++)
+        {
+            ret[i] = declare(executor, v1[i]);
+        }
+
+        return ret;
     }
 
     template<typename T>
@@ -1642,6 +1674,20 @@ namespace dual_types
     value<T> assign(const value<T>& location, const value<T>& what)
     {
         return make_op<T>(ops::ASSIGN, location, what);
+    }
+
+    template<typename T, int N>
+    inline
+    tensor<value<T>, N> assign(const tensor<value<T>, N>& location, const tensor<value<T>, N>& what)
+    {
+        tensor<value<T>, N> ret;
+
+        for(int i=0; i < N; i++)
+        {
+            ret[i] = assign(location[i], what[i]);
+        }
+
+        return ret;
     }
 
     template<typename T, int dimensions = 1>
