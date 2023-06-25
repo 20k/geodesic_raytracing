@@ -269,6 +269,7 @@ namespace dual_types
             POW,
             MAX,
             MIN,
+            CLAMP,
 
             LAMBERT_W0,
 
@@ -362,6 +363,7 @@ namespace dual_types
             "pow",
             "max",
             "min",
+            "clamp",
             "lambert_w0",
             "fma",
             "mad",
@@ -675,6 +677,7 @@ namespace dual_types
                 PROPAGATE2(POW, std::pow);
                 PROPAGATE2(MAX, std::max);
                 PROPAGATE2(MIN, std::min);
+                PROPAGATE3(CLAMP, std::clamp);
                 //PROPAGATE2(LAMBERT_W0, lambert_w0);
 
                 ///FMA is not propagated as we can't actually simulate it? Does that matter?
@@ -1503,7 +1506,7 @@ namespace dual_types
     inline
     value<T> clamp(const value<T>& val, const value<T>& lower, const value<T>& upper)
     {
-        return min(max(val, lower), upper);
+        return make_op<T>(ops::CLAMP, val, lower, upper);
     }
 
     ///https://man.opencl.org/mix.html, use the exact spec
@@ -1586,8 +1589,6 @@ namespace dual_types
         }
 
         value declare_op = make_op<T>(ops::DECLARE, name_type(T()), name, v1);
-
-        //std::cout << "DECL " << type_to_string(declare_op) << std::endl;
 
         executor.exec(declare_op);
 
