@@ -1499,6 +1499,14 @@ namespace dual_types
         return min(max(val, lower), upper);
     }
 
+    ///https://man.opencl.org/mix.html, use the exact spec
+    template<typename T>
+    inline
+    value<T> mix(const value<T>& v1, const value<T>& v2, const value<T>& a)
+    {
+        return v1 + (v2 - v1) * a;
+    }
+
     ///select
     template<typename T, typename U>
     inline
