@@ -1685,7 +1685,7 @@ namespace dual_types
             return parse_tensor(T(), op);
         }
 
-        operator T()
+        operator T() const
         {
             return get();
         }
