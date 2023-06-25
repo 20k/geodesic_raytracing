@@ -280,6 +280,7 @@ namespace dual_types
             ROUND,
 
             BRACKET,
+            DECLARE,
 
             UNKNOWN_FUNCTION,
 
@@ -368,6 +369,7 @@ namespace dual_types
             "ceil",
             "round",
             "bad#bracket",
+            "bad#declare",
             "generated#function#failure",
             "ERROR#"
         };
@@ -1023,7 +1025,7 @@ namespace dual_types
             ///iterating while modifying has unclear semantics
             for(int i=start; i < (int)args.size(); i++)
             {
-                args[i].recurse_arguments(in);
+                args.at(i).recurse_arguments(in);
             }
         }
 
@@ -1039,7 +1041,7 @@ namespace dual_types
 
             for(int i=start; i < (int)args.size(); i++)
             {
-                args[i].recurse_arguments(in);
+                args.at(i).recurse_arguments(in);
             }
         }
 
@@ -1365,6 +1367,11 @@ namespace dual_types
             return "(!(" + type_to_string(op.args[0]) + "))";
         }
 
+        if(op.type == ops::DECLARE)
+        {
+            return type_to_string(op.args[0]) + " " + type_to_string(op.args[1]) + "=" + type_to_string(op.args[2]) + ";";
+        }
+
         const operation_desc desc = get_description(op.type);
 
         if(desc.is_infix)
@@ -1578,7 +1585,11 @@ namespace dual_types
             return declare(executor, v1, fname);
         }
 
-        executor.exec(name_type(T()) + " " + name + "=" + type_to_string(v1));
+        value declare_op = make_op<T>(ops::DECLARE, name_type(T()), name, v1);
+
+        //std::cout << "DECL " << type_to_string(declare_op) << std::endl;
+
+        executor.exec(declare_op);
 
         return name;
     }
