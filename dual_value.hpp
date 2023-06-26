@@ -1126,6 +1126,11 @@ namespace dual_types
             return make_op<T>(ops::IDOT, *this, "w");
         }
 
+        value property(const std::string& name)
+        {
+            return make_op<T>(ops::IDOT, *this, name);
+        }
+
         value<T> index(int idx)
         {
             if(idx == 0)
@@ -1647,50 +1652,6 @@ namespace dual_types
         return sqrt(d1);
     }
 
-    template<typename U>
-    static U parse_tensor(const U& tag, value<int> op)
-    {
-        return op.as<typename U::value_type>();
-    }
-
-    template<typename U, int N>
-    static tensor<U, N> parse_tensor(const tensor<U, N>& tag, value<int> op)
-    {
-        tensor<U, N> ret;
-
-        for(int i=0; i < N; i++)
-        {
-            ret.idx(i) = op.index(i).as<typename U::value_type>();
-        }
-
-        return ret;
-    }
-
-    template<typename T>
-    struct literal
-    {
-        using value_type = T;
-
-        bool permanent_name = false;
-        std::string name;
-
-        literal(){}
-        literal(const std::string& str) : name(str){}
-        literal(const char* str) : name(str){}
-
-        T get() const
-        {
-            value<int> op(name);
-
-            return parse_tensor(T(), op);
-        }
-
-        operator T() const
-        {
-            return get();
-        }
-    };
-
     template<typename T>
     inline
     value<T> assign(const value<T>& location, const value<T>& what)
@@ -1711,62 +1672,6 @@ namespace dual_types
 
         return ret;
     }
-
-    template<typename T, int dimensions = 1>
-    struct buffer
-    {
-        using value_type = T;
-
-        bool permanent_name = false;
-        std::string name;
-        tensor<value<int>, dimensions> size;
-        //std::string read_function;
-        //std::string write_function;
-
-        buffer(){}
-        buffer(const std::string& str) : name(str){}
-        buffer(const char* str) : name(str){}
-
-        /*template<typename... U>
-        T read(U&&... u) const
-        {
-            return dual_types::apply(T(read_function), std::forward<U>(u)...);
-        }
-
-        template<typename V, typename... U>
-        auto write(V&& what, U&&... u)
-        {
-            return dual_types::apply(T(write_function), std::forward<V>(what), std::forward<U>(u)...);
-        }*/
-
-        T operator[](const value<int>& in) const
-        {
-            value<int> op = make_op<int>(ops::BRACKET, value<int>(name), in);
-
-            return parse_tensor(T(), op);
-        }
-
-        T operator[](const value<int>& ix, const value<int>& iy, const value<int>& iz) const
-        {
-            static_assert(dimensions == 3);
-
-            value<int> index = iz * size.idx(0) * size.idx(1) + iy * size.idx(0) + ix;
-
-            value<int> op = make_op<int>(ops::BRACKET, value<int>(name), index);
-
-            return parse_tensor(T(), op);
-        }
-
-        T operator[](const tensor<value<int>, 3>& pos) const
-        {
-            return operator[](pos.x(), pos.y(), pos.z());
-        }
-
-        T assign(const T& location, const T& what)
-        {
-            return make_op<typename T::value_type>(ops::ASSIGN, location, what);
-        }
-    };
 
     inline
     void test_operation()
@@ -1836,10 +1741,6 @@ using value_s = dual_types::value<short>;
 using value_us = dual_types::value<unsigned short>;
 using value_v = dual_types::value<std::monostate>;
 using value_h = dual_types::value<std::float16_t>;
-template<typename T, int N=1>
-using buffer = dual_types::buffer<T, N>;
-template<typename T>
-using literal = dual_types::literal<T>;
 const inline auto return_s = dual_types::make_return_s();
 
 using v4f = tensor<value, 4>;
