@@ -220,6 +220,8 @@ namespace dual_types
             RETURN,
             BREAK,
             IF_S,
+            FOR_START,
+            FOR_END,
 
             LESS,
             LESS_EQUAL,
@@ -331,6 +333,8 @@ namespace dual_types
             "return",
             "break",
             "if",
+            "for#err",
+            "for#err",
             "<",
             "<=",
             ">",
@@ -1375,6 +1379,17 @@ namespace dual_types
         if(op.type == ops::BREAK)
             return "break";
 
+        if(op.type == ops::FOR_START)
+        {
+            return "for(" + type_to_string(op.args.at(0)) + " " + type_to_string(op.args.at(1)) + "=" + type_to_string(op.args.at(2)) + ";" +
+                            type_to_string(op.args.at(3)) + ";" + type_to_string(op.args.at(4)) + "){";
+        }
+
+        if(op.type == ops::FOR_END)
+        {
+            return "}";
+        }
+
         if(op.type == ops::IF_S)
         {
             return "if(" + type_to_string(op.args[0]) + "){" + type_to_string(op.args[1]) + ";}";
@@ -1697,6 +1712,19 @@ namespace dual_types
         return ret;
     }
 
+    template<typename T>
+    inline
+    value<std::monostate> for_s(const std::string& loop_variable_name, const value<T>& init, const value<T>& condition, const value<T>& post)
+    {
+        return make_op<std::monostate>(ops::FOR_START, name_type(T()), loop_variable_name, init.as_generic(), condition.as_generic(), post.as_generic());
+    }
+
+    inline
+    value<std::monostate> for_end()
+    {
+        return make_op<std::monostate>(ops::FOR_END);
+    }
+
     inline
     void test_operation()
     {
@@ -1767,6 +1795,8 @@ using value_v = dual_types::value<std::monostate>;
 using value_h = dual_types::value<std::float16_t>;
 const inline auto return_s = dual_types::make_return_s();
 const inline auto break_s = dual_types::make_break_s();
+
+using dual_types::for_end;
 
 using v4f = tensor<value, 4>;
 using v4i = tensor<value_i, 4>;
