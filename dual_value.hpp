@@ -22,88 +22,89 @@ namespace dual_types
     inline
     std::string name_type(T tag)
     {
-        #define CMAP(x, y) if constexpr(std::is_same_v<T, x>) {return #y;};
+        #define CMAP(x, y) if constexpr(std::is_same_v<T, x>) {return #y;}
 
-        CMAP(float, float);
+        CMAP(float, float)
         //CMAP(cl_float, float);
 
-        CMAP(double, double);
+        else CMAP(double, double)
         //CMAP(cl_double, double);
 
-        CMAP(std::float16_t, half);
+        else CMAP(std::float16_t, half)
         //CMAP(cl_half, half);
 
         //CMAP(cl_int, int);
-        CMAP(int, int);
+        else CMAP(int, int)
 
         //CMAP(cl_short, short);
-        CMAP(short, short);
+        else CMAP(short, short)
 
         //CMAP(cl_uint, unsigned int);
-        CMAP(unsigned int, unsigned int);
+        else CMAP(unsigned int, unsigned int)
 
         //CMAP(cl_ushort, unsigned short);
-        CMAP(unsigned short, unsigned short);
+        else CMAP(unsigned short, unsigned short)
 
-        CMAP(cl_float4, float4);
-        CMAP(cl_float3, float3);
-        CMAP(cl_float2, float2);
+        else CMAP(cl_float4, float4)
+        else CMAP(cl_float3, float3)
+        else CMAP(cl_float2, float2)
 
-        CMAP(cl_int4, int4);
-        CMAP(cl_int3, int3);
-        CMAP(cl_int2, int2);
+        else CMAP(cl_int4, int4)
+        else CMAP(cl_int3, int3)
+        else CMAP(cl_int2, int2)
 
-        CMAP(cl_uint4, uint4);
-        CMAP(cl_uint3, uint3);
-        CMAP(cl_uint2, uint2);
+        else CMAP(cl_uint4, uint4)
+        else CMAP(cl_uint3, uint3)
+        else CMAP(cl_uint2, uint2)
 
-        CMAP(cl_short4, short4);
-        CMAP(cl_short3, short3);
-        CMAP(cl_short2, short2);
+        else CMAP(cl_short4, short4)
+        else CMAP(cl_short3, short3)
+        else CMAP(cl_short2, short2)
 
-        CMAP(cl_ushort4, ushort4);
-        CMAP(cl_ushort3, ushort3);
-        CMAP(cl_ushort2, ushort2);
+        else CMAP(cl_ushort4, ushort4)
+        else CMAP(cl_ushort3, ushort3)
+        else CMAP(cl_ushort2, ushort2)
 
-        if constexpr(std::is_same_v<T, tensor<value<float>, 4>>)
+        else if constexpr(std::is_same_v<T, tensor<value<float>, 4>>)
             return "float4";
 
-        if constexpr(std::is_same_v<T, tensor<value<float>, 3>>)
+        else if constexpr(std::is_same_v<T, tensor<value<float>, 3>>)
             return "float3";
 
-        if constexpr(std::is_same_v<T, tensor<value<float>, 2>>)
+        else if constexpr(std::is_same_v<T, tensor<value<float>, 2>>)
             return "float2";
 
-        if constexpr(std::is_same_v<T, tensor<value<int>, 4>>)
+        else if constexpr(std::is_same_v<T, tensor<value<int>, 4>>)
             return "int4";
 
-        if constexpr(std::is_same_v<T, tensor<value<int>, 3>>)
+        else if constexpr(std::is_same_v<T, tensor<value<int>, 3>>)
             return "int3";
 
-        if constexpr(std::is_same_v<T, tensor<value<int>, 2>>)
+        else if constexpr(std::is_same_v<T, tensor<value<int>, 2>>)
             return "int2";
 
-        if constexpr(std::is_same_v<T, tensor<value<unsigned short>, 4>>)
+        else if constexpr(std::is_same_v<T, tensor<value<unsigned short>, 4>>)
             return "ushort4";
 
-        if constexpr(std::is_same_v<T, tensor<value<unsigned short>, 3>>)
+        else if constexpr(std::is_same_v<T, tensor<value<unsigned short>, 3>>)
             return "ushort3";
 
-        if constexpr(std::is_same_v<T, tensor<value<unsigned short>, 2>>)
+        else if constexpr(std::is_same_v<T, tensor<value<unsigned short>, 2>>)
             return "ushort2";
 
-        if constexpr(std::is_same_v<T, tensor<value<std::float16_t>, 4>>)
+        else if constexpr(std::is_same_v<T, tensor<value<std::float16_t>, 4>>)
             return "half4";
 
-        if constexpr(std::is_same_v<T, tensor<value<std::float16_t>, 3>>)
+        else if constexpr(std::is_same_v<T, tensor<value<std::float16_t>, 3>>)
             return "half3";
 
-        if constexpr(std::is_same_v<T, tensor<value<std::float16_t>, 2>>)
+        else if constexpr(std::is_same_v<T, tensor<value<std::float16_t>, 2>>)
             return "half2";
 
-        #undef CMAP
+        else
+            static_assert(false);
 
-        assert(false);
+        #undef CMAP
     }
 
     template<typename T>
