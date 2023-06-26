@@ -218,6 +218,7 @@ namespace dual_types
             AND,
             ASSIGN,
             RETURN,
+            BREAK,
             IF_S,
 
             LESS,
@@ -227,6 +228,7 @@ namespace dual_types
             GREATER_EQUAL,
 
             EQUAL,
+            NOT_EQUAL,
 
             LAND,
             LOR,
@@ -300,7 +302,7 @@ namespace dual_types
 
         if(type == PLUS || type == MINUS || type == MULTIPLY || type == MODULUS || type == AND || type == ASSIGN ||
            type == LESS || type == LESS_EQUAL || type == GREATER || type == GREATER_EQUAL ||
-           type == EQUAL || type == LAND || type == LOR || type == LNOT || type == COMMA || type == IDOT)
+           type == EQUAL || type == NOT_EQUAL || type == LAND || type == LOR || type == LNOT || type == COMMA || type == IDOT)
         {
             ret.is_infix = true;
         }
@@ -327,12 +329,14 @@ namespace dual_types
             "&",
             "=",
             "return",
+            "break",
             "if",
             "<",
             "<=",
             ">",
             ">=",
             "==",
+            "!=",
             "&&",
             "||",
             "!",
@@ -652,6 +656,9 @@ namespace dual_types
 
                 if(type == ops::EQUAL)
                     return get(0) == get(1);
+
+                if(type == ops::NOT_EQUAL)
+                    return get(0) != get(1);
 
                 PROPAGATE1(SIN, std::sin);
                 PROPAGATE1(COS, std::cos);
@@ -1184,6 +1191,12 @@ namespace dual_types
         }
 
         friend
+        value<T> operator!=(const value<T>& d1, const value<T>& d2)
+        {
+            return make_op<T>(ops::NOT_EQUAL, d1, d2);
+        }
+
+        friend
         value<T> operator+(const value<T>& d1, const value<T>& d2)
         {
             return make_op<T>(ops::PLUS, d1, d2);
@@ -1358,6 +1371,9 @@ namespace dual_types
             else
                 return "return " + type_to_string(op.args.at(0));
         }
+
+        if(op.type == ops::BREAK)
+            return "break";
 
         if(op.type == ops::IF_S)
         {
@@ -1550,6 +1566,12 @@ namespace dual_types
         return make_op<std::monostate>(ops::RETURN);
     }
 
+    inline
+    value<std::monostate> make_break_s()
+    {
+        return make_op<std::monostate>(ops::BREAK);
+    }
+
     template<typename T>
     inline
     value<T> return_v(const value<T>& in)
@@ -1558,6 +1580,7 @@ namespace dual_types
     }
 
     const inline value<std::monostate> return_s = make_return_s();
+    const inline value<std::monostate> break_s = make_break_s();
 
     ///true branch
     template<typename T, typename U>
@@ -1743,6 +1766,7 @@ using value_us = dual_types::value<unsigned short>;
 using value_v = dual_types::value<std::monostate>;
 using value_h = dual_types::value<std::float16_t>;
 const inline auto return_s = dual_types::make_return_s();
+const inline auto break_s = dual_types::make_break_s();
 
 using v4f = tensor<value, 4>;
 using v4i = tensor<value_i, 4>;
