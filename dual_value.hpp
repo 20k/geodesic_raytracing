@@ -1630,6 +1630,24 @@ namespace dual_types
         return make_op<U>(ops::UNKNOWN_FUNCTION, name, std::forward<T>(args)...);
     }
 
+    template<typename... T>
+    inline
+    value<std::monostate> print(const std::string& fmt, T&&... args)
+    {
+        std::vector<std::string> sargs;
+
+        (sargs.push_back(type_to_string(args)), ...);
+
+        std::string root = "printf(\"" + fmt + "\"";
+
+        for(int i=0; i < (int)sargs.size(); i++)
+        {
+            root += "," + sargs[i];
+        }
+
+        return root + ")";
+    }
+
     template<typename U, typename T>
     inline
     value<T> declare(U& executor, const value<T>& v1, const std::string& name = "")
