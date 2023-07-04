@@ -25,6 +25,7 @@ struct computed_triangle
     float4 tv0, tv1, tv2;
     float4 te0, te1, te2;
     int geodesic_segment;
+    int next_geodesic_segment;
     //float4 p;
 };
 #else
@@ -4020,6 +4021,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         //local_tri.e2 = cart_e_coordinate_v2;
 
         local_tri.geodesic_segment = cc * stride + mine.object_parent;
+        local_tri.next_geodesic_segment = next_cc * stride + mine.object_parent;
 
         float4 gv0 = s_coordinate_v0 + native_current;
         float4 gv1 = s_coordinate_v1 + native_current;
@@ -5034,32 +5036,62 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                             __global struct computed_triangle* ctri = &linear_mem[base_offset + t_off];
 
-                            float4 i_e0 = inverse_e0s[ctri->geodesic_segment];
+                            ///need to interpolate tetrads
+                            /*float4 i_e0 = inverse_e0s[ctri->geodesic_segment];
                             float4 i_e1 = inverse_e1s[ctri->geodesic_segment];
                             float4 i_e2 = inverse_e2s[ctri->geodesic_segment];
                             float4 i_e3 = inverse_e3s[ctri->geodesic_segment];
                             float4 origin = object_positions[ctri->geodesic_segment];
-                            float4 object_vel = object_velocities[ctri->geodesic_segment];
+                            float4 object_vel = object_velocities[ctri->geodesic_segment];*/
 
-                            float ray_t = 0;
+                            float4 i_e0_0 = inverse_e0s[ctri->geodesic_segment];
+                            float4 i_e1_0 = inverse_e1s[ctri->geodesic_segment];
+                            float4 i_e2_0 = inverse_e2s[ctri->geodesic_segment];
+                            float4 i_e3_0 = inverse_e3s[ctri->geodesic_segment];
 
-                            bool debug = sx == 800/2 && sy == 600/2;
+                            float4 origin_0 = object_positions[ctri->geodesic_segment];
+                            float4 object_vel_0 = object_velocities[ctri->geodesic_segment];
 
-                            if(ray_intersects_toblerone(rt_real_pos, rt_velocity * ds, ctri, origin, object_vel, i_e0, i_e1, i_e2, i_e3, start_time, delta_time, &ray_t, debug))
+                            float4 i_e0_1 = inverse_e0s[ctri->next_geodesic_segment];
+                            float4 i_e1_1 = inverse_e1s[ctri->next_geodesic_segment];
+                            float4 i_e2_1 = inverse_e2s[ctri->next_geodesic_segment];
+                            float4 i_e3_1 = inverse_e3s[ctri->next_geodesic_segment];
+
+                            float4 origin_1 = object_positions[ctri->next_geodesic_segment];
+                            float4 object_vel_1 = object_velocities[ctri->next_geodesic_segment];
+
+                            for(int kk=0; kk < 8; kk++)
                             {
-                                //if(debug)
-                                //    printf("Seggy %i\n", ctri->geodesic_segment);
+                                float mixer = kk / (8 - 1.f);
 
-                                if(ray_t < best_intersection)
+                                float4 i_e0 = mix(i_e0_0, i_e0_1, mixer);
+                                float4 i_e1 = mix(i_e1_0, i_e1_1, mixer);
+                                float4 i_e2 = mix(i_e2_0, i_e2_1, mixer);
+                                float4 i_e3 = mix(i_e3_0, i_e3_1, mixer);
+                                float4 origin = mix(origin_0, origin_1, mixer);
+                                float4 object_vel = mix(object_vel_0, object_vel_1, mixer);
+
+                                float ray_t = 0;
+
+                                bool debug = sx == 800/2 && sy == 600/2;
+
+                                if(ray_intersects_toblerone(rt_real_pos, rt_velocity * ds, ctri, origin, object_vel, i_e0, i_e1, i_e2, i_e3, start_time, delta_time, &ray_t, debug))
                                 {
-                                    out.computed_parent = base_offset + t_off;
-                                    best_intersection = ray_t;
+                                    //if(debug)
+                                    //    printf("Seggy %i\n", ctri->geodesic_segment);
 
-                                    #ifdef FIRST_BEST_INTERSECTION
-                                    hit_id = base_offset + t_off;
-                                    #endif
+                                    if(ray_t < best_intersection)
+                                    {
+                                        out.computed_parent = base_offset + t_off;
+                                        best_intersection = ray_t;
+
+                                        #ifdef FIRST_BEST_INTERSECTION
+                                        hit_id = base_offset + t_off;
+                                        #endif
+                                    }
                                 }
                             }
+
 
                             #if 0
                             #define OBSERVER_DEPENDENCE
