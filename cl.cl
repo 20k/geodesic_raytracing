@@ -3916,7 +3916,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
     float lowest_time = *ray_time_min - 1;
     float maximum_time = *ray_time_max + 1;
 
-    int skip = 1;
+    int skip = 8;
 
     ///if I'm doing bresenhams, then ds_stepping makes no sense and I am insane
     for(int cc=0; cc < count - skip; cc += skip)
@@ -4448,6 +4448,27 @@ float4 geodesic_to_coordinate_time(float4 velocity)
 ///dir is not normalised, should really use a pos2
 bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global struct computed_triangle* ctri, float4 object_geodesic_origin, float4 object_geodesic_velocity, float4 i_e0, float4 i_e1, float4 i_e2, float4 i_e3, float t_tri_start_time, float t_tri_delta_time, float* t_out, bool debug)
 {
+
+    //float mlen = max(max(dot(v0, v0), dot(v1, v1)), dot(v2, v2));
+    //float mlen2 = max(max(dot(e0, e0), dot(e1, e1)), dot(e2, e2));
+
+    //float len = max(mlen, mlen2);
+
+    /*if(debug)
+    {
+        printf("Time %f\n", t_tri_start_time - origin.x);
+    }*/
+
+    //if(!range_overlaps(global_pos.x, global_pos.x + global_dir.x, t_tri_start_time, t_tri_start_time + t_tri_delta_time))
+    //    return false;
+
+    float4 t_pos = global_pos - object_geodesic_origin;
+
+    float len_sq = dot(t_pos, t_pos);
+
+    if(len_sq > 5.f)
+        return false;
+
     float4 fv0 = ctri->tv0;
     float4 fv1 = ctri->tv1;
     float4 fv2 = ctri->tv2;
@@ -4464,39 +4485,24 @@ bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global str
     float3 e1 = fe1.yzw;
     float3 e2 = fe2.yzw;
 
-    //float mlen = max(max(dot(v0, v0), dot(v1, v1)), dot(v2, v2));
-    //float mlen2 = max(max(dot(e0, e0), dot(e1, e1)), dot(e2, e2));
-
-    //float len = max(mlen, mlen2);
-
-    /*if(debug)
-    {
-        printf("Time %f\n", t_tri_start_time - origin.x);
-    }*/
-
-    //if(!range_overlaps(global_pos.x, global_pos.x + global_dir.x, t_tri_start_time, t_tri_start_time + t_tri_delta_time))
-    //    return false;
-
     float tri_start_time = 0.f;
     float tri_end_time = coordinate_to_tetrad_basis((float4)(t_tri_delta_time, 0,0,0), i_e0, i_e1, i_e2, i_e3).x;
-
-    float4 t_pos = global_pos - object_geodesic_origin;
-
-    float len_sq = dot(t_pos, t_pos);
-
-    if(len_sq > 5.f)
-        return false;
 
     ///this is fundamentally incorrect, they overlap multiple times
     ///but... there should be one time at which a photon was emitted, based on the time intersection
     float4 pos = coordinate_to_tetrad_basis(t_pos, i_e0, i_e1, i_e2, i_e3);
     float4 dir = coordinate_to_tetrad_basis(global_dir, i_e0, i_e1, i_e2, i_e3);
 
-    float4 object_local_velocity = coordinate_to_tetrad_basis(object_geodesic_velocity, i_e0, i_e1, i_e2, i_e3);
+    //float4 object_local_velocity = coordinate_to_tetrad_basis(object_geodesic_velocity, i_e0, i_e1, i_e2, i_e3);
 
-    float4 coordinate_object_velocity = geodesic_to_coordinate_time(object_local_velocity);
+    //float coordinate_object_velocity_time = geodesic_to_coordinate_time(object_local_velocity).x;
     ///note that this ignores the *ds multiplier I crammed in as it cancels out inherently when reparameterising
-    float4 coordinate_ray_velocity = geodesic_to_coordinate_time(dir);
+    //float coordinate_ray_velocity_time = geodesic_to_coordinate_time(dir).x;
+
+    ///it is possible that the signs here may not always be true
+    ///if the signs are the same this will never work though
+    float coordinate_object_velocity_time = 1;
+    float coordinate_ray_velocity_time = -1;
 
     ///tri1 + coordinate_object_velocity * dt = tritime
     ///pos.x + coordinate_ray_velocity * dt = raytime
@@ -4506,9 +4512,9 @@ bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global str
     ///dt = (pos.x - tri1) / (coordinate_object_velocity - coordinate_ray_velocity)
     ///but. In coordinate time, the velocities are both 1. Which means this doesn't work either!
 
-    float dt = (pos.x - tri_start_time) / (coordinate_object_velocity.x - coordinate_ray_velocity.x);
+    float dt = (pos.x - tri_start_time) / (coordinate_object_velocity_time - coordinate_ray_velocity_time);
 
-    float final_time = tri_start_time + coordinate_object_velocity.x * dt;
+    float final_time = tri_start_time + coordinate_object_velocity_time * dt;
 
     /*if(debug)
     {
@@ -4523,6 +4529,15 @@ bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global str
     float3 i0 = mix(v0, e0, frac);
     float3 i1 = mix(v1, e1, frac);
     float3 i2 = mix(v2, e2, frac);
+
+    /*float3 i0 = v0;
+    float3 i1 = v1;
+    float3 i2 = v2;*/
+
+    /*if(debug)
+    {
+        printf("Frac %f\n", frac);
+    }*/
 
     float ray_t = 0;
 
