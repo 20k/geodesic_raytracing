@@ -26,6 +26,7 @@ struct computed_triangle
     float4 te0, te1, te2;
     int geodesic_segment;
     int next_geodesic_segment;
+    float interpolation_frac;
     //float4 p;
 };
 #else
@@ -3917,7 +3918,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
     float lowest_time = *ray_time_min - 1;
     float maximum_time = *ray_time_max + 1;
 
-    int skip = 8;
+    int skip = 1;
 
     ///if I'm doing bresenhams, then ds_stepping makes no sense and I am insane
     for(int cc=0; cc < count - skip; cc += skip)
@@ -4107,6 +4108,20 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         //if(all(grid_pos == next_grid_pos))
         //    continue;
 
+        float ray_length = length(next_grid_pos - grid_pos);
+        int len = 0;
+
+        {
+
+            struct step_setup steps = setup_step(grid_pos, next_grid_pos);
+
+            while(!is_step_finished(&steps))
+            {
+                len++;
+                do_step(&steps);
+            }
+        }
+
         struct step_setup steps = setup_step(grid_pos, next_grid_pos);
 
         //if(should_store)
@@ -4114,7 +4129,6 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
         while(!is_step_finished(&steps))
         {
-
             //if(should_store)
             //printf("Gp %i %i %i %i\n", steps.current.x, steps.current.y, steps.current.z, steps.current.w);
 
@@ -4156,6 +4170,15 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
                 if(should_store)
                 {
+                    int clen = len;
+
+                    if(clen == 0)
+                        clen = 1;
+
+                    float along_frac = (float)steps.idx / clen;
+
+                    local_tri.interpolation_frac = along_frac;
+
                     int mem_start = offset_map[oid];
 
                     mem_buffer[mem_start + lid] = local_tri;
@@ -5060,9 +5083,11 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                             float4 origin_1 = object_positions[ctri->next_geodesic_segment];
                             float4 object_vel_1 = object_velocities[ctri->next_geodesic_segment];
 
-                            for(int kk=0; kk < 8; kk++)
+                            //for(int kk=0; kk < 8; kk++)
                             {
-                                float mixer = kk / (8 - 1.f);
+                                //float mixer = kk / (8 - 1.f);
+
+                                float mixer = ctri->interpolation_frac;
 
                                 float4 i_e0 = mix(i_e0_0, i_e0_1, mixer);
                                 float4 i_e1 = mix(i_e1_0, i_e1_1, mixer);
@@ -5070,6 +5095,13 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                 float4 i_e3 = mix(i_e3_0, i_e3_1, mixer);
                                 float4 origin = mix(origin_0, origin_1, mixer);
                                 float4 object_vel = mix(object_vel_0, object_vel_1, mixer);
+
+                                /*float4 i_e0 = i_e0_0;
+                                float4 i_e1 = i_e1_0;
+                                float4 i_e2 = i_e2_0;
+                                float4 i_e3 = i_e3_0;
+                                float4 origin = origin_0;
+                                float4 object_vel = object_vel_0;*/
 
                                 float ray_t = 0;
 
@@ -5091,7 +5123,6 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                     }
                                 }
                             }
-
 
                             #if 0
                             #define OBSERVER_DEPENDENCE
