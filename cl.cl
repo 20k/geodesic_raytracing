@@ -4487,12 +4487,12 @@ bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global str
     //if(!range_overlaps(global_pos.x, global_pos.x + global_dir.x, t_tri_start_time, t_tri_start_time + t_tri_delta_time))
     //    return false;
 
-    float4 t_pos = global_pos - object_geodesic_origin;
+    /*float4 t_pos = global_pos - object_geodesic_origin;
 
     float len_sq = dot(t_pos, t_pos);
 
     if(len_sq > 5.f)
-        return false;
+        return false;*/
 
     float4 fv0 = ctri->tv0;
     float4 fv1 = ctri->tv1;
@@ -4978,8 +4978,6 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                 #if 1
 
                 {
-                    float4 start;
-
                     struct step_setup setup;
 
                     {
@@ -5059,58 +5057,68 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                             __global struct computed_triangle* ctri = &linear_mem[base_offset + t_off];
 
-                            //#define MORE_ACCURATE_TETRADS
-                            #ifdef MORE_ACCURATE_TETRADS
-                            float4 i_e0_0 = inverse_e0s[ctri->geodesic_segment];
-                            float4 i_e1_0 = inverse_e1s[ctri->geodesic_segment];
-                            float4 i_e2_0 = inverse_e2s[ctri->geodesic_segment];
-                            float4 i_e3_0 = inverse_e3s[ctri->geodesic_segment];
-
-                            float4 origin_0 = object_positions[ctri->geodesic_segment];
-                            float4 object_vel_0 = object_velocities[ctri->geodesic_segment];
-
-                            float4 i_e0_1 = inverse_e0s[ctri->next_geodesic_segment];
-                            float4 i_e1_1 = inverse_e1s[ctri->next_geodesic_segment];
-                            float4 i_e2_1 = inverse_e2s[ctri->next_geodesic_segment];
-                            float4 i_e3_1 = inverse_e3s[ctri->next_geodesic_segment];
-
-                            float4 origin_1 = object_positions[ctri->next_geodesic_segment];
-                            float4 object_vel_1 = object_velocities[ctri->next_geodesic_segment];
-
-                            float mixer = ctri->interpolation_frac;
-
-                            float4 i_e0 = mix(i_e0_0, i_e0_1, mixer);
-                            float4 i_e1 = mix(i_e1_0, i_e1_1, mixer);
-                            float4 i_e2 = mix(i_e2_0, i_e2_1, mixer);
-                            float4 i_e3 = mix(i_e3_0, i_e3_1, mixer);
-                            float4 origin = mix(origin_0, origin_1, mixer);
-                            float4 object_vel = mix(object_vel_0, object_vel_1, mixer);
-                            #else
-                            float4 i_e0 = inverse_e0s[ctri->geodesic_segment];
-                            float4 i_e1 = inverse_e1s[ctri->geodesic_segment];
-                            float4 i_e2 = inverse_e2s[ctri->geodesic_segment];
-                            float4 i_e3 = inverse_e3s[ctri->geodesic_segment];
                             float4 origin = object_positions[ctri->geodesic_segment];
-                            float4 object_vel = object_velocities[ctri->geodesic_segment];
-                            #endif // MORE_ACCURATE_TETRADS
 
-                            float ray_t = 0;
+                            float4 t_pos = rt_real_pos - origin;
 
-                            bool debug = sx == 800/2 && sy == 600/2;
+                            float len_sq = dot(t_pos, t_pos);
 
-                            if(ray_intersects_toblerone(rt_real_pos, rt_velocity * ds, ctri, origin, object_vel, i_e0, i_e1, i_e2, i_e3, start_time, delta_time, &ray_t, debug))
+                            bool could_hit = len_sq <= 5;
+
+                            if(could_hit)
                             {
-                                //if(debug)
-                                //    printf("Seggy %i\n", ctri->geodesic_segment);
+                                //#define MORE_ACCURATE_TETRADS
+                                #ifdef MORE_ACCURATE_TETRADS
+                                float4 i_e0_0 = inverse_e0s[ctri->geodesic_segment];
+                                float4 i_e1_0 = inverse_e1s[ctri->geodesic_segment];
+                                float4 i_e2_0 = inverse_e2s[ctri->geodesic_segment];
+                                float4 i_e3_0 = inverse_e3s[ctri->geodesic_segment];
 
-                                if(ray_t < best_intersection)
+                                float4 origin_0 = object_positions[ctri->geodesic_segment];
+                                float4 object_vel_0 = object_velocities[ctri->geodesic_segment];
+
+                                float4 i_e0_1 = inverse_e0s[ctri->next_geodesic_segment];
+                                float4 i_e1_1 = inverse_e1s[ctri->next_geodesic_segment];
+                                float4 i_e2_1 = inverse_e2s[ctri->next_geodesic_segment];
+                                float4 i_e3_1 = inverse_e3s[ctri->next_geodesic_segment];
+
+                                float4 origin_1 = object_positions[ctri->next_geodesic_segment];
+                                float4 object_vel_1 = object_velocities[ctri->next_geodesic_segment];
+
+                                float mixer = ctri->interpolation_frac;
+
+                                float4 i_e0 = mix(i_e0_0, i_e0_1, mixer);
+                                float4 i_e1 = mix(i_e1_0, i_e1_1, mixer);
+                                float4 i_e2 = mix(i_e2_0, i_e2_1, mixer);
+                                float4 i_e3 = mix(i_e3_0, i_e3_1, mixer);
+                                float4 origin = mix(origin_0, origin_1, mixer);
+                                float4 object_vel = mix(object_vel_0, object_vel_1, mixer);
+                                #else
+                                float4 i_e0 = inverse_e0s[ctri->geodesic_segment];
+                                float4 i_e1 = inverse_e1s[ctri->geodesic_segment];
+                                float4 i_e2 = inverse_e2s[ctri->geodesic_segment];
+                                float4 i_e3 = inverse_e3s[ctri->geodesic_segment];
+                                float4 object_vel = object_velocities[ctri->geodesic_segment];
+                                #endif // MORE_ACCURATE_TETRADS
+
+                                float ray_t = 0;
+
+                                bool debug = sx == 800/2 && sy == 600/2;
+
+                                if(ray_intersects_toblerone(rt_real_pos, rt_velocity * ds, ctri, origin, object_vel, i_e0, i_e1, i_e2, i_e3, start_time, delta_time, &ray_t, debug))
                                 {
-                                    out.computed_parent = base_offset + t_off;
-                                    best_intersection = ray_t;
+                                    //if(debug)
+                                    //    printf("Seggy %i\n", ctri->geodesic_segment);
 
-                                    #ifdef FIRST_BEST_INTERSECTION
-                                    hit_id = base_offset + t_off;
-                                    #endif
+                                    if(ray_t < best_intersection)
+                                    {
+                                        out.computed_parent = base_offset + t_off;
+                                        best_intersection = ray_t;
+
+                                        #ifdef FIRST_BEST_INTERSECTION
+                                        hit_id = base_offset + t_off;
+                                        #endif
+                                    }
                                 }
                             }
 
