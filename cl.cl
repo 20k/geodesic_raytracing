@@ -4034,6 +4034,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         float4 e_lo[4];
         get_tetrad_inverse(s_e0, s_e1, s_e2, s_e3, &e_lo[0], &e_lo[1], &e_lo[2], &e_lo[3]);
 
+        ///need to enforce periodicity of these points
         local_tri.tv0 = coordinate_to_tetrad_basis(gv0 - origin, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
         local_tri.tv1 = coordinate_to_tetrad_basis(gv1 - origin, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
         local_tri.tv2 = coordinate_to_tetrad_basis(gv2 - origin, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
@@ -4131,6 +4132,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
             //if(should_store)
             //printf("Gp %i %i %i %i\n", steps.current.x, steps.current.y, steps.current.z, steps.current.w);
 
+            ///needs periodicity enforced
             unsigned int oid = index_acceleration(&steps, width_num);
 
             //#define USE_FEEDBACK_CULLING
@@ -4991,6 +4993,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                     while(!is_step_finished(&setup))
                     {
+                        ///this is the point at which I need to enforce periodicity
                         unsigned int voxel_id = index_acceleration(&setup, accel_width_num);
 
                         #ifdef USE_FEEDBACK_CULLING
@@ -5050,6 +5053,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                             float4 origin = object_positions[ctri->geodesic_segment];
 
+                            ///here is where i need to enforce periodicity for rt_real_pos and origin
                             float4 t_pos = rt_real_pos - origin;
 
                             float len_sq = dot(t_pos, t_pos);
