@@ -4487,9 +4487,9 @@ bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global str
     //if(!range_overlaps(global_pos.x, global_pos.x + global_dir.x, t_tri_start_time, t_tri_start_time + t_tri_delta_time))
     //    return false;
 
-    /*float4 t_pos = global_pos - object_geodesic_origin;
+    float4 t_pos = global_pos - object_geodesic_origin;
 
-    float len_sq = dot(t_pos, t_pos);
+    /*float len_sq = dot(t_pos, t_pos);
 
     if(len_sq > 5.f)
         return false;*/
