@@ -4963,7 +4963,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
             float4 rt_real_pos = last_real_pos;
             float4 next_rt_real_pos = native_position;
-            float4 rt_velocity = last_real_velocity;
+            //float4 rt_velocity = last_real_velocity * ds;
+            float4 rt_velocity = next_rt_real_pos - rt_real_pos;
 
             //float4 rt_diff = next_rt_pos - rt_pos;
 
@@ -5105,7 +5106,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                                 bool debug = sx == 800/2 && sy == 600/2;
 
-                                if(ray_intersects_toblerone(rt_real_pos, rt_velocity * ds, ctri, origin, object_vel, i_e0, i_e1, i_e2, i_e3, start_time, delta_time, &ray_t, debug))
+                                if(ray_intersects_toblerone(rt_real_pos, rt_velocity, ctri, origin, object_vel, i_e0, i_e1, i_e2, i_e3, start_time, delta_time, &ray_t, debug))
                                 {
                                     //if(debug)
                                     //    printf("Seggy %i\n", ctri->geodesic_segment);
