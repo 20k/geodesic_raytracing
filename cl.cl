@@ -4837,7 +4837,6 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
     #endif // DEVICE_SIDE_ENQUEUE
 
     float4 last_real_pos = (float4)(0,0,0,0);
-    float4 last_real_velocity = (float4)(0,0,0,0);
 
     float my_min = position.x;
     float my_max = position.x;
@@ -4919,26 +4918,21 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
         if(GET_FEATURE(use_triangle_rendering, dfg) && (i % 1) == 0 && any_visible_tris > 0)
         {
             float4 native_position = position;
-            float4 native_velocity = velocity;
 
             #if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC) || defined(DEBUG_CONSTANT_THETA)
             {
                 float4 pos_spherical = generic_to_spherical(position, cfg);
-                float4 vel_spherical = generic_velocity_to_spherical_velocity(position, velocity, cfg);
 
                 float fsign = sign(pos_spherical.y);
                 pos_spherical.y = fabs(pos_spherical.y);
 
                 float3 pos_cart = polar_to_cartesian(pos_spherical.yzw);
-                float3 vel_cart = spherical_velocity_to_cartesian_velocity(pos_spherical.yzw, vel_spherical.yzw);
 
                 float4 quat = ray_quat;
 
                 pos_cart = rot_quat_norm(pos_cart, quat);
-                vel_cart = rot_quat_norm(vel_cart, quat);
 
                 float3 next_pos_spherical = cartesian_to_polar(pos_cart);
-                float3 next_vel_spherical = cartesian_velocity_to_polar_velocity(pos_cart, vel_cart);
 
                 if(fsign < 0)
                 {
@@ -4946,17 +4940,14 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                 }
 
                 float4 next_pos_generic = spherical_to_generic((float4)(pos_spherical.x, next_pos_spherical), cfg);
-                float4 next_vel_generic = spherical_velocity_to_generic_velocity((float4)(pos_spherical.x, next_pos_spherical), (float4)(vel_spherical.x, next_vel_spherical), cfg);
 
                 native_position = next_pos_generic;
-                native_velocity = next_vel_generic;
             }
             #endif
 
             if(i == 0)
             {
                 last_real_pos = native_position;
-                last_real_velocity = native_velocity;
             }
 
             bool should_check = true;
@@ -4974,7 +4965,6 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
             if(should_check || should_terminate)
             {
                 last_real_pos = native_position;
-                last_real_velocity = native_velocity;
 
                 #if 1
 
