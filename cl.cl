@@ -4034,7 +4034,6 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         float4 e_lo[4];
         get_tetrad_inverse(s_e0, s_e1, s_e2, s_e3, &e_lo[0], &e_lo[1], &e_lo[2], &e_lo[3]);
 
-        ///need to enforce periodicity of these points
         local_tri.tv0 = coordinate_to_tetrad_basis(gv0 - origin, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
         local_tri.tv1 = coordinate_to_tetrad_basis(gv1 - origin, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
         local_tri.tv2 = coordinate_to_tetrad_basis(gv2 - origin, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
@@ -5702,13 +5701,12 @@ float smallest(float f1, float f2)
 
 float circular_diff(float f1, float f2)
 {
-    float a1 = f1 * M_PIf * 2;
-    float a2 = f2 * M_PIf * 2;
+    float df = fabs(f2 - f1);
 
-    float2 v1 = {cos(a1), sin(a1)};
-    float2 v2 = {cos(a2), sin(a2)};
+    if(df >= 0.5f)
+        return 1 - df;
 
-    return atan2(v1.x * v2.y - v1.y * v2.x, v1.x * v2.x + v1.y * v2.y) / (2 * M_PIf);
+    return df;
 }
 
 float2 circular_diff2(float2 f1, float2 f2)
