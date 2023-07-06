@@ -5360,6 +5360,11 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                         #endif
                                     }
                                 }
+
+                                if(debug)
+                                {
+                                    printf("Ray pos %f %f %f %f tri geodesic %f %f %f %f dist %f\n", rt_real_pos.x, rt_real_pos.y, rt_real_pos.z,rt_real_pos.w, origin.x, origin.y, origin.z, origin.w, sqrt(len_sq));
+                                }
                             }
 
                             #if 0
