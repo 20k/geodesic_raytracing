@@ -2864,7 +2864,7 @@ struct corrected_lightray correct_lightray(float4 position, float4 velocity, dyn
     }
     #endif // GENERIC_CONSTANT_THETA
 
-    position = handle_coordinate_periodicity(position, cfg);
+    //position = handle_coordinate_periodicity(position, cfg);
 
     struct corrected_lightray ret;
 
@@ -3374,7 +3374,7 @@ void step_verlet(float4 position, float4 velocity, float4 acceleration, bool alw
 
     float4 next_velocity = velocity + 0.5f * (acceleration + next_acceleration) * ds;
 
-    next_position = handle_coordinate_periodicity(next_position, cfg);
+    //next_position = handle_coordinate_periodicity(next_position, cfg);
 
     *position_out = next_position;
     *velocity_out = next_velocity;
@@ -3594,6 +3594,13 @@ float3 world_to_voxel(float3 world, float width, int width_num)
     return world / scale;
 }
 
+float3 voxel_to_world(float3 world, float width, int width_num)
+{
+    float scale = width / width_num;
+
+    return world * scale;
+}
+
 float4 world_to_voxel4(float4 world, float width, float time_width, int width_num)
 {
     float scale = width / width_num;
@@ -3602,6 +3609,16 @@ float4 world_to_voxel4(float4 world, float width, float time_width, int width_nu
     float4 vscale = (float4)(time_scale, scale, scale, scale);
 
     return world / vscale;
+}
+
+float4 voxel_to_world4(float4 voxel, float width, float time_width, int width_num)
+{
+    float scale = width / width_num;
+    float time_scale = time_width / width_num;
+
+    float4 vscale = (float4)(time_scale, scale, scale, scale);
+
+    return voxel * vscale;
 }
 
 int mod(int a, int b)
@@ -3708,6 +3725,184 @@ float4 positive_fmod4(float4 a, float4 b)
                     positive_fmod(a.w, b.w));
 }
 
+struct step_setup
+{
+    float end_grid_pos[4];
+    char sign_step[4]; ///ie stepX, stepY, stepZ
+
+    float tMax[4];
+    float tDelta[4];
+
+    float current[4];
+    //int4 current;
+    int idx;
+    bool should_end;
+};
+
+struct step_setup setup_step(float4 grid1, float4 grid2)
+{
+    float4 ray_dir = grid2 - grid1;
+
+    struct step_setup ret;
+
+    /*float4 floor_grid1 = floor(grid1);
+    float4 floor_grid2 = floor(grid2);
+
+    ret.end_grid_pos = (int4)(floor_grid2.x, floor_grid2.y, floor_grid2.z, floor_grid2.w);
+    ret.current = (int4)(floor_grid1.x, floor_grid1.y, floor_grid1.z, floor_grid1.w);*/
+
+    ret.end_grid_pos[0] = grid2.x;
+    ret.end_grid_pos[1] = grid2.y;
+    ret.end_grid_pos[2] = grid2.z;
+    ret.end_grid_pos[3] = grid2.w;
+
+    ret.current[0] = grid1.x;
+    ret.current[1] = grid1.y;
+    ret.current[2] = grid1.z;
+    ret.current[3] = grid1.w;
+
+    ret.sign_step[0] = convert_char(sign(ray_dir.x));
+    ret.sign_step[1] = convert_char(sign(ray_dir.y));
+    ret.sign_step[2] = convert_char(sign(ray_dir.z));
+    ret.sign_step[3] = convert_char(sign(ray_dir.w));
+
+    //ret.sign_step = convert_char4(sign(ray_dir));
+
+    ///so, we're a ray, going at a speed of ray_dir.x
+    ///our position is grid1.x
+    ///here we're working in voxel coordinates, which means that there are
+    ///voxel boundaries at 0, 1, 2, 3, 4, 5
+    ///so, if I'm at 0.3, moving at a speed of 0.5 in the +x direction, we'll hit 1 in
+    ///(1 - 0.3) / 0.5f units of time == 1.4
+    ///so 0.3 + 0.5 * 1.4 == 1
+    ///if I'm a ray at 0.3, moving at a speed of -0.5 in the +x direction, we're looking to hit 0
+    ///in which case the calcultion becomes (0 - 0.3) / -0.5 == 0.6
+    ///which gives 0.3 + -0.5 * 0.6 == 0
+    ///therefore, if signstep < 0 we're looking to intersect with 0, and if signstep > 0 we're looking to intersect with 1
+    ///where I take the fractional part of the coordinate, ie fmod(pos, 1)
+    ///though careful!! we CAN have negative coordinates here, the looping is done elsewhere
+    ///this means need to positive_fmod
+    float4 position_fraction = grid1 - floor(grid1);
+
+    float4 target = (float4)(1,1,1,1);
+
+    if(ret.sign_step[0] < 0)
+        target.x = 0;
+
+    if(ret.sign_step[1] < 0)
+        target.y = 0;
+
+    if(ret.sign_step[2] < 0)
+        target.z = 0;
+
+    if(ret.sign_step[3] < 0)
+        target.w = 0;
+
+    if(ray_dir.x == 0)
+        ray_dir.x = 1;
+
+    if(ray_dir.y == 0)
+        ray_dir.y = 1;
+
+    if(ray_dir.z == 0)
+        ray_dir.z = 1;
+
+    if(ray_dir.w == 0)
+        ray_dir.w = 1;
+
+    float4 tMax = (target - position_fraction) / ray_dir;
+
+    ///if we move at a speed of 0.7, the time it takes in t to traverse a voxel of size 1 is 1/0.7 == 1.42
+    float4 tDelta = 1.f / fabs(ray_dir);
+
+    //ret.tMax = tMax;
+    //ret.tDelta = tDelta;
+
+    ret.tMax[0] = tMax.x;
+    ret.tMax[1] = tMax.y;
+    ret.tMax[2] = tMax.z;
+    ret.tMax[3] = tMax.w;
+
+    ret.tDelta[0] = tDelta.x;
+    ret.tDelta[1] = tDelta.y;
+    ret.tDelta[2] = tDelta.z;
+    ret.tDelta[3] = tDelta.w;
+
+    ret.idx = 0;
+    ret.should_end = false;
+
+    return ret;
+};
+
+
+void do_step(struct step_setup* step)
+{
+    bool all_same = true;
+
+    #pragma unroll
+    for(int i=0; i < 4; i++)
+    {
+        if(floor(step->current[i]) != floor(step->end_grid_pos[i]))
+        {
+            all_same = false;
+        }
+    }
+
+    if(all_same)
+    {
+        step->idx++;
+        step->should_end = true;
+        return;
+    }
+
+    int which_min = -1;
+    float my_min = FLT_MAX;
+
+    #pragma unroll
+    for(int i=0; i < 4; i++)
+    {
+        if(step->tMax[i] < my_min && step->sign_step[i] != 0 && floor(step->current[i]) != floor(step->end_grid_pos[i]))
+        {
+            which_min = i;
+            my_min = step->tMax[i];
+        }
+    }
+
+    if(which_min == -1)
+    {
+        step->should_end = true;
+        step->idx++;
+        return;
+    }
+
+    step->tMax[which_min] += step->tDelta[which_min];
+    step->current[which_min] += step->sign_step[which_min];
+
+    step->idx++;
+}
+
+unsigned int index_acceleration(struct step_setup* step, float width, float time_width, int width_num, dynamic_config_space struct dynamic_config* cfg)
+{
+    float4 step_pos = (float4)(step->current[0], step->current[1], step->current[2], step->current[3]);
+
+    float4 world4 = voxel_to_world4(step_pos, width, time_width, width_num);
+
+    world4 = handle_coordinate_periodicity(world4, cfg);
+
+    float4 voxel4 = world_to_voxel4(world4, width, time_width, width_num);
+
+    float4 ffloor = floor(voxel4);
+
+    int4 ifloor = convert_int4(ffloor);
+
+    ifloor = loop_voxel4(ifloor, width_num);
+
+    return ifloor.x * width_num * width_num * width_num + ifloor.w * width_num * width_num + ifloor.z * width_num + ifloor.y;
+
+    //return ifloor.w * width_num * width_num * width_num + ifloor.z * width_num * width_num + ifloor.y * width_num + ifloor.x;
+}
+
+#if 0
 ///https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.42.3443&rep=rep1&type=pdf
 struct step_setup
 {
@@ -3849,6 +4044,7 @@ void do_step(struct step_setup* step)
     //step->current += step->step;
     step->idx++;
 }
+#endif
 
 bool is_step_finished(struct step_setup* step)
 {
@@ -3856,7 +4052,7 @@ bool is_step_finished(struct step_setup* step)
     return step->should_end || step->idx > 600;
 }
 
-unsigned int index_acceleration(struct step_setup* setup, int width_num)
+/*unsigned int index_acceleration(struct step_setup* setup, int width_num)
 {
     int4 ifloor = setup->current;
 
@@ -3865,7 +4061,7 @@ unsigned int index_acceleration(struct step_setup* setup, int width_num)
     return ifloor.x * width_num * width_num * width_num + ifloor.w * width_num * width_num + ifloor.z * width_num + ifloor.y;
 
     //return ifloor.w * width_num * width_num * width_num + ifloor.z * width_num * width_num + ifloor.y * width_num + ifloor.x;
-}
+}*/
 
 void sort2(float* v0, float* v1)
 {
@@ -3882,6 +4078,42 @@ bool range_overlaps(float s0, float s1, float e0, float e1)
     sort2(&e0, &e1);
 
     return s0 <= e1 && e0 <= s1;
+}
+
+float circular_diff(float f1, float f2)
+{
+    f1 = positive_fmod(f1, 1.f);
+    f2 = positive_fmod(f2, 1.f);
+
+    float df = f2 - f1;
+
+    if(df >= 0)
+    {
+        if(df >= 0.5f)
+            return 1 - df;
+        else
+            return df;
+    }
+    else
+    {
+        if(df <= -0.5f)
+            return -(1 - (-df));
+        else
+            return df;
+    }
+}
+
+float2 circular_diff2(float2 f1, float2 f2)
+{
+    return (float2)(circular_diff(f1.x, f2.x), circular_diff(f1.y, f2.y));
+}
+
+float4 periodic_diff(float4 in1, float4 in2)
+{
+    return (float4)(in1.x - in2.x,
+                    in1.y - in2.y,
+                    circular_diff(in2.z/M_PI, in1.z/M_PI)*M_PI,
+                    circular_diff(in2.w/(2 * M_PI), in1.w/(2 * M_PI))*2*M_PI);
 }
 
 __kernel
@@ -4034,6 +4266,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         float4 e_lo[4];
         get_tetrad_inverse(s_e0, s_e1, s_e2, s_e3, &e_lo[0], &e_lo[1], &e_lo[2], &e_lo[3]);
 
+        ///this is literally the local vertices via a roundtrip
         local_tri.tv0 = coordinate_to_tetrad_basis(gv0 - origin, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
         local_tri.tv1 = coordinate_to_tetrad_basis(gv1 - origin, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
         local_tri.tv2 = coordinate_to_tetrad_basis(gv2 - origin, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
@@ -4041,6 +4274,15 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         local_tri.te0 = coordinate_to_tetrad_basis(ge0 - origin, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
         local_tri.te1 = coordinate_to_tetrad_basis(ge1 - origin, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
         local_tri.te2 = coordinate_to_tetrad_basis(ge2 - origin, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
+
+        ///triangle coordinates are minkowski, no need to fix them
+        /*local_tri.tv0 = fix_periodic_coordinates(local_tri.tv0);
+        local_tri.tv1 = fix_periodic_coordinates(local_tri.tv1);
+        local_tri.tv2 = fix_periodic_coordinates(local_tri.tv2);
+
+        local_tri.te0 = fix_periodic_coordinates(local_tri.te0);
+        local_tri.te1 = fix_periodic_coordinates(local_tri.te1);
+        local_tri.te2 = fix_periodic_coordinates(local_tri.te2);*/
 
         //float output_time = 0.f;
         //float delta_time = coordinate_to_tetrad_basis((float4)(native_next.x - native_current.x, 0,0,0), e_lo[0], e_lo[1], e_lo[2], e_lo[3]).x;
@@ -4096,6 +4338,9 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         float4 pos = native_current + mine_start_coordinate;
         float4 next_pos = native_next + mine_end_coordinate;
 
+        //pos = fix_periodic_coordinates(pos);
+        //next_pos = fix_periodic_coordinates(next_pos);
+
         float4 grid_pos = world_to_voxel4(pos, width, time_width, width_num);
         float4 next_grid_pos = world_to_voxel4(next_pos, width, time_width, width_num);
 
@@ -4132,7 +4377,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
             //printf("Gp %i %i %i %i\n", steps.current.x, steps.current.y, steps.current.z, steps.current.w);
 
             ///needs periodicity enforced
-            unsigned int oid = index_acceleration(&steps, width_num);
+            unsigned int oid = index_acceleration(&steps, width, time_width, width_num, cfg);
 
             //#define USE_FEEDBACK_CULLING
             #ifdef USE_FEEDBACK_CULLING
@@ -4488,7 +4733,7 @@ bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global str
     //if(!range_overlaps(global_pos.x, global_pos.x + global_dir.x, t_tri_start_time, t_tri_start_time + t_tri_delta_time))
     //    return false;
 
-    float4 t_pos = global_pos - object_geodesic_origin;
+    float4 t_pos = periodic_diff(global_pos, object_geodesic_origin);
 
     /*float len_sq = dot(t_pos, t_pos);
 
@@ -4527,6 +4772,7 @@ bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global str
 
     ///it is possible that the signs here may not always be true
     ///if the signs are the same this will never work though
+    ///the object clearly cannot be moving at a rate of 1 through coordinate time. It should be the velocity length?
     float coordinate_object_velocity_time = 1;
     float coordinate_ray_velocity_time = -1;
 
@@ -4993,7 +5239,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                     while(!is_step_finished(&setup))
                     {
                         ///this is the point at which I need to enforce periodicity
-                        unsigned int voxel_id = index_acceleration(&setup, accel_width_num);
+                        unsigned int voxel_id = index_acceleration(&setup, accel_width, accel_time_width, accel_width_num, cfg);
 
                         #ifdef USE_FEEDBACK_CULLING
                         float rmin = min(rt_pos.x, next_rt_pos.x);
@@ -5053,7 +5299,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                             float4 origin = object_positions[ctri->geodesic_segment];
 
                             ///here is where i need to enforce periodicity for rt_real_pos and origin
-                            float4 t_pos = rt_real_pos - origin;
+                            float4 t_pos = periodic_diff(rt_real_pos, origin);
 
                             float len_sq = dot(t_pos, t_pos);
 
@@ -5698,22 +5944,6 @@ float smallest(float f1, float f2)
 
     return f2;
 }
-
-float circular_diff(float f1, float f2)
-{
-    float df = fabs(f2 - f1);
-
-    if(df >= 0.5f)
-        return 1 - df;
-
-    return df;
-}
-
-float2 circular_diff2(float2 f1, float2 f2)
-{
-    return (float2)(circular_diff(f1.x, f2.x), circular_diff(f1.y, f2.y));
-}
-
 
 float3 linear_rgb_to_XYZ(float3 in)
 {
