@@ -1320,7 +1320,7 @@ float3 cartesian_velocity_to_spherical_velocity_g(float3 v, float3 inv)
     return (float3)(o2, o3, o4);
 }
 
-float4 handle_coordinate_periodicity(float4 in, dynamic_config_space struct dynamic_config* cfg)
+float4 get_coordinate_period(float4 in, dynamic_config_space struct dynamic_config* cfg)
 {
     #ifdef HAS_COORDINATE_PERIODICITY
     float v1 = in.x;
@@ -1335,8 +1335,42 @@ float4 handle_coordinate_periodicity(float4 in, dynamic_config_space struct dyna
 
     return (float4)(o1, o2, o3, o4);
     #else
-    return in;
+    return (float4)(0,0,0,0);
     #endif // HAS_COORDINATE_PERIODICITY
+}
+
+float positive_fmod(float a, float b)
+{
+    float v = fmod(a, b);
+
+    if(v < 0.f)
+       v += b;
+
+    return v;
+}
+
+float4 positive_fmod4(float4 a, float4 b)
+{
+    return (float4)(positive_fmod(a.x, b.x),
+                    positive_fmod(a.y, b.y),
+                    positive_fmod(a.z, b.z),
+                    positive_fmod(a.w, b.w));
+}
+
+float4 handle_coordinate_periodicity(float4 in, dynamic_config_space struct dynamic_config* cfg)
+{
+    float4 periods = get_coordinate_period(in, cfg);
+
+    if(periods.x != 0)
+        in.x = positive_fmod(in.x, periods.x);
+    if(periods.y != 0)
+        in.y = positive_fmod(in.y, periods.y);
+    if(periods.z != 0)
+        in.z = positive_fmod(in.z, periods.z);
+    if(periods.w != 0)
+        in.w = positive_fmod(in.w, periods.w);
+
+    return in;
 }
 
 float stable_quad(float a, float d, float k, float sign)
@@ -3707,24 +3741,6 @@ void generate_acceleration_counts(__global struct sub_point* sp, int sp_count, _
     }
 }
 
-float positive_fmod(float a, float b)
-{
-    float v = fmod(a, b);
-
-    if(v < 0.f)
-       v += b;
-
-    return v;
-}
-
-float4 positive_fmod4(float4 a, float4 b)
-{
-    return (float4)(positive_fmod(a.x, b.x),
-                    positive_fmod(a.y, b.y),
-                    positive_fmod(a.z, b.z),
-                    positive_fmod(a.w, b.w));
-}
-
 struct step_setup
 {
     float end_grid_pos[4];
@@ -4108,12 +4124,18 @@ float2 circular_diff2(float2 f1, float2 f2)
     return (float2)(circular_diff(f1.x, f2.x), circular_diff(f1.y, f2.y));
 }
 
-float4 periodic_diff(float4 in1, float4 in2)
+float4 periodic_diff(float4 in1, float4 in2, float4 periods)
 {
-    return (float4)(in1.x - in2.x,
-                    in1.y - in2.y,
-                    circular_diff(in2.z/M_PI, in1.z/M_PI)*M_PI,
-                    circular_diff(in2.w/(2 * M_PI), in1.w/(2 * M_PI))*2*M_PI);
+    float4 ret = in1 - in2;
+
+    #define CHECK_PERIOD(v) if(periods.v != 0)\
+                            {ret.v = circular_diff(in2.v/periods.v, in1.v/periods.v) * periods.v;}
+    CHECK_PERIOD(x)
+    CHECK_PERIOD(y)
+    CHECK_PERIOD(z)
+    CHECK_PERIOD(w)
+
+    return ret;
 }
 
 __kernel
@@ -4717,7 +4739,7 @@ float4 geodesic_to_coordinate_time(float4 velocity)
 }
 
 ///dir is not normalised, should really use a pos2
-bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global struct computed_triangle* ctri, float4 object_geodesic_origin, float4 object_geodesic_velocity, float4 i_e0, float4 i_e1, float4 i_e2, float4 i_e3, float t_tri_start_time, float t_tri_delta_time, float* t_out, bool debug)
+bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global struct computed_triangle* ctri, float4 object_geodesic_origin, float4 object_geodesic_velocity, float4 i_e0, float4 i_e1, float4 i_e2, float4 i_e3, float t_tri_start_time, float t_tri_delta_time, float* t_out, bool debug, float4 periods)
 {
 
     //float mlen = max(max(dot(v0, v0), dot(v1, v1)), dot(v2, v2));
@@ -4733,7 +4755,7 @@ bool ray_intersects_toblerone(float4 global_pos, float4 global_dir, __global str
     //if(!range_overlaps(global_pos.x, global_pos.x + global_dir.x, t_tri_start_time, t_tri_start_time + t_tri_delta_time))
     //    return false;
 
-    float4 t_pos = periodic_diff(global_pos, object_geodesic_origin);
+    float4 t_pos = periodic_diff(global_pos, object_geodesic_origin, periods);
 
     /*float len_sq = dot(t_pos, t_pos);
 
@@ -5095,6 +5117,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
     if(GET_FEATURE(use_triangle_rendering, dfg))
         any_visible_tris = *any_visible;
 
+    float4 periods = get_coordinate_period(position, cfg);
+
     //#pragma unroll
     for(int i=0; i < loop_limit; i++)
     {
@@ -5299,7 +5323,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                             float4 origin = object_positions[ctri->geodesic_segment];
 
                             ///here is where i need to enforce periodicity for rt_real_pos and origin
-                            float4 t_pos = periodic_diff(rt_real_pos, origin);
+                            float4 t_pos = periodic_diff(rt_real_pos, origin, periods);
 
                             float len_sq = dot(t_pos, t_pos);
 
@@ -5345,7 +5369,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                                 bool debug = sx == 800/2 && sy == 600/2;
 
-                                if(ray_intersects_toblerone(rt_real_pos, rt_velocity, ctri, origin, object_vel, i_e0, i_e1, i_e2, i_e3, start_time, delta_time, &ray_t, debug))
+                                if(ray_intersects_toblerone(rt_real_pos, rt_velocity, ctri, origin, object_vel, i_e0, i_e1, i_e2, i_e3, start_time, delta_time, &ray_t, debug, periods))
                                 {
                                     //if(debug)
                                     //    printf("Seggy %i\n", ctri->geodesic_segment);

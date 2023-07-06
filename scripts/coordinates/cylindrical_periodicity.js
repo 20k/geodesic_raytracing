@@ -1,6 +1,6 @@
 function func(t, r, phi, z)
 {
-	function positive_fmod(a, b)
+	/*function positive_fmod(a, b)
 	{	
 		var r = CMath.smooth_fmod(a, b);
 
@@ -13,7 +13,9 @@ function func(t, r, phi, z)
 	
 	ret[2] = positive_fmod(ret[2], 2*Math.PI);
 	
-	return ret;
-}
+	return ret;*/
+    
+    return [0, 0, 2 * Math.PI, 0]
+}   
 
 func
