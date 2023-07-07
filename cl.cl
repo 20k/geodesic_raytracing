@@ -3758,10 +3758,10 @@ struct step_setup
     float tMax_z;
     float tMax_w;*/
 
-    float tDelta_x;
+    /*float tDelta_x;
     float tDelta_y;
     float tDelta_z;
-    float tDelta_w;
+    float tDelta_w;*/
 
     /*float off_current_x;
     float off_current_y;
@@ -3794,10 +3794,10 @@ struct step_setup setup_step(float4 grid1, float4 grid2)
 
     struct step_setup ret;
 
-    ret.end_grid_pos_x = floor(grid2.x);
-    ret.end_grid_pos_y = floor(grid2.y);
-    ret.end_grid_pos_z = floor(grid2.z);
-    ret.end_grid_pos_w = floor(grid2.w);
+    ret.end_grid_pos_x = (grid2.x);
+    ret.end_grid_pos_y = (grid2.y);
+    ret.end_grid_pos_z = (grid2.z);
+    ret.end_grid_pos_w = (grid2.w);
 
     /*ret.current_x = floor(grid1.x);
     ret.current_y = floor(grid1.y);
@@ -3887,10 +3887,10 @@ struct step_setup setup_step(float4 grid1, float4 grid2)
     DO_TMAX(z)
     DO_TMAX(w)
 
-    ret.tDelta_x = signs.x < 0 ? -tDelta.x : tDelta.x;
+    /*ret.tDelta_x = signs.x < 0 ? -tDelta.x : tDelta.x;
     ret.tDelta_y = signs.y < 0 ? -tDelta.y : tDelta.y;
     ret.tDelta_z = signs.z < 0 ? -tDelta.z : tDelta.z;
-    ret.tDelta_w = signs.w < 0 ? -tDelta.w : tDelta.w;
+    ret.tDelta_w = signs.w < 0 ? -tDelta.w : tDelta.w;*/
 
     ret.updated_x = 0;
     ret.updated_y = 0;
@@ -3907,28 +3907,50 @@ void do_step(struct step_setup* step)
 {
     bool all_same = true;
 
-    float current_x = floor(step->start_grid_pos_x) + sign(step->tDelta_x) * step->updated_x;
-    float current_y = floor(step->start_grid_pos_y) + sign(step->tDelta_y) * step->updated_y;
-    float current_z = floor(step->start_grid_pos_z) + sign(step->tDelta_z) * step->updated_z;
-    float current_w = floor(step->start_grid_pos_w) + sign(step->tDelta_w) * step->updated_w;
+    float ray_dir_x = step->end_grid_pos_x - step->start_grid_pos_x;
+    float ray_dir_y = step->end_grid_pos_y - step->start_grid_pos_y;
+    float ray_dir_z = step->end_grid_pos_z - step->start_grid_pos_z;
+    float ray_dir_w = step->end_grid_pos_w - step->start_grid_pos_w;
+
+    float signs_x = sign(ray_dir_x);
+    float signs_y = sign(ray_dir_y);
+    float signs_z = sign(ray_dir_z);
+    float signs_w = sign(ray_dir_w);
+
+    float tDelta_x;
+    float tDelta_y;
+    float tDelta_z;
+    float tDelta_w;
+
+    #define GET_TDELTA2(v) if(fabs(step->end_grid_pos_##v - step->start_grid_pos_##v) > 0.000001f){tDelta_##v = signs_##v / (step->end_grid_pos_##v - step->start_grid_pos_##v);} else {tDelta_##v = 0;}
+
+    GET_TDELTA2(x)
+    GET_TDELTA2(y)
+    GET_TDELTA2(z)
+    GET_TDELTA2(w)
+
+    float current_x = floor(step->start_grid_pos_x) + signs_x * step->updated_x;
+    float current_y = floor(step->start_grid_pos_y) + signs_y * step->updated_y;
+    float current_z = floor(step->start_grid_pos_z) + signs_z * step->updated_z;
+    float current_w = floor(step->start_grid_pos_w) + signs_w * step->updated_w;
 
     float root_Max_x;
     float root_Max_y;
     float root_Max_z;
     float root_Max_w;
 
-    #define DO_TMAX2(v) if(fabs(step->tDelta_##v) > 0) {root_Max_##v = fabs(step->tDelta_##v) * FRAC1(step->start_grid_pos_##v);} \
-                        else {root_Max_##v = step->tDelta_##v * FRAC0(step->start_grid_pos_##v); }
+    #define DO_TMAX2(v) if(fabs(tDelta_##v) > 0) {root_Max_##v = fabs(tDelta_##v) * FRAC1(step->start_grid_pos_##v);} \
+                        else {root_Max_##v = tDelta_##v * FRAC0(step->start_grid_pos_##v); }
 
     DO_TMAX2(x)
     DO_TMAX2(y)
     DO_TMAX2(z)
     DO_TMAX2(w)
 
-    float tMax_x = root_Max_x + fabs(step->tDelta_x) * step->updated_x;
-    float tMax_y = root_Max_y + fabs(step->tDelta_y) * step->updated_y;
-    float tMax_z = root_Max_z + fabs(step->tDelta_z) * step->updated_z;
-    float tMax_w = root_Max_w + fabs(step->tDelta_w) * step->updated_w;
+    float tMax_x = root_Max_x + (tDelta_x) * step->updated_x;
+    float tMax_y = root_Max_y + (tDelta_y) * step->updated_y;
+    float tMax_z = root_Max_z + (tDelta_z) * step->updated_z;
+    float tMax_w = root_Max_w + (tDelta_w) * step->updated_w;
 
     if(floor(current_x) == floor(step->end_grid_pos_x) &&
        floor(current_y) == floor(step->end_grid_pos_y) &&
@@ -3966,29 +3988,21 @@ void do_step(struct step_setup* step)
 
     if(which_min == 0)
     {
-        //step->tMax_x += fabs(step->tDelta_x);
-        //step->current_x += sign(step->tDelta_x);
         step->updated_x += 1;
     }
 
     if(which_min == 1)
     {
-        //step->tMax_y += fabs(step->tDelta_y);
-        //step->current_y += sign(step->tDelta_y);
         step->updated_y += 1;
     }
 
     if(which_min == 2)
     {
-        //step->tMax_z += fabs(step->tDelta_z);
-        //step->current_z += sign(step->tDelta_z);
         step->updated_z += 1;
     }
 
     if(which_min == 3)
     {
-        //step->tMax_w += fabs(step->tDelta_w);
-        //step->current_w += sign(step->tDelta_w);
         step->updated_w += 1;
     }
 
@@ -4002,10 +4016,33 @@ void do_step(struct step_setup* step)
 
 unsigned int index_acceleration(struct step_setup* step, float width, float time_width, int width_num, dynamic_config_space struct dynamic_config* cfg)
 {
-    float current_x = step->start_grid_pos_x + sign(step->tDelta_x) * step->updated_x;
-    float current_y = step->start_grid_pos_y + sign(step->tDelta_y) * step->updated_y;
-    float current_z = step->start_grid_pos_z + sign(step->tDelta_z) * step->updated_z;
-    float current_w = step->start_grid_pos_w + sign(step->tDelta_w) * step->updated_w;
+    float ray_dir_x = step->end_grid_pos_x - step->start_grid_pos_x;
+    float ray_dir_y = step->end_grid_pos_y - step->start_grid_pos_y;
+    float ray_dir_z = step->end_grid_pos_z - step->start_grid_pos_z;
+    float ray_dir_w = step->end_grid_pos_w - step->start_grid_pos_w;
+
+    float signs_x = sign(ray_dir_x);
+    float signs_y = sign(ray_dir_y);
+    float signs_z = sign(ray_dir_z);
+    float signs_w = sign(ray_dir_w);
+
+    float tDelta_x;
+    float tDelta_y;
+    float tDelta_z;
+    float tDelta_w;
+
+    #define GET_TDELTA2(v) if(fabs(step->end_grid_pos_##v - step->start_grid_pos_##v) > 0.000001f){tDelta_##v = signs_##v / (step->end_grid_pos_##v - step->start_grid_pos_##v);} else {tDelta_##v = 0;}
+
+    GET_TDELTA2(x)
+    GET_TDELTA2(y)
+    GET_TDELTA2(z)
+    GET_TDELTA2(w)
+
+
+    float current_x = step->start_grid_pos_x + sign(tDelta_x) * step->updated_x;
+    float current_y = step->start_grid_pos_y + sign(tDelta_y) * step->updated_y;
+    float current_z = step->start_grid_pos_z + sign(tDelta_z) * step->updated_z;
+    float current_w = step->start_grid_pos_w + sign(tDelta_w) * step->updated_w;
 
     float4 step_pos = (float4)(current_x,
                                current_y,
