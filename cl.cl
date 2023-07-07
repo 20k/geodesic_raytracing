@@ -3748,11 +3748,6 @@ struct step_setup
     float end_grid_pos_z;
     float end_grid_pos_w;
 
-    float sign_step_x;
-    float sign_step_y;
-    float sign_step_z;
-    float sign_step_w;
-
     float tMax_x;
     float tMax_y;
     float tMax_z;
@@ -3784,12 +3779,6 @@ struct step_setup setup_step(float4 grid1, float4 grid2)
 
     struct step_setup ret;
 
-    /*float4 floor_grid1 = floor(grid1);
-    float4 floor_grid2 = floor(grid2);
-
-    ret.end_grid_pos = (int4)(floor_grid2.x, floor_grid2.y, floor_grid2.z, floor_grid2.w);
-    ret.current = (int4)(floor_grid1.x, floor_grid1.y, floor_grid1.z, floor_grid1.w);*/
-
     ret.end_grid_pos_x = floor(grid2.x);
     ret.end_grid_pos_y = floor(grid2.y);
     ret.end_grid_pos_z = floor(grid2.z);
@@ -3804,13 +3793,6 @@ struct step_setup setup_step(float4 grid1, float4 grid2)
     ret.off_current_y = grid1.y - floor(grid1.y);
     ret.off_current_z = grid1.z - floor(grid1.z);
     ret.off_current_w = grid1.w - floor(grid1.w);
-
-    ret.sign_step_x = sign(ray_dir.x);
-    ret.sign_step_y = sign(ray_dir.y);
-    ret.sign_step_z = sign(ray_dir.z);
-    ret.sign_step_w = sign(ray_dir.w);
-
-    //ret.sign_step = convert_char4(sign(ray_dir));
 
     ///so, we're a ray, going at a speed of ray_dir.x
     ///our position is grid1.x
@@ -3859,7 +3841,7 @@ struct step_setup setup_step(float4 grid1, float4 grid2)
     ///if we move at a speed of 0.7, the time it takes in t to traverse a voxel of size 1 is 1/0.7 == 1.42
     //float4 tDelta = 1.f / fabs(ray_dir);
 
-    float4 signs = sign(grid2 - grid1);
+    float4 signs = sign(ray_dir);
 
     //float4 tDelta = signs / (grid2 - grid1);
 
@@ -3890,10 +3872,10 @@ struct step_setup setup_step(float4 grid1, float4 grid2)
     ret.tMax_z = tMax.z;
     ret.tMax_w = tMax.w;
 
-    ret.tDelta_x = tDelta.x;
-    ret.tDelta_y = tDelta.y;
-    ret.tDelta_z = tDelta.z;
-    ret.tDelta_w = tDelta.w;
+    ret.tDelta_x = signs.x < 0 ? -tDelta.x : tDelta.x;
+    ret.tDelta_y = signs.y < 0 ? -tDelta.y : tDelta.y;
+    ret.tDelta_z = signs.z < 0 ? -tDelta.z : tDelta.z;
+    ret.tDelta_w = signs.w < 0 ? -tDelta.w : tDelta.w;
 
     ret.idx = 0;
     ret.should_end = false;
@@ -3941,26 +3923,26 @@ void do_step(struct step_setup* step)
 
     if(which_min == 0)
     {
-        step->tMax_x += step->tDelta_x;
-        step->current_x += step->sign_step_x;
+        step->tMax_x += fabs(step->tDelta_x);
+        step->current_x += sign(step->tDelta_x);
     }
 
     if(which_min == 1)
     {
-        step->tMax_y += step->tDelta_y;
-        step->current_y += step->sign_step_y;
+        step->tMax_y += fabs(step->tDelta_y);
+        step->current_y += sign(step->tDelta_y);
     }
 
     if(which_min == 2)
     {
-        step->tMax_z += step->tDelta_z;
-        step->current_z += step->sign_step_z;
+        step->tMax_z += fabs(step->tDelta_z);
+        step->current_z += sign(step->tDelta_z);
     }
 
     if(which_min == 3)
     {
-        step->tMax_w += step->tDelta_w;
-        step->current_w += step->sign_step_w;
+        step->tMax_w += fabs(step->tDelta_w);
+        step->current_w += sign(step->tDelta_w);
     }
 
     step->idx++;
