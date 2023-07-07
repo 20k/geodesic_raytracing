@@ -3743,11 +3743,6 @@ void generate_acceleration_counts(__global struct sub_point* sp, int sp_count, _
 
 struct step_setup
 {
-    float start_grid_pos_x;
-    float start_grid_pos_y;
-    float start_grid_pos_z;
-    float start_grid_pos_w;
-
     float end_grid_pos_x;
     float end_grid_pos_y;
     float end_grid_pos_z;
@@ -3795,15 +3790,10 @@ struct step_setup setup_step(float4 grid1, float4 grid2)
     ret.end_grid_pos = (int4)(floor_grid2.x, floor_grid2.y, floor_grid2.z, floor_grid2.w);
     ret.current = (int4)(floor_grid1.x, floor_grid1.y, floor_grid1.z, floor_grid1.w);*/
 
-    ret.start_grid_pos_x = grid1.x;
-    ret.start_grid_pos_y = grid1.y;
-    ret.start_grid_pos_z = grid1.z;
-    ret.start_grid_pos_w = grid1.w;
-
-    ret.end_grid_pos_x = (grid2.x);
-    ret.end_grid_pos_y = (grid2.y);
-    ret.end_grid_pos_z = (grid2.z);
-    ret.end_grid_pos_w = (grid2.w);
+    ret.end_grid_pos_x = floor(grid2.x);
+    ret.end_grid_pos_y = floor(grid2.y);
+    ret.end_grid_pos_z = floor(grid2.z);
+    ret.end_grid_pos_w = floor(grid2.w);
 
     ret.current_x = floor(grid1.x);
     ret.current_y = floor(grid1.y);
@@ -3911,7 +3901,7 @@ struct step_setup setup_step(float4 grid1, float4 grid2)
     return ret;
 };
 
-void do_step(struct step_setup* step, int dbg_x, int dbg_y)
+void do_step(struct step_setup* step)
 {
     bool all_same = true;
 
@@ -3949,24 +3939,6 @@ void do_step(struct step_setup* step, int dbg_x, int dbg_y)
         my_min = step->tMax_w;
     }
 
-    ///160 53
-    /*if(dbg_x == 160 && dbg_y == 53)
-    {
-        printf("Which %i curr %f %f %f %f end %f %f %f %f sign %f %f %f %f\n", which_min,
-               step->current_x, step->current_y, step->current_z, step->current_w,
-               step->end_grid_pos_x, step->end_grid_pos_y, step->end_grid_pos_z, step->end_grid_pos_w,
-               step->sign_step_x, step->sign_step_y, step->sign_step_z, step->sign_step_w
-               );
-    }*/
-
-
-    /*if(which_min == -1)
-    {
-        step->should_end = true;
-        step->idx++;
-        return;
-    }*/
-
     if(which_min == 0)
     {
         step->tMax_x += step->tDelta_x;
@@ -3992,22 +3964,6 @@ void do_step(struct step_setup* step, int dbg_x, int dbg_y)
     }
 
     step->idx++;
-
-    /*if(step->idx > 600)
-    {
-        //if(step->should_end)
-        //    printf("Ended\n");
-
-        printf("cur %f %f %f %f delta %f %f %f %f screen %i %i", step->current_x, step->current_y, step->current_z, step->current_w,
-                                                                      step->tDelta_x, step->tDelta_y, step->tDelta_z, step->tDelta_w,
-                                                                      dbg_x, dbg_y
-                                                                      );
-
-        printf("Start %f %f %f %f end %f %f %f %f", step->start_grid_pos_x, step->start_grid_pos_y, step->start_grid_pos_z, step->start_grid_pos_w,
-        step->end_grid_pos_x, step->end_grid_pos_y, step->end_grid_pos_z, step->end_grid_pos_w);
-
-        printf("Step debug min: %i, tmax %f %f %f %f", which_min, step->tMax_x, step->tMax_y, step->tMax_z, step->tMax_w);
-    }*/
 }
 
 unsigned int index_acceleration(struct step_setup* step, float width, float time_width, int width_num, dynamic_config_space struct dynamic_config* cfg)
@@ -4033,150 +3989,6 @@ unsigned int index_acceleration(struct step_setup* step, float width, float time
 
     //return ifloor.w * width_num * width_num * width_num + ifloor.z * width_num * width_num + ifloor.y * width_num + ifloor.x;
 }
-
-#if 0
-///https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.42.3443&rep=rep1&type=pdf
-struct step_setup
-{
-    int4 end_grid_pos;
-    char4 sign_step; ///ie stepX, stepY, stepZ
-
-    float4 tMax;
-    float4 tDelta;
-
-    int4 current;
-    int idx;
-    bool should_end;
-};
-
-struct step_setup setup_step(float4 grid1, float4 grid2)
-{
-    float4 ray_dir = grid2 - grid1;
-
-    struct step_setup ret;
-
-    float4 floor_grid1 = floor(grid1);
-    float4 floor_grid2 = floor(grid2);
-
-    ret.end_grid_pos = (int4)(floor_grid2.x, floor_grid2.y, floor_grid2.z, floor_grid2.w);
-    ret.current = (int4)(floor_grid1.x, floor_grid1.y, floor_grid1.z, floor_grid1.w);
-
-    ret.sign_step = convert_char4(sign(ray_dir));
-
-    ///so, we're a ray, going at a speed of ray_dir.x
-    ///our position is grid1.x
-    ///here we're working in voxel coordinates, which means that there are
-    ///voxel boundaries at 0, 1, 2, 3, 4, 5
-    ///so, if I'm at 0.3, moving at a speed of 0.5 in the +x direction, we'll hit 1 in
-    ///(1 - 0.3) / 0.5f units of time == 1.4
-    ///so 0.3 + 0.5 * 1.4 == 1
-    ///if I'm a ray at 0.3, moving at a speed of -0.5 in the +x direction, we're looking to hit 0
-    ///in which case the calcultion becomes (0 - 0.3) / -0.5 == 0.6
-    ///which gives 0.3 + -0.5 * 0.6 == 0
-    ///therefore, if signstep < 0 we're looking to intersect with 0, and if signstep > 0 we're looking to intersect with 1
-    ///where I take the fractional part of the coordinate, ie fmod(pos, 1)
-    ///though careful!! we CAN have negative coordinates here, the looping is done elsewhere
-    ///this means need to positive_fmod
-    float4 position_fraction = grid1 - floor(grid1);
-
-    float4 target = (float4)(1,1,1,1);
-
-    if(ret.sign_step.x < 0)
-        target.x = 0;
-
-    if(ret.sign_step.y < 0)
-        target.y = 0;
-
-    if(ret.sign_step.z < 0)
-        target.z = 0;
-
-    if(ret.sign_step.w < 0)
-        target.w = 0;
-
-    if(ray_dir.x == 0)
-        ray_dir.x = 1;
-
-    if(ray_dir.y == 0)
-        ray_dir.y = 1;
-
-    if(ray_dir.z == 0)
-        ray_dir.z = 1;
-
-    if(ray_dir.w == 0)
-        ray_dir.w = 1;
-
-    float4 tMax = (target - position_fraction) / ray_dir;
-
-    ///if we move at a speed of 0.7, the time it takes in t to traverse a voxel of size 1 is 1/0.7 == 1.42
-    float4 tDelta = 1.f / fabs(ray_dir);
-
-    ret.tMax = tMax;
-    ret.tDelta = tDelta;
-    ret.idx = 0;
-    ret.should_end = false;
-
-    return ret;
-};
-
-void do_step(struct step_setup* step)
-{
-    if(all(step->current == step->end_grid_pos))
-    {
-        step->idx++;
-        step->should_end = true;
-        return;
-    }
-
-    float tMaxArray[4] = {step->tMax.x, step->tMax.y, step->tMax.z, step->tMax.w};
-    char tStep[4] = {step->sign_step.x, step->sign_step.y, step->sign_step.z, step->sign_step.w};
-
-    int current[4] = {step->current.x, step->current.y, step->current.z, step->current.w};
-    int end_pos[4] = {step->end_grid_pos.x, step->end_grid_pos.y, step->end_grid_pos.z, step->end_grid_pos.w};
-
-    int which_min = -1;
-    float my_min = FLT_MAX;
-
-    for(int i=0; i < 4; i++)
-    {
-        if(tMaxArray[i] < my_min && tStep[i] != 0 && current[i] != end_pos[i])
-        {
-            which_min = i;
-            my_min = tMaxArray[i];
-        }
-    }
-
-    if(which_min == -1)
-        step->should_end = true;
-
-    ///i sure love programming
-    if(which_min == 0)
-    {
-        step->tMax.x += step->tDelta.x;
-        step->current.x += step->sign_step.x;
-    }
-
-    if(which_min == 1)
-    {
-        step->tMax.y += step->tDelta.y;
-        step->current.y += step->sign_step.y;
-    }
-
-    if(which_min == 2)
-    {
-        step->tMax.z += step->tDelta.z;
-        step->current.z += step->sign_step.z;
-    }
-
-    if(which_min == 3)
-    {
-        step->tMax.w += step->tDelta.w;
-        step->current.w += step->sign_step.w;
-    }
-
-    //step->current += step->step;
-    step->idx++;
-}
-#endif
 
 bool is_step_finished(struct step_setup* step)
 {
@@ -4573,7 +4385,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                 }
             }
 
-            do_step(&steps, 0, 0);
+            do_step(&steps);
         }
     }
 }
@@ -5356,11 +5168,6 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                 #if 1
 
                 {
-                    /*if(sx == 160 && sy == 53)
-                    {
-                        printf("Start setup\n");
-                    }*/
-
                     struct step_setup setup;
 
                     {
@@ -5399,7 +5206,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                         }
                         #endif // USE_FEEDBACK_CULLING
 
-                        do_step(&setup, sx, sy);
+                        do_step(&setup);
 
                         int tri_count = counts[voxel_id];
                         int base_offset = offsets[voxel_id];
