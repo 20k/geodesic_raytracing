@@ -3743,6 +3743,11 @@ void generate_acceleration_counts(__global struct sub_point* sp, int sp_count, _
 
 struct step_setup
 {
+    float start_grid_pos_x;
+    float start_grid_pos_y;
+    float start_grid_pos_z;
+    float start_grid_pos_w;
+
     float end_grid_pos_x;
     float end_grid_pos_y;
     float end_grid_pos_z;
@@ -3762,6 +3767,11 @@ struct step_setup
     float tDelta_y;
     float tDelta_z;
     float tDelta_w;
+
+    float off_current_x;
+    float off_current_y;
+    float off_current_z;
+    float off_current_w;
 
     float current_x;
     float current_y;
@@ -3785,15 +3795,25 @@ struct step_setup setup_step(float4 grid1, float4 grid2)
     ret.end_grid_pos = (int4)(floor_grid2.x, floor_grid2.y, floor_grid2.z, floor_grid2.w);
     ret.current = (int4)(floor_grid1.x, floor_grid1.y, floor_grid1.z, floor_grid1.w);*/
 
-    ret.end_grid_pos_x = floor(grid2.x);
-    ret.end_grid_pos_y = floor(grid2.y);
-    ret.end_grid_pos_z = floor(grid2.z);
-    ret.end_grid_pos_w = floor(grid2.w);
+    ret.start_grid_pos_x = grid1.x;
+    ret.start_grid_pos_y = grid1.y;
+    ret.start_grid_pos_z = grid1.z;
+    ret.start_grid_pos_w = grid1.w;
 
-    ret.current_x = grid1.x;
-    ret.current_y = grid1.y;
-    ret.current_z = grid1.z;
-    ret.current_w = grid1.w;
+    ret.end_grid_pos_x = (grid2.x);
+    ret.end_grid_pos_y = (grid2.y);
+    ret.end_grid_pos_z = (grid2.z);
+    ret.end_grid_pos_w = (grid2.w);
+
+    ret.current_x = floor(grid1.x);
+    ret.current_y = floor(grid1.y);
+    ret.current_z = floor(grid1.z);
+    ret.current_w = floor(grid1.w);
+
+    ret.off_current_x = grid1.x - floor(grid1.x);
+    ret.off_current_y = grid1.y - floor(grid1.y);
+    ret.off_current_z = grid1.z - floor(grid1.z);
+    ret.off_current_w = grid1.w - floor(grid1.w);
 
     ret.sign_step_x = sign(ray_dir.x);
     ret.sign_step_y = sign(ray_dir.y);
@@ -3818,9 +3838,9 @@ struct step_setup setup_step(float4 grid1, float4 grid2)
     ///this means need to positive_fmod
     float4 position_fraction = grid1 - floor(grid1);
 
-    float4 target = (float4)(1,1,1,1);
+    //float4 target = (float4)(1,1,1,1);
 
-    if(ret.sign_step_x < 0)
+    /*if(ret.sign_step_x < 0)
         target.x = 0;
 
     if(ret.sign_step_y < 0)
@@ -3842,12 +3862,38 @@ struct step_setup setup_step(float4 grid1, float4 grid2)
         ray_dir.z = 1;
 
     if(ray_dir.w == 0)
-        ray_dir.w = 1;
+        ray_dir.w = 1;*/
 
-    float4 tMax = (target - position_fraction) / ray_dir;
+    //float4 tMax = (target - position_fraction) / ray_dir;
 
     ///if we move at a speed of 0.7, the time it takes in t to traverse a voxel of size 1 is 1/0.7 == 1.42
-    float4 tDelta = 1.f / fabs(ray_dir);
+    //float4 tDelta = 1.f / fabs(ray_dir);
+
+    float4 signs = sign(grid2 - grid1);
+
+    //float4 tDelta = signs / (grid2 - grid1);
+
+    float4 tDelta;
+
+    #define GET_TDELTA(v) if(fabs(grid2.v - grid1.v) > 0.000001f){tDelta.v = signs.v / (grid2.v - grid1.v);} else {tDelta.v = 0;}
+
+    GET_TDELTA(x)
+    GET_TDELTA(y)
+    GET_TDELTA(z)
+    GET_TDELTA(w)
+
+    #define FRAC0(x) (x - floor(x))
+    #define FRAC1(x) (1 - x + floor(x))
+
+    float4 tMax;
+
+    #define DO_TMAX(v) if(signs.v > 0) {tMax.v = tDelta.v * FRAC1(grid1.v);} \
+                       else {tMax.v = tDelta.v * FRAC0(grid1.v); }
+
+    DO_TMAX(x)
+    DO_TMAX(y)
+    DO_TMAX(z)
+    DO_TMAX(w)
 
     ret.tMax_x = tMax.x;
     ret.tMax_y = tMax.y;
@@ -3865,14 +3911,14 @@ struct step_setup setup_step(float4 grid1, float4 grid2)
     return ret;
 };
 
-void do_step(struct step_setup* step)
+void do_step(struct step_setup* step, int dbg_x, int dbg_y)
 {
     bool all_same = true;
 
-    if(floor(step->current_x) == step->end_grid_pos_x &&
-       floor(step->current_y) == step->end_grid_pos_y &&
-       floor(step->current_z) == step->end_grid_pos_z &&
-       floor(step->current_w) == step->end_grid_pos_w)
+    if(floor(step->current_x) == floor(step->end_grid_pos_x) &&
+       floor(step->current_y) == floor(step->end_grid_pos_y) &&
+       floor(step->current_z) == floor(step->end_grid_pos_z) &&
+       floor(step->current_w) == floor(step->end_grid_pos_w))
     {
         step->idx++;
         step->should_end = true;
@@ -3882,34 +3928,44 @@ void do_step(struct step_setup* step)
     int which_min = -1;
     float my_min = FLT_MAX;
 
-    if(step->tMax_x < my_min && floor(step->current_x) != step->end_grid_pos_x)
+    if(step->tMax_x < my_min && floor(step->current_x) != floor(step->end_grid_pos_x))
     {
         which_min = 0;
         my_min = step->tMax_x;
     }
-
-    if(step->tMax_y < my_min && floor(step->current_y) != step->end_grid_pos_y)
+    if(step->tMax_y < my_min && floor(step->current_y) != floor(step->end_grid_pos_y))
     {
         which_min = 1;
         my_min = step->tMax_y;
     }
-    if(step->tMax_z < my_min && floor(step->current_z) != step->end_grid_pos_z)
+    if(step->tMax_z < my_min && floor(step->current_z) != floor(step->end_grid_pos_z))
     {
         which_min = 2;
         my_min = step->tMax_z;
     }
-    if(step->tMax_w < my_min && floor(step->current_w) != step->end_grid_pos_w)
+    if(step->tMax_w < my_min && floor(step->current_w) != floor(step->end_grid_pos_w))
     {
         which_min = 3;
         my_min = step->tMax_w;
     }
 
-    if(which_min == -1)
+    ///160 53
+    /*if(dbg_x == 160 && dbg_y == 53)
+    {
+        printf("Which %i curr %f %f %f %f end %f %f %f %f sign %f %f %f %f\n", which_min,
+               step->current_x, step->current_y, step->current_z, step->current_w,
+               step->end_grid_pos_x, step->end_grid_pos_y, step->end_grid_pos_z, step->end_grid_pos_w,
+               step->sign_step_x, step->sign_step_y, step->sign_step_z, step->sign_step_w
+               );
+    }*/
+
+
+    /*if(which_min == -1)
     {
         step->should_end = true;
         step->idx++;
         return;
-    }
+    }*/
 
     if(which_min == 0)
     {
@@ -3936,11 +3992,30 @@ void do_step(struct step_setup* step)
     }
 
     step->idx++;
+
+    /*if(step->idx > 600)
+    {
+        //if(step->should_end)
+        //    printf("Ended\n");
+
+        printf("cur %f %f %f %f delta %f %f %f %f screen %i %i", step->current_x, step->current_y, step->current_z, step->current_w,
+                                                                      step->tDelta_x, step->tDelta_y, step->tDelta_z, step->tDelta_w,
+                                                                      dbg_x, dbg_y
+                                                                      );
+
+        printf("Start %f %f %f %f end %f %f %f %f", step->start_grid_pos_x, step->start_grid_pos_y, step->start_grid_pos_z, step->start_grid_pos_w,
+        step->end_grid_pos_x, step->end_grid_pos_y, step->end_grid_pos_z, step->end_grid_pos_w);
+
+        printf("Step debug min: %i, tmax %f %f %f %f", which_min, step->tMax_x, step->tMax_y, step->tMax_z, step->tMax_w);
+    }*/
 }
 
 unsigned int index_acceleration(struct step_setup* step, float width, float time_width, int width_num, dynamic_config_space struct dynamic_config* cfg)
 {
-    float4 step_pos = (float4)(step->current_x, step->current_y, step->current_z, step->current_w);
+    float4 step_pos = (float4)(step->current_x + step->off_current_x,
+                               step->current_y + step->off_current_y,
+                               step->current_z + step->off_current_z,
+                               step->current_w + step->off_current_w);
 
     float4 world4 = voxel_to_world4(step_pos, width, time_width, width_num);
 
@@ -4498,7 +4573,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                 }
             }
 
-            do_step(&steps);
+            do_step(&steps, 0, 0);
         }
     }
 }
@@ -5281,6 +5356,11 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                 #if 1
 
                 {
+                    /*if(sx == 160 && sy == 53)
+                    {
+                        printf("Start setup\n");
+                    }*/
+
                     struct step_setup setup;
 
                     {
@@ -5319,7 +5399,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                         }
                         #endif // USE_FEEDBACK_CULLING
 
-                        do_step(&setup);
+                        do_step(&setup, sx, sy);
 
                         int tri_count = counts[voxel_id];
                         int base_offset = offsets[voxel_id];
