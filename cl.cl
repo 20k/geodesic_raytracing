@@ -3743,13 +3743,31 @@ void generate_acceleration_counts(__global struct sub_point* sp, int sp_count, _
 
 struct step_setup
 {
-    float end_grid_pos[4];
-    char sign_step[4]; ///ie stepX, stepY, stepZ
+    float end_grid_pos_x;
+    float end_grid_pos_y;
+    float end_grid_pos_z;
+    float end_grid_pos_w;
 
-    float tMax[4];
-    float tDelta[4];
+    float sign_step_x;
+    float sign_step_y;
+    float sign_step_z;
+    float sign_step_w;
 
-    float current[4];
+    float tMax_x;
+    float tMax_y;
+    float tMax_z;
+    float tMax_w;
+
+    float tDelta_x;
+    float tDelta_y;
+    float tDelta_z;
+    float tDelta_w;
+
+    float current_x;
+    float current_y;
+    float current_z;
+    float current_w;
+
     //int4 current;
     int idx;
     bool should_end;
@@ -3767,20 +3785,20 @@ struct step_setup setup_step(float4 grid1, float4 grid2)
     ret.end_grid_pos = (int4)(floor_grid2.x, floor_grid2.y, floor_grid2.z, floor_grid2.w);
     ret.current = (int4)(floor_grid1.x, floor_grid1.y, floor_grid1.z, floor_grid1.w);*/
 
-    ret.end_grid_pos[0] = floor(grid2.x);
-    ret.end_grid_pos[1] = floor(grid2.y);
-    ret.end_grid_pos[2] = floor(grid2.z);
-    ret.end_grid_pos[3] = floor(grid2.w);
+    ret.end_grid_pos_x = floor(grid2.x);
+    ret.end_grid_pos_y = floor(grid2.y);
+    ret.end_grid_pos_z = floor(grid2.z);
+    ret.end_grid_pos_w = floor(grid2.w);
 
-    ret.current[0] = grid1.x;
-    ret.current[1] = grid1.y;
-    ret.current[2] = grid1.z;
-    ret.current[3] = grid1.w;
+    ret.current_x = grid1.x;
+    ret.current_y = grid1.y;
+    ret.current_z = grid1.z;
+    ret.current_w = grid1.w;
 
-    ret.sign_step[0] = convert_char(sign(ray_dir.x));
-    ret.sign_step[1] = convert_char(sign(ray_dir.y));
-    ret.sign_step[2] = convert_char(sign(ray_dir.z));
-    ret.sign_step[3] = convert_char(sign(ray_dir.w));
+    ret.sign_step_x = sign(ray_dir.x);
+    ret.sign_step_y = sign(ray_dir.y);
+    ret.sign_step_z = sign(ray_dir.z);
+    ret.sign_step_w = sign(ray_dir.w);
 
     //ret.sign_step = convert_char4(sign(ray_dir));
 
@@ -3802,16 +3820,16 @@ struct step_setup setup_step(float4 grid1, float4 grid2)
 
     float4 target = (float4)(1,1,1,1);
 
-    if(ret.sign_step[0] < 0)
+    if(ret.sign_step_x < 0)
         target.x = 0;
 
-    if(ret.sign_step[1] < 0)
+    if(ret.sign_step_y < 0)
         target.y = 0;
 
-    if(ret.sign_step[2] < 0)
+    if(ret.sign_step_z < 0)
         target.z = 0;
 
-    if(ret.sign_step[3] < 0)
+    if(ret.sign_step_w < 0)
         target.w = 0;
 
     if(ray_dir.x == 0)
@@ -3831,15 +3849,15 @@ struct step_setup setup_step(float4 grid1, float4 grid2)
     ///if we move at a speed of 0.7, the time it takes in t to traverse a voxel of size 1 is 1/0.7 == 1.42
     float4 tDelta = 1.f / fabs(ray_dir);
 
-    ret.tMax[0] = tMax.x;
-    ret.tMax[1] = tMax.y;
-    ret.tMax[2] = tMax.z;
-    ret.tMax[3] = tMax.w;
+    ret.tMax_x = tMax.x;
+    ret.tMax_y = tMax.y;
+    ret.tMax_z = tMax.z;
+    ret.tMax_w = tMax.w;
 
-    ret.tDelta[0] = tDelta.x;
-    ret.tDelta[1] = tDelta.y;
-    ret.tDelta[2] = tDelta.z;
-    ret.tDelta[3] = tDelta.w;
+    ret.tDelta_x = tDelta.x;
+    ret.tDelta_y = tDelta.y;
+    ret.tDelta_z = tDelta.z;
+    ret.tDelta_w = tDelta.w;
 
     ret.idx = 0;
     ret.should_end = false;
@@ -3847,21 +3865,14 @@ struct step_setup setup_step(float4 grid1, float4 grid2)
     return ret;
 };
 
-
 void do_step(struct step_setup* step)
 {
     bool all_same = true;
 
-    #pragma unroll
-    for(int i=0; i < 4; i++)
-    {
-        if(floor(step->current[i]) != step->end_grid_pos[i])
-        {
-            all_same = false;
-        }
-    }
-
-    if(all_same)
+    if(floor(step->current_x) == step->end_grid_pos_x &&
+       floor(step->current_y) == step->end_grid_pos_y &&
+       floor(step->current_z) == step->end_grid_pos_z &&
+       floor(step->current_w) == step->end_grid_pos_w)
     {
         step->idx++;
         step->should_end = true;
@@ -3871,14 +3882,26 @@ void do_step(struct step_setup* step)
     int which_min = -1;
     float my_min = FLT_MAX;
 
-    #pragma unroll
-    for(int i=0; i < 4; i++)
+    if(step->tMax_x < my_min && floor(step->current_x) != step->end_grid_pos_x)
     {
-        if(step->tMax[i] < my_min && step->sign_step[i] != 0 && floor(step->current[i]) != step->end_grid_pos[i])
-        {
-            which_min = i;
-            my_min = step->tMax[i];
-        }
+        which_min = 0;
+        my_min = step->tMax_x;
+    }
+
+    if(step->tMax_y < my_min && floor(step->current_y) != step->end_grid_pos_y)
+    {
+        which_min = 1;
+        my_min = step->tMax_y;
+    }
+    if(step->tMax_z < my_min && floor(step->current_z) != step->end_grid_pos_z)
+    {
+        which_min = 2;
+        my_min = step->tMax_z;
+    }
+    if(step->tMax_w < my_min && floor(step->current_w) != step->end_grid_pos_w)
+    {
+        which_min = 3;
+        my_min = step->tMax_w;
     }
 
     if(which_min == -1)
@@ -3888,31 +3911,28 @@ void do_step(struct step_setup* step)
         return;
     }
 
-    /*step->tMax[which_min] += step->tDelta[which_min];
-    step->current[which_min] += step->sign_step[which_min];*/
-
     if(which_min == 0)
     {
-        step->tMax[0] += step->tDelta[0];
-        step->current[0] += step->sign_step[0];
+        step->tMax_x += step->tDelta_x;
+        step->current_x += step->sign_step_x;
     }
 
     if(which_min == 1)
     {
-        step->tMax[1] += step->tDelta[1];
-        step->current[1] += step->sign_step[1];
+        step->tMax_y += step->tDelta_y;
+        step->current_y += step->sign_step_y;
     }
 
     if(which_min == 2)
     {
-        step->tMax[2] += step->tDelta[2];
-        step->current[2] += step->sign_step[2];
+        step->tMax_z += step->tDelta_z;
+        step->current_z += step->sign_step_z;
     }
 
     if(which_min == 3)
     {
-        step->tMax[3] += step->tDelta[3];
-        step->current[3] += step->sign_step[3];
+        step->tMax_w += step->tDelta_w;
+        step->current_w += step->sign_step_w;
     }
 
     step->idx++;
@@ -3920,7 +3940,7 @@ void do_step(struct step_setup* step)
 
 unsigned int index_acceleration(struct step_setup* step, float width, float time_width, int width_num, dynamic_config_space struct dynamic_config* cfg)
 {
-    float4 step_pos = (float4)(step->current[0], step->current[1], step->current[2], step->current[3]);
+    float4 step_pos = (float4)(step->current_x, step->current_y, step->current_z, step->current_w);
 
     float4 world4 = voxel_to_world4(step_pos, width, time_width, width_num);
 
