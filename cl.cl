@@ -3778,10 +3778,10 @@ struct step_setup
     float updated_z;
     float updated_w;
 
-    float root_Max_x;
+    /*float root_Max_x;
     float root_Max_y;
     float root_Max_z;
-    float root_Max_w;
+    float root_Max_w;*/
 
     //int4 current;
     int idx;
@@ -3887,16 +3887,6 @@ struct step_setup setup_step(float4 grid1, float4 grid2)
     DO_TMAX(z)
     DO_TMAX(w)
 
-    /*ret.tMax_x = tMax.x;
-    ret.tMax_y = tMax.y;
-    ret.tMax_z = tMax.z;
-    ret.tMax_w = tMax.w;*/
-
-    ret.root_Max_x = tMax.x;
-    ret.root_Max_y = tMax.y;
-    ret.root_Max_z = tMax.z;
-    ret.root_Max_w = tMax.w;
-
     ret.tDelta_x = signs.x < 0 ? -tDelta.x : tDelta.x;
     ret.tDelta_y = signs.y < 0 ? -tDelta.y : tDelta.y;
     ret.tDelta_z = signs.z < 0 ? -tDelta.z : tDelta.z;
@@ -3922,10 +3912,23 @@ void do_step(struct step_setup* step)
     float current_z = floor(step->start_grid_pos_z) + sign(step->tDelta_z) * step->updated_z;
     float current_w = floor(step->start_grid_pos_w) + sign(step->tDelta_w) * step->updated_w;
 
-    float tMax_x = step->root_Max_x + fabs(step->tDelta_x) * step->updated_x;
-    float tMax_y = step->root_Max_y + fabs(step->tDelta_y) * step->updated_y;
-    float tMax_z = step->root_Max_z + fabs(step->tDelta_z) * step->updated_z;
-    float tMax_w = step->root_Max_w + fabs(step->tDelta_w) * step->updated_w;
+    float root_Max_x;
+    float root_Max_y;
+    float root_Max_z;
+    float root_Max_w;
+
+    #define DO_TMAX2(v) if(fabs(step->tDelta_##v) > 0) {root_Max_##v = fabs(step->tDelta_##v) * FRAC1(step->start_grid_pos_##v);} \
+                        else {root_Max_##v = step->tDelta_##v * FRAC0(step->start_grid_pos_##v); }
+
+    DO_TMAX2(x)
+    DO_TMAX2(y)
+    DO_TMAX2(z)
+    DO_TMAX2(w)
+
+    float tMax_x = root_Max_x + fabs(step->tDelta_x) * step->updated_x;
+    float tMax_y = root_Max_y + fabs(step->tDelta_y) * step->updated_y;
+    float tMax_z = root_Max_z + fabs(step->tDelta_z) * step->updated_z;
+    float tMax_w = root_Max_w + fabs(step->tDelta_w) * step->updated_w;
 
     if(floor(current_x) == floor(step->end_grid_pos_x) &&
        floor(current_y) == floor(step->end_grid_pos_y) &&
