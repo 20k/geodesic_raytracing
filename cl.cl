@@ -3767,10 +3767,10 @@ struct step_setup setup_step(float4 grid1, float4 grid2)
     ret.end_grid_pos = (int4)(floor_grid2.x, floor_grid2.y, floor_grid2.z, floor_grid2.w);
     ret.current = (int4)(floor_grid1.x, floor_grid1.y, floor_grid1.z, floor_grid1.w);*/
 
-    ret.end_grid_pos[0] = grid2.x;
-    ret.end_grid_pos[1] = grid2.y;
-    ret.end_grid_pos[2] = grid2.z;
-    ret.end_grid_pos[3] = grid2.w;
+    ret.end_grid_pos[0] = floor(grid2.x);
+    ret.end_grid_pos[1] = floor(grid2.y);
+    ret.end_grid_pos[2] = floor(grid2.z);
+    ret.end_grid_pos[3] = floor(grid2.w);
 
     ret.current[0] = grid1.x;
     ret.current[1] = grid1.y;
@@ -3831,9 +3831,6 @@ struct step_setup setup_step(float4 grid1, float4 grid2)
     ///if we move at a speed of 0.7, the time it takes in t to traverse a voxel of size 1 is 1/0.7 == 1.42
     float4 tDelta = 1.f / fabs(ray_dir);
 
-    //ret.tMax = tMax;
-    //ret.tDelta = tDelta;
-
     ret.tMax[0] = tMax.x;
     ret.tMax[1] = tMax.y;
     ret.tMax[2] = tMax.z;
@@ -3858,7 +3855,7 @@ void do_step(struct step_setup* step)
     #pragma unroll
     for(int i=0; i < 4; i++)
     {
-        if(floor(step->current[i]) != floor(step->end_grid_pos[i]))
+        if(floor(step->current[i]) != step->end_grid_pos[i])
         {
             all_same = false;
         }
@@ -3877,7 +3874,7 @@ void do_step(struct step_setup* step)
     #pragma unroll
     for(int i=0; i < 4; i++)
     {
-        if(step->tMax[i] < my_min && step->sign_step[i] != 0 && floor(step->current[i]) != floor(step->end_grid_pos[i]))
+        if(step->tMax[i] < my_min && step->sign_step[i] != 0 && floor(step->current[i]) != step->end_grid_pos[i])
         {
             which_min = i;
             my_min = step->tMax[i];
@@ -3891,8 +3888,32 @@ void do_step(struct step_setup* step)
         return;
     }
 
-    step->tMax[which_min] += step->tDelta[which_min];
-    step->current[which_min] += step->sign_step[which_min];
+    /*step->tMax[which_min] += step->tDelta[which_min];
+    step->current[which_min] += step->sign_step[which_min];*/
+
+    if(which_min == 0)
+    {
+        step->tMax[0] += step->tDelta[0];
+        step->current[0] += step->sign_step[0];
+    }
+
+    if(which_min == 1)
+    {
+        step->tMax[1] += step->tDelta[1];
+        step->current[1] += step->sign_step[1];
+    }
+
+    if(which_min == 2)
+    {
+        step->tMax[2] += step->tDelta[2];
+        step->current[2] += step->sign_step[2];
+    }
+
+    if(which_min == 3)
+    {
+        step->tMax[3] += step->tDelta[3];
+        step->current[3] += step->sign_step[3];
+    }
 
     step->idx++;
 }
