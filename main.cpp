@@ -790,8 +790,8 @@ int main(int argc, char* argv[])
     }
 
     render_settings sett;
-    sett.width = 500;
-    sett.height = 300;
+    sett.width = 1280;
+    sett.height = 720;
     sett.opencl = true;
     sett.no_double_buffer = true;
     sett.is_srgb = true;
@@ -1235,7 +1235,7 @@ int main(int argc, char* argv[])
     obj->tris = make_cube({0, 0, 0});
     obj->pos = {0, -5, 0, 0};*/
 
-    #define CUBE_INTO_HORIZON
+    //#define CUBE_INTO_HORIZON
     #ifdef CUBE_INTO_HORIZON
     ///event horizon tester
     std::shared_ptr<triangle_rendering::object> obj = tris.make_new();
@@ -1244,6 +1244,15 @@ int main(int argc, char* argv[])
     obj->pos = {-26, -5, -1, 0};
     obj->velocity = {0, 0.1f, 0};
     #endif // CUBE_INTO_HORIZON
+
+    #define DEBUG_FAST_CUBE
+    #ifdef DEBUG_FAST_CUBE
+    std::shared_ptr<triangle_rendering::object> obj = tris.make_new();
+
+    obj->tris = make_cube({0, 0, 0});
+    obj->pos = {-10, -5, -1, 0};
+    obj->velocity = {-0.8f, 0.0f, 0};
+    #endif // DEBUG_FAST_CUBE
 
     physics phys(clctx.ctx);
     triangle_rendering::acceleration accel(clctx.ctx);

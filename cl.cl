@@ -4044,7 +4044,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
     float lowest_time = *ray_time_min - 1;
     float maximum_time = *ray_time_max + 1;
 
-    int skip = 1;
+    int skip = 8;
 
     ///if I'm doing bresenhams, then ds_stepping makes no sense and I am insane
     for(int cc=0; cc < count - skip; cc += skip)
@@ -4250,6 +4250,22 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         }
         #endif
 
+        #ifndef VOXELISE
+        int lid = atomic_inc(&offset_counts[0]);
+
+        if(should_store)
+        {
+            int mem_start = offset_map[0];
+
+            mem_buffer[mem_start + lid] = local_tri;
+            start_times_memory[mem_start + lid] = output_time;
+            delta_times_memory[mem_start + lid] = delta_time;
+
+            *any_visible = 1;
+        }
+        #endif
+
+        #ifdef VOXELISE
         struct step_setup steps = setup_step(grid_pos, next_grid_pos);
 
         //if(should_store)
@@ -4321,6 +4337,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
             do_step(&steps);
         }
+        #endif
     }
 }
 
@@ -4764,22 +4781,17 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
     //float4 test_dir = ray_vel4 * ds;
     float4 test_dir = next_global_pos - global_pos;
 
-    //int fracs = 1;
+    int fracs = 16;
 
     //#pragma unroll
-    //for(int i=0; i < fracs; i++)
-
-
+    for(int i=0; i < fracs; i++)
     {
-        //int cfrac = max(fracs - 1, 1);
+        int cfrac = max(fracs - 1, 1);
+        float frac = (float)i / cfrac;
+        float real_time = (min_t - max_t) * frac + max_t;
+        float tri_frac = (real_time - tri_lower_t) / (tri_upper_t - tri_lower_t);
 
-        //float frac = (float)i / cfrac;
-
-        //float real_time = (min_t - max_t) * frac + max_t;
-
-        //float tri_frac = (real_time - tri_lower_t) / (tri_upper_t - tri_lower_t);
-
-        float tri_frac = 0;
+        //float tri_frac = 0;
 
         float4 mixed_position = mix(object_geodesic_origin, next_object_geodesic_origin, tri_frac);
 
@@ -4796,7 +4808,7 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
 
         ///this is fundamentally incorrect, they overlap multiple times
         ///but... there should be one time at which a photon was emitted, based on the time intersection
-        float4 pos = coordinate_to_tetrad_basis(periodic_diff(global_pos, object_geodesic_origin, periods), i_e0, i_e1, i_e2, i_e3);
+        float4 pos = coordinate_to_tetrad_basis(periodic_diff(global_pos, mixed_position, periods), i_e0, i_e1, i_e2, i_e3);
         float4 dir = coordinate_to_tetrad_basis(test_dir, i_e0, i_e1, i_e2, i_e3);
 
         float ray_t = 0;
@@ -5251,7 +5263,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                     float len_sq = dot(t_pos, t_pos);
 
-                    bool could_hit = len_sq <= 5;
+                    bool could_hit = len_sq <= 10;
 
                     if(could_hit)
                     {
