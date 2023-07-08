@@ -30,8 +30,8 @@ struct computed_triangle
 
     int geodesic_segment;
 
-    #ifdef MORE_ACCURATE_TETRADS
     int next_geodesic_segment;
+    #ifdef MORE_ACCURATE_TETRADS
     float interpolation_frac;
     #endif
 };
@@ -4125,10 +4125,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         struct computed_triangle local_tri;
 
         local_tri.geodesic_segment = cc * stride + mine.object_parent;
-
-        #ifdef MORE_ACCURATE_TETRADS
         local_tri.next_geodesic_segment = next_cc * stride + mine.object_parent;
-        #endif
 
         float4 gv0 = s_coordinate_v0 + native_current;
         float4 gv1 = s_coordinate_v1 + native_current;
@@ -4602,7 +4599,10 @@ float4 geodesic_to_coordinate_time(float4 velocity)
 }
 
 ///dir is not normalised, should really use a pos2
-bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 ray_vel4, float ds, __global struct computed_triangle* ctri, float4 object_geodesic_origin, float4 object_geodesic_velocity, float4 i_e0, float4 i_e1, float4 i_e2, float4 i_e3, float t_tri_start_time, float t_tri_delta_time, float* t_out, bool debug, float4 periods)
+bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 ray_vel4, float ds, __global struct computed_triangle* ctri, float4 object_geodesic_origin, float4 object_geodesic_velocity,
+                              float4 i_re0, float4 i_re1, float4 i_re2, float4 i_re3,
+                              float4 i_ne0, float4 i_ne1, float4 i_ne2, float4 i_ne3,
+                              float t_tri_start_time, float t_tri_delta_time, float* t_out, bool debug, float4 periods)
 {
     float4 global_dir = next_global_pos - global_pos;
     float4 t_pos = periodic_diff(global_pos, object_geodesic_origin, periods);
@@ -4694,7 +4694,28 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
 
 
     #if 1
-    float4 fv0 = ctri->tv0;
+    float dt = (global_pos.x - object_geodesic_origin.x) / 2;
+
+    float light_ray_dct = -1;
+    float light_ray_diff_t = ray_vel4.x * ds;
+
+    float light_ray_end_time = global_pos.x + light_ray_diff_t;
+
+    float lb = -0.0;
+    float ub = 0.0;
+
+    float coordinate_time_elapsed = dt;
+    float frac = coordinate_time_elapsed / -light_ray_diff_t;
+
+    if(frac < 0 || frac > 1)
+        return false;
+
+    float tri_frac = coordinate_time_elapsed / t_tri_delta_time;
+
+    if(tri_frac < 0 || tri_frac > 1)
+        return false;
+
+    /*float4 fv0 = ctri->tv0;
     float4 fv1 = ctri->tv1;
     float4 fv2 = ctri->tv2;
 
@@ -4708,62 +4729,37 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
 
     float3 e0 = fe0.yzw;
     float3 e1 = fe1.yzw;
-    float3 e2 = fe2.yzw;
+    float3 e2 = fe2.yzw;*/
 
-    float tri_start_time = 0.f;
-    float tri_end_time = coordinate_to_tetrad_basis((float4)(t_tri_delta_time, 0,0,0), i_e0, i_e1, i_e2, i_e3).x;
+    float4 fv0 = ctri->coordinate_v0;
+    float4 fv1 = ctri->coordinate_v1;
+    float4 fv2 = ctri->coordinate_v2;
+
+    float4 fe0 = ctri->coordinate_e0;
+    float4 fe1 = ctri->coordinate_e1;
+    float4 fe2 = ctri->coordinate_e2;
+
+    float4 mixed_0 = mix(fv0, fe0, tri_frac);
+    float4 mixed_1 = mix(fv1, fe1, tri_frac);
+    float4 mixed_2 = mix(fv2, fe2, tri_frac);
+
+    float4 mixed_position = mix(global_pos, next_global_pos, tri_frac);
+
+    float tetrad_frac = tri_frac;
+
+    float4 i_e0 = mix(i_re0, i_ne0, tetrad_frac);
+    float4 i_e1 = mix(i_re1, i_ne1, tetrad_frac);
+    float4 i_e2 = mix(i_re2, i_ne2, tetrad_frac);
+    float4 i_e3 = mix(i_re3, i_ne3, tetrad_frac);
+
+    float3 i0 = coordinate_to_tetrad_basis(mixed_0 - mixed_position, i_e0, i_e1, i_e2, i_e3).yzw;
+    float3 i1 = coordinate_to_tetrad_basis(mixed_1 - mixed_position, i_e0, i_e1, i_e2, i_e3).yzw;
+    float3 i2 = coordinate_to_tetrad_basis(mixed_2 - mixed_position, i_e0, i_e1, i_e2, i_e3).yzw;
 
     ///this is fundamentally incorrect, they overlap multiple times
     ///but... there should be one time at which a photon was emitted, based on the time intersection
-    float4 pos = coordinate_to_tetrad_basis(t_pos, i_e0, i_e1, i_e2, i_e3);
-    float4 dir = coordinate_to_tetrad_basis(global_dir, i_e0, i_e1, i_e2, i_e3);
-
-    //float4 object_local_velocity = coordinate_to_tetrad_basis(object_geodesic_velocity, i_e0, i_e1, i_e2, i_e3);
-
-    //float coordinate_object_velocity_time = geodesic_to_coordinate_time(object_local_velocity).x;
-    ///note that this ignores the *ds multiplier I crammed in as it cancels out inherently when reparameterising
-    //float coordinate_ray_velocity_time = geodesic_to_coordinate_time(dir).x;
-
-    ///it is possible that the signs here may not always be true
-    ///if the signs are the same this will never work though
-    ///the object clearly cannot be moving at a rate of 1 through coordinate time. It should be the velocity length?
-    float coordinate_object_velocity_time = 1;
-    float coordinate_ray_velocity_time = -1;
-
-    ///tri1 + coordinate_object_velocity * dt = tritime
-    ///pos.x + coordinate_ray_velocity * dt = raytime
-
-    ///tri1 + coordinate_object_velocity * dt = pos.x + coordinate_ray_velocity * dt
-    ///dt * (coordinate_object_velocity - coordinate_ray_velocity) = pos.x - tri1
-    ///dt = (pos.x - tri1) / (coordinate_object_velocity - coordinate_ray_velocity)
-    ///but. In coordinate time, the velocities are both 1. Which means this doesn't work either!
-
-    float dt = (pos.x - tri_start_time) / (coordinate_object_velocity_time - coordinate_ray_velocity_time);
-
-    float final_time = tri_start_time + coordinate_object_velocity_time * dt;
-
-    /*if(debug)
-    {
-        printf("FTime %f\n", final_time);
-    }*/
-
-    if(final_time < tri_start_time || final_time >= tri_end_time)
-        return false;
-
-    float frac = (final_time - tri_start_time) / (tri_end_time - tri_start_time);
-
-    float3 i0 = mix(v0, e0, frac);
-    float3 i1 = mix(v1, e1, frac);
-    float3 i2 = mix(v2, e2, frac);
-
-    /*float3 i0 = v0;
-    float3 i1 = v1;
-    float3 i2 = v2;*/
-
-    /*if(debug)
-    {
-        printf("Frac %f\n", frac);
-    }*/
+    float4 pos = coordinate_to_tetrad_basis(periodic_diff(global_pos, mixed_position, periods), i_e0, i_e1, i_e2, i_e3);
+    float4 dir = coordinate_to_tetrad_basis(ray_vel4 * ds, i_e0, i_e1, i_e2, i_e3);
 
     float ray_t = 0;
 
@@ -5274,21 +5270,20 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                             if(could_hit)
                             {
-                                //#define MORE_ACCURATE_TETRADS
-                                #ifdef MORE_ACCURATE_TETRADS
                                 float4 i_e0_0 = inverse_e0s[ctri->geodesic_segment];
                                 float4 i_e1_0 = inverse_e1s[ctri->geodesic_segment];
                                 float4 i_e2_0 = inverse_e2s[ctri->geodesic_segment];
                                 float4 i_e3_0 = inverse_e3s[ctri->geodesic_segment];
-
-                                float4 origin_0 = object_positions[ctri->geodesic_segment];
-                                float4 object_vel_0 = object_velocities[ctri->geodesic_segment];
 
                                 float4 i_e0_1 = inverse_e0s[ctri->next_geodesic_segment];
                                 float4 i_e1_1 = inverse_e1s[ctri->next_geodesic_segment];
                                 float4 i_e2_1 = inverse_e2s[ctri->next_geodesic_segment];
                                 float4 i_e3_1 = inverse_e3s[ctri->next_geodesic_segment];
 
+                                //#define MORE_ACCURATE_TETRADS
+                                #ifdef MORE_ACCURATE_TETRADS
+                                float4 origin_0 = object_positions[ctri->geodesic_segment];
+                                float4 object_vel_0 = object_velocities[ctri->geodesic_segment];
                                 float4 origin_1 = object_positions[ctri->next_geodesic_segment];
                                 float4 object_vel_1 = object_velocities[ctri->next_geodesic_segment];
 
@@ -5312,7 +5307,10 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                                 bool debug = sx == 800/2 && sy == 600/2;
 
-                                if(ray_intersects_toblerone(rt_real_pos, next_rt_real_pos, rt_velocity, ds, ctri, origin, object_vel, i_e0, i_e1, i_e2, i_e3, start_time, delta_time, &ray_t, debug, periods))
+                                if(ray_intersects_toblerone(rt_real_pos, next_rt_real_pos, rt_velocity, ds, ctri, origin, object_vel,
+                                                            i_e0, i_e1, i_e2, i_e3,
+                                                            i_e0_0, i_e1_0, i_e2_0, i_e3_0,
+                                                            start_time, delta_time, &ray_t, debug, periods))
                                 {
                                     //if(debug)
                                     //    printf("Seggy %i\n", ctri->geodesic_segment);
