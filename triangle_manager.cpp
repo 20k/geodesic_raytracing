@@ -341,7 +341,7 @@ void triangle_rendering::manager::force_update_objects(cl::command_queue& cqueue
     update_objects(cqueue);
 }
 
-triangle_rendering::acceleration::acceleration(cl::context& ctx) : offsets(ctx), counts(ctx), memory(ctx), start_times_memory(ctx), delta_times_memory(ctx), memory_count(ctx), unculled_counts(ctx), ray_time_min(ctx), ray_time_max(ctx), cell_time_min(ctx), cell_time_max(ctx), any_visible(ctx)
+triangle_rendering::acceleration::acceleration(cl::context& ctx) : offsets(ctx), counts(ctx), memory(ctx), start_times_memory(ctx), delta_times_memory(ctx), memory_count(ctx), unculled_counts(ctx), linear_object_positions(ctx), ray_time_min(ctx), ray_time_max(ctx), cell_time_min(ctx), cell_time_max(ctx), any_visible(ctx)
 {
 
 }
@@ -360,6 +360,7 @@ void triangle_rendering::acceleration::check_allocated(cl::command_queue& cqueue
     memory.alloc(max_memory_size);
     start_times_memory.alloc(max_memory_size / sizeof(cl_float));
     delta_times_memory.alloc(max_memory_size / sizeof(cl_float));
+    linear_object_positions.alloc(max_memory_size / sizeof(cl_float4));
     unculled_counts.alloc(sizeof(cl_int) * cells);
 
     ray_time_min.alloc(sizeof(cl_uint));
@@ -446,9 +447,9 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         cqueue.exec("generate_smeared_acceleration", accel, {tris.fill_point_count}, {256});
     }
 
-    {
-        uint32_t data_max = offset_size.x() * offset_size.y() * offset_size.z() * offset_size.w();
+    uint32_t data_max = offset_size.x() * offset_size.y() * offset_size.z() * offset_size.w();
 
+    {
         cl::args accel;
         accel.push_back(offsets);
         accel.push_back(counts);
@@ -500,6 +501,16 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         accel.push_back(dynamic_config);
 
         cqueue.exec("generate_smeared_acceleration", accel, {tris.fill_point_count}, {256});
+    }
+
+    {
+        cl::args args;
+        args.push_back(memory);
+        args.push_back(memory_count);
+        args.push_back(phys.geodesic_paths);
+        args.push_back(linear_object_positions);
+
+        cqueue.exec("pull_linear_object_positions", args, {data_max}, {256});
     }
 
     #else

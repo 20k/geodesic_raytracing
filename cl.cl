@@ -4968,6 +4968,16 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
     return true;
 }
 
+__kernel void pull_linear_object_positions(__global struct computed_triangle* linear_mem, __global int* linear_mem_size, __global float4* object_positions, __global float4* linear_object_positions)
+{
+    int id = get_global_id(0);
+
+    if(id >= *linear_mem_size)
+        return;
+
+    linear_object_positions[id] = object_positions[linear_mem[id].geodesic_segment];
+}
+
 __kernel
 void do_generic_rays (__global struct lightray* restrict generic_rays_in, __global struct lightray* restrict generic_rays_out,
                       __global struct lightray* restrict finished_rays,
@@ -4976,6 +4986,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                       //__global float4* path_out, __global int* counts_out,
                       __global struct triangle* tris, int tri_count, __global struct intersection* intersections_out, __global int* intersection_count,
                       __global int* counts, __global int* offsets, __global struct computed_triangle* linear_mem, __global int* linear_mem_size, __global float* linear_start_times, __global float* linear_delta_times,
+                      __global float4* linear_object_positions,
                       __global int* unculled_counts,
                       __constant int* any_visible,
                       float accel_width, float accel_time_width, int accel_width_num,
@@ -5206,26 +5217,28 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                 float best_intersection = FLT_MAX;
 
-                for(int i=0; i < *linear_mem_size; i++)
-                {
-                    __global struct computed_triangle* ctri = &linear_mem[i];
+                int lsize = *linear_mem_size;
 
+                for(int i=0; i < lsize; i++)
+                {
                     ///saves about 2ms, but I'm concerned about validity
                     #ifdef FIRST_BEST_INTERSECTION
                     int hit_id = -1;
                     #endif
 
-                    float4 origin = object_positions[ctri->geodesic_segment];
+                    float4 origin = linear_object_positions[i];
 
                     ///here is where i need to enforce periodicity for rt_real_pos and origin
                     float4 t_pos = periodic_diff(rt_real_pos, origin, periods);
 
                     float len_sq = dot(t_pos, t_pos);
 
-                    bool could_hit = len_sq <= 5;
+                    bool could_hit = len_sq <= 1;
 
                     if(could_hit)
                     {
+                        __global struct computed_triangle* ctri = &linear_mem[i];
+
                         float4 i_e0_0 = inverse_e0s[ctri->geodesic_segment];
                         float4 i_e1_0 = inverse_e1s[ctri->geodesic_segment];
                         float4 i_e2_0 = inverse_e2s[ctri->geodesic_segment];

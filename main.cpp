@@ -316,8 +316,10 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
         run_args.push_back(accel.counts);
         run_args.push_back(accel.offsets);
         run_args.push_back(accel.memory);
+        run_args.push_back(accel.memory_count);
         run_args.push_back(accel.start_times_memory);
         run_args.push_back(accel.delta_times_memory);
+        run_args.push_back(accel.linear_object_positions);
         run_args.push_back(accel.unculled_counts);
         run_args.push_back(accel.any_visible);
         run_args.push_back(accel.offset_width);
@@ -788,8 +790,8 @@ int main(int argc, char* argv[])
     }
 
     render_settings sett;
-    sett.width = 800;
-    sett.height = 600;
+    sett.width = 400;
+    sett.height = 200;
     sett.opencl = true;
     sett.no_double_buffer = true;
     sett.is_srgb = true;
@@ -798,8 +800,8 @@ int main(int argc, char* argv[])
 
     if(loaded_settings)
     {
-        sett.width = current_settings.width;
-        sett.height = current_settings.height;
+        //sett.width = current_settings.width;
+        //sett.height = current_settings.height;
     }
 
     render_window win(sett, "Geodesics");
@@ -807,7 +809,7 @@ int main(int argc, char* argv[])
     if(loaded_settings)
     {
         win.set_vsync(current_settings.vsync_enabled);
-        win.backend->set_is_maximised(current_settings.fullscreen);
+        //win.backend->set_is_maximised(current_settings.fullscreen);
 
         if(current_settings.fullscreen)
         {
@@ -816,9 +818,11 @@ int main(int argc, char* argv[])
     }
     else
     {
-        win.backend->set_is_maximised(true);
+        //win.backend->set_is_maximised(true);
         win.backend->clear_demaximise_cache();
     }
+
+    win.backend->set_is_maximised(false);
 
     assert(win.clctx);
 

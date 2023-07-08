@@ -108,6 +108,7 @@ namespace triangle_rendering
         cl::buffer delta_times_memory;
         cl::buffer memory_count;
         cl::buffer unculled_counts;
+        cl::buffer linear_object_positions;
 
         cl::buffer ray_time_min;
         cl::buffer ray_time_max;
