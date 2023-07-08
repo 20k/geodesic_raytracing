@@ -3783,42 +3783,8 @@ struct step_setup setup_step(float4 grid1, float4 grid2)
     ///where I take the fractional part of the coordinate, ie fmod(pos, 1)
     ///though careful!! we CAN have negative coordinates here, the looping is done elsewhere
     ///this means need to positive_fmod
-    float4 position_fraction = grid1 - floor(grid1);
-
-    //float4 target = (float4)(1,1,1,1);
-
-    /*if(ret.sign_step_x < 0)
-        target.x = 0;
-
-    if(ret.sign_step_y < 0)
-        target.y = 0;
-
-    if(ret.sign_step_z < 0)
-        target.z = 0;
-
-    if(ret.sign_step_w < 0)
-        target.w = 0;
-
-    if(ray_dir.x == 0)
-        ray_dir.x = 1;
-
-    if(ray_dir.y == 0)
-        ray_dir.y = 1;
-
-    if(ray_dir.z == 0)
-        ray_dir.z = 1;
-
-    if(ray_dir.w == 0)
-        ray_dir.w = 1;*/
-
-    //float4 tMax = (target - position_fraction) / ray_dir;
-
-    ///if we move at a speed of 0.7, the time it takes in t to traverse a voxel of size 1 is 1/0.7 == 1.42
-    //float4 tDelta = 1.f / fabs(ray_dir);
 
     float4 signs = sign(ray_dir);
-
-    //float4 tDelta = signs / (grid2 - grid1);
 
     float4 tDelta;
 
