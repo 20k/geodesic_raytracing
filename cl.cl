@@ -4743,7 +4743,7 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
     float4 mixed_1 = mix(fv1, fe1, tri_frac);
     float4 mixed_2 = mix(fv2, fe2, tri_frac);*/
 
-    float4 mixed_position = mix(object_geodesic_origin, next_object_geodesic_origin, frac);
+    float4 mixed_position = mix(object_geodesic_origin, next_object_geodesic_origin, tri_frac);
 
     float tetrad_frac = tri_frac;
 
