@@ -4602,29 +4602,12 @@ float4 geodesic_to_coordinate_time(float4 velocity)
 }
 
 ///dir is not normalised, should really use a pos2
-bool ray_intersects_toblerone(float4 global_pos, float4 ray_vel4, float ds, __global struct computed_triangle* ctri, float4 object_geodesic_origin, float4 object_geodesic_velocity, float4 i_e0, float4 i_e1, float4 i_e2, float4 i_e3, float t_tri_start_time, float t_tri_delta_time, float* t_out, bool debug, float4 periods)
+bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 ray_vel4, float ds, __global struct computed_triangle* ctri, float4 object_geodesic_origin, float4 object_geodesic_velocity, float4 i_e0, float4 i_e1, float4 i_e2, float4 i_e3, float t_tri_start_time, float t_tri_delta_time, float* t_out, bool debug, float4 periods)
 {
-
-    //float mlen = max(max(dot(v0, v0), dot(v1, v1)), dot(v2, v2));
-    //float mlen2 = max(max(dot(e0, e0), dot(e1, e1)), dot(e2, e2));
-
-    //float len = max(mlen, mlen2);
-
-    /*if(debug)
-    {
-        printf("Time %f\n", t_tri_start_time - origin.x);
-    }*/
-
-    //if(!range_overlaps(global_pos.x, global_pos.x + global_dir.x, t_tri_start_time, t_tri_start_time + t_tri_delta_time))
-    //    return false;
-
+    float4 global_dir = next_global_pos - global_pos;
     float4 t_pos = periodic_diff(global_pos, object_geodesic_origin, periods);
 
-    /*float len_sq = dot(t_pos, t_pos);
-
-    if(len_sq > 5.f)
-        return false;*/
-
+    #if 0
     float4 fv0 = ctri->coordinate_v0 - object_geodesic_origin;
     float4 fv1 = ctri->coordinate_v1 - object_geodesic_origin;
     float4 fv2 = ctri->coordinate_v2 - object_geodesic_origin;
@@ -4641,15 +4624,8 @@ bool ray_intersects_toblerone(float4 global_pos, float4 ray_vel4, float ds, __gl
     float3 e1 = fe1.yzw;
     float3 e2 = fe2.yzw;
 
-    float object_Y = object_geodesic_origin.x;
-
     ///ray_vel4.x + ray_vel4.x * cst = object_geodesic_origin.x
     ///(object_geodesic_origin.x - ray_vel4.x) / ray_vel4.x = cst
-
-    /*float ray_dlambda_intersection = (object_geodesic_origin.x - ray_vel4.x) / ray_vel4.x;
-
-    if(ray_dlambda_intersection < 0 || ray_dlambda_intersection > 1)
-        return false;*/
 
     ///object_pos.x + object_vel.x * object_proper_time = light_ray.x + light_vel.x * affine
     ///object_pos.x + object_dct.x * coordinate_time_1 = light_ray.x + light_dct.x * coordinate_time_2
@@ -4714,9 +4690,10 @@ bool ray_intersects_toblerone(float4 global_pos, float4 ray_vel4, float ds, __gl
     }
 
     return success;
+    #endif
 
 
-    #if 0
+    #if 1
     float4 fv0 = ctri->tv0;
     float4 fv1 = ctri->tv1;
     float4 fv2 = ctri->tv2;
@@ -5335,7 +5312,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                                 bool debug = sx == 800/2 && sy == 600/2;
 
-                                if(ray_intersects_toblerone(rt_real_pos, rt_velocity, ds, ctri, origin, object_vel, i_e0, i_e1, i_e2, i_e3, start_time, delta_time, &ray_t, debug, periods))
+                                if(ray_intersects_toblerone(rt_real_pos, next_rt_real_pos, rt_velocity, ds, ctri, origin, object_vel, i_e0, i_e1, i_e2, i_e3, start_time, delta_time, &ray_t, debug, periods))
                                 {
                                     //if(debug)
                                     //    printf("Seggy %i\n", ctri->geodesic_segment);
