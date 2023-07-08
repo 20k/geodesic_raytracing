@@ -790,8 +790,8 @@ int main(int argc, char* argv[])
     }
 
     render_settings sett;
-    sett.width = 400;
-    sett.height = 200;
+    sett.width = 500;
+    sett.height = 300;
     sett.opencl = true;
     sett.no_double_buffer = true;
     sett.is_srgb = true;
