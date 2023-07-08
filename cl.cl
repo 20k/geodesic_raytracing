@@ -4690,6 +4690,21 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
     ///in the tetrad, the light ray will intersect with the 0 coordinate time, which is 'when' the triangle is
     ///the problem is, this is fine as a tier 0 approximation, but the tri needs to move through coordinate space to get a good enough approximation
     ///which really means tetrad drift, and being tied to the geodesic
+    ///say I have two light rays at different coordinate times
+    ///they're never intersect
+    ///I can find out their positions at the *same* coordinate time
+    ///I think coordinate time isn't helpful. If I parameterise affinely, the light ray does intersect at any point in the rays path
+    ///so it is a linear intersection, there's no singular t value
+    ///Things all advance through coordinate time at the same rate if they're going forwards
+    ///the only way to make comparisons is to have them on the same coordinate time coordinate
+    ///so, we are first able to observe the light ray at our tris coordinate time 1, and then it leaves at our tris coordinate time 2
+    ///and everything along that is valid. In this scheme, the light ray is a straight line at that point
+    ///ideally we'd parameterise the tri by time and interpolate in the local tetrad, but no thank you
+    ///when we're doing light rays, we want to intersect with the *first* object, ie *latest* in time
+    ///can also alleviate coordinate time concerns by using tetrads
+
+    /*if(global_pos.x < object_geodesic_origin.x)
+        return false;
 
     float dt = (global_pos.x - object_geodesic_origin.x) / 2;
 
@@ -4701,82 +4716,85 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
     float lb = -0.0;
     float ub = 0.0;
 
-    float coordinate_time_elapsed = dt;
-    float frac = coordinate_time_elapsed / -light_ray_diff_t;
+    //float coordinate_time_elapsed = dt;
+    //float frac = coordinate_time_elapsed / -light_ray_diff_t;
+
+    float light_ray_coordinate_end_time = global_pos.x + light_ray_dct * dt;
 
     //if(frac < -0.01f || frac > 1.01f)
     //    return false;
 
-    float tri_frac = coordinate_time_elapsed / fabs(next_object_geodesic_origin.x - object_geodesic_origin.x);
+    float tri_frac = (light_ray_coordinate_end_time - object_geodesic_origin.x) / fabs(next_object_geodesic_origin.x - object_geodesic_origin.x);
 
     if(tri_frac < -0.01f || tri_frac > 1.01f)
+        return false;*/
+
+    //float tri_frac = 0;
+
+    float ray_lower_t = next_global_pos.x;
+    float ray_upper_t = global_pos.x;
+
+    float tri_lower_t = object_geodesic_origin.x;
+    float tri_upper_t = next_object_geodesic_origin.x;
+
+    if(!range_overlaps(ray_lower_t, ray_upper_t, tri_lower_t, tri_upper_t))
         return false;
 
-    /*float4 fv0 = ctri->tv0;
-    float4 fv1 = ctri->tv1;
-    float4 fv2 = ctri->tv2;
+    float min_t = max(ray_lower_t, tri_lower_t);
+    float max_t = min(ray_upper_t, tri_upper_t);
 
-    float4 fe0 = ctri->te0;
-    float4 fe1 = ctri->te1;
-    float4 fe2 = ctri->te2;
-
-    float3 v0 = fv0.yzw;
-    float3 v1 = fv1.yzw;
-    float3 v2 = fv2.yzw;
-
-    float3 e0 = fe0.yzw;
-    float3 e1 = fe1.yzw;
-    float3 e2 = fe2.yzw;*/
-
-    /*float4 fv0 = ctri->coordinate_v0;
-    float4 fv1 = ctri->coordinate_v1;
-    float4 fv2 = ctri->coordinate_v2;
-
-    float4 fe0 = ctri->coordinate_e0;
-    float4 fe1 = ctri->coordinate_e1;
-    float4 fe2 = ctri->coordinate_e2;
-
-    float4 mixed_0 = mix(fv0, fe0, tri_frac);
-    float4 mixed_1 = mix(fv1, fe1, tri_frac);
-    float4 mixed_2 = mix(fv2, fe2, tri_frac);*/
-
-    float4 mixed_position = mix(object_geodesic_origin, next_object_geodesic_origin, tri_frac);
-
-    float tetrad_frac = tri_frac;
-
-    float4 i_e0 = mix(i_re0, i_ne0, tetrad_frac);
-    float4 i_e1 = mix(i_re1, i_ne1, tetrad_frac);
-    float4 i_e2 = mix(i_re2, i_ne2, tetrad_frac);
-    float4 i_e3 = mix(i_re3, i_ne3, tetrad_frac);
-
-    /*float3 i0 = coordinate_to_tetrad_basis(mixed_0 - mixed_position, i_e0, i_e1, i_e2, i_e3).yzw;
-    float3 i1 = coordinate_to_tetrad_basis(mixed_1 - mixed_position, i_e0, i_e1, i_e2, i_e3).yzw;
-    float3 i2 = coordinate_to_tetrad_basis(mixed_2 - mixed_position, i_e0, i_e1, i_e2, i_e3).yzw;*/
-
-    float3 i0 = ctri->tv0.yzw;
-    float3 i1 = ctri->tv1.yzw;
-    float3 i2 = ctri->tv2.yzw;
-
-    ///this is fundamentally incorrect, they overlap multiple times
-    ///but... there should be one time at which a photon was emitted, based on the time intersection
-    float4 pos = coordinate_to_tetrad_basis(periodic_diff(global_pos, mixed_position, periods), i_e0, i_e1, i_e2, i_e3);
-    float4 dir = coordinate_to_tetrad_basis(ray_vel4 * ds, i_e0, i_e1, i_e2, i_e3);
-
-    float ray_t = 0;
-
-    bool success = ray_intersects_triangle(pos.yzw, dir.yzw, i0, i1, i2, &ray_t, 0, 0);
-
-    if(ray_t < -0.05f || ray_t >= 1.05f)
+    if(max_t < min_t)
         return false;
 
-    //float coordinate_time_elapsed = -ray_t;
+    int fracs = 8;
 
-    if(success && t_out)
+    for(int i=0; i < fracs; i++)
     {
-        *t_out = ray_t;
+        float frac = (float)i / (fracs - 1);
+
+        float real_time = (min_t - max_t) * frac + max_t;
+
+        float tri_frac = (real_time - tri_lower_t) / (tri_upper_t - tri_lower_t);
+
+        //float tri_frac = frac;
+
+        float4 mixed_position = mix(object_geodesic_origin, next_object_geodesic_origin, tri_frac);
+
+        float tetrad_frac = tri_frac;
+
+        float4 i_e0 = mix(i_re0, i_ne0, tetrad_frac);
+        float4 i_e1 = mix(i_re1, i_ne1, tetrad_frac);
+        float4 i_e2 = mix(i_re2, i_ne2, tetrad_frac);
+        float4 i_e3 = mix(i_re3, i_ne3, tetrad_frac);
+
+        float3 i0 = ctri->tv0.yzw;
+        float3 i1 = ctri->tv1.yzw;
+        float3 i2 = ctri->tv2.yzw;
+
+        ///this is fundamentally incorrect, they overlap multiple times
+        ///but... there should be one time at which a photon was emitted, based on the time intersection
+        float4 pos = coordinate_to_tetrad_basis(periodic_diff(global_pos, mixed_position, periods), i_e0, i_e1, i_e2, i_e3);
+        float4 dir = coordinate_to_tetrad_basis(ray_vel4 * ds, i_e0, i_e1, i_e2, i_e3);
+
+        float ray_t = 0;
+
+        bool success = ray_intersects_triangle(pos.yzw, dir.yzw, i0, i1, i2, &ray_t, 0, 0);
+
+        if(ray_t < -0.01f || ray_t >= 1.01f)
+            return false;
+
+        //float coordinate_time_elapsed = -ray_t;
+
+        if(success && t_out)
+        {
+            *t_out = ray_t;
+        }
+
+        if(success)
+            return true;
     }
 
-    return success;
+    return false;
     #endif
 
     ///tri1 + object_local_velocity.x * lambda1 = tritime
