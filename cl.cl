@@ -4711,8 +4711,89 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
     return success;
     #endif
 
+    //bool ray_plane_intersection(float3 plane_origin, float3 plane_normal, float3 ray_origin, float3 ray_direction, float* t)
 
-    #if 1
+    float ray_lower_t = next_global_pos.x;
+    float ray_upper_t = global_pos.x;
+
+    float tri_lower_t = object_geodesic_origin.x;
+    float tri_upper_t = next_object_geodesic_origin.x;
+
+    //if(debug)
+    //    printf("P1\n");
+
+    if(!range_overlaps(ray_lower_t, ray_upper_t, tri_lower_t, tri_upper_t))
+        return false;
+
+    //if(debug)
+    //    printf("P2\n");
+
+    float min_t = max(ray_lower_t, tri_lower_t);
+    float max_t = min(ray_upper_t, tri_upper_t);
+
+    if(max_t < min_t)
+        return false;
+
+    float3 v0 = ctri->tv0.yzw;
+    float3 v1 = ctri->tv1.yzw;
+    float3 v2 = ctri->tv2.yzw;
+
+    float4 plane_origin = object_geodesic_origin;
+    float3 plane_normal = normalize(cross(v1 - v0, v2 - v0));
+    //float3 local_plane_origin =
+
+    float4 ray_origin = global_pos;
+    float4 ray_vel = (next_global_pos - global_pos);
+
+    float4 i_e0 = i_re0;
+    float4 i_e1 = i_re1;
+    float4 i_e2 = i_re2;
+    float4 i_e3 = i_re3;
+
+    float4 pos = coordinate_to_tetrad_basis(periodic_diff(ray_origin, plane_origin, periods), i_e0, i_e1, i_e2, i_e3);
+    float4 dir = coordinate_to_tetrad_basis(ray_vel, i_e0, i_e1, i_e2, i_e3);
+
+    for(int i=0; i < 4; i++)
+    {
+        float t1 = 0;
+
+        if(!ray_plane_intersection(v0, plane_normal, pos.yzw, dir.yzw, &t1))
+            return false;
+
+        float new_t = ray_origin.x + ray_vel.x * t1;
+
+        float triangle_frac = (new_t - tri_lower_t) / (tri_upper_t - tri_lower_t);
+
+        triangle_frac = clamp(triangle_frac, 0.f, 1.f);
+
+        plane_origin = mix(object_geodesic_origin, next_object_geodesic_origin, triangle_frac);
+
+        i_e0 = mix(i_re0, i_ne0, triangle_frac);
+        i_e1 = mix(i_re1, i_ne1, triangle_frac);
+        i_e2 = mix(i_re2, i_ne2, triangle_frac);
+        i_e3 = mix(i_re3, i_ne3, triangle_frac);
+
+        pos = coordinate_to_tetrad_basis(periodic_diff(ray_origin, object_geodesic_origin, periods), i_e0, i_e1, i_e2, i_e3);
+        dir = coordinate_to_tetrad_basis(ray_vel, i_e0, i_e1, i_e2, i_e3);
+    }
+
+    float ray_t = 0;
+
+    bool intersected = ray_intersects_triangle(pos.yzw, dir.yzw, v0, v1, v2, &ray_t, 0, 0);
+
+    float new_x = ray_origin.x + ray_t * ray_vel.x;
+
+    if(new_x < min_t || new_x > max_t)
+        return false;
+
+    if(intersected && t_out)
+    {
+        *t_out = ray_t;
+    }
+
+    return intersected;
+
+    #if 0
 
     ///I think I'm doing this wrong
     ///I want to exist in the frame of reference of the triangle, with a light ray coming in
@@ -4763,20 +4844,35 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
 
     //float tri_frac = 0;
 
+
     float ray_lower_t = next_global_pos.x;
     float ray_upper_t = global_pos.x;
 
     float tri_lower_t = object_geodesic_origin.x;
     float tri_upper_t = next_object_geodesic_origin.x;
 
+    //if(debug)
+    //    printf("P1\n");
+
     if(!range_overlaps(ray_lower_t, ray_upper_t, tri_lower_t, tri_upper_t))
         return false;
+
+    //if(debug)
+    //    printf("P2\n");
 
     float min_t = max(ray_lower_t, tri_lower_t);
     float max_t = min(ray_upper_t, tri_upper_t);
 
     if(max_t < min_t)
         return false;
+
+    //if(debug)
+    //    printf("P3\n");
+
+    /*if(debug)
+    {
+        printf("hi\n");
+    }*/
 
     #if 0
     float dt = (global_pos.x - object_geodesic_origin.x) / 2;
@@ -4806,6 +4902,14 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
         return false;
     #endif // 0
 
+    ///i may just have to do ray spinning moving plane intersection
+    ///no, a proper spinnign ray plane should be equivalent to what I've got
+    ///ok situation 2
+    ///we do a ray plane intersection, and get a collision estimate t
+    ///then we get a new plane and get a new collision estimate etc
+    ///then we check to see if its a valid triangle hit. I think this is the issue?
+    ///The ray is moving in the local tetrad, and the problem is the tri should move as well
+    ///just realised another issue too but forgot
     //float4 test_dir = ray_vel4 * ds;
     float4 test_dir = next_global_pos - global_pos;
 
@@ -4861,6 +4965,7 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
     }
 
     return false;
+
     #endif
 
     ///tri1 + object_local_velocity.x * lambda1 = tritime
@@ -5060,7 +5165,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                       __global float4* object_velocities,
                       __global float4* inverse_e0s, __global float4* inverse_e1s, __global float4* inverse_e2s, __global float4* inverse_e3s,
                       dynamic_config_space struct dynamic_config* cfg,
-                      dynamic_config_space struct dynamic_feature_config* dfg)
+                      dynamic_config_space struct dynamic_feature_config* dfg,
+                      int mouse_x, int mouse_y)
 {
     int id = get_global_id(0);
 
@@ -5320,7 +5426,9 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                         float ray_t = 0;
 
-                        bool debug = sx == 800/2 && sy == 600/2;
+                        //bool debug = sx == 800/2 && sy == 600/2;
+
+                        bool debug = sx == mouse_x && sy == mouse_y;
 
                         if(ray_intersects_toblerone(rt_real_pos, next_rt_real_pos, rt_velocity, ds, ctri, origin, object_vel, origin_1,
                                                     i_e0, i_e1, i_e2, i_e3,

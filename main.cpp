@@ -300,6 +300,9 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
             }
         }
 
+        int mouse_x = ImGui::GetMousePos().x;
+        int mouse_y = ImGui::GetMousePos().y;
+
         cl::args run_args;
         run_args.push_back(rays_in);
         run_args.push_back(rays_out);
@@ -341,6 +344,8 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
 
         run_args.push_back(dynamic_config);
         run_args.push_back(dynamic_feature_config);
+        run_args.push_back(mouse_x);
+        run_args.push_back(mouse_y);
 
         cqueue.exec("do_generic_rays", run_args, {num_rays}, {256});
     }
