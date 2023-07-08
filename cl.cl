@@ -1351,6 +1351,8 @@ float positive_fmod(float a, float b)
        v += b;
 
     return v;
+
+    //return a - floor(a/b)*b;
 }
 
 float4 positive_fmod4(float4 a, float4 b)
@@ -3953,12 +3955,17 @@ bool range_overlaps(float s0, float s1, float e0, float e1)
 
 float circular_diff(float f1, float f2)
 {
-    f1 = positive_fmod(f1, 1.f);
-    f2 = positive_fmod(f2, 1.f);
+    f1 = f1 - floor(f1);
+    f2 = f2 - floor(f2);
 
     float df = f2 - f1;
 
-    if(df >= 0)
+    ///-(1 - (-df))
+    //= -(1 + df)
+    //= df - 1;
+    //= -(1 - df)
+
+    /*if(df >= 0)
     {
         if(df >= 0.5f)
             return 1 - df;
@@ -3971,7 +3978,15 @@ float circular_diff(float f1, float f2)
             return -(1 - (-df));
         else
             return df;
-    }
+    }*/
+
+    float df1m = 1 - df;
+
+    float adf = df < 0 ? -df : df;
+
+    float bigcase = select(-df1m, df1m, df > 0.5f);
+
+    return select(df, bigcase, adf >= 0.5f);
 }
 
 float2 circular_diff2(float2 f1, float2 f2)
@@ -3984,7 +3999,7 @@ float4 periodic_diff(float4 in1, float4 in2, float4 periods)
     float4 ret = in1 - in2;
 
     #define CHECK_PERIOD(v) if(periods.v != 0)\
-                            {ret.v = circular_diff(in2.v/periods.v, in1.v/periods.v) * periods.v;}
+                            {ret.v = circular_diff(native_divide(in2.v,periods.v), native_divide(in1.v,periods.v)) * periods.v;}
     CHECK_PERIOD(x)
     CHECK_PERIOD(y)
     CHECK_PERIOD(z)
@@ -5230,6 +5245,9 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                     ///here is where i need to enforce periodicity for rt_real_pos and origin
                     float4 t_pos = periodic_diff(rt_real_pos, origin, periods);
+
+                    //if(t_pos.x < 100000)
+                    //    continue;
 
                     float len_sq = dot(t_pos, t_pos);
 
