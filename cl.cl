@@ -4806,12 +4806,10 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
         return false;
     #endif // 0
 
-
-
     //float4 test_dir = ray_vel4 * ds;
     float4 test_dir = next_global_pos - global_pos;
 
-    int fracs = 16;
+    int fracs = 4;
 
     //#pragma unroll
     for(int i=0; i < fracs; i++)
@@ -4820,6 +4818,9 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
         float frac = (float)i / cfrac;
         float real_time = (min_t - max_t) * frac + max_t;
         float tri_frac = (real_time - tri_lower_t) / (tri_upper_t - tri_lower_t);
+        float ray_frac = (real_time - ray_lower_t) / (ray_upper_t - ray_lower_t);
+
+        float4 ray_pos = mix(global_pos, next_global_pos, 1-ray_frac);
 
         //float tri_frac = frac;
 
@@ -4838,17 +4839,17 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
 
         ///this is fundamentally incorrect, they overlap multiple times
         ///but... there should be one time at which a photon was emitted, based on the time intersection
-        float4 pos = coordinate_to_tetrad_basis(periodic_diff(global_pos, mixed_position, periods), i_e0, i_e1, i_e2, i_e3);
+        float4 pos = coordinate_to_tetrad_basis(periodic_diff(ray_pos, mixed_position, periods), i_e0, i_e1, i_e2, i_e3);
         float4 dir = coordinate_to_tetrad_basis(test_dir, i_e0, i_e1, i_e2, i_e3);
 
         float ray_t = 0;
 
         bool success = ray_intersects_triangle(pos.yzw, dir.yzw, i0, i1, i2, &ray_t, 0, 0);
 
-        if(ray_t < -0.05f || ray_t >= 1.05f)
-            return false;
+        float new_x = test_dir.x * ray_t + ray_pos.x;
 
-        //float coordinate_time_elapsed = -ray_t;
+        if(new_x < min_t || new_x > max_t)
+            continue;
 
         if(success && t_out)
         {
