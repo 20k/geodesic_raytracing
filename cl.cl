@@ -4746,11 +4746,14 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
     if(max_t < min_t)
         return false;
 
-    int fracs = 8;
+    int fracs = 1;
 
+    #pragma unroll
     for(int i=0; i < fracs; i++)
     {
-        float frac = (float)i / (fracs - 1);
+        int cfrac = max(fracs - 1, 1);
+
+        float frac = (float)i / cfrac;
 
         float real_time = (min_t - max_t) * frac + max_t;
 
@@ -4773,7 +4776,7 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
 
         ///this is fundamentally incorrect, they overlap multiple times
         ///but... there should be one time at which a photon was emitted, based on the time intersection
-        float4 pos = coordinate_to_tetrad_basis(periodic_diff(global_pos, mixed_position, periods), i_e0, i_e1, i_e2, i_e3);
+        float4 pos = coordinate_to_tetrad_basis(periodic_diff(global_pos, object_geodesic_origin, periods), i_e0, i_e1, i_e2, i_e3);
         float4 dir = coordinate_to_tetrad_basis(ray_vel4 * ds, i_e0, i_e1, i_e2, i_e3);
 
         float ray_t = 0;
@@ -4972,7 +4975,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                       __global int* restrict finished_count_out,
                       //__global float4* path_out, __global int* counts_out,
                       __global struct triangle* tris, int tri_count, __global struct intersection* intersections_out, __global int* intersection_count,
-                      __global int* counts, __global int* offsets, __global struct computed_triangle* linear_mem, __global float* linear_start_times, __global float* linear_delta_times,
+                      __global int* counts, __global int* offsets, __global struct computed_triangle* linear_mem, __global int* linear_mem_size, __global float* linear_start_times, __global float* linear_delta_times,
                       __global int* unculled_counts,
                       __constant int* any_visible,
                       float accel_width, float accel_time_width, int accel_width_num,
@@ -5195,7 +5198,89 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                 last_real_pos = native_position;
                 last_real_velocity = native_velocity;
 
-                #if 1
+                #define ALL_CHECK
+                #ifdef ALL_CHECK
+                struct intersection out;
+                out.sx = sx;
+                out.sy = sy;
+
+                float best_intersection = FLT_MAX;
+
+                for(int i=0; i < *linear_mem_size; i++)
+                {
+                    __global struct computed_triangle* ctri = &linear_mem[i];
+
+                    ///saves about 2ms, but I'm concerned about validity
+                    #ifdef FIRST_BEST_INTERSECTION
+                    int hit_id = -1;
+                    #endif
+
+                    float4 origin = object_positions[ctri->geodesic_segment];
+
+                    ///here is where i need to enforce periodicity for rt_real_pos and origin
+                    float4 t_pos = periodic_diff(rt_real_pos, origin, periods);
+
+                    float len_sq = dot(t_pos, t_pos);
+
+                    bool could_hit = len_sq <= 5;
+
+                    if(could_hit)
+                    {
+                        float4 i_e0_0 = inverse_e0s[ctri->geodesic_segment];
+                        float4 i_e1_0 = inverse_e1s[ctri->geodesic_segment];
+                        float4 i_e2_0 = inverse_e2s[ctri->geodesic_segment];
+                        float4 i_e3_0 = inverse_e3s[ctri->geodesic_segment];
+
+                        float4 i_e0_1 = inverse_e0s[ctri->next_geodesic_segment];
+                        float4 i_e1_1 = inverse_e1s[ctri->next_geodesic_segment];
+                        float4 i_e2_1 = inverse_e2s[ctri->next_geodesic_segment];
+                        float4 i_e3_1 = inverse_e3s[ctri->next_geodesic_segment];
+
+                        float4 origin_1 = object_positions[ctri->next_geodesic_segment];
+
+                        float4 i_e0 = inverse_e0s[ctri->geodesic_segment];
+                        float4 i_e1 = inverse_e1s[ctri->geodesic_segment];
+                        float4 i_e2 = inverse_e2s[ctri->geodesic_segment];
+                        float4 i_e3 = inverse_e3s[ctri->geodesic_segment];
+                        float4 object_vel = object_velocities[ctri->geodesic_segment];
+
+                        float ray_t = 0;
+
+                        bool debug = sx == 800/2 && sy == 600/2;
+
+                        if(ray_intersects_toblerone(rt_real_pos, next_rt_real_pos, rt_velocity, ds, ctri, origin, object_vel, origin_1,
+                                                    i_e0, i_e1, i_e2, i_e3,
+                                                    i_e0_1, i_e1_1, i_e2_1, i_e3_1,
+                                                    0, 0, &ray_t, debug, periods))
+                        {
+                            if(ray_t < best_intersection)
+                            {
+                                out.computed_parent = i;
+                                best_intersection = ray_t;
+
+                                #ifdef FIRST_BEST_INTERSECTION
+                                hit_id = base_offset + t_off;
+                                #endif
+                            }
+                        }
+
+                    }
+                }
+
+                if(best_intersection != FLT_MAX)
+                {
+                    atomic_min(ray_time_min, (int)floor(my_min));
+                    atomic_max(ray_time_max, (int)ceil(my_max));
+
+                    int isect = atomic_inc(intersection_count);
+
+                    intersections_out[isect] = out;
+
+                    return;
+                }
+                #endif
+
+                #if 0
 
                 {
                     struct step_setup setup;
@@ -5329,7 +5414,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                                 if(ray_intersects_toblerone(rt_real_pos, next_rt_real_pos, rt_velocity, ds, ctri, origin, object_vel, origin_1,
                                                             i_e0, i_e1, i_e2, i_e3,
-                                                            i_e0_0, i_e1_0, i_e2_0, i_e3_0,
+                                                            i_e0_1, i_e1_1, i_e2_1, i_e3_1,
                                                             start_time, delta_time, &ray_t, debug, periods))
                                 {
                                     //if(debug)
@@ -5345,12 +5430,14 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                                         #endif
                                     }
                                 }
-
                                 /*if(debug)
                                 {
                                     printf("Ray pos %f %f %f %f tri geodesic %f %f %f %f dist %f\n", rt_real_pos.x, rt_real_pos.y, rt_real_pos.z,rt_real_pos.w, origin.x, origin.y, origin.z, origin.w, sqrt(len_sq));
                                 }*/
                             }
+
+                            //out.computed_parent = base_offset + t_off;
+                            //best_intersection = 0.f;
 
                             #if 0
                             #define OBSERVER_DEPENDENCE

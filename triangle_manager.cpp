@@ -93,6 +93,8 @@ std::vector<subtriangle> triangulate_those_bigger_than(const std::vector<triangl
         ret.push_back(stri);
     }
 
+    return ret;
+
     return triangulate_those_bigger_than(ret, size);
 }
 
@@ -255,14 +257,18 @@ void triangle_rendering::manager::build(cl::command_queue& cqueue, float acceler
 
         for(subtriangle& t : sub)
         {
-            local_subtri_as_points.push_back({t.get_vert(0), t.parent + global_running_tri_index});
+            /*local_subtri_as_points.push_back({t.get_vert(0), t.parent + global_running_tri_index});
             local_subtri_as_points.push_back({t.get_vert(1), t.parent + global_running_tri_index});
-            local_subtri_as_points.push_back({t.get_vert(2), t.parent + global_running_tri_index});
+            local_subtri_as_points.push_back({t.get_vert(2), t.parent + global_running_tri_index});*/
+
+            vec3f average = (t.get_vert(0) + t.get_vert(1) + t.get_vert(2))/3.f;
+
+            local_subtri_as_points.push_back({average, t.parent + global_running_tri_index});
         }
 
         global_running_tri_index += i->tris.size();
 
-        for(auto& [point, p] : local_subtri_as_points)
+        /*for(auto& [point, p] : local_subtri_as_points)
         {
             float scale = acceleration_voxel_size;
 
@@ -271,7 +277,7 @@ void triangle_rendering::manager::build(cl::command_queue& cqueue, float acceler
             //vox = floor(vox);
 
             point = vox * scale;
-        }
+        }*/
 
         std::sort(local_subtri_as_points.begin(), local_subtri_as_points.end(), [](auto& i1, auto& i2)
         {
