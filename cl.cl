@@ -2708,7 +2708,7 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
             float4 fin_generic = mix(current_pos, next_pos, dx);
             float4 fin_polar = generic_to_spherical(fin_generic, cfg);
 
-            *g_camera_polar_out = generic_to_spherical(fin_polar, cfg);
+            *g_camera_polar_out = fin_polar;
 
             float4 e0 = t_e0_in[i];
             float4 e1 = t_e1_in[i];
@@ -4707,8 +4707,8 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
     float coordinate_time_elapsed = dt;
     float frac = coordinate_time_elapsed / -light_ray_diff_t;
 
-    if(frac < -0.01f || frac > 1.01f)
-        return false;
+    //if(frac < -0.01f || frac > 1.01f)
+    //    return false;
 
     float tri_frac = coordinate_time_elapsed / fabs(next_object_geodesic_origin.x - object_geodesic_origin.x);
 
@@ -4769,7 +4769,7 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
 
     bool success = ray_intersects_triangle(pos.yzw, dir.yzw, i0, i1, i2, &ray_t, 0, 0);
 
-    if(ray_t < -0.01f || ray_t >= 1.01f)
+    if(ray_t < -0.05f || ray_t >= 1.05f)
         return false;
 
     //float coordinate_time_elapsed = -ray_t;
