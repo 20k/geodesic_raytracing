@@ -4778,6 +4778,36 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
     if(max_t < min_t)
         return false;
 
+    #if 0
+    float dt = (global_pos.x - object_geodesic_origin.x) / 2;
+
+    float light_ray_dct = -1;
+    float light_ray_diff_t = ray_vel4.x * ds;
+
+    float light_ray_end_time = global_pos.x + light_ray_diff_t;
+
+    float lb = -0.0;
+    float ub = 0.0;
+
+    //if(dt < lb || global_pos.x + light_ray_dct * dt < light_ray_end_time + ub)
+    //    return false;
+
+    float coordinate_time_elapsed = dt;
+    //float frac = coordinate_time_elapsed / -light_ray_diff_t;
+
+    //if(frac < 0 || frac > 1)
+    //    return false;
+
+    float light_ray_coordinate_end_time = global_pos.x + light_ray_dct * dt;
+
+    float tri_frac = (light_ray_coordinate_end_time - object_geodesic_origin.x) / fabs(next_object_geodesic_origin.x - object_geodesic_origin.x);
+
+    if(tri_frac < -0.01f || tri_frac > 1.01f)
+        return false;
+    #endif // 0
+
+
+
     //float4 test_dir = ray_vel4 * ds;
     float4 test_dir = next_global_pos - global_pos;
 
@@ -4791,7 +4821,7 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
         float real_time = (min_t - max_t) * frac + max_t;
         float tri_frac = (real_time - tri_lower_t) / (tri_upper_t - tri_lower_t);
 
-        //float tri_frac = 0;
+        //float tri_frac = frac;
 
         float4 mixed_position = mix(object_geodesic_origin, next_object_geodesic_origin, tri_frac);
 
