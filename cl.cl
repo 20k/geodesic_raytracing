@@ -4140,10 +4140,9 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         float4 e_lo[4];
         get_tetrad_inverse(s_e0, s_e1, s_e2, s_e3, &e_lo[0], &e_lo[1], &e_lo[2], &e_lo[3]);
 
-        ///this is literally the local vertices via a roundtrip
-        local_tri.tv0 = coordinate_to_tetrad_basis(gv0 - origin, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
-        local_tri.tv1 = coordinate_to_tetrad_basis(gv1 - origin, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
-        local_tri.tv2 = coordinate_to_tetrad_basis(gv2 - origin, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
+        local_tri.tv0 = vert_0;
+        local_tri.tv1 = vert_1;
+        local_tri.tv2 = vert_2;
 
         local_tri.te0 = coordinate_to_tetrad_basis(ge0 - origin, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
         local_tri.te1 = coordinate_to_tetrad_basis(ge1 - origin, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
@@ -4156,18 +4155,6 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         local_tri.coordinate_e0 = ge0;
         local_tri.coordinate_e1 = ge1;
         local_tri.coordinate_e2 = ge2;
-
-        ///triangle coordinates are minkowski, no need to fix them
-        /*local_tri.tv0 = fix_periodic_coordinates(local_tri.tv0);
-        local_tri.tv1 = fix_periodic_coordinates(local_tri.tv1);
-        local_tri.tv2 = fix_periodic_coordinates(local_tri.tv2);
-
-        local_tri.te0 = fix_periodic_coordinates(local_tri.te0);
-        local_tri.te1 = fix_periodic_coordinates(local_tri.te1);
-        local_tri.te2 = fix_periodic_coordinates(local_tri.te2);*/
-
-        //float output_time = 0.f;
-        //float delta_time = coordinate_to_tetrad_basis((float4)(native_next.x - native_current.x, 0,0,0), e_lo[0], e_lo[1], e_lo[2], e_lo[3]).x;
 
         float output_time = native_current.x;
         float delta_time = (native_next - native_current).x;
@@ -4694,6 +4681,16 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
 
 
     #if 1
+
+    ///I think I'm doing this wrong
+    ///I want to exist in the frame of reference of the triangle, with a light ray coming in
+    ///so, if I push the ray into the tetrad of the tri, that's what I get. Fundamentally its a tetrad transform
+    ///but its also just a coordinate transform, so the ray is still affine parameterised, just in minkowski now so we're in flat spacetime
+    ///this tetrad is moving intertially and possibly spinning, so the tri is fully stationary, and the effects are taken care of by the tetrad
+    ///in the tetrad, the light ray will intersect with the 0 coordinate time, which is 'when' the triangle is
+    ///the problem is, this is fine as a tier 0 approximation, but the tri needs to move through coordinate space to get a good enough approximation
+    ///which really means tetrad drift, and being tied to the geodesic
+
     float dt = (global_pos.x - object_geodesic_origin.x) / 2;
 
     float light_ray_dct = -1;
