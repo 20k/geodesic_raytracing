@@ -1345,14 +1345,14 @@ float4 get_coordinate_period(float4 in, dynamic_config_space struct dynamic_conf
 
 float positive_fmod(float a, float b)
 {
-    float v = fmod(a, b);
+    /*float v = fmod(a, b);
 
     if(v < 0.f)
        v += b;
 
-    return v;
+    return v;*/
 
-    //return a - floor(a/b)*b;
+    return a - floor(a/b)*b;
 }
 
 float4 positive_fmod4(float4 a, float4 b)
@@ -3980,11 +3980,9 @@ float circular_diff(float f1, float f2)
             return df;
     }*/
 
-    float df1m = 1 - df;
-
     float adf = df < 0 ? -df : df;
 
-    float bigcase = select(-df1m, df1m, df > 0.5f);
+    float bigcase = select(1+df, 1-df, df >= 0.5f);
 
     return select(df, bigcase, adf >= 0.5f);
 }
@@ -3994,12 +3992,45 @@ float2 circular_diff2(float2 f1, float2 f2)
     return (float2)(circular_diff(f1.x, f2.x), circular_diff(f1.y, f2.y));
 }
 
+float circular_diff_p(float f1, float f2, float period)
+{
+    f1 = positive_fmod(f1, period);
+    f2 = positive_fmod(f2, period);
+
+    /*float df = f2 - f1;
+
+    if(df >= 0)
+    {
+        if(df >= period/2.f)
+            return period - df;
+        else
+            return df;
+    }
+    else
+    {
+        if(df <= -period/2.f)
+            return period + df;
+        else
+            return df;
+    }*/
+
+
+    float df = f2 - f1;
+
+    float adf = df < 0 ? -df : df;
+
+    float bigcase = select(period+df, period-df, df >= period/2.f);
+
+    return select(df, bigcase, adf >= period/2.f);
+}
+
+
 float4 periodic_diff(float4 in1, float4 in2, float4 periods)
 {
     float4 ret = in1 - in2;
 
     #define CHECK_PERIOD(v) if(periods.v != 0)\
-                            {ret.v = circular_diff(native_divide(in2.v,periods.v), native_divide(in1.v,periods.v)) * periods.v;}
+                            {ret.v = circular_diff_p(in2.v, in1.v, periods.v);}
     CHECK_PERIOD(x)
     CHECK_PERIOD(y)
     CHECK_PERIOD(z)
@@ -4623,8 +4654,8 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
                               float4 i_ne0, float4 i_ne1, float4 i_ne2, float4 i_ne3,
                               float t_tri_start_time, float t_tri_delta_time, float* t_out, bool debug, float4 periods)
 {
-    float4 global_dir = next_global_pos - global_pos;
-    float4 t_pos = periodic_diff(global_pos, object_geodesic_origin, periods);
+    //float4 global_dir = next_global_pos - global_pos;
+    //float4 t_pos = periodic_diff(global_pos, object_geodesic_origin, periods);
 
     #if 0
     float4 fv0 = ctri->coordinate_v0 - object_geodesic_origin;
@@ -4740,7 +4771,6 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
 
     float4 plane_origin = object_geodesic_origin;
     float3 plane_normal = normalize(cross(v1 - v0, v2 - v0));
-    //float3 local_plane_origin =
 
     float4 ray_origin = global_pos;
     float4 ray_vel = (next_global_pos - global_pos);
@@ -4750,8 +4780,31 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
     float4 i_e2 = i_re2;
     float4 i_e3 = i_re3;
 
-    float4 pos = coordinate_to_tetrad_basis(periodic_diff(ray_origin, plane_origin, periods), i_e0, i_e1, i_e2, i_e3);
+    //float4 initial_diff = ;
+    float4 initial_plane_origin = plane_origin;
+
+    float4 circle_diff = periodic_diff(ray_origin, plane_origin, periods);
+
+    float4 linear_diff = ray_origin - plane_origin;
+
+    float4 initial_diff = circle_diff;
+
+    /*if(debug && any(linear_diff != initial_diff))
+    {
+        printf("Free err diff %f %f %f %f lin %f %f %f %f\n",
+               initial_diff.x, initial_diff.y, initial_diff.z, initial_diff.w,
+               linear_diff.x, linear_diff.y, linear_diff.z, linear_diff.w
+               );
+    }*/
+
+    //initial_diff = ray_origin - plane_origin;
+
+    //idiff = ray_origin - plane_origin;
+
+    float4 pos = coordinate_to_tetrad_basis(initial_diff, i_e0, i_e1, i_e2, i_e3);
     float4 dir = coordinate_to_tetrad_basis(ray_vel, i_e0, i_e1, i_e2, i_e3);
+
+    float new_t = 0;
 
     for(int i=0; i < 4; i++)
     {
@@ -4760,11 +4813,17 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
         if(!ray_plane_intersection(v0, plane_normal, pos.yzw, dir.yzw, &t1))
             return false;
 
-        float new_t = ray_origin.x + ray_vel.x * t1;
+        t1 = fabs(t1);
+
+        ///think i need to use pos.x + dir.x * t1, but le sigh
+        new_t = ray_origin.x + ray_vel.x * t1;
 
         float triangle_frac = (new_t - tri_lower_t) / (tri_upper_t - tri_lower_t);
 
-        triangle_frac = clamp(triangle_frac, 0.f, 1.f);
+        //if(triangle_frac < 0 || triangle_frac > 1)
+        //    return false;
+
+        //triangle_frac = clamp(triangle_frac, 0.f, 1.f);
 
         plane_origin = mix(object_geodesic_origin, next_object_geodesic_origin, triangle_frac);
 
@@ -4773,7 +4832,20 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
         i_e2 = mix(i_re2, i_ne2, triangle_frac);
         i_e3 = mix(i_re3, i_ne3, triangle_frac);
 
-        pos = coordinate_to_tetrad_basis(periodic_diff(ray_origin, object_geodesic_origin, periods), i_e0, i_e1, i_e2, i_e3);
+        //float4 diff = periodic_diff(ray_origin, plane_origin, periods);
+        //float4 diff = initial_diff + (plane_origin - initial_plane_origin);
+        //float4 diff = ray_origin - plane_origin;
+
+        float4 diff = initial_diff + initial_plane_origin - plane_origin;
+
+        /*if(debug)
+        {
+            printf("Diff w %f origin w %f plane origin w %f\n", diff.w, ray_origin.w, plane_origin.w);
+        }*/
+
+        //diff = ray_origin - plane_origin;
+
+        pos = coordinate_to_tetrad_basis(diff, i_e0, i_e1, i_e2, i_e3);
         dir = coordinate_to_tetrad_basis(ray_vel, i_e0, i_e1, i_e2, i_e3);
     }
 
@@ -4785,6 +4857,35 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
 
     if(new_x < min_t || new_x > max_t)
         return false;
+
+    if(debug && intersected)
+    {
+        /*printf("Nx %f ifrac %f segments %i %i Cpos %f %f %f %f npos %f %f %f %f\nray pos %f %f %f %f vel %f %f %f %f\n", new_x, (new_x - tri_lower_t) / (tri_upper_t - tri_lower_t), ctri->geodesic_segment, ctri->next_geodesic_segment,
+               object_geodesic_origin.x, object_geodesic_origin.y, object_geodesic_origin.z, object_geodesic_origin.w,
+               next_object_geodesic_origin.x, next_object_geodesic_origin.y, next_object_geodesic_origin.z, next_object_geodesic_origin.w,
+               global_pos.x, global_pos.y, global_pos.z, global_pos.w,
+               ray_vel.x, ray_vel.y, ray_vel.z, ray_vel.w);*/
+
+        /*printf("plane origin %f %f %f %f ray origin %f %f %f %f\n",
+               initial_plane_origin.x, initial_plane_origin.y, initial_plane_origin.z, initial_plane_origin.w,
+               ray_origin.x, ray_origin.y, ray_origin.z, ray_origin.w);*/
+
+        //printf("Circular diff test %f", periodic_diff((float4)(0,0,0,0.001), (float4)(0,0,0,-0.001f), periods).w);
+
+        /*printf("Circular diff %f %f %f %f lin %f %f %f %f\n",
+               circle_diff.x, circle_diff.y, circle_diff.z, circle_diff.w,
+               linear_diff.x, linear_diff.y, linear_diff.z, linear_diff.w
+               );*/
+
+        /*float4 circ2 = periodic_diff((float4)(15.801205, 12.562665, 1.063705, 0.012048), (float4)(14.973614, 12.215747, 1.094866, -0.023208), periods);
+
+        printf("Circ %f %f %f %f\n",
+               circ2.x, circ2.y, circ2.z, circ2.w);*/
+
+        //float circ = circular_diff_p(-0.023208, 0.012048, periods.w);
+
+        //printf("Circ2 %f\n", circ);
+    }
 
     if(intersected && t_out)
     {
@@ -5402,21 +5503,17 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                     bool could_hit = len_sq <= 10;
 
-                    if(could_hit)
+                    //if(could_hit)
                     {
                         __global struct computed_triangle* ctri = &linear_mem[i];
-
-                        float4 i_e0_0 = inverse_e0s[ctri->geodesic_segment];
-                        float4 i_e1_0 = inverse_e1s[ctri->geodesic_segment];
-                        float4 i_e2_0 = inverse_e2s[ctri->geodesic_segment];
-                        float4 i_e3_0 = inverse_e3s[ctri->geodesic_segment];
 
                         float4 i_e0_1 = inverse_e0s[ctri->next_geodesic_segment];
                         float4 i_e1_1 = inverse_e1s[ctri->next_geodesic_segment];
                         float4 i_e2_1 = inverse_e2s[ctri->next_geodesic_segment];
                         float4 i_e3_1 = inverse_e3s[ctri->next_geodesic_segment];
 
-                        float4 origin_1 = object_positions[ctri->next_geodesic_segment];
+                        //float4 origin_1 = object_positions[ctri->geodesic_segment];
+                        float4 origin_2 = object_positions[ctri->next_geodesic_segment];
 
                         float4 i_e0 = inverse_e0s[ctri->geodesic_segment];
                         float4 i_e1 = inverse_e1s[ctri->geodesic_segment];
@@ -5430,7 +5527,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                         bool debug = sx == mouse_x && sy == mouse_y;
 
-                        if(ray_intersects_toblerone(rt_real_pos, next_rt_real_pos, rt_velocity, ds, ctri, origin, object_vel, origin_1,
+                        if(ray_intersects_toblerone(rt_real_pos, next_rt_real_pos, rt_velocity, ds, ctri, origin, object_vel, origin_2,
                                                     i_e0, i_e1, i_e2, i_e3,
                                                     i_e0_1, i_e1_1, i_e2_1, i_e3_1,
                                                     0, 0, &ray_t, debug, periods))
