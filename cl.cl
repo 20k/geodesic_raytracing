@@ -25,8 +25,12 @@ struct computed_triangle
     float4 tv0, tv1, tv2;
     float4 te0, te1, te2;
 
-    float4 coordinate_v0, coordinate_v1, coordinate_v2;
-    float4 coordinate_e0, coordinate_e1, coordinate_e2;
+    //float4 coordinate_v0, coordinate_v1, coordinate_v2;
+    //float4 coordinate_e0, coordinate_e1, coordinate_e2;
+
+    ///in coordinate space, in global coordinates, not tied to a geodesic
+    float4 min_extents;
+    float4 max_extents;
 
     int geodesic_segment;
 
@@ -4208,13 +4212,25 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         local_tri.te1 = coordinate_to_tetrad_basis(ge1 - origin, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
         local_tri.te2 = coordinate_to_tetrad_basis(ge2 - origin, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
 
-        local_tri.coordinate_v0 = gv0;
+        /*local_tri.coordinate_v0 = gv0;
         local_tri.coordinate_v1 = gv1;
         local_tri.coordinate_v2 = gv2;
 
         local_tri.coordinate_e0 = ge0;
         local_tri.coordinate_e1 = ge1;
-        local_tri.coordinate_e2 = ge2;
+        local_tri.coordinate_e2 = ge2;*/
+
+        float4 min_extents_v = min(gv0, min(gv1, gv2));
+        float4 min_extents_e = min(ge0, min(ge1, ge2));
+
+        float4 max_extents_v = max(gv0, max(gv1, gv2));
+        float4 max_extents_e = max(ge0, max(ge1, ge2));
+
+        float4 min_geodesic_extents = min(native_current, native_next);
+        float4 max_geodesic_extents = max(native_current, native_next);
+
+        local_tri.min_extents = min(min(min_extents_v, min_extents_e), min_geodesic_extents);
+        local_tri.max_extents = max(max(max_extents_v, max_extents_e), max_geodesic_extents);
 
         float output_time = native_current.x;
         float delta_time = (native_next - native_current).x;
@@ -4720,37 +4736,16 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
     //if(debug)
     //    printf("P1\n");
 
-    if(!range_overlaps(ray_lower_t, ray_upper_t, tri_lower_t, tri_upper_t))
-        return false;
+    float4 min_extents = ctri->min_extents;
+    float4 max_extents = ctri->max_extents;
 
-    float4 max_e = max(ctri->coordinate_e0, max(ctri->coordinate_e1, ctri->coordinate_e2));
-    float4 max_v = max(ctri->coordinate_v0, max(ctri->coordinate_v1, ctri->coordinate_v2));
+    #define CHECK_ESCAPE(v) if(periods.v == 0){if(!range_overlaps(global_pos.v, next_global_pos.v, min_extents.v, max_extents.v)){return false;}}
 
-    float4 min_e = min(ctri->coordinate_e0, min(ctri->coordinate_e1, ctri->coordinate_e2));
-    float4 min_v = min(ctri->coordinate_v0, min(ctri->coordinate_v1, ctri->coordinate_v2));
-
-    float4 max_geodesic = max(object_geodesic_origin, next_object_geodesic_origin);
-    float4 min_geodesic = min(object_geodesic_origin, next_object_geodesic_origin);
-
-    float4 max_all = max(max_e, max_v);
-    float4 min_all = min(min_e, min_v);
-
-    ///todo: precompute these quantities
-    max_all = max(max_all, max_geodesic);
-    min_all = min(min_all, min_geodesic);
-
-    #define CHECK_ESCAPE(v) if(periods.v == 0){if(!range_overlaps(global_pos.v, next_global_pos.v, min_all.v, max_all.v)){return false;}}
-
-    ///bounds for t (ie x) are more precise due to the lack of time components for tris in the local tetrad
+    ///bounds for t (ie x) are more precise due to the lack of time components for tris in the local tetrad, which makes them equivalent
+    CHECK_ESCAPE(x);
     CHECK_ESCAPE(y);
     CHECK_ESCAPE(z);
     CHECK_ESCAPE(w);
-
-    float min_t = max(ray_lower_t, tri_lower_t);
-    float max_t = min(ray_upper_t, tri_upper_t);
-
-    if(max_t < min_t)
-        return false;
 
     float3 v0 = ctri->tv0.yzw;
     float3 v1 = ctri->tv1.yzw;
