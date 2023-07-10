@@ -3943,8 +3943,8 @@ void sort2(float* v0, float* v1)
 
     *v0 = min(iv0, iv1);
     *v1 = max(iv0, iv1);
-}
 
+}
 bool range_overlaps(float s0, float s1, float e0, float e1)
 {
     sort2(&s0, &s1);
@@ -3953,75 +3953,39 @@ bool range_overlaps(float s0, float s1, float e0, float e1)
     return s0 <= e1 && e0 <= s1;
 }
 
-float circular_diff(float f1, float f2)
+float fast_fmod(float a, float b)
 {
-    f1 = f1 - floor(f1);
-    f2 = f2 - floor(f2);
+    return a - b * trunc(a/b);
+}
 
-    float df = f2 - f1;
+float circular_diff(float f1, float f2, float period)
+{
+    f1 = f1 * (2 * M_PI/period);
+    f2 = f2 * (2 * M_PI/period);
 
-    ///-(1 - (-df))
-    //= -(1 + df)
-    //= df - 1;
-    //= -(1 - df)
+    ///cos(f1) * sin(f2) - sin(f1) * cos(f2)
+    ///a = f2, b = f1
+    ///= sin(a) cos(b) - sin(b) cos(a)
+    ///= sin(f2 - f1)
 
-    /*if(df >= 0)
-    {
-        if(df >= 0.5f)
-            return 1 - df;
-        else
-            return df;
-    }
-    else
-    {
-        if(df <= -0.5f)
-            return -(1 - (-df));
-        else
-            return df;
-    }*/
 
-    float adf = df < 0 ? -df : df;
+    ///cos(f1) * cos(f2) + sin(a1) * sin(a2)
+    ///cos(f1 - f2)
 
-    float bigcase = select(1+df, 1-df, df >= 0.5f);
+    return period * atan2(native_sin(f2 - f1), native_cos(f2 - f1)) / (2 * M_PI);
+    ///tan = sinx/cosx
 
-    return select(df, bigcase, adf >= 0.5f);
+    //sin(sin(f2 - f1)) / cos(cos(f2 - f1))
 }
 
 float2 circular_diff2(float2 f1, float2 f2)
 {
-    return (float2)(circular_diff(f1.x, f2.x), circular_diff(f1.y, f2.y));
+    return (float2)(circular_diff(f1.x, f2.x, 1.f), circular_diff(f1.y, f2.y, 1.f));
 }
 
 float circular_diff_p(float f1, float f2, float period)
 {
-    f1 = positive_fmod(f1, period);
-    f2 = positive_fmod(f2, period);
-
-    /*float df = f2 - f1;
-
-    if(df >= 0)
-    {
-        if(df >= period/2.f)
-            return period - df;
-        else
-            return df;
-    }
-    else
-    {
-        if(df <= -period/2.f)
-            return period + df;
-        else
-            return df;
-    }*/
-
-
-    float df = f2 - f1;
-
-    float adf = df < 0 ? -df : df;
-
-    float bigcase = select(period+df, period-df, df >= period/2.f);
-
-    return select(df, bigcase, adf >= period/2.f);
+    return circular_diff(f1, f2, period);
 }
 
 
@@ -4648,7 +4612,7 @@ float4 geodesic_to_coordinate_time(float4 velocity)
     return in_ct;
 }
 
-bool intersects_at_fraction(float3 v0, float3 normal,
+bool intersects_at_fraction(float3 v0, float3 normal, float4 initial_origin, float4 initial_diff,
                             float4 ray_pos_1,
                             float4 ray_vel_1,
                             float4 object_geodesic_1, float4 object_geodesic_2,
@@ -4668,7 +4632,8 @@ bool intersects_at_fraction(float3 v0, float3 normal,
     float4 object_position = mix(object_geodesic_1, object_geodesic_2, fraction);
     float4 ray_pos = ray_pos_1;
 
-    float4 diff = periodic_diff(ray_pos, object_position, periods);
+    float4 diff = initial_diff + initial_origin - object_position;
+    //float4 diff = periodic_diff(ray_pos, object_position, periods);
 
     float4 pos = coordinate_to_tetrad_basis(diff, i_e0, i_e1, i_e2, i_e3);
     float4 dir = coordinate_to_tetrad_basis(ray_vel_1, i_e0, i_e1, i_e2, i_e3);
@@ -4728,11 +4693,16 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
     float4 ray_origin = global_pos;
     float4 ray_vel = (next_global_pos - global_pos);
 
+    //float4 initial_diff = ray_origin - object_pos_1;
+    ///still don't think periodic diff is 100% correct
+    float4 initial_diff = periodic_diff(ray_origin, object_pos_1, periods);
+    float4 initial_origin = object_pos_1;
+
     float4 last_pos;
     float4 last_dir;
     float last_dt = 0;
 
-    #define INTERSECTS_AT(in_frac) intersects_at_fraction(v0, plane_normal, ray_origin, ray_vel, object_pos_1, object_pos_2,\
+    #define INTERSECTS_AT(in_frac) intersects_at_fraction(v0, plane_normal, initial_origin, initial_diff, ray_origin, ray_vel, object_pos_1, object_pos_2,\
                                       i_re0, i_re1, i_re2, i_re3,\
                                       i_ne0, i_ne1, i_ne2, i_ne3,\
                                       periods, in_frac, &last_pos, &last_dir, &last_dt)
@@ -4765,11 +4735,31 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
 
     float new_x = ray_origin.x + ray_t * ray_vel.x;
 
-    if(new_x < min_t || new_x > max_t)
+    if(new_x < ray_lower_t || new_x > ray_upper_t)
         return false;
+
+    if(new_x < tri_lower_t || new_x > tri_upper_t)
+        return false;
+
+    //if(ray_t < 0 || ray_t > 1)
+    //    return false;
+
+    /*float local_tetrad_time = last_pos.x + ray_t * last_dir.x;
+
+    if(local_tetrad_time < 0)
+        return false;*/
+
+    //float tri_end_time = coordinate_to_tetrad_basis((float4)(t_tri_delta_time, 0,0,0), i_e0, i_e1, i_e2, i_e3).x;
+
+    //if(last_pos.x + ray_t * last_dir.x >= )
 
     if(intersected && t_out)
     {
+        /*if(debug)
+        {
+            printf("Ltt %f\n", local_tetrad_time);
+        }*/
+
         *t_out = ray_t;
     }
 
