@@ -4723,8 +4723,28 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
     if(!range_overlaps(ray_lower_t, ray_upper_t, tri_lower_t, tri_upper_t))
         return false;
 
-    //if(debug)
-    //    printf("P2\n");
+    float4 max_e = max(ctri->coordinate_e0, max(ctri->coordinate_e1, ctri->coordinate_e2));
+    float4 max_v = max(ctri->coordinate_v0, max(ctri->coordinate_v1, ctri->coordinate_v2));
+
+    float4 min_e = min(ctri->coordinate_e0, min(ctri->coordinate_e1, ctri->coordinate_e2));
+    float4 min_v = min(ctri->coordinate_v0, min(ctri->coordinate_v1, ctri->coordinate_v2));
+
+    float4 max_geodesic = max(object_geodesic_origin, next_object_geodesic_origin);
+    float4 min_geodesic = min(object_geodesic_origin, next_object_geodesic_origin);
+
+    float4 max_all = max(max_e, max_v);
+    float4 min_all = min(min_e, min_v);
+
+    ///todo: precompute these quantities
+    max_all = max(max_all, max_geodesic);
+    min_all = min(min_all, min_geodesic);
+
+    #define CHECK_ESCAPE(v) if(periods.v == 0){if(!range_overlaps(global_pos.v, next_global_pos.v, min_all.v, max_all.v)){return false;}}
+
+    ///bounds for t (ie x) are more precise due to the lack of time components for tris in the local tetrad
+    CHECK_ESCAPE(y);
+    CHECK_ESCAPE(z);
+    CHECK_ESCAPE(w);
 
     float min_t = max(ray_lower_t, tri_lower_t);
     float max_t = min(ray_upper_t, tri_upper_t);
