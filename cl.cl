@@ -3958,24 +3958,74 @@ float fast_fmod(float a, float b)
     return a - b * trunc(a/b);
 }
 
+float sign_of_sin(float x)
+{
+    x = positive_fmod(x, 2 * M_PI);
+
+    if(x == 0 || x == M_PI)
+        return 0;
+
+    if(x > 0 && x < M_PI)
+        return 1;
+
+    return -1;
+}
+
+float sign_of_cos(float x)
+{
+    x = positive_fmod(x, 2 * M_PI);
+
+    if(x == M_PI/2 || x == 3 * M_PI/2)
+        return 0;
+
+    if(x < M_PI/2 || x >= 3 * M_PI/2)
+        return 1;
+
+    return -1;
+}
+
+float pseudo_atan_tan(float in)
+{
+    return positive_fmod(in + M_PI, 2 * M_PI) - M_PI;
+}
+
+float fast_pseudo_atan2(float arg)
+{
+    ///top = sin(x)
+    ///bottom = cos(x)
+
+    ///s_y = sin(x)
+    ///s_x = cos(x)
+    ///atan(s_y/s_x) == atan(sin/cos) == atan(tan) == x
+
+    float s_x = sign_of_cos(arg);
+    float s_y = sign_of_sin(arg);
+
+    if(s_x >= 0)
+        return pseudo_atan_tan(arg);
+
+    if(s_x < 0 && s_y >= 0)
+        return pseudo_atan_tan(arg) + M_PI;
+
+    if(s_x < 0 && s_y < 0)
+        return pseudo_atan_tan(arg) - M_PI;
+
+    if(s_x == 0 && s_y > 0)
+        return M_PI/2;
+
+    if(s_x == 0 && s_y < 0)
+        return -M_PI/2;
+
+    return pseudo_atan_tan(arg);
+}
+
 float circular_diff(float f1, float f2, float period)
 {
     f1 = f1 * (2 * M_PI/period);
     f2 = f2 * (2 * M_PI/period);
 
-    ///cos(f1) * sin(f2) - sin(f1) * cos(f2)
-    ///a = f2, b = f1
-    ///= sin(a) cos(b) - sin(b) cos(a)
-    ///= sin(f2 - f1)
-
-
-    ///cos(f1) * cos(f2) + sin(a1) * sin(a2)
-    ///cos(f1 - f2)
-
+    //return period * fast_pseudo_atan2(f2 - f1) / (2 * M_PI);
     return period * atan2(native_sin(f2 - f1), native_cos(f2 - f1)) / (2 * M_PI);
-    ///tan = sinx/cosx
-
-    //sin(sin(f2 - f1)) / cos(cos(f2 - f1))
 }
 
 float2 circular_diff2(float2 f1, float2 f2)
