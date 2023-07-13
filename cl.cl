@@ -4753,10 +4753,11 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
     float3 plane_normal = normalize(cross(v1 - v0, v2 - v0));
 
     float4 object_pos_1 = object_geodesic_origin;
-    float4 object_pos_2 = next_object_geodesic_origin;
+    float4 object_pos_2 = periodic_diff(next_object_geodesic_origin, object_geodesic_origin, periods) + object_geodesic_origin;
+    //float4 object_pos_2 = next_object_geodesic_origin;
 
     float4 ray_origin = global_pos;
-    float4 ray_vel = (next_global_pos - global_pos);
+    float4 ray_vel = periodic_diff(next_global_pos, global_pos, periods);
 
     //float4 initial_diff = ray_origin - object_pos_1;
     ///still don't think periodic diff is 100% correct
@@ -4823,6 +4824,11 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
         /*if(debug)
         {
             printf("Ltt %f\n", local_tetrad_time);
+        }*/
+
+        /*if(debug)
+        {
+            printf("Hit pos obj %f %f %f f end %f %f %f %f\n", object_pos_1.x, object_pos_1.y, object_pos_1.z, object_pos_1.w)
         }*/
 
         *t_out = ray_t;
@@ -6118,6 +6124,8 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
 
             generic_position_out = next_pos_generic;
             generic_velocity_out = next_vel_generic;
+
+            //printf("In pos %f %f %f %f out %f %f %f %f\n", position.x, position.y, position.z, position.w, next_pos_generic.x, next_pos_generic.y, next_pos_generic.z, next_pos_generic.w);
         }
         #endif
 
