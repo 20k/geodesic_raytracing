@@ -35,9 +35,6 @@ struct computed_triangle
     int geodesic_segment;
 
     int next_geodesic_segment;
-    #ifdef MORE_ACCURATE_TETRADS
-    float interpolation_frac;
-    #endif
 };
 #else
 struct computed_triangle
@@ -4295,22 +4292,6 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         //if(all(grid_pos == next_grid_pos))
         //    continue;
 
-        #ifdef MORE_ACCURATE_TETRADS
-        float ray_length = length(next_grid_pos - grid_pos);
-        int len = 0;
-
-        {
-
-            struct step_setup steps = setup_step(grid_pos, next_grid_pos);
-
-            while(!is_step_finished(&steps))
-            {
-                len++;
-                do_step(&steps);
-            }
-        }
-        #endif
-
         #ifndef VOXELISE
         int lid = atomic_inc(&offset_counts[0]);
 
@@ -4376,16 +4357,6 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
                 if(should_store)
                 {
-                    #ifdef MORE_ACCURATE_TETRADS
-                    int clen = len;
-
-                    if(clen == 0)
-                        clen = 1;
-
-                    float along_frac = (float)steps.idx / clen;
-                    local_tri.interpolation_frac = along_frac;
-                    #endif
-
                     int mem_start = offset_map[oid];
 
                     mem_buffer[mem_start + lid] = local_tri;
@@ -5241,27 +5212,11 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                                 float4 origin_1 = object_positions[ctri->next_geodesic_segment];
 
-                                //#define MORE_ACCURATE_TETRADS
-                                #ifdef MORE_ACCURATE_TETRADS
-                                float4 origin_0 = object_positions[ctri->geodesic_segment];
-                                float4 object_vel_0 = object_velocities[ctri->geodesic_segment];
-                                float4 object_vel_1 = object_velocities[ctri->next_geodesic_segment];
-
-                                float mixer = ctri->interpolation_frac;
-
-                                float4 i_e0 = mix(i_e0_0, i_e0_1, mixer);
-                                float4 i_e1 = mix(i_e1_0, i_e1_1, mixer);
-                                float4 i_e2 = mix(i_e2_0, i_e2_1, mixer);
-                                float4 i_e3 = mix(i_e3_0, i_e3_1, mixer);
-                                float4 origin = mix(origin_0, origin_1, mixer);
-                                float4 object_vel = mix(object_vel_0, object_vel_1, mixer);
-                                #else
                                 float4 i_e0 = inverse_e0s[ctri->geodesic_segment];
                                 float4 i_e1 = inverse_e1s[ctri->geodesic_segment];
                                 float4 i_e2 = inverse_e2s[ctri->geodesic_segment];
                                 float4 i_e3 = inverse_e3s[ctri->geodesic_segment];
                                 float4 object_vel = object_velocities[ctri->geodesic_segment];
-                                #endif // MORE_ACCURATE_TETRADS
 
                                 float ray_t = 0;
 
