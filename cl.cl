@@ -5101,52 +5101,25 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                 {
                     float4 origin = linear_object_positions[i];
 
-                    ///here is where i need to enforce periodicity for rt_real_pos and origin
-                    float4 t_pos = periodic_diff(rt_real_pos, origin, periods);
+                    __global struct computed_triangle* ctri = &linear_mem[i];
 
-                    //if(t_pos.x < 100000)
-                    //    continue;
+                    float4 origin_2 = object_positions[ctri->next_geodesic_segment];
 
-                    float len_sq = dot(t_pos, t_pos);
+                    float ray_t = 0;
 
-                    bool could_hit = len_sq <= 10;
+                    bool debug = sx == mouse_x && sy == mouse_y;
 
-                    //if(could_hit)
+                    if(ray_intersects_toblerone(rt_real_pos, next_rt_real_pos, rt_velocity, ds, ctri, origin, origin_2,
+                                                inverse_e0s, inverse_e1s, inverse_e2s, inverse_e3s,
+                                                &ray_t, debug, periods))
                     {
-                        __global struct computed_triangle* ctri = &linear_mem[i];
-
-                        //float4 i_e0_1 = inverse_e0s[ctri->next_geodesic_segment];
-                        //float4 i_e1_1 = inverse_e1s[ctri->next_geodesic_segment];
-                        //float4 i_e2_1 = inverse_e2s[ctri->next_geodesic_segment];
-                        //float4 i_e3_1 = inverse_e3s[ctri->next_geodesic_segment];
-
-                        //float4 origin_1 = object_positions[ctri->geodesic_segment];
-                        float4 origin_2 = object_positions[ctri->next_geodesic_segment];
-
-                        //float4 i_e0 = inverse_e0s[ctri->geodesic_segment];
-                        //float4 i_e1 = inverse_e1s[ctri->geodesic_segment];
-                        //float4 i_e2 = inverse_e2s[ctri->geodesic_segment];
-                        //float4 i_e3 = inverse_e3s[ctri->geodesic_segment];
-                        //float4 object_vel = object_velocities[ctri->geodesic_segment];
-
-                        float ray_t = 0;
-
-                        //bool debug = sx == 800/2 && sy == 600/2;
-
-                        bool debug = sx == mouse_x && sy == mouse_y;
-
-                        if(ray_intersects_toblerone(rt_real_pos, next_rt_real_pos, rt_velocity, ds, ctri, origin, origin_2,
-                                                    inverse_e0s, inverse_e1s, inverse_e2s, inverse_e3s,
-                                                    &ray_t, debug, periods))
+                        if(ray_t < best_intersection)
                         {
-                            if(ray_t < best_intersection)
-                            {
-                                out.computed_parent = i;
-                                best_intersection = ray_t;
-                            }
+                            out.computed_parent = i;
+                            best_intersection = ray_t;
                         }
-
                     }
+
                 }
 
                 if(best_intersection != FLT_MAX)
