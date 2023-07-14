@@ -4294,17 +4294,17 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         //float4 pos = current + cartesian_mine_start;
         //float4 next_pos = next + cartesian_mine_next;
 
-        float4 mine_start_coordinate = tetrad_to_coordinate_basis((float4)(0.f, mine.x, mine.y, mine.z), s_e0, s_e1, s_e2, s_e3);
-        float4 mine_end_coordinate = tetrad_to_coordinate_basis((float4)(0.f, mine.x, mine.y, mine.z), e_e0, e_e1, e_e2, e_e3);
+        //float4 mine_start_coordinate = tetrad_to_coordinate_basis((float4)(0.f, mine.x, mine.y, mine.z), s_e0, s_e1, s_e2, s_e3);
+        //float4 mine_end_coordinate = tetrad_to_coordinate_basis((float4)(0.f, mine.x, mine.y, mine.z), e_e0, e_e1, e_e2, e_e3);
 
-        float4 pos = native_current + mine_start_coordinate;
-        float4 next_pos = native_next + mine_end_coordinate;
+        //float4 pos = native_current + mine_start_coordinate;
+        //float4 next_pos = native_next + mine_end_coordinate;
 
         //pos = fix_periodic_coordinates(pos);
         //next_pos = fix_periodic_coordinates(next_pos);
 
-        float4 grid_pos = world_to_voxel4(pos, width, time_width, width_num);
-        float4 next_grid_pos = world_to_voxel4(next_pos, width, time_width, width_num);
+        //float4 grid_pos = world_to_voxel4(pos, width, time_width, width_num);
+        //float4 next_grid_pos = world_to_voxel4(next_pos, width, time_width, width_num);
 
         //grid_pos.x = 0;
         //last_grid_pos.x = 0;
@@ -4330,8 +4330,8 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
         #define SIMPLE_VOXELISE
         #ifdef SIMPLE_VOXELISE
-        float4 voxel_min = world_to_voxel4(min_extents, width, time_width, width_num);
-        float4 voxel_max = world_to_voxel4(max_extents, width, time_width, width_num);
+        float4 voxel_min = world_to_voxel4(min_extents, width, time_width, width_num) - 1;
+        float4 voxel_max = world_to_voxel4(max_extents, width, time_width, width_num) + 1;
 
         for(int w = voxel_min.w; w <= ceil(voxel_max.w); w++)
         {
