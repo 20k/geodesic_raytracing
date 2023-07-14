@@ -4722,17 +4722,10 @@ bool intersects_at_fraction(float3 v0, float3 normal, float4 initial_origin, flo
 }
 
 ///dir is not normalised, should really use a pos2
-bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 ray_vel4, float ds, __global struct computed_triangle* ctri, float4 object_geodesic_origin, float4 object_geodesic_velocity, float4 next_object_geodesic_origin,
-                              float4 i_re0, float4 i_re1, float4 i_re2, float4 i_re3,
-                              float4 i_ne0, float4 i_ne1, float4 i_ne2, float4 i_ne3,
-                              float t_tri_start_time, float t_tri_delta_time, float* t_out, bool debug, float4 periods)
+bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 ray_vel4, float ds, __global struct computed_triangle* ctri, float4 object_geodesic_origin, float4 next_object_geodesic_origin,
+                              __global float4* inverse_e0s, __global float4* inverse_e1s, __global float4* inverse_e2s, __global float4* inverse_e3s,
+                              float* t_out, bool debug, float4 periods)
 {
-    float ray_lower_t = next_global_pos.x;
-    float ray_upper_t = global_pos.x;
-
-    float tri_lower_t = object_geodesic_origin.x;
-    float tri_upper_t = next_object_geodesic_origin.x;
-
     float4 min_extents = ctri->min_extents;
     float4 max_extents = ctri->max_extents;
 
@@ -4745,6 +4738,22 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
     CHECK_ESCAPE(y);
     CHECK_ESCAPE(z);
     CHECK_ESCAPE(w);
+
+    float4 i_ne0 = inverse_e0s[ctri->next_geodesic_segment];
+    float4 i_ne1 = inverse_e1s[ctri->next_geodesic_segment];
+    float4 i_ne2 = inverse_e2s[ctri->next_geodesic_segment];
+    float4 i_ne3 = inverse_e3s[ctri->next_geodesic_segment];
+
+    float4 i_re0 = inverse_e0s[ctri->geodesic_segment];
+    float4 i_re1 = inverse_e1s[ctri->geodesic_segment];
+    float4 i_re2 = inverse_e2s[ctri->geodesic_segment];
+    float4 i_re3 = inverse_e3s[ctri->geodesic_segment];
+
+    float ray_lower_t = next_global_pos.x;
+    float ray_upper_t = global_pos.x;
+
+    float tri_lower_t = object_geodesic_origin.x;
+    float tri_upper_t = next_object_geodesic_origin.x;
 
     float3 v0 = ctri->tv0.yzw;
     float3 v1 = ctri->tv1.yzw;
@@ -5106,19 +5115,19 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                     {
                         __global struct computed_triangle* ctri = &linear_mem[i];
 
-                        float4 i_e0_1 = inverse_e0s[ctri->next_geodesic_segment];
-                        float4 i_e1_1 = inverse_e1s[ctri->next_geodesic_segment];
-                        float4 i_e2_1 = inverse_e2s[ctri->next_geodesic_segment];
-                        float4 i_e3_1 = inverse_e3s[ctri->next_geodesic_segment];
+                        //float4 i_e0_1 = inverse_e0s[ctri->next_geodesic_segment];
+                        //float4 i_e1_1 = inverse_e1s[ctri->next_geodesic_segment];
+                        //float4 i_e2_1 = inverse_e2s[ctri->next_geodesic_segment];
+                        //float4 i_e3_1 = inverse_e3s[ctri->next_geodesic_segment];
 
                         //float4 origin_1 = object_positions[ctri->geodesic_segment];
                         float4 origin_2 = object_positions[ctri->next_geodesic_segment];
 
-                        float4 i_e0 = inverse_e0s[ctri->geodesic_segment];
-                        float4 i_e1 = inverse_e1s[ctri->geodesic_segment];
-                        float4 i_e2 = inverse_e2s[ctri->geodesic_segment];
-                        float4 i_e3 = inverse_e3s[ctri->geodesic_segment];
-                        float4 object_vel = object_velocities[ctri->geodesic_segment];
+                        //float4 i_e0 = inverse_e0s[ctri->geodesic_segment];
+                        //float4 i_e1 = inverse_e1s[ctri->geodesic_segment];
+                        //float4 i_e2 = inverse_e2s[ctri->geodesic_segment];
+                        //float4 i_e3 = inverse_e3s[ctri->geodesic_segment];
+                        //float4 object_vel = object_velocities[ctri->geodesic_segment];
 
                         float ray_t = 0;
 
@@ -5126,10 +5135,9 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                         bool debug = sx == mouse_x && sy == mouse_y;
 
-                        if(ray_intersects_toblerone(rt_real_pos, next_rt_real_pos, rt_velocity, ds, ctri, origin, object_vel, origin_2,
-                                                    i_e0, i_e1, i_e2, i_e3,
-                                                    i_e0_1, i_e1_1, i_e2_1, i_e3_1,
-                                                    0, 0, &ray_t, debug, periods))
+                        if(ray_intersects_toblerone(rt_real_pos, next_rt_real_pos, rt_velocity, ds, ctri, origin, origin_2,
+                                                    inverse_e0s, inverse_e1s, inverse_e2s, inverse_e3s,
+                                                    &ray_t, debug, periods))
                         {
                             if(ray_t < best_intersection)
                             {
