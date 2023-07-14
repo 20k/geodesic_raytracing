@@ -4341,6 +4341,9 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                 {
                     for(int x = voxel_min.x; x <= ceil(voxel_max.x); x++)
                     {
+                        if(x < lowest_time || x > maximum_time)
+                            continue;
+
                         float4 voxel_coordinate = (float4)(x, y, z, w);
 
                         unsigned int oid = index_generic(voxel_coordinate, width, time_width, width_num, cfg);
