@@ -4686,8 +4686,8 @@ bool intersects_at_fraction(float3 v0, float3 normal, float4 initial_origin, flo
                             float4 i_ne0, float4 i_ne1, float4 i_ne2, float4 i_ne3,
                             float4 periods,
                             float fraction,
-                            float4* pos_out, float4* dir_out,
-                            float* t_out
+                            float4* restrict pos_out, float4* restrict dir_out,
+                            float* restrict t_out
                             )
 {
     float4 i_e0 = mix(i_re0, i_ne0, fraction);
