@@ -23,7 +23,7 @@ struct computed_triangle
     int geodesic_segment;*/
 
     float4 tv0, tv1, tv2;
-    float4 te0, te1, te2;
+    //float4 te0, te1, te2;
 
     //float4 coordinate_v0, coordinate_v1, coordinate_v2;
     //float4 coordinate_e0, coordinate_e1, coordinate_e2;
@@ -4208,9 +4208,9 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         local_tri.tv1 = vert_1;
         local_tri.tv2 = vert_2;
 
-        local_tri.te0 = coordinate_to_tetrad_basis(ge0 - origin, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
-        local_tri.te1 = coordinate_to_tetrad_basis(ge1 - origin, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
-        local_tri.te2 = coordinate_to_tetrad_basis(ge2 - origin, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
+        //local_tri.te0 = coordinate_to_tetrad_basis(ge0 - origin, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
+        //local_tri.te1 = coordinate_to_tetrad_basis(ge1 - origin, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
+        //local_tri.te2 = coordinate_to_tetrad_basis(ge2 - origin, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
 
         /*local_tri.coordinate_v0 = gv0;
         local_tri.coordinate_v1 = gv1;
