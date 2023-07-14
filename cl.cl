@@ -4736,6 +4736,8 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
     float4 min_extents = ctri->min_extents;
     float4 max_extents = ctri->max_extents;
 
+    ///ideally we'd do this for periodic coordinates as well, the issue is that range_overlaps is tricky, because our span to check might be 6 PI which means it covers
+    ///the whole periodic range,, but as a distance that might be very shrot
     #define CHECK_ESCAPE(v) if(periods.v == 0){if(!range_overlaps(global_pos.v, next_global_pos.v, min_extents.v, max_extents.v)){return false;}}
 
     ///bounds for t (ie x) are more precise due to the lack of time components for tris in the local tetrad, which makes them equivalent
@@ -4754,7 +4756,7 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
     float4 object_pos_2 = next_object_geodesic_origin;
 
     float4 ray_origin = global_pos;
-    float4 ray_vel = periodic_diff(next_global_pos, global_pos, periods);
+    float4 ray_vel = next_global_pos - global_pos;
 
     //float4 initial_diff = ray_origin - object_pos_1;
     ///still don't think periodic diff is 100% correct
@@ -5062,7 +5064,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
             bool should_check = true;
 
             float4 rt_real_pos = last_real_pos;
-            float4 next_rt_real_pos = native_position;
+            float4 next_rt_real_pos = periodic_diff(native_position, last_real_pos, periods) + last_real_pos;
             float4 rt_velocity = last_real_velocity;
             //float4 rt_velocity = next_rt_real_pos - rt_real_pos;
 
