@@ -4723,7 +4723,7 @@ bool intersects_at_fraction(float3 v0, float3 normal, float4 initial_origin, flo
 
 ///dir is not normalised, should really use a pos2
 bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 ray_vel4, float ds, __global struct computed_triangle* ctri, float4 object_geodesic_origin, float4 next_object_geodesic_origin,
-                              __global float4* inverse_e0s, __global float4* inverse_e1s, __global float4* inverse_e2s, __global float4* inverse_e3s,
+                              __global float4* restrict inverse_e0s, __global float4* restrict inverse_e1s, __global float4* restrict inverse_e2s, __global float4* restrict inverse_e3s,
                               float* t_out, bool debug, float4 periods)
 {
     float4 min_extents = ctri->min_extents;
@@ -4861,20 +4861,20 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                       __global int* restrict generic_count_in, __global int* restrict generic_count_out,
                       __global int* restrict finished_count_out,
                       //__global float4* path_out, __global int* counts_out,
-                      __global struct triangle* tris, int tri_count, __global struct intersection* intersections_out, __global int* intersection_count,
-                      __global int* counts, __global int* offsets, __global struct computed_triangle* linear_mem, __global int* linear_mem_size, __global float* linear_start_times, __global float* linear_delta_times,
-                      __global float4* linear_object_positions,
-                      __global int* unculled_counts,
-                      __constant int* any_visible,
+                      __global struct triangle* restrict tris, int tri_count, __global struct intersection* restrict intersections_out, __global int* restrict intersection_count,
+                      __global int* restrict counts, __global int* restrict offsets, __global struct computed_triangle* restrict linear_mem, __global int* restrict linear_mem_size, __global float* restrict linear_start_times, __global float* restrict linear_delta_times,
+                      __global float4* restrict linear_object_positions,
+                      __global int* restrict unculled_counts,
+                      __constant int* restrict any_visible,
                       float accel_width, float accel_time_width, int accel_width_num,
-                      __global int* cell_time_min, __global int* cell_time_max,
-                      __global struct object* objs,
-                      __global int* ray_time_min, __global int* ray_time_max,
-                      __global float4* object_positions,
-                      __global float4* object_velocities,
-                      __global float4* inverse_e0s, __global float4* inverse_e1s, __global float4* inverse_e2s, __global float4* inverse_e3s,
-                      dynamic_config_space struct dynamic_config* cfg,
-                      dynamic_config_space struct dynamic_feature_config* dfg,
+                      __global int* restrict cell_time_min, __global int* restrict cell_time_max,
+                      __global struct object* restrict objs,
+                      __global int* restrict ray_time_min, __global int* restrict ray_time_max,
+                      __global float4* restrict object_positions,
+                      __global float4* restrict object_velocities,
+                      __global float4* restrict inverse_e0s, __global float4* restrict inverse_e1s, __global float4* restrict inverse_e2s, __global float4* restrict inverse_e3s,
+                      dynamic_config_space struct dynamic_config* restrict cfg,
+                      dynamic_config_space struct dynamic_feature_config* restrict dfg,
                       int mouse_x, int mouse_y)
 {
     int id = get_global_id(0);
