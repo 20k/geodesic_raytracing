@@ -4753,8 +4753,8 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
     float3 plane_normal = normalize(cross(v1 - v0, v2 - v0));
 
     float4 object_pos_1 = object_geodesic_origin;
-    float4 object_pos_2 = periodic_diff(next_object_geodesic_origin, object_geodesic_origin, periods) + object_geodesic_origin;
-    //float4 object_pos_2 = next_object_geodesic_origin;
+    //float4 object_pos_2 = periodic_diff(next_object_geodesic_origin, object_geodesic_origin, periods) + object_geodesic_origin;
+    float4 object_pos_2 = next_object_geodesic_origin;
 
     float4 ray_origin = global_pos;
     float4 ray_vel = periodic_diff(next_global_pos, global_pos, periods);
@@ -6015,6 +6015,9 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
     int stride_out = *generic_count_in;
     int bufc = 0;
 
+    float4 periods = get_coordinate_period(position, cfg);
+    float4 last_pos_generic;
+
     //#pragma unroll
     for(int i=0; i < max_path_length; i++)
     {
@@ -6121,6 +6124,11 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
 
             float4 next_pos_generic = spherical_to_generic((float4)(pos_spherical.x, next_pos_spherical), cfg);
             float4 next_vel_generic = spherical_velocity_to_generic_velocity((float4)(pos_spherical.x, next_pos_spherical), (float4)(vel_spherical.x, next_vel_spherical), cfg);
+
+            if(i != 0)
+                next_pos_generic = periodic_diff(next_pos_generic, last_pos_generic, periods) + last_pos_generic;
+
+            last_pos_generic = next_pos_generic;
 
             generic_position_out = next_pos_generic;
             generic_velocity_out = next_vel_generic;
