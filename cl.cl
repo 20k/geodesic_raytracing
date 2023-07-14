@@ -3896,6 +3896,23 @@ void do_step(struct step_setup* step)
     step->idx++;
 }
 
+unsigned int index_generic(float4 in_voxel4, float width, float time_width, int width_num, dynamic_config_space struct dynamic_config* cfg)
+{
+    float4 world4 = voxel_to_world4(in_voxel4, width, time_width, width_num);
+
+    world4 = handle_coordinate_periodicity(world4, cfg);
+
+    float4 voxel4 = world_to_voxel4(world4, width, time_width, width_num);
+
+    float4 ffloor = floor(voxel4);
+
+    int4 ifloor = convert_int4(ffloor);
+
+    ifloor = loop_voxel4(ifloor, width_num);
+
+    return ifloor.x * width_num * width_num * width_num + ifloor.w * width_num * width_num + ifloor.z * width_num + ifloor.y;
+}
+
 unsigned int index_acceleration(struct step_setup* step, float width, float time_width, int width_num, dynamic_config_space struct dynamic_config* cfg)
 {
     float4 step_pos = (float4)(step->current_x + step->off_current_x,
@@ -4226,8 +4243,11 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         float4 min_geodesic_extents = min(native_current, native_next);
         float4 max_geodesic_extents = max(native_current, native_next);
 
-        local_tri.min_extents = min(min(min_extents_v, min_extents_e), min_geodesic_extents);
-        local_tri.max_extents = max(max(max_extents_v, max_extents_e), max_geodesic_extents);
+        float4 min_extents = min(min(min_extents_v, min_extents_e), min_geodesic_extents);
+        float4 max_extents = max(max(max_extents_v, max_extents_e), max_geodesic_extents);
+
+        local_tri.min_extents = min_extents;
+        local_tri.max_extents = max_extents;
 
         float output_time = native_current.x;
         float delta_time = (native_next - native_current).x;
@@ -4292,7 +4312,8 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         //if(all(grid_pos == next_grid_pos))
         //    continue;
 
-        #ifndef VOXELISE
+        //#define ALL_CHECK
+        #ifdef ALL_CHECK
         int lid = atomic_inc(&offset_counts[0]);
 
         if(should_store)
@@ -4304,6 +4325,41 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
             delta_times_memory[mem_start + lid] = delta_time;
 
             *any_visible = 1;
+        }
+        #endif
+
+        #define SIMPLE_VOXELISE
+        #ifdef SIMPLE_VOXELISE
+        float4 voxel_min = world_to_voxel4(min_extents, width, time_width, width_num);
+        float4 voxel_max = world_to_voxel4(max_extents, width, time_width, width_num);
+
+        for(int w = voxel_min.w; w <= ceil(voxel_max.w); w++)
+        {
+            for(int z = voxel_min.z; z <= ceil(voxel_max.z); z++)
+            {
+                for(int y = voxel_min.y; y <= ceil(voxel_max.y); y++)
+                {
+                    for(int x = voxel_min.x; x <= ceil(voxel_max.x); x++)
+                    {
+                        float4 voxel_coordinate = (float4)(x, y, z, w);
+
+                        unsigned int oid = index_generic(voxel_coordinate, width, time_width, width_num, cfg);
+
+                        int lid = atomic_inc(&offset_counts[oid]);
+
+                        if(should_store)
+                        {
+                            int mem_start = offset_map[oid];
+
+                            mem_buffer[mem_start + lid] = local_tri;
+                            //start_times_memory[mem_start + lid] = output_time;
+                            //delta_times_memory[mem_start + lid] = delta_time;
+
+                            *any_visible = 1;
+                        }
+                    }
+                }
+            }
         }
         #endif
 
@@ -5058,19 +5114,18 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                 last_real_pos = native_position;
                 last_real_velocity = native_velocity;
 
-                #define ALL_CHECK
-                #ifdef ALL_CHECK
                 struct intersection out;
                 out.sx = sx;
                 out.sy = sy;
 
                 float best_intersection = FLT_MAX;
 
+                #ifdef ALL_CHECK
                 int lsize = *linear_mem_size;
 
-                for(int i=0; i < lsize; i++)
+                for(int tidx=0; tidx < lsize; tidx++)
                 {
-                    float4 origin = linear_object_positions[i];
+                    float4 origin_1 = linear_object_positions[i];
 
                     __global struct computed_triangle* ctri = &linear_mem[i];
 
@@ -5080,18 +5135,66 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                     bool debug = sx == mouse_x && sy == mouse_y;
 
-                    if(ray_intersects_toblerone(rt_real_pos, next_rt_real_pos, rt_velocity, ds, ctri, origin, origin_2,
+                    if(ray_intersects_toblerone(rt_real_pos, next_rt_real_pos, rt_velocity, ds, ctri, origin_1, origin_2,
                                                 inverse_e0s, inverse_e1s, inverse_e2s, inverse_e3s,
                                                 &ray_t, debug, periods))
                     {
                         if(ray_t < best_intersection)
                         {
-                            out.computed_parent = i;
+                            out.computed_parent = tidx;
                             best_intersection = ray_t;
                         }
                     }
-
                 }
+
+                #endif
+
+                #ifdef SIMPLE_VOXELISE
+                struct step_setup setup;
+
+                {
+                    float4 current_pos = world_to_voxel4(rt_real_pos, accel_width, accel_time_width, accel_width_num);
+                    float4 next_pos = world_to_voxel4(next_rt_real_pos, accel_width, accel_time_width, accel_width_num);
+
+                    setup = setup_step(current_pos, next_pos);
+                }
+
+                while(!is_step_finished(&setup))
+                {
+                    unsigned int voxel_id = index_acceleration(&setup, accel_width, accel_time_width, accel_width_num, cfg);
+
+                    do_step(&setup);
+
+                    int tri_count = counts[voxel_id];
+                    int base_offset = offsets[voxel_id];
+
+                    for(int t_off=0; t_off < tri_count; t_off++)
+                    {
+                        int tri_id = t_off + base_offset;
+
+                        __global struct computed_triangle* ctri = &linear_mem[base_offset + t_off];
+
+                        float4 origin_1 = object_positions[ctri->geodesic_segment];
+                        float4 origin_2 = object_positions[ctri->next_geodesic_segment];
+
+                        float ray_t = 0;
+
+                        bool debug = sx == mouse_x && sy == mouse_y;
+
+                        if(ray_intersects_toblerone(rt_real_pos, next_rt_real_pos, rt_velocity, ds, ctri, origin_1, origin_2,
+                                                    inverse_e0s, inverse_e1s, inverse_e2s, inverse_e3s,
+                                                    &ray_t, debug, periods))
+                        {
+                            if(ray_t < best_intersection)
+                            {
+                                out.computed_parent = base_offset + t_off;
+                                best_intersection = ray_t;
+                            }
+                        }
+                    }
+                }
+
+                #endif // SIMPLE_VOXELISE
 
                 if(best_intersection != FLT_MAX)
                 {
@@ -5104,7 +5207,6 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                     return;
                 }
-                #endif
 
                 #if 0
 
