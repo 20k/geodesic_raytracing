@@ -4090,7 +4090,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                                           int generate_unculled_counts,
                                           dynamic_config_space struct dynamic_config* cfg)
 {
-        int id = get_global_id(0);
+    int id = get_global_id(0);
 
     if(id >= sp_count)
         return;
@@ -4200,19 +4200,27 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
         #define SIMPLE_VOXELISE
         #ifdef SIMPLE_VOXELISE
+
+        min_extents.x = max(min_extents.x, lowest_time);
+        max_extents.x = min(max_extents.x, maximum_time);
+
+        ///todo: need to not double pack voxels in the case that our tri overlaps the entire region
         float4 voxel_min = world_to_voxel4(min_extents, width, time_width, width_num) - 1;
         float4 voxel_max = world_to_voxel4(max_extents, width, time_width, width_num) + 1;
 
         /*printf("Generate %f %f %f %f max %f %f %f %f", voxel_min.x, voxel_min.y, voxel_min.z, voxel_min.w,
                voxel_max.x, voxel_max.y, voxel_max.z, voxel_max.w);*/
 
+        if(voxel_max.x - voxel_min.x > width_num)
+        {
+            voxel_min.x = 0;
+            voxel_max.x = width_num - 1;
+        }
+
         int genc = 0;
 
         for(int x = voxel_min.x; x <= ceil(voxel_max.x); x++)
         {
-            if(x < lowest_time || x > maximum_time)
-                continue;
-
             for(int w = voxel_min.w; w <= ceil(voxel_max.w); w++)
             {
                 for(int z = voxel_min.z; z <= ceil(voxel_max.z); z++)
@@ -4244,7 +4252,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
         if(genc != 0)
         {
-            printf("Generated %i\n", genc);
+            //printf("Generated %i\n", genc);
         }
         #endif
     }
