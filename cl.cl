@@ -4182,7 +4182,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         local_tri.min_extents = min_extents;
         local_tri.max_extents = max_extents;
 
-        //#define ALL_CHECK
+        #define ALL_CHECK
         #ifdef ALL_CHECK
         int lid = atomic_inc(&offset_counts[0]);
 
@@ -4191,14 +4191,14 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
             int mem_start = offset_map[0];
 
             mem_buffer[mem_start + lid] = local_tri;
-            start_times_memory[mem_start + lid] = output_time;
-            delta_times_memory[mem_start + lid] = delta_time;
+            //start_times_memory[mem_start + lid] = output_time;
+            //delta_times_memory[mem_start + lid] = delta_time;
 
             *any_visible = 1;
         }
         #endif
 
-        #define SIMPLE_VOXELISE
+        //#define SIMPLE_VOXELISE
         #ifdef SIMPLE_VOXELISE
 
         min_extents.x = max(min_extents.x, lowest_time);
@@ -4954,9 +4954,9 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                 for(int tidx=0; tidx < lsize; tidx++)
                 {
-                    float4 origin_1 = linear_object_positions[i];
+                    float4 origin_1 = linear_object_positions[tidx];
 
-                    __global struct computed_triangle* ctri = &linear_mem[i];
+                    __global struct computed_triangle* ctri = &linear_mem[tidx];
 
                     float4 origin_2 = object_positions[ctri->next_geodesic_segment];
 
