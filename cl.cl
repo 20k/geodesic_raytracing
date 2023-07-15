@@ -4090,7 +4090,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                                           int generate_unculled_counts,
                                           dynamic_config_space struct dynamic_config* cfg)
 {
-    int id = get_global_id(0);
+        int id = get_global_id(0);
 
     if(id >= sp_count)
         return;
@@ -4107,7 +4107,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
     float lowest_time = *ray_time_min - 1;
     float maximum_time = *ray_time_max + 1;
 
-    int skip = 8;
+    int skip = 1;
 
     ///if I'm doing bresenhams, then ds_stepping makes no sense and I am insane
     for(int cc=0; cc < count - skip; cc += skip)
@@ -4123,61 +4123,6 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         if(!range_overlaps(lowest_time, maximum_time, native_current.x, native_next.x))
             continue;
 
-        //float4 current = generic_to_cartesian(native_current, cfg);
-        //float4 next = generic_to_cartesian(native_next, cfg);
-
-        #ifndef TRI_PRECESSION
-        //if(should_store)
-        //printf("Current %f %f %f %f\n", current.x, current.y, current.z, current.w);
-
-        struct computed_triangle local_tri;
-
-        float delta_time = (next - current).x;
-        float output_time = current.x;
-
-        local_tri.v0x = my_tri.v0x + current.y;
-        local_tri.v0y = my_tri.v0y + current.z;
-        local_tri.v0z = my_tri.v0z + current.w;
-
-        ///this is a constant. These are actually just all offsets. Could massively reduce memory storage
-        ///by storing location, and tri index
-        local_tri.dv1x = my_tri.v1x - my_tri.v0x;
-        local_tri.dv1y = my_tri.v1y - my_tri.v0y;
-        local_tri.dv1z = my_tri.v1z - my_tri.v0z;
-
-        local_tri.dv2x = my_tri.v2x - my_tri.v0x;
-        local_tri.dv2y = my_tri.v2y - my_tri.v0y;
-        local_tri.dv2z = my_tri.v2z - my_tri.v0z;
-
-        local_tri.dvx = (next - current).y;
-        local_tri.dvy = (next - current).z;
-        local_tri.dvz = (next - current).w;
-
-        #ifdef TIME_CULL
-        ///my later pos is actually earlier than the last pos. Swap start and end
-        if(next.x < current.x)
-        {
-            delta_time = (current - next).x;
-            output_time = next.x;
-
-            local_tri.v0x = my_tri.v0x + next.y;
-            local_tri.v0y = my_tri.v0y + next.z;
-            local_tri.v0z = my_tri.v0z + next.w;
-
-            local_tri.dvx = (current - next).y;
-            local_tri.dvy = (current - next).z;
-            local_tri.dvz = (current - next).w;
-        }
-        #endif // TIME_CULL
-
-        float4 cartesian_mine_start = (float4)(0.f, mine.x, mine.y, mine.z);
-        float4 cartesian_mine_next = (float4)(0.f, mine.x, mine.y, mine.z);
-        #else
-        //float delta_time = (native_next - native_current).x;
-        //float output_time = native_current.x;
-
-        #define PRECESS
-        #ifdef PRECESS
         float4 s_e0 = p_e0[cc * stride + mine.object_parent];
         float4 s_e1 = p_e1[cc * stride + mine.object_parent];
         float4 s_e2 = p_e2[cc * stride + mine.object_parent];
@@ -4222,18 +4167,6 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         local_tri.tv1 = vert_1;
         local_tri.tv2 = vert_2;
 
-        //local_tri.te0 = coordinate_to_tetrad_basis(ge0 - origin, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
-        //local_tri.te1 = coordinate_to_tetrad_basis(ge1 - origin, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
-        //local_tri.te2 = coordinate_to_tetrad_basis(ge2 - origin, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
-
-        /*local_tri.coordinate_v0 = gv0;
-        local_tri.coordinate_v1 = gv1;
-        local_tri.coordinate_v2 = gv2;
-
-        local_tri.coordinate_e0 = ge0;
-        local_tri.coordinate_e1 = ge1;
-        local_tri.coordinate_e2 = ge2;*/
-
         float4 min_extents_v = min(gv0, min(gv1, gv2));
         float4 min_extents_e = min(ge0, min(ge1, ge2));
 
@@ -4248,69 +4181,6 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
         local_tri.min_extents = min_extents;
         local_tri.max_extents = max_extents;
-
-        float output_time = native_current.x;
-        float delta_time = (native_next - native_current).x;
-
-        //printf("Tetrad %f %f %f %f\n", s_e0.x, s_e0.y, s_e0.z, s_e0.w);
-
-        /*float4 coordinate_mine_start = tetrad_to_coordinate_basis((float4)(0.f, mine.x, mine.y, mine.z), s_e0, s_e1, s_e2, s_e3);
-        float4 cartesian_mine_start = generic_velocity_to_cartesian_velocity(native_current, coordinate_mine_start, cfg);
-
-        float4 coordinate_mine_next = tetrad_to_coordinate_basis((float4)(0.f, mine.x, mine.y, mine.z), e_e0, e_e1, e_e2, e_e3);
-        float4 cartesian_mine_next = generic_velocity_to_cartesian_velocity(native_next, coordinate_mine_next, cfg);*/
-        #else
-        struct computed_triangle local_tri;
-
-        local_tri.v0x = my_tri.v0x + current.y;
-        local_tri.v0y = my_tri.v0y + current.z;
-        local_tri.v0z = my_tri.v0z + current.w;
-
-        local_tri.v1x = my_tri.v1x + current.y;
-        local_tri.v1y = my_tri.v1y + current.z;
-        local_tri.v1z = my_tri.v1z + current.w;
-
-        local_tri.v2x = my_tri.v2x + current.y;
-        local_tri.v2y = my_tri.v2y + current.z;
-        local_tri.v2z = my_tri.v2z + current.w;
-
-        local_tri.e0x = my_tri.v0x + next.y;
-        local_tri.e0y = my_tri.v0y + next.z;
-        local_tri.e0z = my_tri.v0z + next.w;
-
-        local_tri.e1x = my_tri.v1x + next.y;
-        local_tri.e1y = my_tri.v1y + next.z;
-        local_tri.e1z = my_tri.v1z + next.w;
-
-        local_tri.e2x = my_tri.v2x + next.y;
-        local_tri.e2y = my_tri.v2y + next.z;
-        local_tri.e2z = my_tri.v2z + next.w;
-
-        float4 cartesian_mine_start = (float4)(0.f, mine.x, mine.y, mine.z);
-        float4 cartesian_mine_next = (float4)(0.f, mine.x, mine.y, mine.z);
-        #endif // PRECESS
-        #endif // TRI_PRECESSION
-
-        //float4 pos = current + cartesian_mine_start;
-        //float4 next_pos = next + cartesian_mine_next;
-
-        //float4 mine_start_coordinate = tetrad_to_coordinate_basis((float4)(0.f, mine.x, mine.y, mine.z), s_e0, s_e1, s_e2, s_e3);
-        //float4 mine_end_coordinate = tetrad_to_coordinate_basis((float4)(0.f, mine.x, mine.y, mine.z), e_e0, e_e1, e_e2, e_e3);
-
-        //float4 pos = native_current + mine_start_coordinate;
-        //float4 next_pos = native_next + mine_end_coordinate;
-
-        //pos = fix_periodic_coordinates(pos);
-        //next_pos = fix_periodic_coordinates(next_pos);
-
-        //float4 grid_pos = world_to_voxel4(pos, width, time_width, width_num);
-        //float4 next_grid_pos = world_to_voxel4(next_pos, width, time_width, width_num);
-
-        //grid_pos.x = 0;
-        //last_grid_pos.x = 0;
-
-        //if(all(grid_pos == next_grid_pos))
-        //    continue;
 
         //#define ALL_CHECK
         #ifdef ALL_CHECK
@@ -4333,17 +4203,22 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         float4 voxel_min = world_to_voxel4(min_extents, width, time_width, width_num) - 1;
         float4 voxel_max = world_to_voxel4(max_extents, width, time_width, width_num) + 1;
 
-        for(int w = voxel_min.w; w <= ceil(voxel_max.w); w++)
-        {
-            for(int z = voxel_min.z; z <= ceil(voxel_max.z); z++)
-            {
-                for(int y = voxel_min.y; y <= ceil(voxel_max.y); y++)
-                {
-                    for(int x = voxel_min.x; x <= ceil(voxel_max.x); x++)
-                    {
-                        if(x < lowest_time || x > maximum_time)
-                            continue;
+        /*printf("Generate %f %f %f %f max %f %f %f %f", voxel_min.x, voxel_min.y, voxel_min.z, voxel_min.w,
+               voxel_max.x, voxel_max.y, voxel_max.z, voxel_max.w);*/
 
+        int genc = 0;
+
+        for(int x = voxel_min.x; x <= ceil(voxel_max.x); x++)
+        {
+            if(x < lowest_time || x > maximum_time)
+                continue;
+
+            for(int w = voxel_min.w; w <= ceil(voxel_max.w); w++)
+            {
+                for(int z = voxel_min.z; z <= ceil(voxel_max.z); z++)
+                {
+                    for(int y = voxel_min.y; y <= ceil(voxel_max.y); y++)
+                    {
                         float4 voxel_coordinate = (float4)(x, y, z, w);
 
                         unsigned int oid = index_generic(voxel_coordinate, width, time_width, width_num, cfg);
@@ -4359,74 +4234,17 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                             //delta_times_memory[mem_start + lid] = delta_time;
 
                             *any_visible = 1;
+
+                            genc++;
                         }
                     }
                 }
             }
         }
-        #endif
 
-        #ifdef VOXELISE
-        struct step_setup steps = setup_step(grid_pos, next_grid_pos);
-
-        //if(should_store)
-        //printf("Fgp %f %f %f %f ngp %f %f %f %f\n", grid_pos.x, grid_pos.y, grid_pos.z, grid_pos.w, next_grid_pos.x, next_grid_pos.y, next_grid_pos.z, next_grid_pos.w);
-
-        while(!is_step_finished(&steps))
+        if(genc != 0)
         {
-            //if(should_store)
-            //printf("Gp %i %i %i %i\n", steps.current.x, steps.current.y, steps.current.z, steps.current.w);
-
-            ///needs periodicity enforced
-            unsigned int oid = index_acceleration(&steps, width, time_width, width_num, cfg);
-
-            //#define USE_FEEDBACK_CULLING
-            #ifdef USE_FEEDBACK_CULLING
-            if(generate_unculled_counts)
-            {
-                unculled_counts[oid] = 1;
-            }
-            #endif // USE_FEEDBACK_CULLING
-
-            #ifdef USE_FEEDBACK_CULLING
-            bool any_valid = false;
-            #else
-            bool any_valid = true;
-            #endif // USE_FEEDBACK_CULLING
-
-            #ifdef USE_FEEDBACK_CULLING
-            int test_time_min = old_cell_time_min[oid];
-            int test_time_max = old_cell_time_max[oid];
-
-            bool checked = true;
-
-            if(test_time_min == 2147483647 || test_time_max == (-2147483647 - 1))
-                checked = false;
-
-            if(!range_overlaps(current.x, next.x, test_time_min, test_time_max))
-                checked = false;
-
-            if(checked)
-                any_valid = true;
-            #endif // USE_FEEDBACK_CULLING
-
-            if(any_valid)
-            {
-                int lid = atomic_inc(&offset_counts[oid]);
-
-                if(should_store)
-                {
-                    int mem_start = offset_map[oid];
-
-                    mem_buffer[mem_start + lid] = local_tri;
-                    start_times_memory[mem_start + lid] = output_time;
-                    delta_times_memory[mem_start + lid] = delta_time;
-
-                    *any_visible = 1;
-                }
-            }
-
-            do_step(&steps);
+            printf("Generated %i\n", genc);
         }
         #endif
     }

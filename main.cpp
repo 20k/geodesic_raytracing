@@ -1284,7 +1284,7 @@ int main(int argc, char* argv[])
     obj->velocity = {0, 0.1f, 0};
     #endif // CUBE_INTO_HORIZON
 
-    #define DEBUG_FAST_CUBE
+    //#define DEBUG_FAST_CUBE
     #ifdef DEBUG_FAST_CUBE
     std::shared_ptr<triangle_rendering::object> obj = tris.make_new();
 
