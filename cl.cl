@@ -4182,7 +4182,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         local_tri.min_extents = min_extents;
         local_tri.max_extents = max_extents;
 
-        #define ALL_CHECK
+        //#define ALL_CHECK
         #ifdef ALL_CHECK
         int lid = atomic_inc(&offset_counts[0]);
 
@@ -4198,7 +4198,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         }
         #endif
 
-        //#define SIMPLE_VOXELISE
+        #define SIMPLE_VOXELISE
         #ifdef SIMPLE_VOXELISE
 
         min_extents.x = max(min_extents.x, lowest_time);
