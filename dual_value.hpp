@@ -130,7 +130,7 @@ namespace dual_types
         if(str.size() > 0 && str.back() == '.')
             str += "0";
 
-        str += "f";
+        //str += "f";
 
         return str;
     }
@@ -211,6 +211,7 @@ namespace dual_types
         enum type_t
         {
             PLUS,
+            COMBO_PLUS,
             UMINUS,
             MINUS,
             MULTIPLY,
@@ -320,6 +321,7 @@ namespace dual_types
         #endif // NATIVE_DIVIDE
 
         std::array syms = {
+            "+",
             "+",
             "-",
             "-",
@@ -451,6 +453,10 @@ namespace dual_types
     template<typename U, typename... T>
     value<U> make_op(ops::type_t type, T&&... args);
 
+    template<typename T>
+    inline
+    value<T> make_op(ops::type_t type, const std::vector<value<T>>& args);
+
     template<auto N, typename T>
     inline
     bool is_value_equal(const T& f)
@@ -465,6 +471,43 @@ namespace dual_types
     value<T> fma(const value<T>&, const value<T>&, const value<T>&);
     template<typename T>
     value<T> mad(const value<T>&, const value<T>&, const value<T>&);
+
+    static inline auto length_sorter = [](const auto& v1, const auto& v2)
+    {
+        return type_to_string(v1) < type_to_string(v2);
+    };
+
+    template<typename T, typename Reduce>
+    inline
+    auto pairwise_reduce(std::vector<T> pending, Reduce&& reduce)
+    {
+        assert(pending.size() != 0);
+
+        if(pending.size() == 1)
+            return pending.at(0);
+
+        ///take the first two elements a + b, bracket them as (a + b) as a singular element, then push them to the back of the queue
+        ///eg a + b + c + d + e + f
+        ///-> c + d + e + f + (a + b)
+        ///-> e + f + (a + b) + (c + d)
+        ///-> (a + b) + (c + d) + (e + f)
+        ///-> (e + f) + ((a + b) + (c + d))
+        ///-> ((e + f) + ((a + b) + (c + d)))
+        while(pending.size() >= 2)
+        {
+            T v1 = pending.at(0);
+            T v2 = pending.at(1);
+
+            pending.erase(pending.begin());
+            pending.erase(pending.begin());
+
+            pending.push_back(reduce(v1, v2));
+        }
+
+        assert(pending.size() == 1);
+
+        return pending.at(0);
+    }
 
     template<typename T>
     struct value
@@ -511,7 +554,7 @@ namespace dual_types
                 }
                 else
                 {
-                    result.value_payload = to_string_either(value_payload.value());
+                    result.value_payload = type_to_string(*this);
                 }
             }
 
@@ -541,7 +584,7 @@ namespace dual_types
 
                 if(value_payload.has_value())
                 {
-                    result.value_payload = to_string_either(value_payload.value());
+                    result.value_payload = type_to_string(*this);
                 }
 
                 for(const value<T>& v : args)
@@ -854,6 +897,39 @@ namespace dual_types
             return *this;
         }
 
+        value group_associative_operators() const
+        {
+            #define NO_REGROUP_ASSOCIATIVE
+            #ifdef NO_REGROUP_ASSOCIATIVE
+            return *this;
+            #endif
+
+            if(type != ops::PLUS)
+                return *this;
+
+            ///note to self, don't do this recursively
+            if(type == ops::COMBO_PLUS)
+                return *this;
+
+            std::vector<value<T>> final_args;
+
+            for(int i=0; i < (int)args.size(); i++)
+            {
+                if(args[i].type == ops::PLUS || args[i].type == ops::COMBO_PLUS)
+                    final_args.insert(final_args.end(), args[i].args.begin(), args[i].args.end());
+                else
+                    final_args.push_back(args[i]);
+            }
+
+            std::sort(final_args.begin(), final_args.end(), length_sorter);
+
+            ///could disable combo plus promotion, keeps flattening etc but not that helpful
+            //if(final_args.size() == 2)
+            //    return *this;
+
+            return make_op<T>(ops::COMBO_PLUS, final_args);
+        }
+
         dual_types::dual_v<value<T>> dual(const std::string& sym) const
         {
             #define DUAL_CHECK1(x, y) if(type == x) { return y(args[0].dual(sym)); }
@@ -880,6 +956,17 @@ namespace dual_types
             if(type == PLUS)
             {
                 return args[0].dual(sym) + args[1].dual(sym);
+            }
+            if(type == COMBO_PLUS)
+            {
+                std::vector<dual_types::dual_v<value<T>>> vals;
+
+                for(const auto& i : args)
+                {
+                    vals.push_back(i.dual(sym));
+                }
+
+                return pairwise_reduce(vals, [](const auto& v1, const auto& v2){return v1 + v2;});
             }
             if(type == UMINUS)
             {
@@ -1215,8 +1302,11 @@ namespace dual_types
         friend
         value<T> operator-(const value<T>& d1, const value<T>& d2)
         {
+            #ifdef NO_REGROUP_ASSOCIATIVE
             return make_op<T>(ops::MINUS, d1, d2);
-            //return make_op<T>(ops::PLUS, d1, make_op<T>(ops::UMINUS, d2));
+            #else
+            return make_op<T>(ops::PLUS, d1, make_op<T>(ops::UMINUS, d2));
+            #endif
         }
 
         friend
@@ -1318,6 +1408,9 @@ namespace dual_types
         if(d1.type != d2.type)
             return false;
 
+        if(d1.args.size() != d2.args.size())
+            return false;
+
         if(d1.type == ops::VALUE)
         {
             if(d1.is_constant() != d2.is_constant())
@@ -1339,10 +1432,9 @@ namespace dual_types
             return (equivalent(d1.args[0], d2.args[0]) && equivalent(d1.args[1], d2.args[1])) ||
                    (equivalent(d1.args[1], d2.args[0]) && equivalent(d1.args[0], d2.args[1]));
         }
-
         for(int i=0; i < (int)d1.args.size(); i++)
         {
-            if(!equivalent(d1.args[i], d2.args[i]))
+            if(!equivalent(d1.args.at(i), d2.args.at(i)))
                 return false;
         }
 
@@ -1353,16 +1445,27 @@ namespace dual_types
     inline
     std::string type_to_string(const value<T>& op)
     {
-        static_assert(std::is_same_v<T, double> || std::is_same_v<T, float> || std::is_same_v<T, int> || std::is_same_v<T, short> || std::is_same_v<T, unsigned short> || std::is_same_v<T, std::monostate>);
+        static_assert(std::is_same_v<T, std::float16_t> || std::is_same_v<T, double> || std::is_same_v<T, float> || std::is_same_v<T, int> || std::is_same_v<T, short> || std::is_same_v<T, unsigned short> || std::is_same_v<T, std::monostate>);
 
+        ///the type system is becoming really not ideal, if we promote a half to a float, we have no way of detecting that. Relying on stringyness
         if(op.type == ops::VALUE)
         {
+            std::string suffix;
+
+            if constexpr(std::is_same_v<T, std::float16_t>)
+                suffix = "h";
+
+            if constexpr(std::is_same_v<T, float>)
+                suffix = "f";
+
             if constexpr(!std::is_same_v<T, std::monostate>)
             {
                 if(op.is_constant())
                 {
                     if(op.get_constant() < 0)
-                        return "(" + to_string_either(op.value_payload.value()) + ")";
+                        return "(" + to_string_either(op.value_payload.value()) + suffix + ")";
+                    else
+                        return to_string_either(op.value_payload.value()) + suffix;
                 }
             }
 
@@ -1426,13 +1529,47 @@ namespace dual_types
             return type_to_string(op.args[0]) + " " + type_to_string(op.args[1]) + "=" + type_to_string(op.args[2]) + ";";
         }
 
+        if(op.type == ops::COMBO_PLUS)
+        {
+            auto bracket_pair = [](const std::string& v1, const std::string& v2)
+            {
+                return "(" + v1 + "+" + v2 + ")";
+            };
+
+            std::vector<std::string> pending;
+
+            for(const auto& i : op.args)
+            {
+                pending.push_back(type_to_string(i));
+            }
+
+            std::sort(pending.begin(), pending.end());
+
+            assert(pending.size() >= 2);
+
+            return pairwise_reduce(pending, bracket_pair);
+        }
+
         const operation_desc desc = get_description(op.type);
 
         if(desc.is_infix)
         {
             assert(op.args.size() == 2);
 
-            return "(" + type_to_string(op.args[0]) + std::string(desc.sym) + type_to_string(op.args[1]) + ")";
+            std::vector<std::string> expanded;
+            expanded.reserve(2);
+
+            for(const auto& i : op.args)
+            {
+                expanded.push_back(type_to_string(i));
+            }
+
+            #ifdef SORT_ASSOCIATIVE
+            if(op.type == ops::PLUS || op.type == ops::MULTIPLY)
+                std::sort(expanded.begin(), expanded.end());
+            #endif
+
+            return "(" + expanded[0] + std::string(desc.sym) + expanded[1] + ")";
         }
         else
         {
@@ -1483,15 +1620,34 @@ namespace dual_types
     inline
     value<U> make_op(ops::type_t type, T&&... args)
     {
-        value<U> ret;
-        ret.type = type;
-        ret.args = {args...};
-        ret.value_payload = std::nullopt;
+        value<U> val;
+        val.type = type;
+        val.args = {args...};
+        val.value_payload = std::nullopt;
 
         if constexpr(std::is_same_v<U, std::monostate>)
-            return ret;
+            return val;
         else
-            return ret.flatten();
+        {
+            return val.flatten().group_associative_operators();
+        }
+    }
+
+    template<typename T>
+    inline
+    value<T> make_op(ops::type_t type, const std::vector<value<T>>& args)
+    {
+        value<T> val;
+        val.type = type;
+        val.args = args;
+        val.value_payload = std::nullopt;
+
+        if constexpr(std::is_same_v<T, std::monostate>)
+            return val;
+        else
+        {
+            return val.flatten().group_associative_operators();
+        }
     }
 
     #define UNARY(x, y) template<typename T> inline value<T> x(const value<T>& d1){return make_op<T>(ops::y, d1);}
