@@ -779,6 +779,42 @@ namespace dual_types
                     return 2 * args[0].flatten();
             }
 
+            if(type == ops::COMBO_PLUS)
+            {
+                int const_num = 0;
+
+                for(const auto& i : args)
+                {
+                    if(i.is_constant())
+                        const_num++;
+                }
+
+                if(const_num > 1)
+                {
+                    value cst = 0;
+
+                    value copied = *this;
+
+                    for(int i=0; i < (int)copied.args.size(); i++)
+                    {
+                        if(copied.args[i].is_constant())
+                        {
+                            cst += copied.args[i];
+
+                            copied.args.erase(copied.args.begin() + i);
+                            i--;
+                            continue;
+                        }
+                    }
+
+                    copied.args.push_back(cst);
+
+                    return copied.flatten();
+                }
+
+                ///still need to implement equivalence checking to do n * thing
+            }
+
             if(type == ops::MINUS)
             {
                 if(args[0].is_constant_constraint(is_zero))
@@ -836,7 +872,6 @@ namespace dual_types
                         }
                     }
                 }
-
             }
 
             if(type == ops::FMA || type == ops::MAD)
