@@ -495,6 +495,30 @@ namespace dual_types
         ///-> ((e + f) + ((a + b) + (c + d)))
         while(pending.size() >= 2)
         {
+            #ifdef ORDER_PRESERVING
+            for(int i=0; i < pending.size(); i++)
+            {
+                if(i == (int)pending.size() - 1)
+                    break;
+
+                ///a b c d e f
+                T v1 = pending[i];
+                T v2 = pending[i + 1];
+
+                ///groups ab
+                T reduced = reduce(v1, v2);
+
+                ///abcdef -> cdef
+                ///-> (ab)abcdef
+                pending.insert(pending.begin() + i, reduced);
+
+                ///-> (ab)bcdef
+                pending.erase(pending.begin() + i+1);
+                ///-> (ab)cdef
+                pending.erase(pending.begin() + i+1);
+                //i--;
+            }
+            #else
             T v1 = pending.at(0);
             T v2 = pending.at(1);
 
@@ -502,6 +526,7 @@ namespace dual_types
             pending.erase(pending.begin());
 
             pending.push_back(reduce(v1, v2));
+            #endif
         }
 
         assert(pending.size() == 1);
