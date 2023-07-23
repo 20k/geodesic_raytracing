@@ -141,6 +141,13 @@ namespace dual_types
         return std::to_string(v);
     }
 
+    inline
+    std::string to_string_s(std::monostate m)
+    {
+        throw std::runtime_error("Bad to_string_s std::monostate");
+        return "";
+    }
+
     template<typename T>
     inline
     std::optional<T> get_value(std::string_view in)
@@ -195,7 +202,16 @@ namespace dual_types
         }
         else
         {
-            return to_string_s(std::get<1>(in));
+            const T& val = std::get<1>(in);
+
+            std::string result = std::visit([](const auto& in)
+            {
+                return to_string_s(in);
+            }, val.storage);
+
+            return result;
+
+            //return to_string_s(std::get<1>(in));
         }
     }
 
@@ -534,6 +550,36 @@ namespace dual_types
         return pending.at(0);
     }
 
+    struct type_erased_storage
+    {
+        std::variant<std::monostate,
+                     std::float16_t, float, double,
+                     int64_t, uint64_t,
+                     int, unsigned int,
+                     uint16_t, int16_t,
+                     uint8_t, int8_t> storage;
+
+        template<typename T>
+        auto visit(T&& t)
+        {
+            return std::visit(std::forward<T>(t), storage);
+        }
+
+        template<typename T>
+        type_erased_storage(const T& in) : storage(in){}
+        type_erased_storage(const type_erased_storage&) = default;
+
+        template<typename T>
+        void operator=(const T& other)
+        {
+            storage = other;
+        }
+
+        type_erased_storage& operator=(const type_erased_storage&) = default;
+
+        auto operator<=>(const type_erased_storage& rhs) const = default;
+    };
+
     template<typename T>
     struct value
     {
@@ -543,7 +589,7 @@ namespace dual_types
 
         ops::type_t type = ops::NONE;
 
-        std::optional<std::variant<std::string, T>> value_payload;
+        std::optional<std::variant<std::string, type_erased_storage>> value_payload;
 
         //std::optional<std::string> value_payload;
         std::vector<value<T>> args;
@@ -551,6 +597,14 @@ namespace dual_types
         value(){value_payload = T{}; type = ops::VALUE;}
         //value(T v){value_payload = v; type = ops::VALUE;}
         //value(int v){value_payload = T(v); type = ops::VALUE;}
+
+        void set_from(const std::variant<std::string, T>& val)
+        {
+            std::visit([&](auto& in)
+            {
+                value_payload = in;
+            }, val);
+        }
 
         template<typename U>
         requires std::is_arithmetic_v<U>
@@ -650,17 +704,18 @@ namespace dual_types
         {
             assert(is_constant());
 
-            return std::get<1>(value_payload.value());
+            return std::get<T>(std::get<1>(value_payload.value()).storage);
         }
 
         T get(int idx) const
         {
-            return std::get<1>(args[idx].value_payload.value());
+            return std::get<T>(std::get<1>(args[idx].value_payload.value()).storage);
         }
 
         void make_value(const std::string& str)
         {
-            value_payload = get_value_or_string<T>(str);
+            set_from(get_value_or_string<T>(str));
+
             type = ops::VALUE;
         }
 
@@ -1225,7 +1280,13 @@ namespace dual_types
                 if(it == variables.end())
                     return;
 
-                value_payload = get_value_or_string(it->second);
+                std::variant<std::string, T> val = get_value_or_string<T>(it->second);
+
+                std::visit(val, [&](auto& found)
+                {
+                    value_payload = found;
+                });
+
                 return;
             }
 
