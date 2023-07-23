@@ -1280,13 +1280,7 @@ namespace dual_types
                 if(it == variables.end())
                     return;
 
-                std::variant<std::string, T> val = get_value_or_string<T>(it->second);
-
-                std::visit(val, [&](auto& found)
-                {
-                    value_payload = found;
-                });
-
+                set_from(get_value_or_string<T>(it->second));
                 return;
             }
 
