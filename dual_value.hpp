@@ -473,12 +473,18 @@ namespace dual_types
     inline
     value<T> make_op(ops::type_t type, const std::vector<value<T>>& args);
 
-    template<auto N, typename T>
-    inline
-    bool is_value_equal(const T& f)
+    template<auto N>
+    struct is_value_equal
     {
-        return f == (T)N;
-    }
+        template<typename T>
+        bool operator()(const T& in)
+        {
+            if constexpr(std::is_same_v<T, std::monostate>)
+                return false;
+            else
+                return in == N;
+        }
+    };
 
     template<typename T>
     bool equivalent(const value<T>& d1, const value<T>& d2);
@@ -625,16 +631,7 @@ namespace dual_types
 
             if(value_payload.has_value())
             {
-                if constexpr(std::is_same_v<T, std::monostate>)
-                {
-                    assert(value_payload.value().index() == 0);
-
-                    result.value_payload = std::get<0>(value_payload.value());
-                }
-                else
-                {
-                    result.value_payload = type_to_string(*this);
-                }
+                result.value_payload = value_payload;
             }
 
             for(const value& v : args)
@@ -663,7 +660,7 @@ namespace dual_types
 
                 if(value_payload.has_value())
                 {
-                    result.value_payload = type_to_string(*this);
+                    result.value_payload = value_payload;
                 }
 
                 for(const value<T>& v : args)
@@ -697,7 +694,18 @@ namespace dual_types
             if(!is_constant())
                 return false;
 
-            return func(get_constant());
+            auto wrapper_func = [&]<typename V>(const V& in)
+            {
+                if constexpr(std::is_same_v<V, std::monostate>)
+                {
+                    assert(false);
+                    return false;
+                }
+                else
+                    return func(in);
+            };
+
+            return constant_callback(wrapper_func);
         }
 
         T get_constant() const
@@ -710,6 +718,14 @@ namespace dual_types
         T get(int idx) const
         {
             return std::get<T>(std::get<1>(args[idx].value_payload.value()).storage);
+        }
+
+        template<typename Func>
+        auto constant_callback(Func&& f) const
+        {
+            assert(is_constant());
+
+            return std::visit(std::forward<Func>(f), std::get<1>(value_payload.value()).storage);
         }
 
         void make_value(const std::string& str)
@@ -828,10 +844,17 @@ namespace dual_types
             if(type == ops::SELECT)
             {
                 if(args[2].is_constant())
-                    return args[2].get_constant() > 0 ? args[1] : args[0];
+                {
+                    bool gt_zero = args[2].is_constant_constraint([](const auto& in){return in > 0;});
+
+                    return gt_zero ? args[1] : args[0];
+                }
             }
 
-            auto is_zero = [](T f){return f == 0;};
+            auto is_zero = []<typename U>(const U& f)
+            {
+                return f == 0;
+            };
 
             if(type == ops::MULTIPLY)
             {
@@ -840,10 +863,10 @@ namespace dual_types
 
                 //std::cout << "hello " << type_to_string(args[0]) << " with " << type_to_string(args[1]) << std::endl;
 
-                if(args[0].is_constant_constraint(is_value_equal<1, T>))
+                if(args[0].is_constant_constraint(is_value_equal<1>{}))
                     return args[1].flatten();
 
-                if(args[1].is_constant_constraint(is_value_equal<1, T>))
+                if(args[1].is_constant_constraint(is_value_equal<1>{}))
                     return args[0].flatten();
             }
 
@@ -912,7 +935,7 @@ namespace dual_types
                 if(args[0].is_constant_constraint(is_zero))
                     return 0;
 
-                if(args[1].is_constant_constraint(is_value_equal<1, T>))
+                if(args[1].is_constant_constraint(is_value_equal<1>{}))
                     return args[0].flatten();
 
                 if(equivalent(args[0], args[1]))
@@ -923,7 +946,7 @@ namespace dual_types
 
             if(type == ops::POW)
             {
-                if(args[1].is_constant_constraint(is_value_equal<1, T>))
+                if(args[1].is_constant_constraint(is_value_equal<1>{}))
                     return args[0].flatten();
 
                 if(args[1].is_constant_constraint(is_zero))
@@ -961,11 +984,11 @@ namespace dual_types
                     return args[2].flatten();
 
                 ///1 * b + c
-                if(args[0].is_constant_constraint(is_value_equal<1, T>))
+                if(args[0].is_constant_constraint(is_value_equal<1>{}))
                     return (args[1] + args[2]).flatten();
 
                 ///a * 1 + c
-                if(args[1].is_constant_constraint(is_value_equal<1, T>))
+                if(args[1].is_constant_constraint(is_value_equal<1>{}))
                     return (args[0] + args[2]).flatten();
 
                 ///a * b + 0
@@ -1533,14 +1556,19 @@ namespace dual_types
 
             if(d1.is_constant())
             {
-                return d1.get_constant() == d2.get_constant();
+                auto comparator = []<typename T1, typename T2>(const T1& v1, const T2& v2)
+                {
+                    if constexpr(!std::is_same_v<T1, T2>)
+                        return false;
+                    else
+                        return v1 == v2;
+                };
+
+                return std::visit(comparator, std::get<1>(d1.value_payload.value()).storage, std::get<1>(d2.value_payload.value()).storage);
             }
 
-            return d1.value_payload.value() == d2.value_payload.value();
+            return d1.value_payload == d2.value_payload;
         }
-
-        if(d1.type == ops::VALUE && d1.get_constant() == d2.get_constant())
-            return true;
 
         if(d1.args.size() == 2 && (d1.type == ops::MULTIPLY || d1.type == ops::PLUS))
         {
@@ -1556,35 +1584,40 @@ namespace dual_types
         return true;
     }
 
-    template<typename T>
+    template<typename Unused>
     inline
-    std::string type_to_string(const value<T>& op)
+    std::string type_to_string(const value<Unused>& op)
     {
-        static_assert(std::is_same_v<T, std::float16_t> || std::is_same_v<T, double> || std::is_same_v<T, float> || std::is_same_v<T, int> || std::is_same_v<T, short> || std::is_same_v<T, unsigned short> || std::is_same_v<T, std::monostate>);
+        //static_assert(std::is_same_v<T, std::float16_t> || std::is_same_v<T, double> || std::is_same_v<T, float> || std::is_same_v<T, int> || std::is_same_v<T, short> || std::is_same_v<T, unsigned short> || std::is_same_v<T, std::monostate>);
 
         ///the type system is becoming really not ideal, if we promote a half to a float, we have no way of detecting that. Relying on stringyness
         if(op.type == ops::VALUE)
         {
-            std::string suffix;
+            if(op.value_payload.value().index() == 0)
+                return std::get<0>(op.value_payload.value());
 
-            if constexpr(std::is_same_v<T, std::float16_t>)
-                suffix = "h";
+            const type_erased_storage& store = std::get<1>(op.value_payload.value());
 
-            if constexpr(std::is_same_v<T, float>)
-                suffix = "f";
-
-            if constexpr(!std::is_same_v<T, std::monostate>)
+            return std::visit([]<typename T>(const T& in)
             {
-                if(op.is_constant())
-                {
-                    if(op.get_constant() < 0)
-                        return "(" + to_string_either(op.value_payload.value()) + suffix + ")";
-                    else
-                        return to_string_either(op.value_payload.value()) + suffix;
-                }
-            }
+                std::string suffix;
 
-            return to_string_either(op.value_payload.value());
+                if constexpr(std::is_same_v<T, std::float16_t>)
+                    suffix = "h";
+                if constexpr(std::is_same_v<T, float>)
+                    suffix = "f";
+
+                if constexpr(!std::is_same_v<T, std::monostate>)
+                {
+                    if(in < 0)
+                        return "(" + to_string_s(in) + suffix + ")";
+                    else
+                        return to_string_s(in) + suffix;
+                }
+
+                assert(false);
+                return std::string();
+            }, store.storage);
         }
 
         if(op.type == ops::BRACKET)
