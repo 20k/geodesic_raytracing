@@ -2078,7 +2078,7 @@ namespace dual_types
 
         value declare_op = make_op<T>(ops::DECLARE, name_type(T()), name, v1);
 
-        declare_op.is_mutable = is_mutable || v1.is_mutable;
+        declare_op.is_mutable = is_mutable;
 
         executor.exec(declare_op);
 
