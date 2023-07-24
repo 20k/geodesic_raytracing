@@ -1599,7 +1599,7 @@ namespace dual_types
 
     template<typename T>
     inline
-    value_mut<T> to_constant(const value<T>& in)
+    value_mut<T> to_mutable(const value<T>& in)
     {
         value_mut<T> v;
         v.set_from_constant(in);
@@ -1608,7 +1608,7 @@ namespace dual_types
 
     template<typename T>
     inline
-    const T& to_constant(const T& in)
+    const T& to_mutable(const T& in)
     {
         return in;
     }
@@ -1664,6 +1664,9 @@ namespace dual_types
 
                 return std::visit(comparator, std::get<1>(d1.value_payload.value()).storage, std::get<1>(d2.value_payload.value()).storage);
             }
+
+            if(d1.original_type != d2.original_type)
+                return false;
 
             return d1.value_payload == d2.value_payload;
         }
@@ -2070,16 +2073,19 @@ namespace dual_types
             int id = executor.sequenced.size();
 
             std::string fname = "declared" + std::to_string(id);
-            return declare(executor, v1, fname);
+            return declare_impl(executor, v1, fname, is_mutable);
         }
 
         value declare_op = make_op<T>(ops::DECLARE, name_type(T()), name, v1);
 
-        declare_op.is_mutable = is_mutable;
+        declare_op.is_mutable = is_mutable || v1.is_mutable;
 
         executor.exec(declare_op);
 
-        return name;
+        value<T> result = name;
+        result.is_mutable = declare_op.is_mutable;
+
+        return result;
     }
 
     template<typename U, typename T, int N>
@@ -2114,14 +2120,14 @@ namespace dual_types
     inline
     value_mut<T> declare_mut(U& executor, const value<T>& v1, const std::string& name = "")
     {
-        return to_constant(declare_impl(executor, v1, name, true));
+        return to_mutable(declare_impl(executor, v1, name, true));
     }
 
     template<typename T, typename U, int N>
     inline
     tensor<value_mut<T>, N> declare_mut(U& executor, const tensor<value<T>, N>& v1)
     {
-        return to_constant(declare_impl(executor, v1, true));
+        return to_mutable(declare_impl(executor, v1, true));
     }
 
     template<typename T>
@@ -2265,11 +2271,11 @@ namespace tensor_impl
 
     template<typename T, int... N>
     inline
-    auto to_constant(const tensor<T, N...>& in)
+    auto to_mutable(const tensor<T, N...>& in)
     {
         return tensor_for_each_unary(in, [](const T& v)
         {
-            return to_constant(v);
+            return to_mutable(v);
         });
     }
 }
