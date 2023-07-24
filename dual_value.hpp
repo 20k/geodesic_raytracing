@@ -65,6 +65,9 @@ namespace dual_types
         else CMAP(cl_ushort3, ushort3)
         else CMAP(cl_ushort2, ushort2)
 
+        else if constexpr(std::is_same_v<T, std::monostate>)
+            return "monostate##neverused";
+
         else if constexpr(std::is_same_v<T, tensor<value<float>, 4>>)
             return "float4";
 
@@ -600,6 +603,8 @@ namespace dual_types
         //std::optional<std::string> value_payload;
         std::vector<value<T>> args;
 
+        std::string original_type = name_type(T());
+
         value(){value_payload = T{}; type = ops::VALUE;}
         //value(T v){value_payload = v; type = ops::VALUE;}
         //value(int v){value_payload = T(v); type = ops::VALUE;}
@@ -628,6 +633,7 @@ namespace dual_types
             value<U> result;
             result.type = type;
             result.value_payload = std::nullopt;
+            result.original_type = original_type;
 
             if(value_payload.has_value())
             {
@@ -657,6 +663,7 @@ namespace dual_types
                 value<std::monostate> result;
                 result.type = type;
                 result.value_payload = std::nullopt;
+                result.original_type = original_type;
 
                 if(value_payload.has_value())
                 {
