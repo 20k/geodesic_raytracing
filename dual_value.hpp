@@ -609,14 +609,6 @@ namespace dual_types
         //value(T v){value_payload = v; type = ops::VALUE;}
         //value(int v){value_payload = T(v); type = ops::VALUE;}
 
-        void set_from(const std::variant<std::string, T>& val)
-        {
-            std::visit([&](auto& in)
-            {
-                value_payload = in;
-            }, val);
-        }
-
         template<typename U>
         requires std::is_arithmetic_v<U>
         value(U u)
@@ -626,6 +618,14 @@ namespace dual_types
 
         value(const std::string& str){value_payload = str; type = ops::VALUE;}
         value(const char* str){assert(str); value_payload = std::string(str); type = ops::VALUE;}
+
+        void set_from(const std::variant<std::string, T>& val)
+        {
+            std::visit([&](auto& in)
+            {
+                value_payload = in;
+            }, val);
+        }
 
         template<typename U>
         value<U> as() const
