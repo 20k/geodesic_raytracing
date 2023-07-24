@@ -1581,6 +1581,12 @@ namespace dual_types
         {
             return mutable_value(*this, executor);
         }
+
+        template<typename U>
+        auto mut(U& executor) const
+        {
+            return mutable_value(*this, executor);
+        }
     };
 
     template<typename T>
