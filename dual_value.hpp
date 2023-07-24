@@ -1781,7 +1781,12 @@ namespace dual_types
 
         if(op.type == ops::DECLARE)
         {
-            return type_to_string(op.args[0]) + " " + type_to_string(op.args[1]) + "=" + type_to_string(op.args[2]) + ";";
+            std::string prefix = "";
+
+            if(!op.is_mutable)
+                prefix = "const ";
+
+            return prefix + type_to_string(op.args[0]) + " " + type_to_string(op.args[1]) + "=" + type_to_string(op.args[2]) + ";";
         }
 
         if(op.type == ops::COMBO_PLUS)
