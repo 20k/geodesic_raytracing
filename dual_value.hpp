@@ -19,6 +19,9 @@ namespace dual_types
     struct value;
 
     template<typename T>
+    struct value_mut;
+
+    template<typename T>
     inline
     std::string name_type(T tag)
     {
@@ -115,6 +118,13 @@ namespace dual_types
     std::string name_type(value<T> tag)
     {
         return name_type(typename value<T>::value_type());
+    }
+
+    template<typename T>
+    inline
+    std::string name_type(value_mut<T> tag)
+    {
+        return name_type(typename value_mut<T>::value_type());
     }
 
     template<typename T>
@@ -589,6 +599,23 @@ namespace dual_types
         auto operator<=>(const type_erased_storage& rhs) const = default;
     };
 
+    template<typename T, typename U>
+    struct mutable_value
+    {
+        const T& v;
+        U& ctx;
+
+        mutable_value(const T& _v, U& _ctx) : v(_v), ctx(_ctx){}
+
+        template<typename V>
+        void operator=(const V& to_set)
+        {
+            assert(v.is_mutable);
+
+            ctx.exec(assign(v, to_set));
+        }
+    };
+
     template<typename T>
     struct value
     {
@@ -604,6 +631,7 @@ namespace dual_types
         std::vector<value<T>> args;
 
         std::string original_type = name_type(T());
+        bool is_mutable = false;
 
         value(){value_payload = T{}; type = ops::VALUE;}
         //value(T v){value_payload = v; type = ops::VALUE;}
@@ -628,12 +656,13 @@ namespace dual_types
         }
 
         template<typename U>
-        value<U> as() const
+        U reinterpret_as() const
         {
-            value<U> result;
+            U result;
             result.type = type;
             result.value_payload = std::nullopt;
             result.original_type = original_type;
+            result.is_mutable = is_mutable;
 
             if(value_payload.has_value())
             {
@@ -642,7 +671,7 @@ namespace dual_types
 
             for(const value& v : args)
             {
-                result.args.push_back(v.template as<U>());
+                result.args.push_back(v.template reinterpret_as<U>());
             }
 
             return result;
@@ -651,7 +680,7 @@ namespace dual_types
         template<typename U>
         value<U> convert() const
         {
-            return make_op<U>(ops::CONVERT, as<U>(), name_type(U()));
+            return make_op<U>(ops::CONVERT, reinterpret_as<value<U>>(), name_type(U()));
         }
 
         value<std::monostate> as_generic() const
@@ -664,6 +693,7 @@ namespace dual_types
                 result.type = type;
                 result.value_payload = std::nullopt;
                 result.original_type = original_type;
+                result.is_mutable = is_mutable;
 
                 if(value_payload.has_value())
                 {
@@ -1523,6 +1553,67 @@ namespace dual_types
     };
 
     template<typename T>
+    struct value_mut : value<T>
+    {
+        value_mut() : value<T>()
+        {
+            value<T>::is_mutable = true;
+        }
+
+        const value<T>& as_constant() const
+        {
+            return *this;
+        }
+
+        void set_from_constant(const value<T>& in)
+        {
+            static_cast<value<T>&>(*this) = in;
+            value<T>::is_mutable = true;
+        }
+
+        operator value<T>() const
+        {
+            return as_constant();
+        }
+
+        template<typename U>
+        auto as_mutable(U& executor) const
+        {
+            return mutable_value(*this, executor);
+        }
+    };
+
+    template<typename T>
+    inline
+    const T& as_constant(const T& in)
+    {
+        return in;
+    }
+
+    template<typename T>
+    inline
+    value<T> as_constant(const value_mut<T>& in)
+    {
+        return in.as_constant();
+    }
+
+    template<typename T>
+    inline
+    value_mut<T> to_constant(const value<T>& in)
+    {
+        value_mut<T> v;
+        v.set_from_constant(in);
+        return v;
+    }
+
+    template<typename T>
+    inline
+    const T& to_constant(const T& in)
+    {
+        return in;
+    }
+
+    template<typename T>
     inline
     std::string get_function_name(const value<T>& v)
     {
@@ -1544,8 +1635,8 @@ namespace dual_types
             return std::vector<value<T>>(v.args.begin() + 1, v.args.end());
         else
             return v.args;
-    }
 
+    }
     template<typename T>
     inline
     bool equivalent(const value<T>& d1, const value<T>& d2)
@@ -1861,7 +1952,7 @@ namespace dual_types
         if(equivalent(v1, v2))
             return v1;
 
-        return make_op<T>(ops::SELECT, v1, v2, v3.template as<T>());
+        return make_op<T>(ops::SELECT, v1, v2, v3.template reinterpret_as<value<T>>());
     }
 
     template<typename T>
@@ -1972,7 +2063,7 @@ namespace dual_types
 
     template<typename U, typename T>
     inline
-    value<T> declare(U& executor, const value<T>& v1, const std::string& name = "")
+    value<T> declare_impl(U& executor, const value<T>& v1, const std::string& name, bool is_mutable)
     {
         if(name == "")
         {
@@ -1984,6 +2075,8 @@ namespace dual_types
 
         value declare_op = make_op<T>(ops::DECLARE, name_type(T()), name, v1);
 
+        declare_op.is_mutable = is_mutable;
+
         executor.exec(declare_op);
 
         return name;
@@ -1991,16 +2084,44 @@ namespace dual_types
 
     template<typename U, typename T, int N>
     inline
-    tensor<value<T>, N> declare(U& executor, const tensor<value<T>, N>& v1)
+    tensor<value<T>, N> declare_impl(U& executor, const tensor<value<T>, N>& v1, bool is_mutable)
     {
         tensor<value<T>, N> ret;
 
         for(int i=0; i < N; i++)
         {
-            ret[i] = declare(executor, v1[i]);
+            ret[i] = declare_impl(executor, v1[i], "", is_mutable);
         }
 
         return ret;
+    }
+
+    template<typename T, typename U>
+    inline
+    value<T> declare(U& executor, const value<T>& v1, const std::string& name = "")
+    {
+        return declare_impl(executor, v1, name, false);
+    }
+
+    template<typename T, typename U, int N>
+    inline
+    tensor<value<T>, N> declare(U& executor, const tensor<value<T>, N>& v1)
+    {
+        return declare_impl(executor, v1, false);
+    }
+
+    template<typename T, typename U>
+    inline
+    value_mut<T> declare_mut(U& executor, const value<T>& v1, const std::string& name = "")
+    {
+        return to_constant(declare_impl(executor, v1, name, true));
+    }
+
+    template<typename T, typename U, int N>
+    inline
+    tensor<value_mut<T>, N> declare_mut(U& executor, const tensor<value<T>, N>& v1)
+    {
+        return to_constant(declare_impl(executor, v1, true));
     }
 
     template<typename T>
@@ -2018,7 +2139,6 @@ namespace dual_types
         return d1;
     }
 
-
     template<typename T>
     inline
     complex<value<T>> psqrt(const complex<value<T>>& d1)
@@ -2033,16 +2153,20 @@ namespace dual_types
 
     template<typename T>
     inline
-    value<T> assign(const value<T>& location, const value<T>& what)
+    value_mut<T> assign(const value_mut<T>& location, const value<T>& what)
     {
-        return make_op<T>(ops::ASSIGN, location, what);
+        value_mut<T> ret;
+
+        ret.set_from_constant(make_op<T>(ops::ASSIGN, location.as_constant(), what));
+
+        return ret;
     }
 
-    template<typename T, int N>
+    template<typename T, typename U, int N>
     inline
-    tensor<value<T>, N> assign(const tensor<value<T>, N>& location, const tensor<value<T>, N>& what)
+    tensor<value_mut<T>, N> assign(const tensor<value_mut<T>, N>& location, const tensor<U, N>& what)
     {
-        tensor<value<T>, N> ret;
+        tensor<value_mut<T>, N> ret;
 
         for(int i=0; i < N; i++)
         {
@@ -2127,6 +2251,29 @@ namespace dual_types
     }
 }
 
+namespace tensor_impl
+{
+    template<typename T, int... N>
+    inline
+    auto as_constant(const tensor<T, N...>& in)
+    {
+        return tensor_for_each_unary(in, [](const T& v)
+        {
+            return as_constant(v);
+        });
+    }
+
+    template<typename T, int... N>
+    inline
+    auto to_constant(const tensor<T, N...>& in)
+    {
+        return tensor_for_each_unary(in, [](const T& v)
+        {
+            return to_constant(v);
+        });
+    }
+}
+
 template<typename T, typename U>
 inline
 T divide_with_callback(const T& top, const T& bottom, U&& if_nonfinite)
@@ -2147,6 +2294,7 @@ T divide_with_callback(const T& top, const T& bottom, U&& if_nonfinite)
 
 using dual = dual_types::dual_v<dual_types::value<float>>;
 using dual_complex = dual_types::dual_v<dual_types::complex<dual_types::value<float>>>;
+
 template<typename T>
 using value_base = dual_types::value<T>;
 using value = dual_types::value<float>;
@@ -2155,6 +2303,17 @@ using value_s = dual_types::value<short>;
 using value_us = dual_types::value<unsigned short>;
 using value_v = dual_types::value<std::monostate>;
 using value_h = dual_types::value<std::float16_t>;
+
+
+template<typename T>
+using value_base_mut = dual_types::value_mut<T>;
+using value_mut = dual_types::value_mut<float>;
+using value_i_mut = dual_types::value_mut<int>;
+using value_s_mut = dual_types::value_mut<short>;
+using value_us_mut = dual_types::value_mut<unsigned short>;
+using value_v_mut = dual_types::value_mut<std::monostate>;
+using value_h_mut = dual_types::value_mut<std::float16_t>;
+
 const inline auto return_s = dual_types::make_return_s();
 const inline auto break_s = dual_types::make_break_s();
 
@@ -2166,5 +2325,14 @@ using v2f = tensor<value, 2>;
 using v2i = tensor<value_i, 2>;
 using v1f = tensor<value, 1>;
 using v1i = tensor<value_i, 1>;
+
+using v4f_mut = tensor<value_mut, 4>;
+using v4i_mut = tensor<value_i_mut, 4>;
+using v3f_mut = tensor<value_mut, 3>;
+using v3i_mut = tensor<value_i_mut, 3>;
+using v2f_mut = tensor<value_mut, 2>;
+using v2i_mut = tensor<value_i_mut, 2>;
+using v1f_mut = tensor<value_mut, 1>;
+using v1i_mut = tensor<value_i_mut, 1>;
 
 #endif // DUAL2_HPP_INCLUDED
