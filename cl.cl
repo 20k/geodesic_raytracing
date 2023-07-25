@@ -136,24 +136,6 @@ float calculate_ds(float4 velocity, float g_metric[])
 #define IS_CONSTANT_THETA
 #endif
 
-///ds2 = guv dx^u dx^v
-float4 fix_light_velocity2(float4 v, float g_metric[])
-{
-    ///g_metric[1] * v[1]^2 + g_metric[2] * v[2]^2 + g_metric[3] * v[3]^2 = -g_metric[0] * v[0]^2
-
-    float3 vmetric = {g_metric[1], g_metric[2], g_metric[3]};
-
-    #ifdef IS_CONSTANT_THETA
-    v.z = 0;
-    #endif // IS_CONSTANT_THETA
-
-    float tvl_2 = dot(vmetric, v.yzw * v.yzw) / -g_metric[0];
-
-    v.x = copysign(native_sqrt(tvl_2), v.x);
-
-    return v;
-}
-
 __kernel
 void clear(__write_only image2d_t out)
 {
@@ -2919,7 +2901,6 @@ struct lightray geodesic_to_render_ray(int cx, int cy, float4 position, float4 v
         calculate_metric_generic(position, g_metric, cfg);
         calculate_partial_derivatives_generic(position, g_partials, cfg);
 
-        velocity = fix_light_velocity2(velocity, g_metric);
         lightray_acceleration = calculate_acceleration(velocity, g_metric, g_partials);
         #else
         float g_partials_big[64] = {0};
@@ -3291,12 +3272,27 @@ float4 rk4_f(float t, float4 position, float4 velocity)
 }*/
 #endif // GENERIC_BIG_METRIC
 
+float4 fix_light_velocity(float4 position, float4 velocity, bool always_lightlike, dynamic_config_space struct dynamic_config* cfg)
+{
+    float v1 = position.x;
+    float v2 = position.y;
+    float v3 = position.z;
+    float v4 = position.w;
+
+    float iv1 = velocity.x;
+    float iv2 = velocity.y;
+    float iv3 = velocity.z;
+    float iv4 = velocity.w;
+
+    return (float4){FIX_LIGHT0, FIX_LIGHT1, FIX_LIGHT2, FIX_LIGHT3};
+}
+
 ///https://www.math.kit.edu/ianm3/lehre/geonumint2009s/media/gni_by_stoermer-verlet.pdf
 ///todo:
 ///it would be useful to be able to combine data from multiple ticks which are separated by some delta, but where I don't have control over that delta
 ///I wonder if a taylor series expansion of F(y + dt) might be helpful
 ///this is actually regular velocity verlet with no modifications https://en.wikipedia.org/wiki/Verlet_integration#Velocity_Verlet
-void step_verlet(float4 position, float4 velocity, float4 acceleration, bool always_lightlike, float ds, float4* position_out, float4* velocity_out, float4* acceleration_out, float* dT_ds, dynamic_config_space struct dynamic_config* cfg)
+void step_verlet(float4 position, float4 velocity, float4 acceleration, bool always_lightlike, float ds, float4* __restrict__ position_out, float4* __restrict__ velocity_out, float4* __restrict__ acceleration_out, float* __restrict__ dT_ds, dynamic_config_space struct dynamic_config* cfg)
 {
     #ifdef OLD_METRIC_STEP
     #ifndef GENERIC_BIG_METRIC
@@ -3393,7 +3389,7 @@ void step_verlet(float4 position, float4 velocity, float4 acceleration, bool alw
     //next_position = handle_coordinate_periodicity(next_position, cfg);
 
     *position_out = next_position;
-    *velocity_out = next_velocity;
+    *velocity_out = fix_light_velocity(next_position, next_velocity, always_lightlike, cfg);
     *acceleration_out = next_acceleration;
 }
 
@@ -3410,8 +3406,6 @@ void step_euler(float4 position, float4 velocity, float ds, float4* position_out
     #ifndef GENERIC_BIG_METRIC
     calculate_metric_generic(position, g_metric, cfg);
     calculate_partial_derivatives_generic(position, g_partials, cfg);
-
-    //velocity = fix_light_velocity2(velocity, g_metric);
 
     float4 lacceleration = calculate_acceleration(velocity, g_metric, g_partials);
     #else
@@ -4772,15 +4766,6 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
     int sx = ray->sx;
     int sy = ray->sy;
 
-    #ifndef GENERIC_BIG_METRIC
-    {
-        float g_metric[4] = {0};
-        calculate_metric_generic(position, g_metric, cfg);
-
-        velocity = fix_light_velocity2(velocity, g_metric);
-    }
-    #endif // GENERIC_BIG_METRIC
-
     #ifdef IS_CONSTANT_THETA
     position.z = M_PIf/2;
     velocity.z = 0;
@@ -5368,7 +5353,6 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
         #endif // ADAPTIVE_PRECISION
 
         position = next_position;
-        //velocity = fix_light_velocity2(next_velocity, g_metric);
         velocity = next_velocity;
         acceleration = next_acceleration;
         #endif // VERLET_INTEGRATION
@@ -5435,15 +5419,6 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
     float f_in_x = fabs(velocity.x);
 
     //printf("Pos %f %f %f %f\n", position.x,position.y,position.z,position.w);
-
-    /*#ifndef GENERIC_BIG_METRIC
-    {
-        float g_metric[4] = {0};
-        calculate_metric_generic(position, g_metric, cfg);
-
-        velocity = fix_light_velocity2(velocity, g_metric);
-    }
-    #endif // GENERIC_BIG_METRIC*/
 
     #ifdef IS_CONSTANT_THETA
     position.z = M_PIf/2;

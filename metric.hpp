@@ -134,6 +134,25 @@ namespace metrics
     }
 
     inline
+    tensor<value, 4> fix_light_velocity_wrapped(metric_info& inf, const tensor<value, 4>& v)
+    {
+        if(!inf.is_diagonal())
+            return v;
+
+        value is_lightlike = "always_lightlike";
+
+        tensor<value, 4> ret;
+        tensor<value, 4> fixed = fix_light_velocity(inf, v);
+
+        for(int i=0; i < 4; i++)
+        {
+            ret[i] = if_v(is_lightlike, fixed[i], v[i]);
+        }
+
+        return ret;
+    }
+
+    inline
     tensor<value, 4> calculate_acceleration(metric_info& inf)
     {
         tensor<value, 4> velocity = {"iv1", "iv2", "iv3", "iv4"};
@@ -389,6 +408,7 @@ namespace metrics
     struct metric_impl
     {
         std::vector<T> accel;
+        std::vector<T> fix_light;
 
         std::vector<T> real_eq;
         std::vector<T> derivatives;
@@ -423,6 +443,7 @@ namespace metrics
         metric_impl<std::string> ret;
 
         ret.accel = stringify_range(raw.accel);
+        ret.fix_light = stringify_range(raw.fix_light);
 
         ret.real_eq = stringify_range(raw.real_eq);
         ret.derivatives = stringify_range(raw.derivatives);
@@ -446,6 +467,11 @@ namespace metrics
         metric_impl<value> raw_copy = raw;
 
         for(value& v : raw_copy.accel)
+        {
+            v.substitute(mapping);
+        }
+
+        for(value& v : raw_copy.fix_light)
         {
             v.substitute(mapping);
         }
@@ -573,6 +599,10 @@ namespace metrics
             tensor<value, 4> accel_as_tensor = calculate_acceleration(inf);
 
             raw.accel = {accel_as_tensor.x(), accel_as_tensor.y(), accel_as_tensor.z(), accel_as_tensor.w()};
+
+            tensor<value, 4> fix_light = fix_light_velocity_wrapped(inf, {"iv1", "iv2", "iv3", "iv4"});
+
+            raw.fix_light = {fix_light.x(), fix_light.y(), fix_light.z(), fix_light.w()};
 
             std::tie(raw.real_eq, raw.derivatives) = evaluate_metric2D(func, "v1", "v2", "v3", "v4");
 
@@ -865,6 +895,11 @@ namespace metrics
         for(int i=0; i < 4; i++)
         {
             argument_string += " -DGEO_ACCEL" + std::to_string(i) + "=" + impl.accel[i];
+        }
+
+        for(int i=0; i < 4; i++)
+        {
+            argument_string += " -DFIX_LIGHT" + std::to_string(i) + "=" + impl.fix_light[i];
         }
 
         argument_string += " -DMETRIC_TIME_G00=" + real_eq[0];
