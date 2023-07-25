@@ -134,7 +134,7 @@ namespace metrics
 
         tensor<value, 4> ret = v;
 
-        ret[which] = sign * sqrt(max(tvl_2, value{0.f}));
+        ret[which] = sign * sqrt(fabs(tvl_2));
 
         ///not really useful currently other than theoretically down the line. Applicable to non diagonal metrics
         #ifdef RESCALE
