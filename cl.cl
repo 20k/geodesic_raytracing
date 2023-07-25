@@ -3824,6 +3824,7 @@ struct step_setup setup_step(float4 grid1, float4 grid2)
     ret.tDelta_y = signs.y < 0 ? -tDelta.y : tDelta.y;
     ret.tDelta_z = signs.z < 0 ? -tDelta.z : tDelta.z;
     ret.tDelta_w = signs.w < 0 ? -tDelta.w : tDelta.w;
+    //ret.last_ray_t = 0;
 
     ret.idx = 0;
     ret.should_end = false;
@@ -3893,7 +3894,16 @@ void do_step(struct step_setup* step)
         step->current_w += sign(step->tDelta_w);
     }
 
+    if(which_min == -1)
+        step->should_end = true;
+
     step->idx++;
+}
+
+///[0, > 1]
+float calculate_ray_t(struct step_setup* step)
+{
+    return min(min(fabs(step->tMax_x), fabs(step->tMax_y)), min(fabs(step->tMax_z), fabs(step->tMax_w)));
 }
 
 unsigned int index_generic(float4 in_voxel4, float width, float time_width, int width_num, dynamic_config_space struct dynamic_config* cfg)
@@ -4994,6 +5004,21 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                     do_step(&setup);
 
+                    /*float start_ray_t = calculate_ray_t(&setup);
+
+                    do_step(&setup);
+
+                    float stop_ray_t = calculate_ray_t(&setup);
+
+                    start_ray_t = clamp(start_ray_t, 0.f, 1.f);
+                    stop_ray_t = clamp(stop_ray_t, 0.f, 1.f);
+
+                    float4 start_pos = (next_rt_real_pos - rt_real_pos) * start_ray_t + rt_real_pos;
+                    float4 end_pos = (next_rt_real_pos - rt_real_pos) * stop_ray_t + rt_real_pos;*/
+
+                    float4 start_pos = rt_real_pos;
+                    float4 end_pos = next_rt_real_pos;
+
                     int tri_count = counts[voxel_id];
                     int base_offset = offsets[voxel_id];
 
@@ -5010,7 +5035,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
                         bool debug = sx == mouse_x && sy == mouse_y;
 
-                        if(ray_intersects_toblerone(rt_real_pos, next_rt_real_pos, rt_velocity, ds, ctri, origin_1, origin_2,
+                        if(ray_intersects_toblerone(start_pos, end_pos, rt_velocity, ds, ctri, origin_1, origin_2,
                                                     inverse_e0s, inverse_e1s, inverse_e2s, inverse_e3s,
                                                     &ray_t, debug, periods))
                         {

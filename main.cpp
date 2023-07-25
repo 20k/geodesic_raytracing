@@ -1579,8 +1579,8 @@ int main(int argc, char* argv[])
                     height = current_settings.screenshot_height * current_settings.supersample_factor;
                 }
 
-                width = max(width, 16 * current_settings.supersample_factor);
-                height = max(height, 16 * current_settings.supersample_factor);
+                width = std::max(width, 16 * current_settings.supersample_factor);
+                height = std::max(height, 16 * current_settings.supersample_factor);
 
                 ray_count = width * height;
 
