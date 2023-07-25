@@ -119,18 +119,33 @@ namespace metrics
     inline
     tensor<value, 4> fix_light_velocity(metric_info& inf, const tensor<value, 4>& v)
     {
-        tensor<value, 3> spatial_v = {v.y(), v.z(), v.w()};
-        tensor<value, 3> spatial_m = {inf.met.idx(1, 1), inf.met.idx(2, 2), inf.met.idx(3, 3)};
+        ///which component to fix
+        int which = 0;
+        int n1 = (which + 1) % 4;
+        int n2 = (which + 2) % 4;
+        int n3 = (which + 3) % 4;
 
-        value tvl_2 = sum_multiply(spatial_m, spatial_v * spatial_v) / -inf.met.idx(0, 0);
+        tensor<value, 3> spatial_v = {v[n1], v[n2], v[n3]};
+        tensor<value, 3> spatial_m = {inf.met[n1, n1], inf.met[n2, n2], inf.met[n3, n3]};
 
-        value sign = dual_types::if_v(v.x() < 0, -1.f, 1.f);
+        value tvl_2 = sum_multiply(spatial_m, spatial_v * spatial_v) / -inf.met[which, which];
+
+        value sign = dual_types::if_v(v[which] < 0, -1.f, 1.f);
 
         tensor<value, 4> ret = v;
 
-        ret.x() = sign * sqrt(tvl_2);
+        ret[which] = sign * sqrt(max(tvl_2, value{0.f}));
 
+        ///not really useful currently other than theoretically down the line. Applicable to non diagonal metrics
+        #ifdef RESCALE
+        value max_v = max(max(fabs(ret[0]), fabs(ret[1])), max(fabs(ret[2]), fabs(ret[3])));
+
+        value scale = 1/max_v;
+
+        return ret * scale;
+        #else
         return ret;
+        #endif // RESCALE
     }
 
     inline
