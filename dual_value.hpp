@@ -251,6 +251,7 @@ namespace dual_types
             RETURN,
             BREAK,
             IF_S,
+            IF_START,
             FOR_START,
             BLOCK_START,
             BLOCK_END,
@@ -365,7 +366,8 @@ namespace dual_types
             "=",
             "return",
             "break",
-            "if",
+            "if#err",
+            "if#err",
             "for#err",
             "block_start#err",
             "block_end#err",
@@ -419,7 +421,7 @@ namespace dual_types
             "ERROR#"
         };
 
-        if(type == ops::FOR_START || type == ops::BLOCK_START || type == ops::BLOCK_END)
+        if(type == ops::FOR_START || type == ops::BLOCK_START || type == ops::BLOCK_END || type == ops::IF_START)
             ret.is_semicolon_terminated = false;
 
         static_assert(syms.size() == ops::type_t::NONE);
@@ -1762,6 +1764,11 @@ namespace dual_types
         if(op.type == ops::IF_S)
         {
             return "if(" + type_to_string(op.args[0]) + "){" + type_to_string(op.args[1]) + ";}";
+        }
+
+        if(op.type == ops::IF_START)
+        {
+            return "if(" + type_to_string(op.args[0]) + ")";
         }
 
         if(op.type == ops::COMMA)
