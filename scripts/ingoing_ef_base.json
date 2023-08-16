@@ -11,5 +11,6 @@
 	"max_acceleration_change": 0.000001,
 	"to_polar": "ingoing_ef_to_polar",
 	"from_polar": "polar_to_ingoing_ef",
+    "coordinate_periodicity":"polar_periodicity",
 	"origin_distance": "at_origin"
 }
