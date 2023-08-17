@@ -1,5 +1,5 @@
 {
 	"name": "schwarzschild_ingoing_ef_hawking",
-	"inherit_settings": "ingoing_ef_base",
+	"inherit_settings": "ingoing_ef_variable_base",
 	"description": "A black hole emitting hawking radiation"
 }
