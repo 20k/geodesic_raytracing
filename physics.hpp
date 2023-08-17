@@ -20,7 +20,7 @@ struct physics
     std::array<cl::buffer, 4> tetrads;
     std::array<cl::buffer, 4> parallel_transported_tetrads;
     std::array<cl::buffer, 4> inverted_tetrads;
-    cl::buffer polar_positions;
+    cl::buffer generic_positions;
     cl::buffer timelike_vectors;
 
     int object_count = 0;
@@ -29,7 +29,7 @@ struct physics
 
     physics(cl::context& ctx) : geodesic_paths(ctx), geodesic_velocities(ctx), geodesic_ds(ctx), positions(ctx), counts(ctx), basis_speeds(ctx),
                                 gpu_object_count(ctx),
-                                tetrads{ctx, ctx, ctx, ctx}, parallel_transported_tetrads{ctx, ctx, ctx, ctx}, inverted_tetrads{ctx, ctx, ctx, ctx}, polar_positions(ctx), timelike_vectors(ctx)
+                                tetrads{ctx, ctx, ctx, ctx}, parallel_transported_tetrads{ctx, ctx, ctx, ctx}, inverted_tetrads{ctx, ctx, ctx, ctx}, generic_positions(ctx), timelike_vectors(ctx)
     {
         gpu_object_count.alloc(sizeof(cl_int));
     }
@@ -56,7 +56,7 @@ struct physics
             inverted_tetrads[i].alloc(clamped_count * sizeof(cl_float4) * max_path_length);
         }
 
-        polar_positions.alloc(clamped_count * sizeof(cl_float4));
+        generic_positions.alloc(clamped_count * sizeof(cl_float4));
         timelike_vectors.alloc(clamped_count * 1024); ///approximate because don't want to import gpu lightray definition
 
         counts.set_to_zero(cqueue);
@@ -93,18 +93,19 @@ struct physics
         {
             cl_float clflip = 0;
 
-            cl::args to_polar;
-            to_polar.push_back(positions);
-            to_polar.push_back(polar_positions);
-            to_polar.push_back(object_count);
-            to_polar.push_back(clflip);
+            cl::args args;
+            args.push_back(positions);
+            args.push_back(generic_positions);
+            args.push_back(object_count);
+            args.push_back(clflip);
+            args.push_back(dynamic_config);
 
-            cqueue.exec("cart_to_polar_kernel", to_polar, {object_count}, {256});
+            cqueue.exec("cart_to_generic_kernel", args, {object_count}, {256});
         }
 
         {
             cl::args tetrad_args;
-            tetrad_args.push_back(polar_positions);
+            tetrad_args.push_back(generic_positions);
             tetrad_args.push_back(object_count);
             tetrad_args.push_back(cartesian_basis_speed);
 
@@ -121,7 +122,7 @@ struct physics
         ///would boost here if we were going to
         {
             cl::args lorentz;
-            lorentz.push_back(polar_positions);
+            lorentz.push_back(generic_positions);
             lorentz.push_back(object_count);
             lorentz.push_back(manage.objects_velocity);
 
@@ -139,7 +140,7 @@ struct physics
             gpu_object_count.set_to_zero(cqueue);
 
             cl::args args;
-            args.push_back(polar_positions);
+            args.push_back(generic_positions);
             args.push_back(object_count);
             args.push_back(timelike_vectors);
             args.push_back(gpu_object_count);

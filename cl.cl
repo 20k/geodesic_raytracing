@@ -2219,11 +2219,11 @@ float4 get_timelike_vector(float3 cartesian_basis_speed, float time_direction,
     return bT + bX + bY + bZ;
 }
 
-void calculate_tetrads(float4 polar_camera, float3 cartesian_basis_speed,
+void calculate_tetrads(float4 at_metric, float3 cartesian_basis_speed,
                        float4* e0_out, float4* e1_out, float4* e2_out, float4* e3_out,
                        dynamic_config_space struct dynamic_config* cfg, int should_orient)
 {
-    float4 at_metric = spherical_to_generic(polar_camera, cfg);
+    float4 polar_camera = generic_to_spherical(at_metric, cfg);
 
     if(IS_DEGENERATE(at_metric.x) || IS_DEGENERATE(at_metric.y) || IS_DEGENERATE(at_metric.z) || IS_DEGENERATE(at_metric.w))
     {
@@ -2409,7 +2409,7 @@ void calculate_tetrads(float4 polar_camera, float3 cartesian_basis_speed,
 }
 
 __kernel
-void boost_tetrad(__global float4* polar_in, int count, __global float3* geodesic_basis_speed,
+void boost_tetrad(__global float4* generic_in, int count, __global float3* geodesic_basis_speed,
                   __global float4* e0_io, __global float4* e1_io, __global float4* e2_io, __global float4* e3_io,
                   dynamic_config_space struct dynamic_config* cfg)
 {
@@ -2418,7 +2418,7 @@ void boost_tetrad(__global float4* polar_in, int count, __global float3* geodesi
     if(id >= count)
         return;
 
-    float4 at_metric = spherical_to_generic(polar_in[id], cfg);
+    float4 at_metric = generic_in[id];
 
     float4 e0 = e0_io[id];
     float4 e1 = e1_io[id];
@@ -2451,7 +2451,7 @@ void boost_tetrad(__global float4* polar_in, int count, __global float3* geodesi
 }
 
 __kernel
-void init_basis_vectors(__global float4* polar_in, int count,
+void init_basis_vectors(__global float4* generic_in, int count,
                         float3 cartesian_basis_speed,
                         __global float4* e0_out, __global float4* e1_out, __global float4* e2_out, __global float4* e3_out,
                         dynamic_config_space struct dynamic_config* cfg)
@@ -2461,14 +2461,12 @@ void init_basis_vectors(__global float4* polar_in, int count,
     if(id >= count)
         return;
 
-    float4 polar = polar_in[id];
-
     float4 e0;
     float4 e1;
     float4 e2;
     float4 e3;
 
-    calculate_tetrads(polar, cartesian_basis_speed, &e0, &e1, &e2, &e3, cfg, 1);
+    calculate_tetrads(generic_in[id], cartesian_basis_speed, &e0, &e1, &e2, &e3, cfg, 1);
 
     e0_out[id] = e0;
     e1_out[id] = e1;
@@ -2589,7 +2587,7 @@ void parallel_transport_quantity(__global float4* geodesic_path, __global float4
 
 __kernel
 void handle_interpolating_geodesic(__global float4* geodesic_path, __global float4* geodesic_velocity, __global float* dT_ds, __global float* ds_in,
-                                   __global float4* g_camera_polar_out,
+                                   __global float4* g_camera_generic_out,
                                    __global float4* t_e0_in, __global float4* t_e1_in, __global float4* t_e2_in, __global float4* t_e3_in,
                                    __global float4* e0_out, __global float4* e1_out, __global float4* e2_out, __global float4* e3_out,
                                    float target_time,
@@ -2610,7 +2608,7 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
     if(!parallel_transport_observer)
     {
         float4 e0, e1, e2, e3;
-        calculate_tetrads(generic_to_spherical(start_generic, cfg), *geodesic_basis_speed, &e0, &e1, &e2, &e3, cfg, 1);
+        calculate_tetrads(start_generic, *geodesic_basis_speed, &e0, &e1, &e2, &e3, cfg, 1);
 
         *e0_out = e0;
         *e1_out = e1;
@@ -2630,7 +2628,7 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
     //float current_time = geodesic_path[0].x;
     float current_proper_time = 0;
 
-    *g_camera_polar_out = generic_to_spherical(start_generic, cfg);
+    *g_camera_generic_out = start_generic;
     *interpolated_geodesic_velocity = geodesic_velocity[0];
 
     if(cnt == 1)
@@ -2691,9 +2689,8 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
             #endif
 
             float4 fin_generic = mix(current_pos, next_pos, dx);
-            float4 fin_polar = generic_to_spherical(fin_generic, cfg);
 
-            *g_camera_polar_out = fin_polar;
+            *g_camera_generic_out = fin_generic;
 
             float4 e0 = t_e0_in[i];
             float4 e1 = t_e1_in[i];
@@ -2712,7 +2709,7 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
 
             if(!parallel_transport_observer)
             {
-                calculate_tetrads(fin_polar, *geodesic_basis_speed, &oe0, &oe1, &oe2, &oe3, cfg, 1);
+                calculate_tetrads(fin_generic, *geodesic_basis_speed, &oe0, &oe1, &oe2, &oe3, cfg, 1);
             }
 
             *interpolated_geodesic_velocity = mix(geodesic_velocity[i], geodesic_velocity[i + 1], dx);
@@ -2729,13 +2726,13 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
         current_proper_time = next_proper_time;
     }
 
-    *g_camera_polar_out = generic_to_spherical(geodesic_path[cnt - 1], cfg);
+    *g_camera_generic_out = geodesic_path[cnt - 1];
     *interpolated_geodesic_velocity = geodesic_velocity[cnt - 1];
 
     if(!parallel_transport_observer)
     {
         float4 e0, e1, e2, e3;
-        calculate_tetrads(generic_to_spherical(geodesic_path[cnt - 1], cfg), *geodesic_basis_speed, &e0, &e1, &e2, &e3, cfg, 1);
+        calculate_tetrads(geodesic_path[cnt - 1], *geodesic_basis_speed, &e0, &e1, &e2, &e3, cfg, 1);
 
         *e0_out = e0;
         *e1_out = e1;
@@ -2761,6 +2758,7 @@ __kernel void pull_object_positions(__global struct object* current_pos, __globa
     geodesic_out[id] = current_pos[id].pos;
 }
 
+#if 0
 __kernel void push_object_positions(__global float4* geodesics_in, __global int* counts_in, __global struct object* pos_out, float target_time, int object_count, dynamic_config_space struct dynamic_config* cfg)
 {
     int id = get_global_id(0);
@@ -2799,6 +2797,7 @@ __kernel void push_object_positions(__global float4* geodesics_in, __global int*
             if(target_time < current_pos.x)
                 dx = 0;
 
+            ///this is overly complicated and can be directly interpolated
             float4 spherical1 = generic_to_spherical(current_pos, cfg);
             float4 spherical2 = generic_to_spherical(next_pos, cfg);
 
@@ -2815,6 +2814,7 @@ __kernel void push_object_positions(__global float4* geodesics_in, __global int*
 
     my_obj->pos = generic_to_cartesian(geodesics_in[(path_length - 1) * object_count + id], cfg);
 }
+#endif
 
 struct corrected_lightray
 {
@@ -2991,7 +2991,7 @@ struct lightray geodesic_to_trace_ray(float4 position, float4 velocity, dynamic_
 };
 
 __kernel
-void init_inertial_ray(__global float4* g_polar_position_in, int ray_count,
+void init_inertial_ray(__global float4* g_generic_position_in, int ray_count,
                        __global struct lightray* metric_rays, __global int* metric_ray_count,
                        __global float4* e0, __global float4* e1, __global float4* e2, __global float4* e3,
                        __global float3* geodesic_basis_speed,
@@ -3004,7 +3004,7 @@ void init_inertial_ray(__global float4* g_polar_position_in, int ray_count,
 
     float4 velocity = get_timelike_vector(geodesic_basis_speed[id], 1, e0[id], e1[id], e2[id], e3[id]);
 
-    float4 position = spherical_to_generic(g_polar_position_in[id], cfg);
+    float4 position = g_generic_position_in[id];
 
     struct lightray trace = geodesic_to_trace_ray(position, velocity, cfg);
 
@@ -3014,7 +3014,7 @@ void init_inertial_ray(__global float4* g_polar_position_in, int ray_count,
 }
 
 __kernel
-void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_camera_quat,
+void init_rays_generic(__global float4* g_generic_camera_in, __global float4* g_camera_quat,
                        __global struct lightray* metric_rays, __global int* metric_ray_count,
                        int width, int height,
                        __global int* termination_buffer,
@@ -3033,9 +3033,7 @@ void init_rays_generic(__global float4* g_polar_camera_in, __global float4* g_ca
 
     float3 pixel_direction = calculate_pixel_direction(cx, cy, width, height, *g_camera_quat);
 
-    float4 polar_camera = *g_polar_camera_in;
-
-    float4 at_metric = spherical_to_generic(polar_camera, cfg);
+    float4 at_metric = *g_generic_camera_in;
 
     /*{
         float g_metric[4] = {0};
@@ -6494,6 +6492,25 @@ void cart_to_polar_kernel(__global float4* position_cart_in, __global float4* po
         polar.x = -polar.x;
 
     position_polar_out[id] = (float4)(position_cart_in[id].x, polar.xyz);
+}
+
+///todo: make flip global
+__kernel
+void cart_to_generic_kernel(__global float4* position_cart_in, __global float4* position_generic_out, int count, float flip, dynamic_config_space struct dynamic_config* cfg)
+{
+    int id = get_global_id(0);
+
+    if(id >= count)
+        return;
+
+    float3 cart = position_cart_in[id].yzw;
+
+    float3 polar = cartesian_to_polar(cart);
+
+    if(flip > 0)
+        polar.x = -polar.x;
+
+    position_generic_out[id] = spherical_to_generic((float4)(position_cart_in[id].x, polar.xyz), cfg);
 }
 
 __kernel

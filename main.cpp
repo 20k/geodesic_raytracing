@@ -995,11 +995,13 @@ int main(int argc, char* argv[])
 
     ///in polar, were .x = t
     cl::buffer g_camera_pos_cart(clctx.ctx);
-    cl::buffer g_camera_pos_polar(clctx.ctx);
+    cl::buffer g_camera_pos_generic(clctx.ctx);
+    cl::buffer g_camera_pos_polar_readback(clctx.ctx);
     cl::buffer g_camera_quat(clctx.ctx);
 
     g_camera_pos_cart.alloc(sizeof(cl_float4));
-    g_camera_pos_polar.alloc(sizeof(cl_float4));
+    g_camera_pos_generic.alloc(sizeof(cl_float4));
+    g_camera_pos_polar_readback.alloc(sizeof(cl_float4));
     g_camera_quat.alloc(sizeof(cl_float4));
 
     {
@@ -2045,7 +2047,7 @@ int main(int argc, char* argv[])
                 interpolate_args.push_back(geodesic_vel_buffer);
                 interpolate_args.push_back(geodesic_dT_ds_buffer);
                 interpolate_args.push_back(geodesic_ds_buffer);
-                interpolate_args.push_back(g_camera_pos_polar);
+                interpolate_args.push_back(g_camera_pos_generic);
 
                 for(auto& i : parallel_transported_tetrads)
                 {
@@ -2078,7 +2080,7 @@ int main(int argc, char* argv[])
                     cl::args args;
 
                     args.push_back(g_camera_pos_cart);
-                    args.push_back(g_camera_pos_polar);
+                    args.push_back(g_camera_pos_polar_readback);
                     args.push_back(count);
                     args.push_back(clflip);
 
@@ -2086,10 +2088,19 @@ int main(int argc, char* argv[])
                 }
 
                 {
+                    cl::args args;
+                    args.push_back(g_camera_pos_polar_readback);
+                    args.push_back(g_camera_pos_generic);
+                    args.push_back(dynamic_config);
+
+                    clctx.cqueue.exec("camera_polar_to_generic", args, {1}, {1});
+                }
+
+                {
                     int count = 1;
 
                     cl::args tetrad_args;
-                    tetrad_args.push_back(g_camera_pos_polar);
+                    tetrad_args.push_back(g_camera_pos_generic);
                     tetrad_args.push_back(count);
                     tetrad_args.push_back(cartesian_basis_speed);
 
@@ -2106,21 +2117,14 @@ int main(int argc, char* argv[])
 
             {
                 cl::buffer next_generic_camera = camera_q.get_buffer(clctx.ctx);
+                cl::event copy_generic = cl::copy(clctx.cqueue, g_camera_pos_generic, next_generic_camera);
 
-                cl::args args;
-                args.push_back(g_camera_pos_polar);
-                args.push_back(next_generic_camera);
-                args.push_back(dynamic_config);
-
-                cl::event evt = clctx.cqueue.exec("camera_polar_to_generic", args, {1}, {1});
-
-                camera_q.start_read(clctx.ctx, async_queue, std::move(next_generic_camera), {evt});
-
+                camera_q.start_read(clctx.ctx, async_queue, std::move(next_generic_camera), {copy_generic});
 
                 cl::buffer next_polar_camera = camera_polar_q.get_buffer(clctx.ctx);
-                cl::event copy_event = cl::copy(clctx.cqueue, g_camera_pos_polar, next_polar_camera);
+                cl::event copy_polar = cl::copy(clctx.cqueue, g_camera_pos_polar_readback, next_polar_camera);
 
-                camera_polar_q.start_read(clctx.ctx, async_queue, std::move(next_polar_camera), {copy_event});
+                camera_polar_q.start_read(clctx.ctx, async_queue, std::move(next_polar_camera), {copy_polar});
             }
 
             int width = rtex.size<2>().x();
@@ -2174,7 +2178,7 @@ int main(int argc, char* argv[])
 
                     cl::args init_args_prepass;
 
-                    init_args_prepass.push_back(g_camera_pos_polar);
+                    init_args_prepass.push_back(g_camera_pos_generic);
                     init_args_prepass.push_back(g_camera_quat);
                     init_args_prepass.push_back(schwarzs_prepass);
                     init_args_prepass.push_back(schwarzs_count_prepass);
@@ -2209,7 +2213,7 @@ int main(int argc, char* argv[])
                 }
 
                 cl::args init_args;
-                init_args.push_back(g_camera_pos_polar);
+                init_args.push_back(g_camera_pos_generic);
                 init_args.push_back(g_camera_quat);
                 init_args.push_back(schwarzs_1);
                 init_args.push_back(schwarzs_count_1);
@@ -2311,7 +2315,7 @@ int main(int argc, char* argv[])
                     int count_in = 1;
 
                     cl::args lorentz;
-                    lorentz.push_back(g_camera_pos_polar);
+                    lorentz.push_back(g_camera_pos_generic);
                     lorentz.push_back(count_in);
                     lorentz.push_back(g_geodesic_basis_speed);
 
@@ -2331,7 +2335,7 @@ int main(int argc, char* argv[])
                     int count_in = 1;
 
                     cl::args args;
-                    args.push_back(g_camera_pos_polar);
+                    args.push_back(g_camera_pos_generic);
                     args.push_back(count_in);
                     args.push_back(generic_geodesic_buffer);
                     args.push_back(generic_geodesic_count);
