@@ -2243,6 +2243,7 @@ int main(int argc, char* argv[])
                 texture_args.push_back(texture_coordinates);
                 texture_args.push_back(width);
                 texture_args.push_back(height);
+                texture_args.push_back(dynamic_config);
                 texture_args.push_back(dynamic_feature_buffer);
 
                 clctx.cqueue.exec("calculate_texture_coordinates", texture_args, {width * height}, {256});
@@ -2257,6 +2258,7 @@ int main(int argc, char* argv[])
                 render_args.push_back(height);
                 render_args.push_back(texture_coordinates);
                 render_args.push_back(current_settings.anisotropy);
+                render_args.push_back(dynamic_config);
                 render_args.push_back(dynamic_feature_buffer);
 
                 clctx.cqueue.exec("render", render_args, {width * height}, {256});

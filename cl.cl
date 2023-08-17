@@ -2656,12 +2656,12 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
             ne3 = basis.v4;
         }*/
 
-        if(next_pos.x < current_pos.x)
+        /*if(next_pos.x < current_pos.x)
         {
             float4 im = current_pos;
             current_pos = next_pos;
             next_pos = im;
-        }
+        }*/
 
         //float dt = next_pos.x - current_pos.x;
         //float next_proper_time = current_proper_time + dT_dt[i] * dt;
@@ -5301,13 +5301,11 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
             int out_id = atomic_inc(finished_count_out);
 
-            float4 polar_velocity = generic_velocity_to_spherical_velocity(position, velocity, cfg);
-
             struct lightray out_ray;
             out_ray.sx = sx;
             out_ray.sy = sy;
-            out_ray.position = polar_position;
-            out_ray.velocity = polar_velocity;
+            out_ray.position = position;
+            out_ray.velocity = velocity;
             out_ray.initial_quat = ray->initial_quat;
             out_ray.acceleration = 0;
             out_ray.ku_uobsu = ray->ku_uobsu;
@@ -5679,7 +5677,7 @@ void calculate_singularities(__global struct lightray* finished_rays, __global i
 
 __kernel
 void calculate_texture_coordinates(__global struct lightray* finished_rays, __global int* finished_count_in, __global float2* texture_coordinates, int width, int height,
-                                   dynamic_config_space struct dynamic_feature_config* dfg)
+                                   dynamic_config_space struct dynamic_config* cfg, dynamic_config_space struct dynamic_feature_config* dfg)
 {
     int id = get_global_id(0);
 
@@ -5692,8 +5690,8 @@ void calculate_texture_coordinates(__global struct lightray* finished_rays, __gl
     int sx = ray->sx;
     int sy = ray->sy;
 
-    float4 position = ray->position;
-    float4 velocity = ray->velocity;
+    float4 position = generic_to_spherical(ray->position, cfg);
+    float4 velocity = generic_velocity_to_spherical_velocity(ray->position, ray->velocity, cfg);
 
     #ifdef IS_CONSTANT_THETA
     position.z = M_PIf/2;
@@ -5861,7 +5859,8 @@ float4 read_mipmap(image2d_array_t mipmap1, image2d_array_t mipmap2, float posit
 __kernel
 void render(__global struct lightray* finished_rays, __global int* finished_count_in, __write_only image2d_t out,
             __read_only image2d_array_t mip_background, __read_only image2d_array_t mip_background2,
-            int width, int height, __global float2* texture_coordinates, int maxProbes, dynamic_config_space struct dynamic_feature_config* dfg)
+            int width, int height, __global float2* texture_coordinates, int maxProbes,
+            dynamic_config_space struct dynamic_config* cfg, dynamic_config_space struct dynamic_feature_config* dfg)
 {
     int id = get_global_id(0);
 
@@ -5879,8 +5878,10 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
     if(sx < 0 || sy < 0)
         return;
 
-    float4 position = ray->position;
-    float4 velocity = ray->velocity;
+    float4 position = generic_to_spherical(ray->position, cfg);
+    float4 velocity = generic_velocity_to_spherical_velocity(ray->position, ray->velocity, cfg);
+
+    float4 generic_velocity = ray->velocity;
 
     #ifdef IS_CONSTANT_THETA
     position.z = M_PIf/2;
@@ -6132,8 +6133,23 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
 
     if(GET_FEATURE(redshift, dfg))
     {
+        float4 generic_position = ray->position;
+
+        float4 fe0, fe1, fe2, fe3;
+        calculate_tetrads(generic_position, (float3)(0,0,0), &fe0, &fe1, &fe2, &fe3, cfg, 0);
+
+        #ifndef GENERIC_BIG_METRIC
+        float g_metric[4] = {0};
+        calculate_metric_generic(generic_position, g_metric, cfg);
+        #else
+        float g_metric[16] = {0};
+        calculate_metric_generic_big(generic_position, g_metric, cfg);
+        #endif
+
+        float4 obvs_low = lower_index_generic(fe0, g_metric);
+
         ///[-1, +infinity]
-        float z_shift = (velocity.x / -ray->ku_uobsu) - 1;
+        float z_shift = (dot(generic_velocity, obvs_low) / ray->ku_uobsu) - 1;
 
         z_shift = max(z_shift, -0.999f);
 
