@@ -2202,7 +2202,7 @@ namespace dual_types
             return declare_impl(executor, v1, fname, is_mutable);
         }
 
-        value declare_op = make_op<T>(ops::DECLARE, name_type(T()), name, v1);
+        value declare_op = make_op<T>(ops::DECLARE, v1.original_type, name, v1);
 
         declare_op.is_mutable = is_mutable;
 
