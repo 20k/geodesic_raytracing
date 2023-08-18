@@ -1284,8 +1284,43 @@ namespace dual_types
             return cp;
         }
 
+        template<typename U>
+        void recurse_variables(U&& u)
+        {
+            if(type == ops::IDOT)
+                return;
+
+            if(type == ops::VALUE)
+            {
+                if(is_constant())
+                    return;
+
+                u(*this);
+                return;
+            }
+
+            int start = 0;
+
+            if(type == ops::UNKNOWN_FUNCTION)
+                start = 1;
+
+            if(type == ops::DECLARE)
+                start = 2;
+
+            for(int i=start; i < (int)args.size(); i++)
+            {
+                if(type == ops::CONVERT && i == 1)
+                    continue;
+
+                args[i].recurse_variables(std::forward<U>(u));
+            }
+        }
+
         void get_all_variables_impl(std::set<std::string>& v) const
         {
+            if(type == ops::IDOT)
+                return;
+
             if(type == ops::VALUE)
             {
                 if(is_constant())
@@ -1300,8 +1335,14 @@ namespace dual_types
             if(type == ops::UNKNOWN_FUNCTION)
                 start = 1;
 
+            if(type == ops::DECLARE)
+                start = 2;
+
             for(int i=start; i < (int)args.size(); i++)
             {
+                if(type == ops::CONVERT && i == 1)
+                    continue;
+
                 args[i].get_all_variables_impl(v);
             }
         }
@@ -1347,6 +1388,17 @@ namespace dual_types
             {
                 args.at(i).recurse_arguments(in);
             }
+        }
+
+        template<typename U>
+        void bottom_up_recurse(U&& in) const
+        {
+            for(const auto& i : args)
+            {
+                i.bottom_up_recurse(std::forward<U>(in));
+            }
+
+            in(*this);
         }
 
         void substitute(const std::map<std::string, std::string>& variables)
