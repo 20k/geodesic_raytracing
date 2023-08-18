@@ -1590,17 +1590,17 @@ float4 normalize_big_metric(float4 in, float big_metric[])
     return in / native_sqrt(fabs(d));
 }
 
-float4 gram_proj_generic(float4 u, float4 v, float metric[])
+float4 gram_proj_big(float4 u, float4 v, float metric[])
 {
-    float top = dot_product_generic(u, v, metric);
-    float bottom = dot_product_generic(u, u, metric);
+    float top = dot_product_big(u, v, metric);
+    float bottom = dot_product_big(u, u, metric);
 
     return (top / bottom) * u;
 }
 
-float4 normalise_generic(float4 in, float metric[])
+float4 normalise_big(float4 in, float big_metric[])
 {
-    float d = dot_product_generic(in, in, metric);
+    float d = dot_product_big(in, in, big_metric);
 
     return in / native_sqrt(fabs(d));
 }
@@ -1608,26 +1608,27 @@ float4 normalise_generic(float4 in, float metric[])
 #define SWAP(x, y, T) do { T SWAP = x; x = y; y = SWAP; } while (0)
 
 ///i1-4 are raised
-struct frame_basis orthonormalise4_metric(float4 i1, float4 i2, float4 i3, float4 i4, float metric[])
+///this doesn't handle diagonal matrices!!!
+struct frame_basis orthonormalise4_metric(float4 i1, float4 i2, float4 i3, float4 i4, float big_metric[])
 {
     float4 u1 = i1;
 
     float4 u2 = i2;
-    u2 = u2 - gram_proj_generic(u1, u2, metric);
+    u2 = u2 - gram_proj_big(u1, u2, big_metric);
 
     float4 u3 = i3;
-    u3 = u3 - gram_proj_generic(u1, u3, metric);
-    u3 = u3 - gram_proj_generic(u2, u3, metric);
+    u3 = u3 - gram_proj_big(u1, u3, big_metric);
+    u3 = u3 - gram_proj_big(u2, u3, big_metric);
 
     float4 u4 = i4;
-    u4 = u4 - gram_proj_generic(u1, u4, metric);
-    u4 = u4 - gram_proj_generic(u2, u4, metric);
-    u4 = u4 - gram_proj_generic(u3, u4, metric);
+    u4 = u4 - gram_proj_big(u1, u4, big_metric);
+    u4 = u4 - gram_proj_big(u2, u4, big_metric);
+    u4 = u4 - gram_proj_big(u3, u4, big_metric);
 
-    u1 = normalise_generic(u1, metric);
-    u2 = normalise_generic(u2, metric);
-    u3 = normalise_generic(u3, metric);
-    u4 = normalise_generic(u4, metric);
+    u1 = normalise_big(u1, big_metric);
+    u2 = normalise_big(u2, big_metric);
+    u3 = normalise_big(u3, big_metric);
+    u4 = normalise_big(u4, big_metric);
 
     struct frame_basis ret;
     ret.v1 = u1;
@@ -2236,18 +2237,29 @@ void calculate_tetrads(float4 at_metric, float3 cartesian_basis_speed,
     }
 
     #ifndef GENERIC_BIG_METRIC
-    float g_metric[4] = {};
-    calculate_metric_generic(at_metric, g_metric, cfg);
+    float g_metric_local[4] = {};
+    calculate_metric_generic(at_metric, g_metric_local, cfg);
 
-    float4 co_basis = (float4){native_sqrt(-g_metric[0]), native_sqrt(g_metric[1]), native_sqrt(g_metric[2]), native_sqrt(g_metric[3])};
+    float g_metric_big_local[16] = {0};
 
-    float4 e0 = (float4)(1/co_basis.x, 0, 0, 0); ///or bt
-    float4 e1 = (float4)(0, 1/co_basis.y, 0, 0); ///or br
-    float4 e2 = (float4)(0, 0, 1/co_basis.z, 0);
-    float4 e3 = (float4)(0, 0, 0, 1/co_basis.w);
-    #else
-    float g_metric_big[16] = {0};
-    calculate_metric_generic_big(at_metric, g_metric_big, cfg);
+    g_metric_big_local[0] = g_metric_local[0];
+    g_metric_big_local[1*4 + 1] = g_metric_local[1];
+    g_metric_big_local[2*4 + 2] = g_metric_local[2];
+    g_metric_big_local[3*4 + 3] = g_metric_local[3];
+
+    float4 co_basis = (float4){native_sqrt(-g_metric_local[0]), native_sqrt(g_metric_local[1]), native_sqrt(g_metric_local[2]), native_sqrt(g_metric_local[3])};
+
+    float4 oe0 = (float4)(1/co_basis.x, 0, 0, 0); ///or bt
+    float4 oe1 = (float4)(0, 1/co_basis.y, 0, 0); ///or br
+    float4 oe2 = (float4)(0, 0, 1/co_basis.z, 0);
+    float4 oe3 = (float4)(0, 0, 0, 1/co_basis.w);
+
+    #endif
+
+    #ifdef GENERIC_BIG_METRIC
+    float g_metric_big_local[16] = {0};
+    calculate_metric_generic_big(at_metric, g_metric_big_local, cfg);
+    #endif
 
     ///contravariant
     float4 e0;
@@ -2256,7 +2268,7 @@ void calculate_tetrads(float4 at_metric, float3 cartesian_basis_speed,
     float4 e3;
 
     {
-        struct frame_basis basis = calculate_frame_basis(g_metric_big);
+        struct frame_basis basis = calculate_frame_basis(g_metric_big_local);
 
         /*if(cx == 500 && cy == 400)
         {
@@ -2274,7 +2286,6 @@ void calculate_tetrads(float4 at_metric, float3 cartesian_basis_speed,
         e2 = basis.v3;
         e3 = basis.v4;
     }
-    #endif // GENERIC_BIG_METRIC
 
     /*
     ///???
@@ -4875,6 +4886,11 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
             return;
         }
         #endif // UNCONDITIONALLY_NONSINGULAR
+
+        /*if(sx == 800 && sy == 600)
+        {
+            printf("Pos %f\n", position.x);
+        }*/
 
         if(GET_FEATURE(use_triangle_rendering, dfg) && (i % 1) == 0 && any_visible_tris > 0)
         {
