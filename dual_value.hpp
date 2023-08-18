@@ -701,7 +701,9 @@ namespace dual_types
         template<typename U>
         value<U> convert() const
         {
-            return make_op<U>(ops::CONVERT, reinterpret_as<value<U>>(), name_type(U()));
+            value<U> op = make_op<U>(ops::CONVERT, reinterpret_as<value<U>>(), name_type(U()));
+            op.original_type = name_type(U());
+            return op;
         }
 
         value<std::monostate> as_generic() const
@@ -1390,15 +1392,38 @@ namespace dual_types
             }
         }
 
-        template<typename U>
-        void bottom_up_recurse(U&& in) const
+        /*template<typename Pre, typename U>
+        void bottom_up_recurse(Pre&& pre, U&& in) const
         {
+            if(pre(*this))
+                return;
+
             for(const auto& i : args)
             {
-                i.bottom_up_recurse(std::forward<U>(in));
+                i.bottom_up_recurse(std::forward<Pre>(pre), std::forward<U>(in));
             }
 
             in(*this);
+        }*/
+
+        /*template<typename Pre, typename U>
+        void bottom_up_recurse(Pre&& pre, U&& in)
+        {
+            if(pre(*this))
+                return;
+
+            for(auto& i : args)
+            {
+                i.bottom_up_recurse(std::forward<Pre>(pre), std::forward<U>(in));
+            }
+
+            in(*this);
+        }*/
+
+        template<typename U>
+        void recurse_lambda(U&& func)
+        {
+            func(*this, std::forward<U>(func));
         }
 
         void substitute(const std::map<std::string, std::string>& variables)
@@ -2188,6 +2213,20 @@ namespace dual_types
         }
 
         return root + ")";
+    }
+
+    template<typename T>
+    inline
+    std::pair<value<std::monostate>, value<T>> declare_raw(const value<T>& v1, const std::string& name, bool is_mutable)
+    {
+        value declare_op = make_op<T>(ops::DECLARE, v1.original_type, name, v1);
+
+        declare_op.is_mutable = is_mutable;
+
+        value<T> result = name;
+        result.is_mutable = declare_op.is_mutable;
+
+        return {declare_op.as_generic(), result};
     }
 
     template<typename U, typename T>
