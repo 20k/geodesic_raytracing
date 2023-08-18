@@ -234,6 +234,8 @@ namespace dual_types
         bool is_infix = false;
         std::string_view sym;
         bool is_semicolon_terminated = true;
+        bool introduces_block = false;
+        bool reordering_hazard = false;
     };
 
     namespace ops
@@ -424,6 +426,12 @@ namespace dual_types
 
         if(type == ops::FOR_START || type == ops::BLOCK_START || type == ops::BLOCK_END || type == ops::IF_START)
             ret.is_semicolon_terminated = false;
+
+        if(type == ops::FOR_START || type == ops::IF_START)
+            ret.introduces_block = true;
+
+        if(type == ops::RETURN || type == ops::BREAK)
+            ret.reordering_hazard = true;
 
         static_assert(syms.size() == ops::type_t::NONE);
 
