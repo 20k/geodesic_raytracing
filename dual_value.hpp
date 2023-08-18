@@ -12,6 +12,7 @@
 #include <CL/cl.h>
 #include <stdfloat>
 #include <concepts>
+#include <source_location>
 
 namespace dual_types
 {
@@ -606,12 +607,22 @@ namespace dual_types
     {
         const T& v;
         U& ctx;
+        std::source_location loc;
 
-        mutable_value(const T& _v, U& _ctx) : v(_v), ctx(_ctx){}
+        mutable_value(const T& _v, U& _ctx, const std::source_location _loc = std::source_location::current()) : v(_v), ctx(_ctx), loc(_loc){}
 
         template<typename V>
         void operator=(const V& to_set)
         {
+            if(!v.is_mutable)
+            {
+                std::cout << "file: "
+                << loc.file_name() << '('
+                << loc.line() << ':'
+                << loc.column() << ") `"
+                << loc.function_name() << "\n";
+            }
+
             assert(v.is_mutable);
 
             ctx.exec(assign(v, to_set));
@@ -1579,15 +1590,15 @@ namespace dual_types
         }
 
         template<typename U>
-        auto as_mutable(U& executor) const
+        auto as_mutable(U& executor, const std::source_location loc = std::source_location::current()) const
         {
-            return mutable_value(*this, executor);
+            return mutable_value(*this, executor, loc);
         }
 
         template<typename U>
-        auto mut(U& executor) const
+        auto mut(U& executor, const std::source_location loc = std::source_location::current()) const
         {
-            return mutable_value(*this, executor);
+            return mutable_value(*this, executor, loc);
         }
     };
 
@@ -1917,6 +1928,18 @@ namespace dual_types
         }
     }
 
+    inline
+    value<std::monostate> block_start()
+    {
+        return make_op<std::monostate>(ops::BLOCK_START);
+    }
+
+    inline
+    value<std::monostate> block_end()
+    {
+        return make_op<std::monostate>(ops::BLOCK_END);
+    }
+
     #define UNARY(x, y) template<typename T> inline value<T> x(const value<T>& d1){return make_op<T>(ops::y, d1);}
     #define BINARY(x, y) template<typename T, typename U> inline value<T> x(const value<T>& d1, const U& d2){return make_op<T>(ops::y, d1, d2);}
     #define TRINARY(x, y) template<typename T, typename U, typename V> inline value<T> x(const value<T>& d1, const U& d2, const V& d3){return make_op<T>(ops::y, d1, d2, d3);}
@@ -2032,11 +2055,36 @@ namespace dual_types
     const inline value<std::monostate> break_s = make_break_s();
 
     ///true branch
-    template<typename T, typename U>
+    ///if with to-execute on true. This should be removed
+    /*template<typename T, typename U>
     inline
     value<std::monostate> if_s(const value<T>& condition, const value<U>& to_execute)
     {
         return make_op<std::monostate>(ops::IF_S, condition.as_generic(), to_execute.as_generic());
+    }*/
+
+    ///if block start
+    template<typename T>
+    inline
+    value<std::monostate> if_b(const value<T>& condition)
+    {
+        return make_op<std::monostate>(ops::IF_START, condition.as_generic());
+    }
+
+    ///if + execute. This is more the direction I would like to go
+    ///Long term: Do I want a local executor stack?
+    ///I've never once needed them to do anything fancy at all
+    template<typename Ctx, typename T, typename Func>
+    inline
+    void if_e(const value<T>& condition, Ctx& ctx, Func&& func)
+    {
+        ctx.exec(if_b(condition));
+
+        ctx.exec(block_start());
+
+        func();
+
+        ctx.exec(block_end());
     }
 
     ///select
@@ -2148,13 +2196,13 @@ namespace dual_types
         return to_mutable(declare_impl(executor, v1, true));
     }
 
-    template<typename T>
+    /*template<typename T>
     auto assert_s(const value<T>& is_true)
     {
         value<std::monostate> print = "printf(\"Failed: %s\",\"" + type_to_string(is_true) + "\")";
 
         return if_s(!is_true, print);
-    }
+    }*/
 
     template<typename T>
     inline
@@ -2186,6 +2234,18 @@ namespace dual_types
         return ret;
     }
 
+    template<typename T, typename U>
+    requires std::is_arithmetic_v<U>
+    inline
+    value_mut<T> assign(const value_mut<T>& location, const U& what)
+    {
+        value_mut<T> ret;
+
+        ret.set_from_constant(make_op<T>(ops::ASSIGN, location.as_constant(), what));
+
+        return ret;
+    }
+
     template<typename T, typename U, int N>
     inline
     tensor<value_mut<T>, N> assign(const tensor<value_mut<T>, N>& location, const tensor<U, N>& what)
@@ -2205,18 +2265,6 @@ namespace dual_types
     value<std::monostate> for_b(const std::string& loop_variable_name, const value<T>& init, const value<T>& condition, const value<T>& post)
     {
         return make_op<std::monostate>(ops::FOR_START, name_type(T()), loop_variable_name, init.as_generic(), condition.as_generic(), post.as_generic());
-    }
-
-    inline
-    value<std::monostate> block_start()
-    {
-        return make_op<std::monostate>(ops::BLOCK_START);
-    }
-
-    inline
-    value<std::monostate> block_end()
-    {
-        return make_op<std::monostate>(ops::BLOCK_END);
     }
 
     template<typename T>
