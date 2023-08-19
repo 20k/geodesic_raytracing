@@ -325,6 +325,7 @@ namespace dual_types
             DECLARE,
 
             UNKNOWN_FUNCTION,
+            SIDE_EFFECT,
 
             VALUE,
             NONE,
@@ -421,6 +422,7 @@ namespace dual_types
             "bad#bracket",
             "bad#declare",
             "generated#function#failure",
+            "side#effect",
             "ERROR#"
         };
 
@@ -430,7 +432,7 @@ namespace dual_types
         if(type == ops::FOR_START || type == ops::IF_START)
             ret.introduces_block = true;
 
-        if(type == ops::RETURN || type == ops::BREAK)
+        if(type == ops::RETURN || type == ops::BREAK || type == ops::SIDE_EFFECT)
             ret.reordering_hazard = true;
 
         static_assert(syms.size() == ops::type_t::NONE);
@@ -1352,6 +1354,9 @@ namespace dual_types
             if(type == ops::IDOT)
                 return;
 
+            if(type == ops::SIDE_EFFECT)
+                return;
+
             for(int i=0; i < (int)args.size(); i++)
             {
                 if(type == ops::DECLARE && i < 2)
@@ -1374,6 +1379,9 @@ namespace dual_types
         void for_each_real_arg(U&& in)
         {
             if(type == ops::IDOT)
+                return;
+
+            if(type == ops::SIDE_EFFECT)
                 return;
 
             for(int i=0; i < (int)args.size(); i++)
@@ -1943,6 +1951,11 @@ namespace dual_types
             return pairwise_reduce(pending, bracket_pair);
         }
 
+        if(op.type == ops::SIDE_EFFECT)
+        {
+            return type_to_string(op.args[0]) + ";";
+        }
+
         const operation_desc desc = get_description(op.type);
 
         if(desc.is_infix)
@@ -2323,6 +2336,12 @@ namespace dual_types
     tensor<value_mut<T>, N> declare_mut(U& executor, const tensor<value<T>, N>& v1)
     {
         return to_mutable(declare_impl(executor, v1, true));
+    }
+
+    template<typename T>
+    void side_effect(T& executor, const std::string& effect)
+    {
+        executor.exec(make_op<std::monostate>(ops::SIDE_EFFECT, effect));
     }
 
     /*template<typename T>
