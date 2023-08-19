@@ -653,6 +653,7 @@ namespace dual_types
 
         std::string original_type = name_type(T());
         bool is_mutable = false;
+        bool is_memory_access = false;
 
         value(){value_payload = T{}; type = ops::VALUE;}
         //value(T v){value_payload = v; type = ops::VALUE;}
