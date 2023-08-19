@@ -1287,7 +1287,7 @@ namespace dual_types
             return cp;
         }
 
-        template<typename U>
+        /*template<typename U>
         void recurse_variables(U&& u)
         {
             if(type == ops::IDOT)
@@ -1317,13 +1317,10 @@ namespace dual_types
 
                 args[i].recurse_variables(std::forward<U>(u));
             }
-        }
+        }*/
 
         void get_all_variables_impl(std::set<std::string>& v) const
         {
-            if(type == ops::IDOT)
-                return;
-
             if(type == ops::VALUE)
             {
                 if(is_constant())
@@ -1333,21 +1330,10 @@ namespace dual_types
                 return;
             }
 
-            int start = 0;
-
-            if(type == ops::UNKNOWN_FUNCTION)
-                start = 1;
-
-            if(type == ops::DECLARE)
-                start = 2;
-
-            for(int i=start; i < (int)args.size(); i++)
+            for_each_real_arg([&](const value& me)
             {
-                if(type == ops::CONVERT && i == 1)
-                    continue;
-
-                args[i].get_all_variables_impl(v);
-            }
+                me.get_all_variables_impl(v);
+            });
         }
 
         std::vector<std::string> get_all_variables() const
@@ -1361,36 +1347,73 @@ namespace dual_types
         }
 
         template<typename U>
-        void recurse_arguments(const U& in) const
+        void for_each_real_arg(U&& in) const
         {
-            in(*this);
+            if(type == ops::IDOT)
+                return;
 
-            int start = 0;
-
-            if(type == ops::UNKNOWN_FUNCTION)
-                start = 1;
-
-            ///iterating while modifying has unclear semantics
-            for(int i=start; i < (int)args.size(); i++)
+            for(int i=0; i < (int)args.size(); i++)
             {
-                args.at(i).recurse_arguments(in);
+                if(type == ops::DECLARE && i < 2)
+                    continue;
+
+                if(type == ops::UNKNOWN_FUNCTION && i == 0)
+                    continue;
+
+                if(type == ops::CONVERT && i == 1)
+                    continue;
+
+                if(type == ops::ASSIGN && i == 0)
+                    continue;
+
+                in(args[i]);
             }
         }
 
         template<typename U>
-        void recurse_arguments(const U& in)
+        void for_each_real_arg(U&& in)
+        {
+            if(type == ops::IDOT)
+                return;
+
+            for(int i=0; i < (int)args.size(); i++)
+            {
+                if(type == ops::DECLARE && i < 2)
+                    continue;
+
+                if(type == ops::UNKNOWN_FUNCTION && i == 0)
+                    continue;
+
+                if(type == ops::CONVERT && i == 1)
+                    continue;
+
+                if(type == ops::ASSIGN && i == 0)
+                    continue;
+
+                in(args[i]);
+            }
+        }
+
+        template<typename U>
+        void recurse_arguments(U&& in) const
         {
             in(*this);
 
-            int start = 0;
-
-            if(type == ops::UNKNOWN_FUNCTION)
-                start = 1;
-
-            for(int i=start; i < (int)args.size(); i++)
+            for_each_real_arg([&](const value& me)
             {
-                args.at(i).recurse_arguments(in);
-            }
+                me.recurse_arguments(std::forward<U>(in));
+            });
+        }
+
+        template<typename U>
+        void recurse_arguments(U&& in)
+        {
+            in(*this);
+
+            for_each_real_arg([&](value& me)
+            {
+                me.recurse_arguments(std::forward<U>(in));
+            });
         }
 
         /*template<typename Pre, typename U>
