@@ -1751,6 +1751,12 @@ namespace dual_types
         if(d1.args.size() != d2.args.size())
             return false;
 
+        if(d1.is_mutable != d2.is_mutable)
+            return false;
+
+        if(d1.original_type != d2.original_type)
+            return false;
+
         if(d1.type == ops::VALUE)
         {
             if(d1.is_constant() != d2.is_constant())
