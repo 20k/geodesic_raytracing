@@ -687,6 +687,7 @@ namespace dual_types
             result.value_payload = std::nullopt;
             result.original_type = original_type;
             result.is_mutable = is_mutable;
+            result.is_memory_access = is_memory_access;
 
             if(value_payload.has_value())
             {
@@ -720,6 +721,7 @@ namespace dual_types
                 result.value_payload = std::nullopt;
                 result.original_type = original_type;
                 result.is_mutable = is_mutable;
+                result.is_memory_access = is_memory_access;
 
                 if(value_payload.has_value())
                 {
