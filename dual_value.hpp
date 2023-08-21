@@ -432,7 +432,7 @@ namespace dual_types
         if(type == ops::FOR_START || type == ops::IF_START)
             ret.introduces_block = true;
 
-        if(type == ops::RETURN || type == ops::BREAK || type == ops::SIDE_EFFECT)
+        if(type == ops::RETURN || type == ops::BREAK || type == ops::SIDE_EFFECT || type == ops::BLOCK_START || type == ops::BLOCK_END)
             ret.reordering_hazard = true;
 
         static_assert(syms.size() == ops::type_t::NONE);
