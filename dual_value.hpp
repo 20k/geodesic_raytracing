@@ -1373,6 +1373,9 @@ namespace dual_types
                 if(type == ops::ASSIGN && i == 0)
                     continue;
 
+                if(type == ops::BRACKET && i == 0)
+                    continue;
+
                 in(args[i]);
             }
         }
@@ -1398,6 +1401,9 @@ namespace dual_types
                     continue;
 
                 if(type == ops::ASSIGN && i == 0)
+                    continue;
+
+                if(type == ops::BRACKET && i == 0)
                     continue;
 
                 in(args[i]);
@@ -1453,6 +1459,12 @@ namespace dual_types
 
             in(*this);
         }*/
+
+        template<typename U>
+        void recurse_lambda(U&& func) const
+        {
+            func(*this, std::forward<U>(func));
+        }
 
         template<typename U>
         void recurse_lambda(U&& func)
