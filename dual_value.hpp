@@ -1064,25 +1064,27 @@ namespace dual_types
             }
 
 
+            //#define FMA_REPLACE
             ///much worse than letting the compiler do it, even with mad
+            ///better with new backend (!)
             #ifdef FMA_REPLACE
-            if(ret.type == ops::PLUS)
+            if(type == ops::PLUS && args[0].original_type == "float")
             {
-                if(ret.args[0].type == ops::MULTIPLY)
+                if(args[0].type == ops::MULTIPLY)
                 {
-                    value c = ret.args[1];
-                    value a = ret.args[0].args[0];
-                    value b = ret.args[0].args[1];
+                    value c = args[1];
+                    value a = args[0].args[0];
+                    value b = args[0].args[1];
 
-                    ret = fma(a, b, c);
+                    return fma(a, b, c);
                 }
-                else if(ret.args[1].type == ops::MULTIPLY)
+                else if(args[1].type == ops::MULTIPLY)
                 {
-                    value c = ret.args[0];
-                    value a = ret.args[1].args[0];
-                    value b = ret.args[1].args[1];
+                    value c = args[0];
+                    value a = args[1].args[0];
+                    value b = args[1].args[1];
 
-                    ret = fma(a, b, c);
+                    return fma(a, b, c);
                 }
             }
             #endif
