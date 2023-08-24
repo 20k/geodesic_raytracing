@@ -995,6 +995,35 @@ namespace dual_types
                     return 0;
             }
 
+            if(type == ops::UMINUS)
+            {
+                if(args[0].type == ops::MULTIPLY)
+                {
+                    if(args[0].args[0].is_constant())
+                    {
+                        return (-args[0].args[0]) * args[0].args[1];
+                    }
+
+                    if(args[0].args[1].is_constant())
+                    {
+                        return args[0].args[0] * (-args[0].args[1]);
+                    }
+                }
+
+                if(args[0].type == ops::DIVIDE)
+                {
+                    if(args[0].args[0].is_constant())
+                    {
+                        return (-args[0].args[0]) / args[0].args[1];
+                    }
+
+                    if(args[0].args[1].is_constant())
+                    {
+                        return args[0].args[0] / (-args[0].args[1]);
+                    }
+                }
+            }
+
             if(type == ops::DIVIDE)
             {
                 if(args[0].is_constant_constraint(is_zero))
@@ -1104,7 +1133,7 @@ namespace dual_types
 
         value group_associative_operators() const
         {
-            #define NO_REGROUP_ASSOCIATIVE
+            //#define NO_REGROUP_ASSOCIATIVE
             #ifdef NO_REGROUP_ASSOCIATIVE
             return *this;
             #endif
@@ -1126,7 +1155,7 @@ namespace dual_types
                     final_args.push_back(args[i]);
             }
 
-            std::sort(final_args.begin(), final_args.end(), length_sorter);
+            //std::sort(final_args.begin(), final_args.end(), length_sorter);
 
             ///could disable combo plus promotion, keeps flattening etc but not that helpful
             //if(final_args.size() == 2)
