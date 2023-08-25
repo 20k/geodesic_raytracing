@@ -1133,7 +1133,7 @@ namespace dual_types
 
         value group_associative_operators() const
         {
-            //#define NO_REGROUP_ASSOCIATIVE
+            #define NO_REGROUP_ASSOCIATIVE
             #ifdef NO_REGROUP_ASSOCIATIVE
             return *this;
             #endif
