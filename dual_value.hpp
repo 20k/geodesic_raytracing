@@ -1201,6 +1201,7 @@ namespace dual_types
                 return make_op<T>(ops::COMBO_PLUS, final_args);
             }
 
+            #ifdef COMBO_MULT
             if(type == ops::MULTIPLY)
             {
                 ///note to self, don't do this recursively
@@ -1225,6 +1226,7 @@ namespace dual_types
 
                 return make_op<T>(ops::COMBO_MULTIPLY, final_args);
             }
+            #endif
 
             return *this;
         }
