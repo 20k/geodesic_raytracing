@@ -247,6 +247,7 @@ namespace dual_types
             UMINUS,
             MINUS,
             MULTIPLY,
+            COMBO_MULTIPLY,
             DIVIDE,
             MODULUS, ///c style %
             AND,
@@ -359,6 +360,7 @@ namespace dual_types
             "+",
             "-",
             "-",
+            "*",
             "*",
             #ifdef NATIVE_DIVIDE
             "native_divide",
@@ -983,6 +985,42 @@ namespace dual_types
                 ///still need to implement equivalence checking to do n * thing
             }
 
+            if(type == ops::COMBO_MULTIPLY)
+            {
+                int const_num = 0;
+
+                for(const auto& i : args)
+                {
+                    if(i.is_constant())
+                        const_num++;
+                }
+
+                if(const_num > 1)
+                {
+                    value cst = 1;
+
+                    value copied = *this;
+
+                    for(int i=0; i < (int)copied.args.size(); i++)
+                    {
+                        if(copied.args[i].is_constant())
+                        {
+                            cst = cst * copied.args[i];
+
+                            copied.args.erase(copied.args.begin() + i);
+                            i--;
+                            continue;
+                        }
+                    }
+
+                    copied.args.push_back(cst);
+
+                    return copied.flatten();
+                }
+
+                ///still need to implement equivalence checking to do n * thing
+            }
+
             if(type == ops::MINUS)
             {
                 if(args[0].is_constant_constraint(is_zero))
@@ -1133,35 +1171,62 @@ namespace dual_types
 
         value group_associative_operators() const
         {
-            #define NO_REGROUP_ASSOCIATIVE
+            //#define NO_REGROUP_ASSOCIATIVE
             #ifdef NO_REGROUP_ASSOCIATIVE
             return *this;
             #endif
 
-            if(type != ops::PLUS)
-                return *this;
-
-            ///note to self, don't do this recursively
-            if(type == ops::COMBO_PLUS)
-                return *this;
-
-            std::vector<value<T>> final_args;
-
-            for(int i=0; i < (int)args.size(); i++)
+            if(type == ops::PLUS)
             {
-                if(args[i].type == ops::PLUS || args[i].type == ops::COMBO_PLUS)
-                    final_args.insert(final_args.end(), args[i].args.begin(), args[i].args.end());
-                else
-                    final_args.push_back(args[i]);
+                ///note to self, don't do this recursively
+                if(type == ops::COMBO_PLUS)
+                    return *this;
+
+                std::vector<value<T>> final_args;
+
+                for(int i=0; i < (int)args.size(); i++)
+                {
+                    if(args[i].type == ops::PLUS || args[i].type == ops::COMBO_PLUS)
+                        final_args.insert(final_args.end(), args[i].args.begin(), args[i].args.end());
+                    else
+                        final_args.push_back(args[i]);
+                }
+
+                //std::sort(final_args.begin(), final_args.end(), length_sorter);
+
+                ///could disable combo plus promotion, keeps flattening etc but not that helpful
+                //if(final_args.size() == 2)
+                //    return *this;
+
+                return make_op<T>(ops::COMBO_PLUS, final_args);
             }
 
-            //std::sort(final_args.begin(), final_args.end(), length_sorter);
+            if(type == ops::MULTIPLY)
+            {
+                ///note to self, don't do this recursively
+                if(type == ops::COMBO_MULTIPLY)
+                    return *this;
 
-            ///could disable combo plus promotion, keeps flattening etc but not that helpful
-            //if(final_args.size() == 2)
-            //    return *this;
+                std::vector<value<T>> final_args;
 
-            return make_op<T>(ops::COMBO_PLUS, final_args);
+                for(int i=0; i < (int)args.size(); i++)
+                {
+                    if(args[i].type == ops::MULTIPLY || args[i].type == ops::COMBO_MULTIPLY)
+                        final_args.insert(final_args.end(), args[i].args.begin(), args[i].args.end());
+                    else
+                        final_args.push_back(args[i]);
+                }
+
+                //std::sort(final_args.begin(), final_args.end(), length_sorter);
+
+                ///could disable combo plus promotion, keeps flattening etc but not that helpful
+                //if(final_args.size() == 2)
+                //    return *this;
+
+                return make_op<T>(ops::COMBO_MULTIPLY, final_args);
+            }
+
+            return *this;
         }
 
         dual_types::dual_v<value<T>> dual(const std::string& sym) const
@@ -1201,6 +1266,17 @@ namespace dual_types
                 }
 
                 return pairwise_reduce(vals, [](const auto& v1, const auto& v2){return v1 + v2;});
+            }
+            if(type == COMBO_MULTIPLY)
+            {
+                std::vector<dual_types::dual_v<value<T>>> vals;
+
+                for(const auto& i : args)
+                {
+                    vals.push_back(i.dual(sym));
+                }
+
+                return pairwise_reduce(vals, [](const auto& v1, const auto& v2){return v1 * v2;});
             }
             if(type == UMINUS)
             {
@@ -1980,6 +2056,27 @@ namespace dual_types
             auto bracket_pair = [](const std::string& v1, const std::string& v2)
             {
                 return "(" + v1 + "+" + v2 + ")";
+            };
+
+            std::vector<std::string> pending;
+
+            for(const auto& i : op.args)
+            {
+                pending.push_back(type_to_string(i));
+            }
+
+            std::sort(pending.begin(), pending.end());
+
+            assert(pending.size() >= 2);
+
+            return pairwise_reduce(pending, bracket_pair);
+        }
+
+        if(op.type == ops::COMBO_MULTIPLY)
+        {
+            auto bracket_pair = [](const std::string& v1, const std::string& v2)
+            {
+                return "(" + v1 + "*" + v2 + ")";
             };
 
             std::vector<std::string> pending;
