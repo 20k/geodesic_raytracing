@@ -324,6 +324,7 @@ namespace dual_types
 
             BRACKET,
             DECLARE,
+            DECLARE_ARRAY,
 
             UNKNOWN_FUNCTION,
             SIDE_EFFECT,
@@ -423,6 +424,7 @@ namespace dual_types
             "round",
             "bad#bracket",
             "bad#declare",
+            "bad#declarearray",
             "generated#function#failure",
             "side#effect",
             "ERROR#"
@@ -1473,6 +1475,9 @@ namespace dual_types
                 if(type == ops::DECLARE && i < 2)
                     continue;
 
+                if(type == ops::DECLARE_ARRAY)
+                    continue;
+
                 if(type == ops::UNKNOWN_FUNCTION && i == 0)
                     continue;
 
@@ -1501,6 +1506,9 @@ namespace dual_types
             for(int i=0; i < (int)args.size(); i++)
             {
                 if(type == ops::DECLARE && i < 2)
+                    continue;
+
+                if(type == ops::DECLARE_ARRAY)
                     continue;
 
                 if(type == ops::UNKNOWN_FUNCTION && i == 0)
@@ -1676,6 +1684,12 @@ namespace dual_types
                 return w();
 
             assert(false);
+        }
+
+        template<typename U>
+        value<T> bracket(const value<U>& idx)
+        {
+            return make_op<T>(ops::BRACKET, *this, idx.template reinterpret_as<value<T>>());
         }
 
         value<T>& operator+=(const value<T>& d1)
@@ -2053,6 +2067,11 @@ namespace dual_types
             return prefix + type_to_string(op.args[0]) + " " + type_to_string(op.args[1]) + "=" + type_to_string(op.args[2]) + ";";
         }
 
+        if(op.type == ops::DECLARE_ARRAY)
+        {
+            return type_to_string(op.args[0]) + " " + type_to_string(op.args[1]) + "[" + type_to_string(op.args[2]) + "];";
+        }
+
         if(op.type == ops::COMBO_PLUS)
         {
             auto bracket_pair = [](const std::string& v1, const std::string& v2)
@@ -2409,6 +2428,19 @@ namespace dual_types
         value declare_op = make_op<T>(ops::DECLARE, v1.original_type, name, v1);
 
         declare_op.is_mutable = is_mutable;
+
+        value<T> result = name;
+        result.is_mutable = declare_op.is_mutable;
+
+        return {declare_op.as_generic(), result};
+    }
+
+    template<typename T>
+    inline
+    std::pair<value<std::monostate>, value<T>> declare_array_raw(const std::string& name, int len)
+    {
+        value declare_op = make_op<T>(ops::DECLARE_ARRAY, name_type(T()), name, value<int>{len}.reinterpret_as<value<T>>());
+        declare_op.is_mutable = true;
 
         value<T> result = name;
         result.is_mutable = declare_op.is_mutable;
