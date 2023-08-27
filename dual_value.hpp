@@ -2467,12 +2467,11 @@ namespace dual_types
     template<typename T, int... N>
     struct stack_array
     {
-        decltype(to_mutable(T())) prototype;
+        T prototype;
 
         int expanded_size = (N * ...);
         std::string name;
     };
-
 
     template<typename T, int... N>
     inline
@@ -2480,29 +2479,33 @@ namespace dual_types
     {
         int length = (N * ...);
 
-        value declare_op = make_op<T>(ops::DECLARE_ARRAY, name_type(T()), name, value<int>{length}.reinterpret_as<value<T>>());
+        value declare_op = make_op<typename T::value_type>(ops::DECLARE_ARRAY, name_type(typename T::value_type()), name, value<int>{length}.reinterpret_as<T>());
         declare_op.is_mutable = true;
 
         stack_array<T, N...> result;
+        result.prototype = name;
         result.prototype.is_mutable = declare_op.is_mutable;
-        result.prototype.name = name;
 
         return {declare_op.as_generic(), result};
     }
 
-    template<typename U, typename T, int... N>
+    template<typename T, int... N>
     inline
-    stack_array<T, N...> declare_array(U& executor, const std::string& name = "")
+    stack_array<T, N...> declare_array(auto& executor, const std::string& name = "")
     {
         if(name == "")
         {
             int id = executor.sequenced.size();
 
             std::string fname = "declared" + std::to_string(id);
-            return declare_array(executor, fname);
+            return declare_array<T, N...>(executor, fname);
         }
 
-        return declare_array_raw<T, N...>(name).second;
+        auto [declare_op, result] = declare_array_raw<T, N...>(name);
+
+        executor.exec(declare_op);
+
+        return result;
     }
 
     template<typename U, typename T>
@@ -2787,5 +2790,8 @@ using v2f_mut = tensor<value_mut, 2>;
 using v2i_mut = tensor<value_i_mut, 2>;
 using v1f_mut = tensor<value_mut, 1>;
 using v1i_mut = tensor<value_i_mut, 1>;
+
+template<typename T, int... N>
+using stack_array = dual_types::stack_array<T, N...>;
 
 #endif // DUAL2_HPP_INCLUDED
