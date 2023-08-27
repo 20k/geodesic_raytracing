@@ -2471,6 +2471,31 @@ namespace dual_types
 
         int expanded_size = (N * ...);
         std::string name;
+
+        value_mut<typename T::value_type> operator[](const value<int>& in)
+        {
+            T v = prototype.bracket(in);
+            v.is_mutable = true;
+            return to_mutable(v);
+        }
+
+        value_mut<typename T::value_type> operator[](const value<int>& v1, const value<int>& v2)
+        {
+            tensor<int, N...> dims = {N...};
+
+            T v = prototype.bracket(v1 + v2 * dims[0]);
+            v.is_mutable = true;
+            return to_mutable(v);
+        }
+
+        value_mut<typename T::value_type> operator[](const value<int>& v1, const value<int>& v2, const value<int>& v3)
+        {
+            tensor<int, N...> dims = {N...};
+
+            T v = prototype.bracket(v1 + v2 * dims[0] + v3 * dims[0] * dims[1]);
+            v.is_mutable = true;
+            return to_mutable(v);
+        }
     };
 
     template<typename T, int... N>
@@ -2479,7 +2504,7 @@ namespace dual_types
     {
         int length = (N * ...);
 
-        value declare_op = make_op<typename T::value_type>(ops::DECLARE_ARRAY, name_type(typename T::value_type()), name, value<int>{length}.reinterpret_as<T>());
+        value declare_op = make_op<typename T::value_type>(ops::DECLARE_ARRAY, name_type(typename T::value_type()), name, value<int>{length}.reinterpret_as<value<typename T::value_type>>());
         declare_op.is_mutable = true;
 
         stack_array<T, N...> result;
