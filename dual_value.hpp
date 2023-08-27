@@ -1173,7 +1173,7 @@ namespace dual_types
 
         value group_associative_operators() const
         {
-            //#define NO_REGROUP_ASSOCIATIVE
+            #define NO_REGROUP_ASSOCIATIVE
             #ifdef NO_REGROUP_ASSOCIATIVE
             return *this;
             #endif
@@ -1964,6 +1964,35 @@ namespace dual_types
         return true;
     }
 
+    /*template<typename T>
+    inline
+    bool negates(const value<T>& v1, const value<T>& v2)
+    {
+        if(v1.is_value() && v2.type == dual_type::ops::UMINUS)
+        {
+            if(equivalent(v1, v2.args.at(0)))
+                return true;
+        }
+
+        if(v2.is_value() && v1.type == dual_type::ops::UMINUS)
+        {
+            if(equivalent(v2, v1.args.at(0)))
+                return true;
+        }
+
+        return false;
+    }
+
+    template<typename T>
+    inline
+    bool evaluates_to_zero(const value<T>& v1)
+    {
+        if(v1.type == dual_type::ops::PLUS)
+            return negates(v1.args.at(0), v1.args.at(1));
+
+        return false;
+    }*/
+
     template<typename Unused>
     inline
     std::string type_to_string(const value<Unused>& op)
@@ -2435,17 +2464,45 @@ namespace dual_types
         return {declare_op.as_generic(), result};
     }
 
-    template<typename T>
-    inline
-    std::pair<value<std::monostate>, value<T>> declare_array_raw(const std::string& name, int len)
+    template<typename T, int... N>
+    struct stack_array
     {
-        value declare_op = make_op<T>(ops::DECLARE_ARRAY, name_type(T()), name, value<int>{len}.reinterpret_as<value<T>>());
+        decltype(to_mutable(T())) prototype;
+
+        int expanded_size = (N * ...);
+        std::string name;
+    };
+
+
+    template<typename T, int... N>
+    inline
+    std::pair<value<std::monostate>, stack_array<T, N...>> declare_array_raw(const std::string& name)
+    {
+        int length = (N * ...);
+
+        value declare_op = make_op<T>(ops::DECLARE_ARRAY, name_type(T()), name, value<int>{length}.reinterpret_as<value<T>>());
         declare_op.is_mutable = true;
 
-        value<T> result = name;
-        result.is_mutable = declare_op.is_mutable;
+        stack_array<T, N...> result;
+        result.prototype.is_mutable = declare_op.is_mutable;
+        result.prototype.name = name;
 
         return {declare_op.as_generic(), result};
+    }
+
+    template<typename U, typename T, int... N>
+    inline
+    stack_array<T, N...> declare_array(U& executor, const std::string& name = "")
+    {
+        if(name == "")
+        {
+            int id = executor.sequenced.size();
+
+            std::string fname = "declared" + std::to_string(id);
+            return declare_array(executor, fname);
+        }
+
+        return declare_array_raw<T, N...>(name).second;
     }
 
     template<typename U, typename T>
