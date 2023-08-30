@@ -10,9 +10,18 @@
 #include <variant>
 #include <vec/tensor.hpp>
 #include <CL/cl.h>
-#include <stdfloat>
 #include <concepts>
 #include <source_location>
+
+#ifndef __clang__
+#include <stdfloat>
+#endif
+
+#ifndef __clang__
+using float16 = std::float16_t;
+#else
+using float16 = _Float16;
+#endif
 
 namespace dual_types
 {
@@ -34,7 +43,7 @@ namespace dual_types
         else CMAP(double, double)
         //CMAP(cl_double, double);
 
-        else CMAP(std::float16_t, half)
+        else CMAP(float16, half)
         //CMAP(cl_half, half);
 
         //CMAP(cl_int, int);
@@ -99,17 +108,21 @@ namespace dual_types
         else if constexpr(std::is_same_v<T, tensor<value<unsigned short>, 2>>)
             return "ushort2";
 
-        else if constexpr(std::is_same_v<T, tensor<value<std::float16_t>, 4>>)
+        else if constexpr(std::is_same_v<T, tensor<value<float16>, 4>>)
             return "half4";
 
-        else if constexpr(std::is_same_v<T, tensor<value<std::float16_t>, 3>>)
+        else if constexpr(std::is_same_v<T, tensor<value<float16>, 3>>)
             return "half3";
 
-        else if constexpr(std::is_same_v<T, tensor<value<std::float16_t>, 2>>)
+        else if constexpr(std::is_same_v<T, tensor<value<float16>, 2>>)
             return "half2";
 
         else
+        {
+            #ifndef __clang__
             static_assert(false);
+            #endif
+        }
 
         #undef CMAP
     }
@@ -589,7 +602,7 @@ namespace dual_types
     struct type_erased_storage
     {
         std::variant<std::monostate,
-                     std::float16_t, float, double,
+                     float16, float, double,
                      int64_t, uint64_t,
                      int, unsigned int,
                      uint16_t, int16_t,
@@ -822,6 +835,13 @@ namespace dual_types
 
         value flatten(bool recurse = false) const
         {
+            #ifdef __clang__
+            if constexpr(std::is_same_v<T, float16>)
+                return *this;
+            else
+            {
+            #endif
+
             if(type == ops::VALUE)
                 return *this;
 
@@ -1169,6 +1189,10 @@ namespace dual_types
             }
 
             return *this;
+
+            #ifdef __clang__
+            }
+            #endif
         }
 
         value group_associative_operators() const
@@ -2011,7 +2035,7 @@ namespace dual_types
             {
                 std::string suffix;
 
-                if constexpr(std::is_same_v<T, std::float16_t>)
+                if constexpr(std::is_same_v<T, float16>)
                     suffix = "h";
                 if constexpr(std::is_same_v<T, float>)
                     suffix = "f";
@@ -2783,7 +2807,7 @@ using value_i = dual_types::value<int>;
 using value_s = dual_types::value<short>;
 using value_us = dual_types::value<unsigned short>;
 using value_v = dual_types::value<std::monostate>;
-using value_h = dual_types::value<std::float16_t>;
+using value_h = dual_types::value<float16>;
 
 
 template<typename T>
@@ -2793,7 +2817,7 @@ using value_i_mut = dual_types::value_mut<int>;
 using value_s_mut = dual_types::value_mut<short>;
 using value_us_mut = dual_types::value_mut<unsigned short>;
 using value_v_mut = dual_types::value_mut<std::monostate>;
-using value_h_mut = dual_types::value_mut<std::float16_t>;
+using value_h_mut = dual_types::value_mut<float16>;
 
 const inline auto return_s = dual_types::make_return_s();
 const inline auto break_s = dual_types::make_break_s();
