@@ -58,6 +58,9 @@ namespace dual_types
         //CMAP(cl_ushort, unsigned short);
         else CMAP(unsigned short, unsigned short)
 
+        else CMAP(char, char)
+        else CMAP(unsigned char, unsigned char)
+
         else CMAP(cl_float4, float4)
         else CMAP(cl_float3, float3)
         else CMAP(cl_float2, float2)
@@ -2431,6 +2434,30 @@ namespace dual_types
         ctx.exec(block_end());
     }
 
+    template<typename T>
+    inline
+    value<std::monostate> for_b(const std::string& loop_variable_name, const value<T>& init, const value<T>& condition, const value<T>& post)
+    {
+        return make_op<std::monostate>(ops::FOR_START, name_type(T()), loop_variable_name, init.as_generic(), condition.as_generic(), post.as_generic());
+    }
+
+    template<typename Ctx, typename T, typename U, typename Func>
+    inline
+    void for_e(Ctx& ctx, const U& loop_variable_name, const value<T>& init, const value<T>& condition, const value<T>& post, Func&& func)
+    {
+        int id = ctx.sequenced.size();
+
+        ctx.exec(for_b(type_to_string(loop_variable_name), init, condition, post));
+
+        auto val = loop_variable_name;
+
+        ctx.exec(block_start());
+
+        func(val);
+
+        ctx.exec(block_end());
+    }
+
     ///select
     template<typename T>
     requires std::is_arithmetic_v<T>
@@ -2691,13 +2718,6 @@ namespace dual_types
         }
 
         return ret;
-    }
-
-    template<typename T>
-    inline
-    value<std::monostate> for_b(const std::string& loop_variable_name, const value<T>& init, const value<T>& condition, const value<T>& post)
-    {
-        return make_op<std::monostate>(ops::FOR_START, name_type(T()), loop_variable_name, init.as_generic(), condition.as_generic(), post.as_generic());
     }
 
     template<typename T>
