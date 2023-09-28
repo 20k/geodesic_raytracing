@@ -771,6 +771,37 @@ float circular_diff_p(float f1, float f2, float period)
     }
 }
 
+void DragFloatCol(const std::string& name, cl_float4& val, int highlight)
+{
+    ImGui::BeginGroup();
+
+    ImGui::PushMultiItemsWidths(4, ImGui::CalcItemWidth());
+
+    for(int i=0; i < 4; i++)
+    {
+        if(highlight == i)
+            ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.8, 0.1, 0.1, 1));
+
+        ImGui::DragFloat(("###_" + std::to_string(i) + "_" + name).c_str(), &val.s[i]);
+
+        if(highlight == i && ImGui::IsItemHovered())
+        {
+            ImGui::SetTooltip("Timelike");
+        }
+
+        if(highlight == i)
+            ImGui::PopStyleColor(1);
+
+        ImGui::PopItemWidth();
+
+        ImGui::SameLine(0, ImGui::GetStyle().ItemInnerSpacing.x);
+    }
+
+    ImGui::Text("%s", name.c_str());
+
+    ImGui::EndGroup();
+}
+
 ///i need the ability to have dynamic parameters
 int main(int argc, char* argv[])
 {
@@ -1134,6 +1165,7 @@ int main(int argc, char* argv[])
     read_queue_pool<cl_float4> camera_q;
     read_queue_pool<cl_float4> geodesic_q;
     read_queue_pool<cl_float4> camera_polar_q;
+    read_queue_pool<cl_int> timelike_q;
 
     print("Finished async read queue init\n");
 
@@ -1318,6 +1350,7 @@ int main(int argc, char* argv[])
     std::optional<cl_float4> last_camera_pos;
     std::optional<cl_float4> last_geodesic_velocity;
     std::optional<cl_float4> last_camera_pos_polar;
+    std::optional<cl_int> last_timelike_coordinate;
 
     while(!win.should_close() && !menu.should_quit && fullscreen.open)
     {
@@ -1620,6 +1653,7 @@ int main(int argc, char* argv[])
                 std::vector<cl_float4> cam_data = camera_q.fetch();
                 std::vector<cl_float4> cam_data_polar = camera_polar_q.fetch();
                 std::vector<cl_float4> geodesic_data = geodesic_q.fetch();
+                std::vector<cl_int> timelike_data = timelike_q.fetch();
 
                 if(cam_data.size() > 0)
                 {
@@ -1634,6 +1668,11 @@ int main(int argc, char* argv[])
                 if(geodesic_data.size() > 0)
                 {
                     last_geodesic_velocity = geodesic_data.back();
+                }
+
+                if(timelike_data.size() > 0)
+                {
+                    last_timelike_coordinate = timelike_data.back();
                 }
             }
 
@@ -1654,7 +1693,7 @@ int main(int argc, char* argv[])
                         {
                             if(last_camera_pos.has_value())
                             {
-                                ImGui::DragFloat4("Camera Position", &last_camera_pos.value().s[0]);
+                                DragFloatCol("Camera Position", last_camera_pos.value(), last_timelike_coordinate.value_or(-1));
                             }
                         }
 
@@ -1777,7 +1816,7 @@ int main(int argc, char* argv[])
                             {
                                 if(last_camera_pos.has_value())
                                 {
-                                    ImGui::DragFloat4("Geodesic Position", &last_camera_pos.value().s[0]);
+                                    DragFloatCol("Geodesic Position", last_camera_pos.value(), last_timelike_coordinate.value_or(-1));
                                 }
 
                                 if(last_geodesic_velocity.has_value())
@@ -2125,6 +2164,19 @@ int main(int argc, char* argv[])
                 cl::event copy_polar = cl::copy(clctx.cqueue, g_camera_pos_polar_readback, next_polar_camera);
 
                 camera_polar_q.start_read(clctx.ctx, async_queue, std::move(next_polar_camera), {copy_polar});
+            }
+
+            {
+                cl::buffer next_timelike_coordinate = timelike_q.get_buffer(clctx.ctx);
+
+                cl::args args;
+                args.push_back(g_camera_pos_generic);
+                args.push_back(dynamic_config);
+                args.push_back(next_timelike_coordinate);
+
+                cl::event evt = clctx.cqueue.exec("calculate_timelike_coordinate", args, {1}, {1});
+
+                timelike_q.start_read(clctx.ctx, async_queue, std::move(next_timelike_coordinate), {evt});
             }
 
             int width = rtex.size<2>().x();

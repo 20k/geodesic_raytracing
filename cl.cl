@@ -1573,6 +1573,15 @@ struct frame_basis
     float4 v2;
     float4 v3;
     float4 v4;
+    int timelike_coordinate;
+};
+
+struct orthonormal_basis
+{
+    float4 v1;
+    float4 v2;
+    float4 v3;
+    float4 v4;
 };
 
 float4 gram_proj(float4 u, float4 v, float big_metric[])
@@ -1609,7 +1618,7 @@ float4 normalise_big(float4 in, float big_metric[])
 
 ///i1-4 are raised
 ///this doesn't handle diagonal matrices!!!
-struct frame_basis orthonormalise4_metric(float4 i1, float4 i2, float4 i3, float4 i4, float big_metric[])
+struct orthonormal_basis orthonormalise4_metric(float4 i1, float4 i2, float4 i3, float4 i4, float big_metric[])
 {
     float4 u1 = i1;
 
@@ -1630,7 +1639,7 @@ struct frame_basis orthonormalise4_metric(float4 i1, float4 i2, float4 i3, float
     u3 = normalise_big(u3, big_metric);
     u4 = normalise_big(u4, big_metric);
 
-    struct frame_basis ret;
+    struct orthonormal_basis ret;
     ret.v1 = u1;
     ret.v2 = u2;
     ret.v3 = u3;
@@ -1721,7 +1730,7 @@ struct frame_basis calculate_frame_basis(float big_metric[])
         SWAP(indices[0], indices[first_nonzero], int);
     }
 
-    struct frame_basis result = orthonormalise4_metric(as_array[0], as_array[1], as_array[2], as_array[3], big_metric);
+    struct orthonormal_basis result = orthonormalise4_metric(as_array[0], as_array[1], as_array[2], as_array[3], big_metric);
 
     float4 result_as_array[4] = {result.v1, result.v2, result.v3, result.v4};
 
@@ -1750,11 +1759,11 @@ struct frame_basis calculate_frame_basis(float big_metric[])
         printf("Warning, first column vector is not timelike. Todo for me: Fix this %f\n", minkowski[0]);
     }*/
 
+    int which_index_is_timelike = -1;
+
     ///do I need to reshuffle spatial indices?
     if(!approx_equal(minkowski[0], -1, eps))
     {
-        int which_index_is_timelike = -1;
-
         for(int i=0; i < 4; i++)
         {
             if(approx_equal(minkowski[i * 4 + i], -1, eps))
@@ -1780,6 +1789,7 @@ struct frame_basis calculate_frame_basis(float big_metric[])
     result2.v2 = sorted_result[1];
     result2.v3 = sorted_result[2];
     result2.v4 = sorted_result[3];
+    result2.timelike_coordinate = which_index_is_timelike == -1 ? 0 : which_index_is_timelike;
 
     return result2;
 }
@@ -2220,6 +2230,36 @@ float4 get_timelike_vector(float3 cartesian_basis_speed, float time_direction,
     return bT + bX + bY + bZ;
 }
 
+__kernel
+void calculate_timelike_coordinate(__global float4* generic_position, dynamic_config_space struct dynamic_config* cfg, __global int* coordinate_out)
+{
+    if(get_global_id(0) != 0)
+        return;
+
+    float4 at_metric = *generic_position;
+
+    #ifndef GENERIC_BIG_METRIC
+    float g_metric_local[4] = {};
+    calculate_metric_generic(at_metric, g_metric_local, cfg);
+
+    float g_metric_big_local[16] = {0};
+
+    g_metric_big_local[0] = g_metric_local[0];
+    g_metric_big_local[1*4 + 1] = g_metric_local[1];
+    g_metric_big_local[2*4 + 2] = g_metric_local[2];
+    g_metric_big_local[3*4 + 3] = g_metric_local[3];
+    #endif
+
+    #ifdef GENERIC_BIG_METRIC
+    float g_metric_big_local[16] = {0};
+    calculate_metric_generic_big(at_metric, g_metric_big_local, cfg);
+    #endif
+
+    struct frame_basis basis = calculate_frame_basis(g_metric_big_local);
+
+    *coordinate_out = basis.timelike_coordinate;
+}
+
 void calculate_tetrads(float4 at_metric, float3 cartesian_basis_speed,
                        float4* e0_out, float4* e1_out, float4* e2_out, float4* e3_out,
                        dynamic_config_space struct dynamic_config* cfg, int should_orient)
@@ -2246,14 +2286,6 @@ void calculate_tetrads(float4 at_metric, float3 cartesian_basis_speed,
     g_metric_big_local[1*4 + 1] = g_metric_local[1];
     g_metric_big_local[2*4 + 2] = g_metric_local[2];
     g_metric_big_local[3*4 + 3] = g_metric_local[3];
-
-    float4 co_basis = (float4){native_sqrt(-g_metric_local[0]), native_sqrt(g_metric_local[1]), native_sqrt(g_metric_local[2]), native_sqrt(g_metric_local[3])};
-
-    float4 oe0 = (float4)(1/co_basis.x, 0, 0, 0); ///or bt
-    float4 oe1 = (float4)(0, 1/co_basis.y, 0, 0); ///or br
-    float4 oe2 = (float4)(0, 0, 1/co_basis.z, 0);
-    float4 oe3 = (float4)(0, 0, 0, 1/co_basis.w);
-
     #endif
 
     #ifdef GENERIC_BIG_METRIC

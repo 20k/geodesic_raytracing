@@ -2,6 +2,7 @@
 #define METRIC_MANAGER_HPP_INCLUDED
 
 #include "dynamic_feature_config.hpp"
+#include <mutex>
 
 struct metric_manager
 {
@@ -109,7 +110,14 @@ struct metric_manager
 
             if(should_block)
             {
-                if(context.programs.size() > 0)
+                bool has_program = false;
+
+                {
+                    std::scoped_lock guard(context.shared->mut);
+                    has_program = context.shared->kernels.size() > 0;
+                }
+
+                if(has_program)
                     context.deregister_program(0);
 
                 context.register_program(*pending_dynamic_program_opt);
@@ -127,7 +135,14 @@ struct metric_manager
             {
                 assert(pending_dynamic_program_opt.has_value());
 
-                if(context.programs.size() > 0)
+                bool has_program = false;
+
+                {
+                    std::scoped_lock guard(context.shared->mut);
+                    has_program = context.shared->kernels.size() > 0;
+                }
+
+                if(has_program)
                     context.deregister_program(0);
 
                 ///Reregister the dynamic program again, static is invalid
@@ -166,7 +181,14 @@ struct metric_manager
 
             if(pending.is_built() && !using_swapped && !has_built)
             {
-                if(ctx.programs.size() > 0)
+                bool has_program = false;
+
+                {
+                    std::scoped_lock guard(ctx.shared->mut);
+                    has_program = ctx.shared->kernels.size() > 0;
+                }
+
+                if(has_program)
                     ctx.deregister_program(0);
 
                 ctx.register_program(pending);
@@ -182,7 +204,14 @@ struct metric_manager
             {
                 printj("Swapped\n");
 
-                if(ctx.programs.size() > 0)
+                bool has_program = false;
+
+                {
+                    std::scoped_lock guard(ctx.shared->mut);
+                    has_program = ctx.shared->kernels.size() > 0;
+                }
+
+                if(has_program)
                     ctx.deregister_program(0);
 
                 ctx.register_program(pending);

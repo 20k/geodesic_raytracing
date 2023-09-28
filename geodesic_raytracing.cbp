@@ -69,14 +69,12 @@
 			<Add option='-DCONFIG_VERSION=&quot;&quot;' />
 			<Add option="-DCONFIG_BIGNUM" />
 			<Add option="-DNO_SERIALISE_RATELIMIT" />
+			<Add option="-DFAST_CL" />
 			<Add directory="deps" />
 			<Add directory="deps/imgui" />
 			<Add directory="deps/steamworks_sdk_153a/sdk/public" />
 		</Compiler>
 		<Linker>
-			<Add option="-static-libstdc++" />
-			<Add option="-static-libgcc" />
-			<Add option="-static" />
 			<Add option="-lmingw32" />
 			<Add option="-l:libssl.a" />
 			<Add option="-l:libglfw3.a" />
@@ -102,10 +100,10 @@
 			<Add option="-l:libbrotlienc.a" />
 			<Add option="-l:libbrotlicommon.a" />
 			<Add option="-lbacktrace" />
-			<Add option="-l:libOpenCL.dll.a" />
 			<Add option="-limm32" />
 			<Add option="-ldwrite" />
 			<Add option="-lRpcrt4" />
+			<Add option="-lboost_filesystem-mt" />
 			<Add library="deps/steamworks_sdk_153a/sdk/redistributable_bin/win64/libsteam_api64.a" />
 			<Add directory="deps/steamworks_sdk_153a/sdk/public/steam/lib/win64" />
 		</Linker>
@@ -122,6 +120,8 @@
 		<Unit filename="deps/imgui/imgui_tables.cpp" />
 		<Unit filename="deps/imgui/imgui_widgets.cpp" />
 		<Unit filename="deps/imgui/misc/freetype/imgui_freetype.cpp" />
+		<Unit filename="deps/libfastcl/fastcl/cl.cpp" />
+		<Unit filename="deps/libfastcl/fastcl/cl.h" />
 		<Unit filename="deps/quickjs/cutils.c">
 			<Option compilerVar="CC" />
 		</Unit>

@@ -22,3 +22,6 @@
 [submodule "deps/tinyobjloader"]
 	path = deps/tinyobjloader
 	url = https://github.com/tinyobjloader/tinyobjloader
+[submodule "deps/libfastcl"]
+	path = deps/libfastcl
+	url = git@github.com:20k/libfastcl.git
