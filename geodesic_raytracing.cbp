@@ -24,6 +24,7 @@
 					<Add option="-O2" />
 				</Compiler>
 				<Linker>
+					<Add option="-O2" />
 					<Add option="-s" />
 				</Linker>
 			</Target>
@@ -75,6 +76,9 @@
 			<Add directory="deps/steamworks_sdk_153a/sdk/public" />
 		</Compiler>
 		<Linker>
+			<Add option="-static-libstdc++" />
+			<Add option="-static-libgcc" />
+			<Add option="-static" />
 			<Add option="-lmingw32" />
 			<Add option="-l:libssl.a" />
 			<Add option="-l:libglfw3.a" />
@@ -103,7 +107,7 @@
 			<Add option="-limm32" />
 			<Add option="-ldwrite" />
 			<Add option="-lRpcrt4" />
-			<Add option="-lboost_filesystem-mt" />
+			<Add option="-l:libboost_filesystem-mt.a" />
 			<Add library="deps/steamworks_sdk_153a/sdk/redistributable_bin/win64/libsteam_api64.a" />
 			<Add directory="deps/steamworks_sdk_153a/sdk/public/steam/lib/win64" />
 		</Linker>
@@ -158,9 +162,9 @@
 		<Unit filename="deps/toolkit/texture.cpp" />
 		<Unit filename="deps/toolkit/texture.hpp" />
 		<Unit filename="deps/toolkit/vertex.hpp" />
+		<Unit filename="deps/vec/dual.hpp" />
+		<Unit filename="deps/vec/value.hpp" />
 		<Unit filename="deps/vec/vec.hpp" />
-		<Unit filename="dual.hpp" />
-		<Unit filename="dual_value.hpp" />
 		<Unit filename="dynamic_feature_config.cpp" />
 		<Unit filename="dynamic_feature_config.hpp" />
 		<Unit filename="equation_context.hpp" />
