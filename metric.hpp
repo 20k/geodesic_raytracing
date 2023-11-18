@@ -1,8 +1,8 @@
 #ifndef METRIC_HPP_INCLUDED
 #define METRIC_HPP_INCLUDED
 
-#include "dual.hpp"
-#include "dual_value.hpp"
+#include <vec/dual.hpp>
+#include <vec/value.hpp>
 #include <nlohmann/json.hpp>
 #include "js_interop.hpp"
 #include <vec/tensor.hpp>

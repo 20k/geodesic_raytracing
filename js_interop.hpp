@@ -3,7 +3,7 @@
 
 #include <quickjs_cpp/quickjs_cpp.hpp>
 #include <string>
-#include "dual_value.hpp"
+#include <vec/value.hpp>
 #include <compare>
 #include "equation_context.hpp"
 

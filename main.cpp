@@ -5,8 +5,6 @@
 #include <GLFW/glfw3.h>
 #include <SFML/Graphics.hpp>
 #include <CL/cl_ext.h>
-#include "dual.hpp"
-#include "dual_value.hpp"
 #include "metric.hpp"
 #include "chromaticity.hpp"
 #include <imgui/misc/freetype/imgui_freetype.h>

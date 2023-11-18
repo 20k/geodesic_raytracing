@@ -1,9 +1,10 @@
 #include "js_interop.hpp"
 #include <toolkit/fs_helpers.hpp>
 #include <iostream>
-#include "dual_value.hpp"
+#include <vec/value.hpp>
 #include <cctype>
 #include <imgui/imgui.h>
+#include <vec/vec.hpp>
 
 #define M_E		2.7182818284590452354
 #define M_LOG2E		1.4426950408889634074
@@ -368,11 +369,11 @@ js::value pin(js::value_context* vctx, js::value in)
     }
     else
     {
-        sand->ctx.pin(s->c.real.real);
-        sand->ctx.pin(s->c.real.imaginary);
+        sand->ctx.pin(Real(s->c.real));
+        sand->ctx.pin(Imaginary(s->c.real));
 
-        sand->ctx.pin(s->c.dual.real);
-        sand->ctx.pin(s->c.dual.imaginary);
+        sand->ctx.pin(Real(s->c.dual));
+        sand->ctx.pin(Imaginary(s->c.dual));
     }
 
     return in;
@@ -616,7 +617,7 @@ namespace CMath
 
     void debug(js::value_context* vctx, js::value v)
     {
-        if(v.is_string())
+        /*if(v.is_string())
         {
             std::cout << (std::string)v << std::endl;
             return;
@@ -630,7 +631,7 @@ namespace CMath
         }
         else
         {
-            std::cout << "Basi " << type_to_string(base.c.real.real) << " I " << type_to_string(base.c.real.imaginary) << std::endl;
+            std::cout << "Basi " << type_to_string(Real(base.c.real)) << " I " << type_to_string(Imaginary(base.c.real)) << std::endl;
         }
 
         std::cout << "well hello there " << std::endl;
@@ -650,13 +651,13 @@ namespace CMath
         storage s3 = get(imaginary);
 
         std::cout << "Val " << type_to_string(s2.d.real) << std::endl;
-        std::cout << "Vali " << type_to_string(s3.c.real.imaginary) << std::endl;
+        std::cout << "Vali " << type_to_string(Imaginary(s3.c.real)) << std::endl;*/
     }
 }
 
 js::value get_unit_i(js::value_context* vctx)
 {
-    dual_complex i = dual_types::unit_i();
+    dual_complex i(dual_types::unit_i<value>());
 
     return to_value(*vctx, i);
 }
@@ -774,7 +775,7 @@ js::value setter_set_default(js::value_context* vctx, js::value value)
 
     if(name.starts_with("cfg->"))
     {
-        for(int i=0; i < strlen("cfg->"); i++)
+        for(int i=0; i < (int)strlen("cfg->"); i++)
             name.erase(name.begin());
     }
 

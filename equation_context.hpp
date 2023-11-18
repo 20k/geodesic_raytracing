@@ -1,7 +1,7 @@
 #ifndef EQUATION_CONTEXT_HPP_INCLUDED
 #define EQUATION_CONTEXT_HPP_INCLUDED
 
-#include "dual_value.hpp"
+#include <vec/value.hpp>
 #include <vector>
 #include <utility>
 #include <string>
