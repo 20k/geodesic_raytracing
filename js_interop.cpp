@@ -770,7 +770,7 @@ js::value setter_set_default(js::value_context* vctx, js::value value)
     if(!s.d.real.value_payload.has_value())
         throw std::runtime_error("Must be pseudoconstant value in $default set");
 
-    std::string name = s.d.real.value_payload.value();
+    std::string name = type_to_string(s.d.real);
 
     if(name.starts_with("cfg->"))
     {

@@ -130,7 +130,7 @@ namespace metrics
 
         value tvl_2 = sum_multiply(spatial_m, spatial_v * spatial_v) / -inf.met[which, which];
 
-        value sign = dual_types::if_v(v[which] < 0, -1.f, 1.f);
+        value sign = if_v(v[which] < 0, value{-1.f}, value{1.f});
 
         tensor<value, 4> ret = v;
 

@@ -10,10 +10,10 @@
 
 struct equation_context
 {
-    std::vector<std::pair<std::string, dual_types::value>> values;
-    std::vector<std::pair<std::string, dual_types::value>> temporaries;
+    std::vector<std::pair<std::string, value>> values;
+    std::vector<std::pair<std::string, value>> temporaries;
 
-    void pin(dual_types::value& v)
+    void pin(value& v)
     {
         if(v.is_constant())
             return;
@@ -22,7 +22,7 @@ struct equation_context
         {
             if(dual_types::equivalent(v, i.second))
             {
-                dual_types::value facade;
+                value facade;
                 facade.make_value(i.first);
 
                 v = facade;
@@ -32,11 +32,11 @@ struct equation_context
 
         std::string name = "pv" + std::to_string(temporaries.size());
 
-        dual_types::value old = v;
+        value old = v;
 
         temporaries.push_back({name, old});
 
-        dual_types::value facade;
+        value facade;
         facade.make_value(name);
 
         v = facade;
@@ -77,7 +77,7 @@ struct equation_context
         {
             if(substitution_map.size() != 0)
             {
-                dual_types::value cp = val;
+                value cp = val;
 
                 cp.substitute(substitution_map);
 

@@ -2324,31 +2324,7 @@ namespace dual_types
     BINARY(max, MAX);
     BINARY(min, MIN);
     UNARY(lambert_w0, LAMBERT_W0);
-    UNARY(sqrt, SQRT);
-    UNARY(psqrt, SQRT);
-    UNARY(log, LOG);
-    UNARY(fabs, FABS);
-    UNARY(abs, ABS);
-    UNARY(exp, EXP);
-    UNARY(sin, SIN);
-    UNARY(cos, COS);
-    UNARY(tan, TAN);
-    UNARY(sinh, SINH);
-    UNARY(cosh, COSH);
-    UNARY(tanh, TANH);
-    UNARY(asin, ASIN);
-    UNARY(acos, ACOS);
-    UNARY(atan, ATAN);
-    BINARY(atan2, ATAN2);
-    UNARY(isfinite, ISFINITE);
-    UNARY(signbit, SIGNBIT);
-    UNARY(sign, SIGN);
-    TRINARY(select, SELECT);
-    BINARY(pow, POW);
-    BINARY(max, MAX);
-    BINARY(min, MIN);
     BINARY(smooth_fmod, SMOOTH_FMOD);
-    UNARY(lambert_w0, LAMBERT_W0);
 
     template<typename T>
     inline
