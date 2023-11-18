@@ -7,9 +7,143 @@
 #include <cmath>
 #include <map>
 #include <assert.h>
+#include <variant>
+#include <vec/tensor.hpp>
+#include <CL/cl.h>
+#include <concepts>
+#include <source_location>
+
+#ifndef __clang__
+#include <stdfloat>
+#endif
+
+#ifndef __clang__
+using float16 = std::float16_t;
+#else
+using float16 = _Float16;
+#endif
 
 namespace dual_types
 {
+    template<typename T>
+    struct value;
+
+    template<typename T>
+    struct value_mut;
+
+    template<typename T>
+    inline
+    std::string name_type(T tag)
+    {
+        #define CMAP(x, y) if constexpr(std::is_same_v<T, x>) {return #y;}
+
+        CMAP(float, float)
+        //CMAP(cl_float, float);
+
+        else CMAP(double, double)
+        //CMAP(cl_double, double);
+
+        else CMAP(float16, half)
+        //CMAP(cl_half, half);
+
+        //CMAP(cl_int, int);
+        else CMAP(int, int)
+
+        //CMAP(cl_short, short);
+        else CMAP(short, short)
+
+        //CMAP(cl_uint, unsigned int);
+        else CMAP(unsigned int, unsigned int)
+
+        //CMAP(cl_ushort, unsigned short);
+        else CMAP(unsigned short, unsigned short)
+
+        else CMAP(char, char)
+        else CMAP(unsigned char, unsigned char)
+
+        else CMAP(cl_float4, float4)
+        else CMAP(cl_float3, float3)
+        else CMAP(cl_float2, float2)
+
+        else CMAP(cl_int4, int4)
+        else CMAP(cl_int3, int3)
+        else CMAP(cl_int2, int2)
+
+        else CMAP(cl_uint4, uint4)
+        else CMAP(cl_uint3, uint3)
+        else CMAP(cl_uint2, uint2)
+
+        else CMAP(cl_short4, short4)
+        else CMAP(cl_short3, short3)
+        else CMAP(cl_short2, short2)
+
+        else CMAP(cl_ushort4, ushort4)
+        else CMAP(cl_ushort3, ushort3)
+        else CMAP(cl_ushort2, ushort2)
+
+        else if constexpr(std::is_same_v<T, std::monostate>)
+            return "monostate##neverused";
+
+        else if constexpr(std::is_same_v<T, tensor<value<float>, 4>>)
+            return "float4";
+
+        else if constexpr(std::is_same_v<T, tensor<value<float>, 3>>)
+            return "float3";
+
+        else if constexpr(std::is_same_v<T, tensor<value<float>, 2>>)
+            return "float2";
+
+        else if constexpr(std::is_same_v<T, tensor<value<int>, 4>>)
+            return "int4";
+
+        else if constexpr(std::is_same_v<T, tensor<value<int>, 3>>)
+            return "int3";
+
+        else if constexpr(std::is_same_v<T, tensor<value<int>, 2>>)
+            return "int2";
+
+        else if constexpr(std::is_same_v<T, tensor<value<unsigned short>, 4>>)
+            return "ushort4";
+
+        else if constexpr(std::is_same_v<T, tensor<value<unsigned short>, 3>>)
+            return "ushort3";
+
+        else if constexpr(std::is_same_v<T, tensor<value<unsigned short>, 2>>)
+            return "ushort2";
+
+        else if constexpr(std::is_same_v<T, tensor<value<float16>, 4>>)
+            return "half4";
+
+        else if constexpr(std::is_same_v<T, tensor<value<float16>, 3>>)
+            return "half3";
+
+        else if constexpr(std::is_same_v<T, tensor<value<float16>, 2>>)
+            return "half2";
+
+        else
+        {
+            #ifndef __clang__
+            static_assert(false);
+            #endif
+        }
+
+        #undef CMAP
+    }
+
+    template<typename T>
+    inline
+    std::string name_type(value<T> tag)
+    {
+        return name_type(typename value<T>::value_type());
+    }
+
+    template<typename T>
+    inline
+    std::string name_type(value_mut<T> tag)
+    {
+        return name_type(typename value_mut<T>::value_type());
+    }
+
     template<typename T>
     concept Arithmetic = std::is_arithmetic_v<T>;
 
@@ -26,11 +160,27 @@ namespace dual_types
         if(str.size() > 0 && str.back() == '.')
             str += "0";
 
+        //str += "f";
+
         return str;
     }
 
     inline
-    std::optional<double> get_value(std::string_view in)
+    std::string to_string_s(std::integral auto v)
+    {
+        return std::to_string(v);
+    }
+
+    inline
+    std::string to_string_s(std::monostate m)
+    {
+        throw std::runtime_error("Bad to_string_s std::monostate");
+        return "";
+    }
+
+    template<typename T>
+    inline
+    std::optional<T> get_value(std::string_view in)
     {
         if(in.size() == 0)
             throw std::runtime_error("Bad in size, 0");
@@ -55,10 +205,53 @@ namespace dual_types
         return std::nullopt;
     }
 
+    template<typename T>
+    inline
+    std::variant<std::string, T> get_value_or_string(std::string_view in)
+    {
+        auto result_opt = get_value<T>(in);
+
+        if(result_opt.has_value())
+        {
+            return result_opt.value();
+        }
+
+        return std::string(in);
+    }
+
+    template<typename T>
+    inline
+    std::string to_string_either(const std::variant<std::string, T>& in)
+    {
+        if(in.index() == 0)
+            return std::get<0>(in);
+
+        if constexpr(std::is_same_v<T, std::monostate>)
+        {
+            assert(false);
+        }
+        else
+        {
+            const T& val = std::get<1>(in);
+
+            std::string result = std::visit([](const auto& in)
+            {
+                return to_string_s(in);
+            }, val.storage);
+
+            return result;
+
+            //return to_string_s(std::get<1>(in));
+        }
+    }
+
     struct operation_desc
     {
         bool is_infix = false;
         std::string_view sym;
+        bool is_semicolon_terminated = true;
+        bool introduces_block = false;
+        bool reordering_hazard = false;
     };
 
     namespace ops
@@ -66,12 +259,22 @@ namespace dual_types
         enum type_t
         {
             PLUS,
+            COMBO_PLUS,
             UMINUS,
             MINUS,
             MULTIPLY,
+            COMBO_MULTIPLY,
             DIVIDE,
             MODULUS, ///c style %
             AND,
+            ASSIGN,
+            RETURN,
+            BREAK,
+            IF_S,
+            IF_START,
+            FOR_START,
+            BLOCK_START,
+            BLOCK_END,
 
             LESS,
             LESS_EQUAL,
@@ -80,6 +283,16 @@ namespace dual_types
             GREATER_EQUAL,
 
             EQUAL,
+            NOT_EQUAL,
+
+            LAND,
+            LOR,
+            LNOT,
+
+            COMMA,
+
+            IDOT,
+            CONVERT,
 
             SIN,
             COS,
@@ -98,6 +311,10 @@ namespace dual_types
             COSH,
             TANH,
 
+            ASINH,
+            ACOSH,
+            ATANH,
+
             LOG,
 
             ISFINITE,
@@ -110,22 +327,29 @@ namespace dual_types
             POW,
             MAX,
             MIN,
+            CLAMP,
 
             SMOOTH_FMOD, ///assumes that the derivative is smooth, and that we don't need to touch it
 
             LAMBERT_W0,
+
+            FMA,
+            MAD,
+
+            FLOOR,
+            CEIL,
+            ROUND,
+
+            BRACKET,
+            DECLARE,
+            DECLARE_ARRAY,
+
             UNKNOWN_FUNCTION,
+            SIDE_EFFECT,
 
             VALUE,
             NONE,
         };
-    }
-
-    template<typename... T>
-    inline
-    auto make_array(T&&... args)
-    {
-        return std::array{args...};
     }
 
     inline
@@ -135,9 +359,9 @@ namespace dual_types
 
         operation_desc ret;
 
-        if(type == PLUS || type == MINUS || type == MULTIPLY || type == MODULUS || type == AND ||
+        if(type == PLUS || type == MINUS || type == MULTIPLY || type == MODULUS || type == AND || type == ASSIGN ||
            type == LESS || type == LESS_EQUAL || type == GREATER || type == GREATER_EQUAL ||
-           type == EQUAL)
+           type == EQUAL || type == NOT_EQUAL || type == LAND || type == LOR || type == LNOT || type == COMMA || type == IDOT)
         {
             ret.is_infix = true;
         }
@@ -150,50 +374,89 @@ namespace dual_types
         }
         #endif // NATIVE_DIVIDE
 
-        std::array syms = make_array(
-        "+",
-        "-",
-        "-",
-        "*",
-        #ifdef NATIVE_DIVIDE
-        "native_divide",
-        #else
-        "/",
-        #endif // NATIVE_DIVIDE
-        "%",
-        "&",
-        "<",
-        "<=",
-        ">",
-        ">=",
-        "==",
-        "native_sin",
-        "native_cos",
-        "native_tan",
-        "asin",
-        "acos",
-        "atan",
-        "atan2",
-        "native_exp",
-        "native_sqrt",
-        "sinh",
-        "cosh",
-        "tanh",
-        "native_log",
-        "isfinite",
-        "signbit",
-        "sign",
-        "fabs",
-        "abs",
-        "select",
-        "pow",
-        "max",
-        "min",
-        "smooth_fmod",
-        "lambert_w0",
-        "generated#function#failure",
-        "ERROR"
-        );
+        std::array syms = {
+            "+",
+            "+",
+            "-",
+            "-",
+            "*",
+            "*",
+            #ifdef NATIVE_DIVIDE
+            "native_divide",
+            #else
+            "/",
+            #endif // NATIVE_DIVIDE
+            "%",
+            "&",
+            "=",
+            "return",
+            "break",
+            "if#err",
+            "if#err",
+            "for#err",
+            "block_start#err",
+            "block_end#err",
+            "<",
+            "<=",
+            ">",
+            ">=",
+            "==",
+            "!=",
+            "&&",
+            "||",
+            "!",
+            ",",
+            ".",
+            "(#err)",
+            "native_sin",
+            "native_cos",
+            "native_tan",
+            "asin",
+            "acos",
+            "atan",
+            "atan2",
+            "native_exp",
+            "native_sqrt",
+            "sinh",
+            "cosh",
+            "tanh",
+            "asinh",
+            "acosh",
+            "atanh",
+            "native_log",
+            "isfinite",
+            "signbit",
+            "sign",
+            "fabs",
+            "abs",
+            "select",
+            "pow",
+            "max",
+            "min",
+            "clamp",
+            "smooth_fmod",
+            "lambert_w0",
+            "fma",
+            "mad",
+            "floor",
+            "ceil",
+            "round",
+            "bad#bracket",
+            "bad#declare",
+            "bad#declarearray",
+            "generated#function#failure",
+            "side#effect",
+            "ERROR#"
+        };
+
+        if(type == ops::FOR_START || type == ops::BLOCK_START || type == ops::BLOCK_END || type == ops::IF_START)
+            ret.is_semicolon_terminated = false;
+
+        if(type == ops::FOR_START || type == ops::IF_START)
+            ret.introduces_block = true;
+
+        if(type == ops::RETURN || type == ops::BREAK || type == ops::SIDE_EFFECT || type == ops::BLOCK_START || type == ops::BLOCK_END)
+            ret.reordering_hazard = true;
 
         static_assert(syms.size() == ops::type_t::NONE);
 
@@ -202,20 +465,22 @@ namespace dual_types
         return ret;
     }
 
+    template<typename T>
     inline
-    double signbit(double in)
+    T signbit(T in)
     {
         return in < 0;
     }
 
+    template<typename T>
     inline
-    float sign(float in)
+    T sign(T in)
     {
-        if(in == -0.0f)
-            return -0.0f;
+        if(in == T(-0.0))
+            return T(-0.0);
 
-        if(in == 0.0f)
-            return 0.0f;
+        if(in == T(0.0))
+            return T(0.0);
 
         if(in > 0)
             return 1;
@@ -229,8 +494,10 @@ namespace dual_types
         throw std::runtime_error("Bad sign function");
     }
 
+    template<typename T>
+    requires std::is_arithmetic_v<T>
     inline
-    double select(double v1, double v2, double v3)
+    T select(T v1, T v2, T v3)
     {
         if(v3 > 0)
             return v2;
@@ -238,63 +505,266 @@ namespace dual_types
         return v1;
     }
 
-    struct value;
-
-    std::string type_to_string(const value& op, bool is_int = false);
-
-    value make_op_value(const std::string& str);
-    template<Arithmetic T>
-    value make_op_value(const T& v);
-    template<typename... T>
-    value make_op(ops::type_t type, T&&... args);
-
-    template<auto N>
+    template<typename T>
     inline
-    bool is_value_equal(double f)
+    T mad(T a, T b, T c)
     {
-        return f == (double)N;
+        return a * b + c;
     }
 
-    value operator<(const value& d1, const value& d2);
+    template<typename T>
+    std::string type_to_string(const value<T>& op);
 
-    value operator<=(const value& d1, const value& d2);
+    template<typename U, typename... T>
+    value<U> make_op(ops::type_t type, T&&... args);
 
-    value operator>(const value& d1, const value& d2);
+    template<typename T>
+    inline
+    value<T> make_op(ops::type_t type, const std::vector<value<T>>& args);
 
-    value operator>=(const value& d1, const value& d2);
+    template<auto N>
+    struct is_value_equal
+    {
+        template<typename T>
+        bool operator()(const T& in)
+        {
+            if constexpr(std::is_same_v<T, std::monostate>)
+                return false;
+            else
+                return in == N;
+        }
+    };
 
-    value operator+(const value& d1, const value& d2);
+    template<typename T>
+    bool equivalent(const value<T>& d1, const value<T>& d2);
 
-    value operator-(const value& d1, const value& d2);
+    template<typename T>
+    value<T> fma(const value<T>&, const value<T>&, const value<T>&);
+    template<typename T>
+    value<T> mad(const value<T>&, const value<T>&, const value<T>&);
 
-    value operator-(const value& d1);
+    static inline auto length_sorter = [](const auto& v1, const auto& v2)
+    {
+        return type_to_string(v1) < type_to_string(v2);
+    };
 
-    value operator*(const value& d1, const value& d2);
+    template<typename T, typename Reduce>
+    inline
+    auto pairwise_reduce(std::vector<T> pending, Reduce&& reduce)
+    {
+        assert(pending.size() != 0);
 
-    value operator/(const value& d1, const value& d2);
+        if(pending.size() == 1)
+            return pending.at(0);
 
-    value operator%(const value& d1, const value& d2);
+        ///take the first two elements a + b, bracket them as (a + b) as a singular element, then push them to the back of the queue
+        ///eg a + b + c + d + e + f
+        ///-> c + d + e + f + (a + b)
+        ///-> e + f + (a + b) + (c + d)
+        ///-> (a + b) + (c + d) + (e + f)
+        ///-> (e + f) + ((a + b) + (c + d))
+        ///-> ((e + f) + ((a + b) + (c + d)))
+        while(pending.size() >= 2)
+        {
+            #ifdef ORDER_PRESERVING
+            for(int i=0; i < pending.size(); i++)
+            {
+                if(i == (int)pending.size() - 1)
+                    break;
 
-    value operator&(const value& d1, const value& d2);
+                ///a b c d e f
+                T v1 = pending[i];
+                T v2 = pending[i + 1];
 
-    bool equivalent(const value& d1, const value& d2);
+                ///groups ab
+                T reduced = reduce(v1, v2);
 
+                ///abcdef -> cdef
+                ///-> (ab)abcdef
+                pending.insert(pending.begin() + i, reduced);
+
+                ///-> (ab)bcdef
+                pending.erase(pending.begin() + i+1);
+                ///-> (ab)cdef
+                pending.erase(pending.begin() + i+1);
+                //i--;
+            }
+            #else
+            T v1 = pending.at(0);
+            T v2 = pending.at(1);
+
+            pending.erase(pending.begin());
+            pending.erase(pending.begin());
+
+            pending.push_back(reduce(v1, v2));
+            #endif
+        }
+
+        assert(pending.size() == 1);
+
+        return pending.at(0);
+    }
+
+    struct type_erased_storage
+    {
+        std::variant<std::monostate,
+                     float16, float, double,
+                     int64_t, uint64_t,
+                     int, unsigned int,
+                     uint16_t, int16_t,
+                     uint8_t, int8_t> storage;
+
+        template<typename T>
+        auto visit(T&& t)
+        {
+            return std::visit(std::forward<T>(t), storage);
+        }
+
+        template<typename T>
+        type_erased_storage(const T& in) : storage(in){}
+        type_erased_storage(const type_erased_storage&) = default;
+
+        template<typename T>
+        void operator=(const T& other)
+        {
+            storage = other;
+        }
+
+        type_erased_storage& operator=(const type_erased_storage&) = default;
+
+        auto operator<=>(const type_erased_storage& rhs) const = default;
+    };
+
+    template<typename T, typename U>
+    struct mutable_value
+    {
+        const T& v;
+        U& ctx;
+        std::source_location loc;
+
+        mutable_value(const T& _v, U& _ctx, const std::source_location _loc = std::source_location::current()) : v(_v), ctx(_ctx), loc(_loc){}
+
+        template<typename V>
+        void operator=(const V& to_set)
+        {
+            if(!v.is_mutable)
+            {
+                std::cout << "file: "
+                << loc.file_name() << '('
+                << loc.line() << ':'
+                << loc.column() << ") `"
+                << loc.function_name() << "\n";
+            }
+
+            assert(v.is_mutable);
+
+            ctx.exec(assign(v, to_set));
+        }
+    };
+
+    template<typename T>
     struct value
     {
+        using value_type = T;
         using is_complex = std::false_type;
         static constexpr bool is_dual = false;
 
         ops::type_t type = ops::NONE;
 
-        std::optional<std::string> value_payload;
-        std::vector<value> args;
+        std::optional<std::variant<std::string, type_erased_storage>> value_payload;
 
-        //value(){value_payload = to_string_s(0); type = ops::VALUE;}
-        value(){value_payload = to_string_s(0); type = ops::VALUE;}
-        template<Arithmetic T>
-        value(T v){value_payload = to_string_s(v); type = ops::VALUE;}
+        //std::optional<std::string> value_payload;
+        std::vector<value<T>> args;
+
+        std::string original_type = name_type(T());
+        bool is_mutable = false;
+        bool is_memory_access = false;
+
+        value(){value_payload = T{}; type = ops::VALUE;}
+        //value(T v){value_payload = v; type = ops::VALUE;}
+        //value(int v){value_payload = T(v); type = ops::VALUE;}
+
+        template<typename U>
+        requires std::is_arithmetic_v<U>
+        value(U u)
+        {
+            value_payload = static_cast<T>(u); type = ops::VALUE;
+        }
+
         value(const std::string& str){value_payload = str; type = ops::VALUE;}
-        value(const char* str){value_payload = std::string(str); type = ops::VALUE;}
+        value(const char* str){assert(str); value_payload = std::string(str); type = ops::VALUE;}
+
+        void set_from(const std::variant<std::string, T>& val)
+        {
+            std::visit([&](auto& in)
+            {
+                value_payload = in;
+            }, val);
+        }
+
+        template<typename U>
+        U reinterpret_as() const
+        {
+            U result;
+            result.type = type;
+            result.value_payload = std::nullopt;
+            result.original_type = original_type;
+            result.is_mutable = is_mutable;
+            result.is_memory_access = is_memory_access;
+
+            if(value_payload.has_value())
+            {
+                result.value_payload = value_payload;
+            }
+
+            for(const value& v : args)
+            {
+                result.args.push_back(v.template reinterpret_as<U>());
+            }
+
+            return result;
+        }
+
+        template<typename U>
+        value<U> convert() const
+        {
+            value<U> op = make_op<U>(ops::CONVERT, reinterpret_as<value<U>>(), name_type(U()));
+            op.original_type = name_type(U());
+            return op;
+        }
+
+        value<std::monostate> as_generic() const
+        {
+            if constexpr(std::is_same_v<T, std::monostate>)
+                return *this;
+            else
+            {
+                value<std::monostate> result;
+                result.type = type;
+                result.value_payload = std::nullopt;
+                result.original_type = original_type;
+                result.is_mutable = is_mutable;
+                result.is_memory_access = is_memory_access;
+
+                if(value_payload.has_value())
+                {
+                    result.value_payload = value_payload;
+                }
+
+                for(const value<T>& v : args)
+                {
+                    result.args.push_back(v.as_generic());
+                }
+
+                return result;
+            }
+        }
+
+        template<typename U>
+        explicit operator value<U>() const
+        {
+            return convert<U>();
+        }
 
         bool is_value() const
         {
@@ -303,343 +773,81 @@ namespace dual_types
 
         bool is_constant() const
         {
-            return is_value() && value_payload.has_value() && get_value(value_payload.value()).has_value();
+            return is_value() && value_payload.has_value() && value_payload.value().index() == 1;
         }
 
-        template<typename T>
-        bool is_constant_constraint(T&& func) const
+        template<typename U>
+        bool is_constant_constraint(U&& func) const
         {
             if(!is_constant())
                 return false;
 
-            return func(get_constant());
+            auto wrapper_func = [&]<typename V>(const V& in)
+            {
+                if constexpr(std::is_same_v<V, std::monostate>)
+                {
+                    assert(false);
+                    return false;
+                }
+                else
+                    return func(in);
+            };
+
+            return constant_callback(wrapper_func);
         }
 
-        double get_constant() const
+        T get_constant() const
         {
             assert(is_constant());
 
-            return get_value(value_payload.value()).value();
+            return std::get<T>(std::get<1>(value_payload.value()).storage);
         }
 
-        double get(int idx) const
+        T get(int idx) const
         {
-            return get_value(args[idx].value_payload.value()).value();
+            return std::get<T>(std::get<1>(args[idx].value_payload.value()).storage);
+        }
+
+        template<typename Func>
+        auto constant_callback(Func&& f) const
+        {
+            assert(is_constant());
+
+            return std::visit(std::forward<Func>(f), std::get<1>(value_payload.value()).storage);
         }
 
         void make_value(const std::string& str)
         {
-            value_payload = str;
+            set_from(get_value_or_string<T>(str));
+
             type = ops::VALUE;
         }
 
         void set_dual_constant()
         {
-            value_payload = to_string_s(0);
+            value_payload = T(0.);
             type = ops::VALUE;
         }
 
         void set_dual_variable()
         {
-            value_payload = to_string_s(1);
+            value_payload = T(1.);
             type = ops::VALUE;
         }
 
-        #define PROPAGATE1(x, y) if(type == ops::x){return make_op_value(y(get(0)));}
-        #define PROPAGATE2(x, y) if(type == ops::x){return make_op_value(y(get(0), get(1)));}
-        #define PROPAGATE3(x, y) if(type == ops::x){return make_op_value(y(get(0), get(1), get(2)));}
-
-        template<typename T, typename U, typename V>
-        inline
-        void configurable_recurse_impl(value& op, const std::vector<std::pair<value*, int>>& op_chain, T&& is_valid_candidate, U&& should_terminate, V&& should_recurse, bool& terminated)
-        {
-            if(terminated)
-                return;
-
-            if(!is_valid_candidate(op))
-                return;
-
-            if(should_terminate(op, op_chain))
-            {
-                terminated = true;
-                return;
-            }
-
-            if(op.type == ops::VALUE)
-                return;
-
-            for(int idx = 0; idx < (int)op.args.size(); idx++)
-            {
-                //if(op.args[idx].type == ops::VALUE)
-                //    continue;
-
-                if(!should_recurse(op, idx))
-                    continue;
-
-                std::vector<std::pair<value*, int>> next_chain = op_chain;
-                next_chain.push_back({&op.args[idx], idx});
-
-                configurable_recurse_impl(op.args[idx], next_chain, std::forward<T>(is_valid_candidate), std::forward<U>(should_terminate), std::forward<V>(should_recurse), terminated);
-            }
-        }
-
-        template<typename T, typename U, typename V>
-        inline
-        void configurable_recurse(value& op, T&& is_valid_candidate, U&& should_terminate, V&& should_recurse)
-        {
-            bool terminated = false;
-            std::vector<std::pair<value*, int>> op_chain{{&op, 0}};
-
-            return configurable_recurse_impl(op, op_chain, std::forward<T>(is_valid_candidate), std::forward<U>(should_terminate), std::forward<V>(should_recurse), terminated);
-        }
-
-        bool invasive_flatten()
-        {
-            bool any_change = false;
-
-            #if 0
-            if(type == ops::MULTIPLY || type == ops::DIVIDE)
-            {
-                auto is_mult_node_or_expr = [](const value& op)
-                {
-                    return op.type == ops::MULTIPLY || op.type == ops::DIVIDE || op.type == ops::UMINUS || op.type == ops::VALUE || !get_description(op.type).is_infix;
-                };
-
-                std::vector<value*> constants;
-                std::vector<std::vector<std::pair<value*, int>>> op_chains;
-
-                std::vector<value*> variables;
-                std::vector<std::vector<std::pair<value*, int>>> vop_chains;
-
-                auto found_constant = [&](value& op, const std::vector<std::pair<value*, int>>& op_chain)
-                {
-                    if(op.is_constant())
-                    {
-                        constants.push_back(&op);
-                        op_chains.push_back(op_chain);
-
-                        return false;
-                    }
-
-                    if(op.type == ops::VALUE && !op.is_constant())
-                    {
-                        variables.push_back(&op);
-                        vop_chains.push_back(op_chain);
-
-                        return false;
-                    }
-
-                    if(!get_description(op.type).is_infix && !op.is_constant())
-                    {
-                        variables.push_back(&op);
-                        vop_chains.push_back(op_chain);
-
-                        return false;
-                    }
-
-                    return false;
-                };
-
-                auto should_recurse = [](value& op, int idx)
-                {
-                    if(op.type == ops::MULTIPLY)
-                        return true;
-
-                    if(op.type == ops::DIVIDE)
-                        return true;
-
-                    if(op.type == ops::UMINUS)
-                        return true;
-
-                    return false;
-                };
-
-                configurable_recurse(args[0], is_mult_node_or_expr, found_constant, should_recurse);
-                configurable_recurse(args[1], is_mult_node_or_expr, found_constant, should_recurse);
-
-                auto propagate_constants = [&](value& base_op, int idx)
-                {
-                    if(base_op.is_constant())
-                    {
-                        double my_value = base_op.get_constant();
-
-                        for(int i=0; i < (int)constants.size(); i++)
-                        {
-                            if(&base_op == constants[i])
-                                continue;
-
-                            bool tip = false;
-
-                            if(type == ops::DIVIDE && idx == 1)
-                            {
-                                tip = true;
-                            }
-
-                            for(int kk=1; kk < (int)op_chains[i].size(); kk++)
-                            {
-                                value* parent_op = op_chains[i][kk - 1].first;
-
-                                if(parent_op->type == ops::DIVIDE)
-                                {
-                                    if(op_chains[i][kk].second == 1)
-                                    {
-                                        tip = !tip;
-                                    }
-                                }
-                            }
-
-                            value* op = constants[i];
-
-                            if(!tip)
-                                my_value *= op->get_constant();
-                            else
-                                my_value /= op->get_constant();
-
-                            *op = value(1);
-
-                            any_change = true;
-                        }
-
-                        base_op = my_value;
-
-                        constants.clear();
-                        op_chains.clear();
-                    }
-                };
-
-                propagate_constants(args[0], 0);
-                propagate_constants(args[1], 1);
-
-                auto propagate_variables = [&](value& base_op, int idx)
-                {
-                    for(int i=0; i < (int)variables.size(); i++)
-                    {
-                        if(&base_op == variables[i])
-                            continue;
-
-                        bool tip = false;
-
-                        if(type == ops::DIVIDE && idx == 1)
-                        {
-                            tip = true;
-                        }
-
-                        for(int kk=1; kk < (int)vop_chains[i].size(); kk++)
-                        {
-                            value* parent_op = vop_chains[i][kk - 1].first;
-
-                            if(parent_op->type == ops::DIVIDE)
-                            {
-                                if(vop_chains[i][kk].second == 1)
-                                {
-                                    tip = !tip;
-                                }
-                            }
-                        }
-
-                        value* op = variables[i];
-
-                        if(tip)
-                        {
-                            if(equivalent(*op, base_op))
-                            {
-                                any_change = true;
-
-                                base_op = value(1);
-                                *op = value(1);
-
-                                return;
-                            }
-                        }
-                    }
-                };
-
-                propagate_variables(args[0], 0);
-                propagate_variables(args[1], 1);
-            }
-
-            if(type == ops::PLUS)
-            {
-                auto is_add_node = [](const value& op)
-                {
-                    return op.type == ops::PLUS || op.type == ops::UMINUS;
-                };
-
-                std::vector<value*> constants;
-                std::vector<std::vector<std::pair<value*, int>>> op_chains;
-
-                auto found_constant = [&](value& op, const std::vector<std::pair<value*, int>>& op_chain)
-                {
-                    if(op.args[0].is_constant())
-                    {
-                        constants.push_back(&op.args[0]);
-                        op_chains.push_back(op_chain);
-                    }
-
-                    if(op.args[1].is_constant())
-                    {
-                        constants.push_back(&op.args[1]);
-                        op_chains.push_back(op_chain);
-                    }
-
-                    return false;
-                };
-
-                auto should_recurse = [](value& op, int idx)
-                {
-                    if(op.type == ops::VALUE)
-                        return false;
-
-                    return true;
-                };
-
-                configurable_recurse(args[0], is_add_node, found_constant, should_recurse);
-                configurable_recurse(args[1], is_add_node, found_constant, should_recurse);
-
-                //any_change = constants.size() > 0;
-
-                auto propagate_constants = [&](value& base_op)
-                {
-                    if(base_op.is_constant())
-                    {
-                        double my_value = base_op.get_constant();
-
-                        for(int i=0; i < (int)constants.size(); i++)
-                        {
-                            value* op = constants[i];
-
-                            double sign = 1;
-
-                            for(auto [kk, idx] : op_chains[i])
-                            {
-                                if(kk->type == ops::UMINUS)
-                                    sign *= -1;
-                            }
-
-                            my_value += op->get_constant() * sign;
-
-                            *op = value(0);
-
-                            any_change = true;
-                        }
-
-                        base_op = my_value;
-
-                        constants.clear();
-                        op_chains.clear();
-                    }
-                };
-
-                propagate_constants(args[0]);
-                propagate_constants(args[1]);
-            }
-            #endif // 0
-
-            return any_change;
-        }
+        #define PROPAGATE1(x, y) if(type == ops::x){return y(get(0));}
+        #define PROPAGATE2(x, y) if(type == ops::x){return y(get(0), get(1));}
+        #define PROPAGATE3(x, y) if(type == ops::x){return y(get(0), get(1), get(2));}
 
         value flatten(bool recurse = false) const
         {
+            #ifdef __clang__
+            if constexpr(std::is_same_v<T, float16>)
+                return *this;
+            else
+            {
+            #endif
+
             if(type == ops::VALUE)
                 return *this;
 
@@ -657,19 +865,19 @@ namespace dual_types
             if(all_constant)
             {
                 if(type == ops::PLUS)
-                    return make_op_value(get(0) + get(1));
+                    return get(0) + get(1);
 
                 if(type == ops::UMINUS)
-                    return make_op_value(-get(0));
+                    return -get(0);
 
                 if(type == ops::MINUS)
-                    return make_op_value(get(0) - get(1));
+                    return get(0) - get(1);
 
                 if(type == ops::MULTIPLY)
-                    return make_op_value(get(0) * get(1));
+                    return get(0) * get(1);
 
                 if(type == ops::DIVIDE)
-                    return make_op_value(get(0) / get(1));
+                    return get(0) / get(1);
 
                 //if(type == ops::MODULUS)
                 //    return make_op_value(get(0) % get(1));
@@ -679,19 +887,22 @@ namespace dual_types
                 //    return make_op_value(get(0) & get(1));
 
                 if(type == ops::LESS)
-                    return make_op_value(get(0) < get(1));
+                    return get(0) < get(1);
 
                 if(type == ops::LESS_EQUAL)
-                    return make_op_value(get(0) <= get(1));
+                    return get(0) <= get(1);
 
                 if(type == ops::GREATER)
-                    return make_op_value(get(0) > get(1));
+                    return get(0) > get(1);
 
                 if(type == ops::GREATER_EQUAL)
-                    return make_op_value(get(0) >= get(1));
+                    return get(0) >= get(1);
 
                 if(type == ops::EQUAL)
-                    return make_op_value(get(0) == get(1));
+                    return get(0) == get(1);
+
+                if(type == ops::NOT_EQUAL)
+                    return get(0) != get(1);
 
                 PROPAGATE1(SIN, std::sin);
                 PROPAGATE1(COS, std::cos);
@@ -705,6 +916,9 @@ namespace dual_types
                 PROPAGATE1(SINH, std::sinh);
                 PROPAGATE1(COSH, std::cosh);
                 PROPAGATE1(TANH, std::tanh);
+                PROPAGATE1(ASINH, std::asinh);
+                PROPAGATE1(ACOSH, std::acosh);
+                PROPAGATE1(ATANH, std::atanh);
                 PROPAGATE1(LOG, std::log);
                 PROPAGATE1(ISFINITE, std::isfinite);
                 PROPAGATE1(SIGNBIT, signbit);
@@ -715,16 +929,27 @@ namespace dual_types
                 PROPAGATE2(POW, std::pow);
                 PROPAGATE2(MAX, std::max);
                 PROPAGATE2(MIN, std::min);
+                PROPAGATE3(CLAMP, std::clamp);
                 //PROPAGATE2(LAMBERT_W0, lambert_w0);
+
+                ///FMA is not propagated as we can't actually simulate it? Does that matter?
+                PROPAGATE3(MAD, mad);
             }
 
             if(type == ops::SELECT)
             {
                 if(args[2].is_constant())
-                    return args[2].get_constant() > 0 ? args[1] : args[0];
+                {
+                    bool gt_zero = args[2].is_constant_constraint([](const auto& in){return in > 0;});
+
+                    return gt_zero ? args[1] : args[0];
+                }
             }
 
-            auto is_zero = [](double f){return f == 0;};
+            auto is_zero = []<typename U>(const U& f)
+            {
+                return f == 0;
+            };
 
             if(type == ops::MULTIPLY)
             {
@@ -733,10 +958,10 @@ namespace dual_types
 
                 //std::cout << "hello " << type_to_string(args[0]) << " with " << type_to_string(args[1]) << std::endl;
 
-                if(args[0].is_constant_constraint(is_value_equal<1>))
+                if(args[0].is_constant_constraint(is_value_equal<1>{}))
                     return args[1].flatten();
 
-                if(args[1].is_constant_constraint(is_value_equal<1>))
+                if(args[1].is_constant_constraint(is_value_equal<1>{}))
                     return args[0].flatten();
             }
 
@@ -752,6 +977,78 @@ namespace dual_types
                     return 2 * args[0].flatten();
             }
 
+            if(type == ops::COMBO_PLUS)
+            {
+                int const_num = 0;
+
+                for(const auto& i : args)
+                {
+                    if(i.is_constant())
+                        const_num++;
+                }
+
+                if(const_num > 1)
+                {
+                    value cst = 0;
+
+                    value copied = *this;
+
+                    for(int i=0; i < (int)copied.args.size(); i++)
+                    {
+                        if(copied.args[i].is_constant())
+                        {
+                            cst += copied.args[i];
+
+                            copied.args.erase(copied.args.begin() + i);
+                            i--;
+                            continue;
+                        }
+                    }
+
+                    copied.args.push_back(cst);
+
+                    return copied.flatten();
+                }
+
+                ///still need to implement equivalence checking to do n * thing
+            }
+
+            if(type == ops::COMBO_MULTIPLY)
+            {
+                int const_num = 0;
+
+                for(const auto& i : args)
+                {
+                    if(i.is_constant())
+                        const_num++;
+                }
+
+                if(const_num > 1)
+                {
+                    value cst = 1;
+
+                    value copied = *this;
+
+                    for(int i=0; i < (int)copied.args.size(); i++)
+                    {
+                        if(copied.args[i].is_constant())
+                        {
+                            cst = cst * copied.args[i];
+
+                            copied.args.erase(copied.args.begin() + i);
+                            i--;
+                            continue;
+                        }
+                    }
+
+                    copied.args.push_back(cst);
+
+                    return copied.flatten();
+                }
+
+                ///still need to implement equivalence checking to do n * thing
+            }
+
             if(type == ops::MINUS)
             {
                 if(args[0].is_constant_constraint(is_zero))
@@ -761,67 +1058,212 @@ namespace dual_types
                     return args[0].flatten();
 
                 if(equivalent(args[0], args[1]))
-                    return value(0);
+                    return 0;
+            }
+
+            if(type == ops::UMINUS)
+            {
+                if(args[0].type == ops::MULTIPLY)
+                {
+                    if(args[0].args[0].is_constant())
+                    {
+                        return (-args[0].args[0]) * args[0].args[1];
+                    }
+
+                    if(args[0].args[1].is_constant())
+                    {
+                        return args[0].args[0] * (-args[0].args[1]);
+                    }
+                }
+
+                if(args[0].type == ops::DIVIDE)
+                {
+                    if(args[0].args[0].is_constant())
+                    {
+                        return (-args[0].args[0]) / args[0].args[1];
+                    }
+
+                    if(args[0].args[1].is_constant())
+                    {
+                        return args[0].args[0] / (-args[0].args[1]);
+                    }
+                }
             }
 
             if(type == ops::DIVIDE)
             {
                 if(args[0].is_constant_constraint(is_zero))
-                    return value(0);
+                    return 0;
 
-                if(args[1].is_constant_constraint(is_value_equal<1>))
+                if(args[1].is_constant_constraint(is_value_equal<1>{}))
                     return args[0].flatten();
 
                 if(equivalent(args[0], args[1]))
-                    return value(1);
+                    return 1;
             }
 
             ///ops::MODULUS
 
             if(type == ops::POW)
             {
-                if(args[1].is_constant_constraint(is_value_equal<1>))
+                if(args[1].is_constant_constraint(is_value_equal<1>{}))
                     return args[0].flatten();
 
                 if(args[1].is_constant_constraint(is_zero))
-                    return value(1);
+                    return 1;
 
-                /*if(args[1].is_constant())
+                if constexpr(std::is_arithmetic_v<T>)
                 {
-                    value ret = args[0];
-
-                    for(int i=0; i < args[1].get_constant() - 1; i++)
+                    ///according to amd, this is an unconditional win
+                    if(args[1].is_constant())
                     {
-                        ret = ret * args[0];
+                        T cst = args[1].get_constant();
+
+                        if(cst == floor(cst) && abs(cst) < 32)
+                        {
+                            value ret = args[0];
+
+                            for(int i=0; i < abs(cst) - 1; i++)
+                            {
+                                ret = ret * args[0];
+                            }
+
+                            if(cst > 0)
+                                return ret;
+                            else
+                                return 1/ret;
+                        }
                     }
-
-                    return ret;
-                }*/
-            }
-
-            value ret = *this;
-
-            bool any_dirty = false;
-
-            any_dirty = ret.invasive_flatten();
-
-            recurse = recurse || any_dirty;
-
-            if(recurse)
-            {
-                for(auto& i : ret.args)
-                    i = i.flatten(true);
-
-                if(any_dirty)
-                {
-                    ret = ret.flatten(false);
                 }
             }
 
-            return ret;
+            if(type == ops::FMA || type == ops::MAD)
+            {
+                ///a * 0 + c or 0 * b + c
+                if(args[0].is_constant_constraint(is_zero) || args[1].is_constant_constraint(is_zero))
+                    return args[2].flatten();
+
+                ///1 * b + c
+                if(args[0].is_constant_constraint(is_value_equal<1>{}))
+                    return (args[1] + args[2]).flatten();
+
+                ///a * 1 + c
+                if(args[1].is_constant_constraint(is_value_equal<1>{}))
+                    return (args[0] + args[2]).flatten();
+
+                ///a * b + 0
+                if(args[2].is_constant_constraint(is_zero))
+                {
+                    return (args[0] * args[1]).flatten();
+                }
+            }
+
+
+            //#define FMA_REPLACE
+            ///much worse than letting the compiler do it, even with mad
+            ///better with new backend (!)
+            #ifdef FMA_REPLACE
+            if(type == ops::PLUS && args[0].original_type == "float")
+            {
+                if(args[0].type == ops::MULTIPLY)
+                {
+                    value c = args[1];
+                    value a = args[0].args[0];
+                    value b = args[0].args[1];
+
+                    return fma(a, b, c);
+                }
+                else if(args[1].type == ops::MULTIPLY)
+                {
+                    value c = args[0];
+                    value a = args[1].args[0];
+                    value b = args[1].args[1];
+
+                    return fma(a, b, c);
+                }
+            }
+            #endif
+
+            if(recurse)
+            {
+                value ret = *this;
+
+                for(auto& i : ret.args)
+                    i = i.flatten(true);
+
+                return ret;
+            }
+
+            return *this;
+
+            #ifdef __clang__
+            }
+            #endif
         }
 
-        dual_types::dual_v<value> dual(const std::string& sym) const
+        value group_associative_operators() const
+        {
+            #define NO_REGROUP_ASSOCIATIVE
+            #ifdef NO_REGROUP_ASSOCIATIVE
+            return *this;
+            #endif
+
+            if(type == ops::PLUS)
+            {
+                ///note to self, don't do this recursively
+                if(type == ops::COMBO_PLUS)
+                    return *this;
+
+                std::vector<value<T>> final_args;
+
+                for(int i=0; i < (int)args.size(); i++)
+                {
+                    if(args[i].type == ops::PLUS || args[i].type == ops::COMBO_PLUS)
+                        final_args.insert(final_args.end(), args[i].args.begin(), args[i].args.end());
+                    else
+                        final_args.push_back(args[i]);
+                }
+
+                //std::sort(final_args.begin(), final_args.end(), length_sorter);
+
+                ///could disable combo plus promotion, keeps flattening etc but not that helpful
+                //if(final_args.size() == 2)
+                //    return *this;
+
+                return make_op<T>(ops::COMBO_PLUS, final_args);
+            }
+
+            #ifdef COMBO_MULT
+            if(type == ops::MULTIPLY)
+            {
+                ///note to self, don't do this recursively
+                if(type == ops::COMBO_MULTIPLY)
+                    return *this;
+
+                std::vector<value<T>> final_args;
+
+                for(int i=0; i < (int)args.size(); i++)
+                {
+                    if(args[i].type == ops::MULTIPLY || args[i].type == ops::COMBO_MULTIPLY)
+                        final_args.insert(final_args.end(), args[i].args.begin(), args[i].args.end());
+                    else
+                        final_args.push_back(args[i]);
+                }
+
+                //std::sort(final_args.begin(), final_args.end(), length_sorter);
+
+                ///could disable combo plus promotion, keeps flattening etc but not that helpful
+                //if(final_args.size() == 2)
+                //    return *this;
+
+                return make_op<T>(ops::COMBO_MULTIPLY, final_args);
+            }
+            #endif
+
+            return *this;
+        }
+
+        dual_types::dual_v<value<T>> dual(const std::string& sym) const
         {
             #define DUAL_CHECK1(x, y) if(type == x) { return y(args[0].dual(sym)); }
             #define DUAL_CHECK2(x, y) if(type == x) { return y(args[0].dual(sym), args[1].dual(sym)); }
@@ -831,9 +1273,9 @@ namespace dual_types
 
             if(type == VALUE)
             {
-                dual_types::dual_v<value> ret;
+                dual_types::dual_v<value<T>> ret;
 
-                if(value_payload.value() == sym)
+                if(value_payload.value().index() == 0 && std::get<0>(value_payload.value()) == sym)
                 {
                     ret.make_variable(*this);
                 }
@@ -847,6 +1289,28 @@ namespace dual_types
             if(type == PLUS)
             {
                 return args[0].dual(sym) + args[1].dual(sym);
+            }
+            if(type == COMBO_PLUS)
+            {
+                std::vector<dual_types::dual_v<value<T>>> vals;
+
+                for(const auto& i : args)
+                {
+                    vals.push_back(i.dual(sym));
+                }
+
+                return pairwise_reduce(vals, [](const auto& v1, const auto& v2){return v1 + v2;});
+            }
+            if(type == COMBO_MULTIPLY)
+            {
+                std::vector<dual_types::dual_v<value<T>>> vals;
+
+                for(const auto& i : args)
+                {
+                    vals.push_back(i.dual(sym));
+                }
+
+                return pairwise_reduce(vals, [](const auto& v1, const auto& v2){return v1 * v2;});
             }
             if(type == UMINUS)
             {
@@ -879,6 +1343,11 @@ namespace dual_types
             if(type == LESS_EQUAL)
             {
                 return args[0].dual(sym) <= args[1].dual(sym);
+            }
+
+            if(type == FMA || type == MAD)
+            {
+                return args[0].dual(sym) * args[1].dual(sym) + args[2].dual(sym);
             }
 
             /*if(type == EQUAL)
@@ -916,7 +1385,7 @@ namespace dual_types
 
             if(type == SELECT)
             {
-                return select(args[0].dual(sym), args[1].dual(sym), args[2]);
+                return dual_types::select(args[0].dual(sym), args[1].dual(sym), args[2]);
             }
 
             DUAL_CHECK2(POW, pow);
@@ -927,16 +1396,16 @@ namespace dual_types
             assert(false);
         }
 
-        value differentiate(const std::string& sym) const
+        value<T> differentiate(const std::string& sym) const
         {
             return dual(sym).dual;
         }
 
-        void substitute_impl(const std::string& sym, float value)
+        void substitute_impl(const std::string& sym, T value)
         {
-            if(type == ops::VALUE && value_payload.value() == sym)
+            if(type == ops::VALUE && value_payload.value().index() == 0 && std::get<0>(value_payload.value()) == sym)
             {
-                value_payload = to_string_s(value);
+                value_payload = double{value};
                 return;
             }
 
@@ -954,7 +1423,7 @@ namespace dual_types
             *this = flatten();
         }
 
-        value substitute(const std::string& sym, float value) const
+        value substitute(const std::string& sym, T value) const
         {
             auto cp = *this;
 
@@ -963,14 +1432,18 @@ namespace dual_types
             return cp;
         }
 
-        void get_all_variables_impl(std::set<std::string>& v) const
+        /*template<typename U>
+        void recurse_variables(U&& u)
         {
+            if(type == ops::IDOT)
+                return;
+
             if(type == ops::VALUE)
             {
                 if(is_constant())
                     return;
 
-                v.insert(value_payload.value());
+                u(*this);
                 return;
             }
 
@@ -979,10 +1452,33 @@ namespace dual_types
             if(type == ops::UNKNOWN_FUNCTION)
                 start = 1;
 
+            if(type == ops::DECLARE)
+                start = 2;
+
             for(int i=start; i < (int)args.size(); i++)
             {
-                args[i].get_all_variables_impl(v);
+                if(type == ops::CONVERT && i == 1)
+                    continue;
+
+                args[i].recurse_variables(std::forward<U>(u));
             }
+        }*/
+
+        void get_all_variables_impl(std::set<std::string>& v) const
+        {
+            if(type == ops::VALUE)
+            {
+                if(is_constant())
+                    return;
+
+                v.insert(std::get<0>(value_payload.value()));
+                return;
+            }
+
+            for_each_real_arg([&](const value& me)
+            {
+                me.get_all_variables_impl(v);
+            });
         }
 
         std::vector<std::string> get_all_variables() const
@@ -995,48 +1491,147 @@ namespace dual_types
             return ret;
         }
 
-        template<typename T>
-        void recurse_arguments(const T& in) const
+        template<typename U>
+        void for_each_real_arg(U&& in) const
         {
-            in(*this);
+            if(type == ops::IDOT)
+                return;
 
-            int start = 0;
+            if(type == ops::SIDE_EFFECT)
+                return;
 
-            if(type == ops::UNKNOWN_FUNCTION)
-                start = 1;
-
-            for(int i=start; i < (int)args.size(); i++)
+            for(int i=0; i < (int)args.size(); i++)
             {
-                args[i].recurse_arguments(in);
+                if(type == ops::DECLARE && i < 2)
+                    continue;
+
+                if(type == ops::DECLARE_ARRAY)
+                    continue;
+
+                if(type == ops::UNKNOWN_FUNCTION && i == 0)
+                    continue;
+
+                if(type == ops::CONVERT && i == 1)
+                    continue;
+
+                if(type == ops::ASSIGN && i == 0)
+                    continue;
+
+                if(type == ops::BRACKET && i == 0)
+                    continue;
+
+                in(args[i]);
             }
         }
 
-        template<typename T>
-        void recurse_arguments(const T& in)
+        template<typename U>
+        void for_each_real_arg(U&& in)
+        {
+            if(type == ops::IDOT)
+                return;
+
+            if(type == ops::SIDE_EFFECT)
+                return;
+
+            for(int i=0; i < (int)args.size(); i++)
+            {
+                if(type == ops::DECLARE && i < 2)
+                    continue;
+
+                if(type == ops::DECLARE_ARRAY)
+                    continue;
+
+                if(type == ops::UNKNOWN_FUNCTION && i == 0)
+                    continue;
+
+                if(type == ops::CONVERT && i == 1)
+                    continue;
+
+                if(type == ops::ASSIGN && i == 0)
+                    continue;
+
+                if(type == ops::BRACKET && i == 0)
+                    continue;
+
+                in(args[i]);
+            }
+        }
+
+        template<typename U>
+        void recurse_arguments(U&& in) const
         {
             in(*this);
 
-            int start = 0;
-
-            if(type == ops::UNKNOWN_FUNCTION)
-                start = 1;
-
-            for(int i=start; i < (int)args.size(); i++)
+            for_each_real_arg([&](const value& me)
             {
-                args[i].recurse_arguments(in);
+                me.recurse_arguments(std::forward<U>(in));
+            });
+        }
+
+        template<typename U>
+        void recurse_arguments(U&& in)
+        {
+            in(*this);
+
+            for_each_real_arg([&](value& me)
+            {
+                me.recurse_arguments(std::forward<U>(in));
+            });
+        }
+
+        /*template<typename Pre, typename U>
+        void bottom_up_recurse(Pre&& pre, U&& in) const
+        {
+            if(pre(*this))
+                return;
+
+            for(const auto& i : args)
+            {
+                i.bottom_up_recurse(std::forward<Pre>(pre), std::forward<U>(in));
             }
+
+            in(*this);
+        }*/
+
+        /*template<typename Pre, typename U>
+        void bottom_up_recurse(Pre&& pre, U&& in)
+        {
+            if(pre(*this))
+                return;
+
+            for(auto& i : args)
+            {
+                i.bottom_up_recurse(std::forward<Pre>(pre), std::forward<U>(in));
+            }
+
+            in(*this);
+        }*/
+
+        template<typename U>
+        void recurse_lambda(U&& func) const
+        {
+            func(*this, std::forward<U>(func));
+        }
+
+        template<typename U>
+        void recurse_lambda(U&& func)
+        {
+            func(*this, std::forward<U>(func));
         }
 
         void substitute(const std::map<std::string, std::string>& variables)
         {
             if(type == ops::VALUE)
             {
-                auto it = variables.find(value_payload.value());
+                if(is_constant())
+                    return;
+
+                auto it = variables.find(std::get<0>(value_payload.value()));
 
                 if(it == variables.end())
                     return;
 
-                value_payload = it->second;
+                set_from(get_value_or_string<T>(it->second));
                 return;
             }
 
@@ -1046,7 +1641,7 @@ namespace dual_types
             }
         }
 
-        void substitute(const std::vector<std::pair<value, value>>& variables)
+        void substitute(const std::vector<std::pair<value<T>, value<T>>>& variables)
         {
             for(auto& [conc, rep] : variables)
             {
@@ -1063,8 +1658,8 @@ namespace dual_types
             }
         }
 
-        template<typename T>
-        void substitute_generic(T&& func)
+        template<typename U>
+        void substitute_generic(U&& func)
         {
             auto sub_opt = func(*this);
 
@@ -1082,16 +1677,248 @@ namespace dual_types
             *this = flatten();
         }
 
-        value& operator+=(const value& d1)
+        value x()
+        {
+            return make_op<T>(ops::IDOT, *this, "x");
+        }
+
+        value y()
+        {
+            return make_op<T>(ops::IDOT, *this, "y");
+        }
+
+        value z()
+        {
+            return make_op<T>(ops::IDOT, *this, "z");
+        }
+
+        value w()
+        {
+            return make_op<T>(ops::IDOT, *this, "w");
+        }
+
+        value property(const std::string& name)
+        {
+            return make_op<T>(ops::IDOT, *this, name);
+        }
+
+        value<T> index(int idx)
+        {
+            if(idx == 0)
+                return x();
+            if(idx == 1)
+                return y();
+            if(idx == 2)
+                return z();
+            if(idx == 3)
+                return w();
+
+            assert(false);
+        }
+
+        template<typename U>
+        value<T> bracket(const value<U>& idx)
+        {
+            return make_op<T>(ops::BRACKET, *this, idx.template reinterpret_as<value<T>>());
+        }
+
+        value<T>& operator+=(const value<T>& d1)
         {
             *this = *this + d1;
 
             return *this;
         }
+
+        friend
+        value<T> operator<(const value<T>& d1, const value<T>& d2)
+        {
+            return make_op<T>(ops::LESS, d1, d2);
+        }
+
+        friend
+        value<T> operator<=(const value<T>& d1, const value<T>& d2)
+        {
+            return make_op<T>(ops::LESS_EQUAL, d1, d2);
+        }
+
+        friend
+        value<T> operator>(const value<T>& d1, const value<T>& d2)
+        {
+            return make_op<T>(ops::GREATER, d1, d2);
+        }
+
+        friend
+        value<T> operator>=(const value<T>& d1, const value<T>& d2)
+        {
+            return make_op<T>(ops::GREATER_EQUAL, d1, d2);
+        }
+
+        friend
+        value<T> operator==(const value<T>& d1, const value<T>& d2)
+        {
+            return make_op<T>(ops::EQUAL, d1, d2);
+        }
+
+        friend
+        value<T> operator!=(const value<T>& d1, const value<T>& d2)
+        {
+            return make_op<T>(ops::NOT_EQUAL, d1, d2);
+        }
+
+        friend
+        value<T> operator+(const value<T>& d1, const value<T>& d2)
+        {
+            return make_op<T>(ops::PLUS, d1, d2);
+        }
+
+        friend
+        value<T> operator-(const value<T>& d1, const value<T>& d2)
+        {
+            #ifdef NO_REGROUP_ASSOCIATIVE
+            return make_op<T>(ops::MINUS, d1, d2);
+            #else
+            return make_op<T>(ops::PLUS, d1, make_op<T>(ops::UMINUS, d2));
+            #endif
+        }
+
+        friend
+        value<T> operator-(const value& d1)
+        {
+            return make_op<T>(ops::UMINUS, d1);
+        }
+
+        friend
+        value<T> operator*(const value<T>& d1, const value<T>& d2)
+        {
+            return make_op<T>(ops::MULTIPLY, d1, d2);
+        }
+
+        friend
+        value<T> operator*(const T& d1, const value<T>& d2)
+        {
+            return make_op<T>(ops::MULTIPLY, value<T>(d1), d2);
+        }
+
+        friend
+        value<T> operator*(const value<T>& d1, const T& d2)
+        {
+            return make_op<T>(ops::MULTIPLY, d1, value<T>(d2));
+        }
+
+        friend
+        value<T> operator/(const value<T>& d1, const value<T>& d2)
+        {
+            return make_op<T>(ops::DIVIDE, d1, d2);
+        }
+
+        friend
+        value<T> operator%(const value<T>& d1, const value<T>& d2)
+        {
+            return make_op<T>(ops::MODULUS, d1, d2);
+        }
+
+        friend
+        value<T> operator&(const value<T>& d1, const value<T>& d2)
+        {
+            return make_op<T>(ops::AND, d1, d2);
+        }
+
+        friend
+        value<T> operator||(const value<T>& d1, const value<T>& d2)
+        {
+            return make_op<T>(ops::LOR, d1, d2);
+        }
+
+        friend
+        value<T> operator&&(const value<T>& d1, const value<T>& d2)
+        {
+            return make_op<T>(ops::LAND, d1, d2);
+        }
+
+        friend
+        value<T> operator!(const value<T>& d1)
+        {
+            return make_op<T>(ops::LNOT, d1);
+        }
+
+        /*template<typename U>
+        friend
+        value<std::monostate> operator,(const value<T>& d1, const value<U>& d2)
+        {
+            return make_op<std::monostate>(ops::COMMA, d1.as_generic(), d2.as_generic());
+        }*/
     };
 
+    template<typename T>
+    struct value_mut : value<T>
+    {
+        value_mut() : value<T>()
+        {
+            value<T>::is_mutable = true;
+        }
+
+        const value<T>& as_constant() const
+        {
+            return *this;
+        }
+
+        void set_from_constant(const value<T>& in)
+        {
+            static_cast<value<T>&>(*this) = in;
+            value<T>::is_mutable = true;
+        }
+
+        operator value<T>() const
+        {
+            return as_constant();
+        }
+
+        template<typename U>
+        auto as_mutable(U& executor, const std::source_location loc = std::source_location::current()) const
+        {
+            return mutable_value(*this, executor, loc);
+        }
+
+        template<typename U>
+        auto mut(U& executor, const std::source_location loc = std::source_location::current()) const
+        {
+            return mutable_value(*this, executor, loc);
+        }
+    };
+
+    template<typename T>
     inline
-    std::string get_function_name(const value& v)
+    const T& as_constant(const T& in)
+    {
+        return in;
+    }
+
+    template<typename T>
+    inline
+    value<T> as_constant(const value_mut<T>& in)
+    {
+        return in.as_constant();
+    }
+
+    template<typename T>
+    inline
+    value_mut<T> to_mutable(const value<T>& in)
+    {
+        value_mut<T> v;
+        v.set_from_constant(in);
+        return v;
+    }
+
+    template<typename T>
+    inline
+    const T& to_mutable(const T& in)
+    {
+        return in;
+    }
+
+    template<typename T>
+    inline
+    std::string get_function_name(const value<T>& v)
     {
         assert(!v.is_value());
 
@@ -1101,21 +1928,32 @@ namespace dual_types
             return std::string(get_description(v.type).sym);
     }
 
+    template<typename T>
     inline
-    std::vector<value> get_function_args(const value& v)
+    std::vector<value<T>> get_function_args(const value<T>& v)
     {
         assert(!v.is_value());
 
         if(v.type == ops::UNKNOWN_FUNCTION)
-            return std::vector<value>(v.args.begin() + 1, v.args.end());
+            return std::vector<value<T>>(v.args.begin() + 1, v.args.end());
         else
             return v.args;
-    }
 
+    }
+    template<typename T>
     inline
-    bool equivalent(const value& d1, const value& d2)
+    bool equivalent(const value<T>& d1, const value<T>& d2)
     {
         if(d1.type != d2.type)
+            return false;
+
+        if(d1.args.size() != d2.args.size())
+            return false;
+
+        if(d1.is_mutable != d2.is_mutable)
+            return false;
+
+        if(d1.original_type != d2.original_type)
             return false;
 
         if(d1.type == ops::VALUE)
@@ -1125,61 +1963,246 @@ namespace dual_types
 
             if(d1.is_constant())
             {
-                return d1.get_constant() == d2.get_constant();
+                auto comparator = []<typename T1, typename T2>(const T1& v1, const T2& v2)
+                {
+                    if constexpr(!std::is_same_v<T1, T2>)
+                        return false;
+                    else
+                        return v1 == v2;
+                };
+
+                return std::visit(comparator, std::get<1>(d1.value_payload.value()).storage, std::get<1>(d2.value_payload.value()).storage);
             }
 
-            return d1.value_payload.value() == d2.value_payload.value();
-        }
+            if(d1.original_type != d2.original_type)
+                return false;
 
-        if(d1.type == ops::VALUE && d1.get_constant() == d2.get_constant())
-            return true;
+            return d1.value_payload == d2.value_payload;
+        }
 
         if(d1.args.size() == 2 && (d1.type == ops::MULTIPLY || d1.type == ops::PLUS))
         {
             return (equivalent(d1.args[0], d2.args[0]) && equivalent(d1.args[1], d2.args[1])) ||
                    (equivalent(d1.args[1], d2.args[0]) && equivalent(d1.args[0], d2.args[1]));
         }
-
         for(int i=0; i < (int)d1.args.size(); i++)
         {
-            if(!equivalent(d1.args[i], d2.args[i]))
+            if(!equivalent(d1.args.at(i), d2.args.at(i)))
                 return false;
         }
 
         return true;
     }
 
+    /*template<typename T>
     inline
-    std::string type_to_string(const value& op, bool is_int)
+    bool negates(const value<T>& v1, const value<T>& v2)
     {
+        if(v1.is_value() && v2.type == dual_type::ops::UMINUS)
+        {
+            if(equivalent(v1, v2.args.at(0)))
+                return true;
+        }
+
+        if(v2.is_value() && v1.type == dual_type::ops::UMINUS)
+        {
+            if(equivalent(v2, v1.args.at(0)))
+                return true;
+        }
+
+        return false;
+    }
+
+    template<typename T>
+    inline
+    bool evaluates_to_zero(const value<T>& v1)
+    {
+        if(v1.type == dual_type::ops::PLUS)
+            return negates(v1.args.at(0), v1.args.at(1));
+
+        return false;
+    }*/
+
+    template<typename Unused>
+    inline
+    std::string type_to_string(const value<Unused>& op)
+    {
+        //static_assert(std::is_same_v<T, std::float16_t> || std::is_same_v<T, double> || std::is_same_v<T, float> || std::is_same_v<T, int> || std::is_same_v<T, short> || std::is_same_v<T, unsigned short> || std::is_same_v<T, std::monostate>);
+
+        ///the type system is becoming really not ideal, if we promote a half to a float, we have no way of detecting that. Relying on stringyness
         if(op.type == ops::VALUE)
+        {
+            if(op.value_payload.value().index() == 0)
+                return std::get<0>(op.value_payload.value());
+
+            const type_erased_storage& store = std::get<1>(op.value_payload.value());
+
+            return std::visit([]<typename T>(const T& in)
+            {
+                std::string suffix;
+
+                if constexpr(std::is_same_v<T, float16>)
+                    suffix = "h";
+                if constexpr(std::is_same_v<T, float>)
+                    suffix = "f";
+
+                if constexpr(!std::is_same_v<T, std::monostate>)
+                {
+                    if(in < 0)
+                        return "(" + to_string_s(in) + suffix + ")";
+                    else
+                        return to_string_s(in) + suffix;
+                }
+
+                assert(false);
+                return std::string();
+            }, store.storage);
+        }
+
+        if(op.type == ops::BRACKET)
+        {
+            return "(" + type_to_string(op.args[0]) + "[" + type_to_string(op.args[1]) + "])";
+        }
+
+        if(op.type == ops::RETURN)
+        {
+            if(op.args.size() == 0)
+                return "return";
+            else
+                return "return " + type_to_string(op.args.at(0));
+        }
+
+        if(op.type == ops::BREAK)
+            return "break";
+
+        if(op.type == ops::FOR_START)
+        {
+            return "for(" + type_to_string(op.args.at(0)) + " " + type_to_string(op.args.at(1)) + "=" + type_to_string(op.args.at(2)) + ";" +
+                            type_to_string(op.args.at(3)) + ";" + type_to_string(op.args.at(4)) + ")";
+        }
+
+        if(op.type == ops::BLOCK_START)
+        {
+            return "{";
+        }
+
+        if(op.type == ops::BLOCK_END)
+        {
+            return "}";
+        }
+
+        if(op.type == ops::IF_S)
+        {
+            return "if(" + type_to_string(op.args[0]) + "){" + type_to_string(op.args[1]) + ";}";
+        }
+
+        if(op.type == ops::IF_START)
+        {
+            return "if(" + type_to_string(op.args[0]) + ")";
+        }
+
+        if(op.type == ops::COMMA)
+        {
+            return type_to_string(op.args[0]) + ";" + type_to_string(op.args[1]);
+        }
+
+        if(op.type == ops::CONVERT)
+        {
+            return "((" + type_to_string(op.args[1]) + ")" + type_to_string(op.args[0]) + ")";
+        }
+
+        if(op.type == ops::LNOT)
+        {
+            return "(!(" + type_to_string(op.args[0]) + "))";
+        }
+
+        if(op.type == ops::DECLARE)
         {
             std::string prefix = "";
 
-            if(is_int)
+            if(!op.is_mutable)
+                prefix = "const ";
+
+            return prefix + type_to_string(op.args[0]) + " " + type_to_string(op.args[1]) + "=" + type_to_string(op.args[2]) + ";";
+        }
+
+        if(op.type == ops::DECLARE_ARRAY)
+        {
+            return type_to_string(op.args[0]) + " " + type_to_string(op.args[1]) + "[" + type_to_string(op.args[2]) + "];";
+        }
+
+        if(op.type == ops::COMBO_PLUS)
+        {
+            auto bracket_pair = [](const std::string& v1, const std::string& v2)
             {
-                prefix = "(int)";
+                return "(" + v1 + "+" + v2 + ")";
+            };
+
+            std::vector<std::string> pending;
+
+            for(const auto& i : op.args)
+            {
+                pending.push_back(type_to_string(i));
             }
 
-            if(op.is_constant())
+            std::sort(pending.begin(), pending.end());
+
+            assert(pending.size() >= 2);
+
+            return pairwise_reduce(pending, bracket_pair);
+        }
+
+        if(op.type == ops::COMBO_MULTIPLY)
+        {
+            auto bracket_pair = [](const std::string& v1, const std::string& v2)
             {
-                if(op.get_constant() < 0)
-                    return "(" + prefix + op.value_payload.value() + ")";
+                return "(" + v1 + "*" + v2 + ")";
+            };
+
+            std::vector<std::string> pending;
+
+            for(const auto& i : op.args)
+            {
+                pending.push_back(type_to_string(i));
             }
 
-            return prefix + op.value_payload.value();
+            std::sort(pending.begin(), pending.end());
+
+            assert(pending.size() >= 2);
+
+            return pairwise_reduce(pending, bracket_pair);
+        }
+
+        if(op.type == ops::SIDE_EFFECT)
+        {
+            return type_to_string(op.args[0]) + ";";
         }
 
         const operation_desc desc = get_description(op.type);
 
         if(desc.is_infix)
         {
-            return "(" + type_to_string(op.args[0], is_int) + std::string(desc.sym) + type_to_string(op.args[1], is_int) + ")";
+            assert(op.args.size() == 2);
+
+            std::vector<std::string> expanded;
+            expanded.reserve(2);
+
+            for(const auto& i : op.args)
+            {
+                expanded.push_back(type_to_string(i));
+            }
+
+            #ifdef SORT_ASSOCIATIVE
+            if(op.type == ops::PLUS || op.type == ops::MULTIPLY)
+                std::sort(expanded.begin(), expanded.end());
+            #endif
+
+            return "(" + expanded[0] + std::string(desc.sym) + expanded[1] + ")";
         }
         else
         {
            if(op.type == ops::UMINUS)
-                return "(-(" + type_to_string(op.args[0], is_int) + "))";
+                return "(-(" + type_to_string(op.args[0]) + "))";
 
             std::string build;
 
@@ -1194,11 +2217,11 @@ namespace dual_types
                 ///starts at one, ignoring the first argument which is the function name
                 for(int i=1; i < (int)op.args.size() - 1; i++)
                 {
-                    build += type_to_string(op.args[i], is_int) + ",";
+                    build += type_to_string(op.args[i]) + ",";
                 }
 
                 if(op.args.size() > 1)
-                    build += type_to_string(op.args.back(), is_int);
+                    build += type_to_string(op.args.back());
 
                 build += ")";
             }
@@ -1208,11 +2231,11 @@ namespace dual_types
 
                 for(int i=0; i < (int)op.args.size() - 1; i++)
                 {
-                    build += type_to_string(op.args[i], is_int) + ",";
+                    build += type_to_string(op.args[i]) + ",";
                 }
 
                 if(op.args.size() > 0)
-                    build += type_to_string(op.args.back(), is_int);
+                    build += type_to_string(op.args.back());
 
                 build += ")";
             }
@@ -1221,107 +2244,86 @@ namespace dual_types
         }
     }
 
+    template<typename U, typename... T>
     inline
-    value make_op_value(const std::string& str)
+    value<U> make_op(ops::type_t type, T&&... args)
     {
-        return value(str);
+        value<U> val;
+        val.type = type;
+        val.args = {args...};
+        val.value_payload = std::nullopt;
+
+        if constexpr(std::is_same_v<U, std::monostate>)
+            return val;
+        else
+        {
+            return val.flatten().group_associative_operators();
+        }
     }
 
-    template<Arithmetic T>
+    template<typename T>
     inline
-    value make_op_value(const T& v)
+    value<T> make_op(ops::type_t type, const std::vector<value<T>>& args)
     {
-        return value(v);
-    }
+        value<T> val;
+        val.type = type;
+        val.args = args;
+        val.value_payload = std::nullopt;
 
-    template<typename... T>
-    inline
-    value make_op(ops::type_t type, T&&... args)
-    {
-        value ret;
-        ret.type = type;
-        ret.args = {args...};
-        ret.value_payload = std::nullopt;
-
-        return ret.flatten();
-    }
-
-    inline
-    value operator<(const value& d1, const value& d2)
-    {
-        return make_op(ops::LESS, d1, d2);
-    }
-
-    inline
-    value operator<=(const value& d1, const value& d2)
-    {
-        return make_op(ops::LESS_EQUAL, d1, d2);
+        if constexpr(std::is_same_v<T, std::monostate>)
+            return val;
+        else
+        {
+            return val.flatten().group_associative_operators();
+        }
     }
 
     inline
-    value operator>(const value& d1, const value& d2)
+    value<std::monostate> block_start()
     {
-        return make_op(ops::GREATER, d1, d2);
+        return make_op<std::monostate>(ops::BLOCK_START);
     }
 
     inline
-    value operator>=(const value& d1, const value& d2)
+    value<std::monostate> block_end()
     {
-        return make_op(ops::GREATER_EQUAL, d1, d2);
+        return make_op<std::monostate>(ops::BLOCK_END);
     }
 
-    inline
-    value operator==(const value& d1, const value& d2)
-    {
-        return make_op(ops::EQUAL, d1, d2);
-    }
+    #define UNARY(x, y) template<typename T> inline value<T> x(const value<T>& d1){return make_op<T>(ops::y, d1);}
+    #define BINARY(x, y) template<typename T, typename U> inline value<T> x(const value<T>& d1, const U& d2){return make_op<T>(ops::y, d1, d2);}
+    #define TRINARY(x, y) template<typename T, typename U, typename V> inline value<T> x(const value<T>& d1, const U& d2, const V& d3){return make_op<T>(ops::y, d1, d2, d3);}
 
-    inline
-    value operator+(const value& d1, const value& d2)
-    {
-        return make_op(ops::PLUS, d1, d2);
-    }
-
-    inline
-    value operator-(const value& d1, const value& d2)
-    {
-        return make_op(ops::PLUS, d1, make_op(ops::UMINUS, d2));
-    }
-
-    inline
-    value operator-(const value& d1)
-    {
-        return make_op(ops::UMINUS, d1);
-    }
-
-    inline
-    value operator*(const value& d1, const value& d2)
-    {
-        return make_op(ops::MULTIPLY, d1, d2);
-    }
-
-    inline
-    value operator/(const value& d1, const value& d2)
-    {
-        return make_op(ops::DIVIDE, d1, d2);
-    }
-
-    inline
-    value operator%(const value& d1, const value& d2)
-    {
-        return make_op(ops::MODULUS, d1, d2);
-    }
-
-    inline
-    value operator&(const value& d1, const value& d2)
-    {
-        return make_op(ops::AND, d1, d2);
-    }
-
-    #define UNARY(x, y) inline value x(const value& d1){return make_op(ops::y, d1);}
-    #define BINARY(x, y) inline value x(const value& d1, const value& d2){return make_op(ops::y, d1, d2);}
-    #define TRINARY(x, y) inline value x(const value& d1, const value& d2, const value& d3){return make_op(ops::y, d1, d2, d3);}
-
+    UNARY(floor, FLOOR);
+    UNARY(ceil, CEIL);
+    UNARY(round, ROUND);
+    UNARY(sqrt, SQRT);
+    UNARY(psqrt, SQRT);
+    UNARY(log, LOG);
+    UNARY(fabs, FABS);
+    UNARY(abs, ABS);
+    UNARY(exp, EXP);
+    UNARY(sin, SIN);
+    UNARY(cos, COS);
+    UNARY(tan, TAN);
+    UNARY(sinh, SINH);
+    UNARY(cosh, COSH);
+    UNARY(tanh, TANH);
+    UNARY(asinh, ASINH);
+    UNARY(acosh, ACOSH);
+    UNARY(atanh, ATANH);
+    UNARY(asin, ASIN);
+    UNARY(acos, ACOS);
+    UNARY(atan, ATAN);
+    BINARY(atan2, ATAN2);
+    UNARY(isfinite, ISFINITE);
+    UNARY(signbit, SIGNBIT);
+    UNARY(sign, SIGN);
+    //TRINARY(select, SELECT);
+    BINARY(pow, POW);
+    BINARY(max, MAX);
+    BINARY(min, MIN);
+    UNARY(lambert_w0, LAMBERT_W0);
     UNARY(sqrt, SQRT);
     UNARY(psqrt, SQRT);
     UNARY(log, LOG);
@@ -1350,17 +2352,51 @@ namespace dual_types
 
     template<typename T>
     inline
-    T clamp(const T& val, const T& lower, const T& upper)
+    value<T> mad(const value<T>& v1, const value<T>& v2, const value<T>& v3)
     {
-        return min(max(val, lower), upper);
+        return make_op<T>(ops::MAD, v1, v2, v3);
     }
 
+    template<typename T>
     inline
-    auto if_v(const value& condition, const value& if_true, const value& if_false)
+    value<T> fma(const value<T>& v1, const value<T>& v2, const value<T>& v3)
+    {
+        return make_op<T>(ops::FMA, v1, v2, v3);
+    }
+
+    template<typename T, typename V>
+    inline
+    value<T> select(const value<T>& v1, const value<T>& v2, const value<V>& v3)
+    {
+        if(equivalent(v1, v2))
+            return v1;
+
+        return make_op<T>(ops::SELECT, v1, v2, v3.template reinterpret_as<value<T>>());
+    }
+
+    template<typename T>
+    inline
+    value<T> clamp(const value<T>& val, const value<T>& lower, const value<T>& upper)
+    {
+        return make_op<T>(ops::CLAMP, val, lower, upper);
+    }
+
+    ///https://man.opencl.org/mix.html, use the exact spec
+    template<typename T>
+    inline
+    value<T> mix(const value<T>& v1, const value<T>& v2, const value<T>& a)
+    {
+        return v1 + (v2 - v1) * a;
+    }
+
+    ///select
+    template<typename T, typename U>
+    inline
+    value<T> if_v(const value<U>& condition, const value<T>& if_true, const value<T>& if_false)
     {
         if(condition.is_constant())
         {
-            double val = condition.get_constant();
+            U val = condition.get_constant();
 
             if(val == 0)
                 return if_false;
@@ -1368,40 +2404,304 @@ namespace dual_types
                 return if_true;
         }
 
-        return select(if_false, if_true, condition);
+        return select<T, U>(if_false, if_true, condition);
+    }
+
+    inline
+    value<std::monostate> make_return_s()
+    {
+        return make_op<std::monostate>(ops::RETURN);
+    }
+
+    inline
+    value<std::monostate> make_break_s()
+    {
+        return make_op<std::monostate>(ops::BREAK);
     }
 
     template<typename T>
     inline
+    value<T> return_v(const value<T>& in)
+    {
+        return make_op<T>(ops::RETURN, in);
+    }
+
+    const inline value<std::monostate> return_s = make_return_s();
+    const inline value<std::monostate> break_s = make_break_s();
+
+    ///true branch
+    ///if with to-execute on true. This should be removed
+    /*template<typename T, typename U>
+    inline
+    value<std::monostate> if_s(const value<T>& condition, const value<U>& to_execute)
+    {
+        return make_op<std::monostate>(ops::IF_S, condition.as_generic(), to_execute.as_generic());
+    }*/
+
+    ///if block start
+    template<typename T>
+    inline
+    value<std::monostate> if_b(const value<T>& condition)
+    {
+        return make_op<std::monostate>(ops::IF_START, condition.as_generic());
+    }
+
+    ///if + execute. This is more the direction I would like to go
+    ///Long term: Do I want a local executor stack?
+    ///I've never once needed them to do anything fancy at all
+    template<typename Ctx, typename T, typename Func>
+    inline
+    void if_e(const value<T>& condition, Ctx& ctx, Func&& func)
+    {
+        ctx.exec(if_b(condition));
+
+        ctx.exec(block_start());
+
+        func();
+
+        ctx.exec(block_end());
+    }
+
+    template<typename T>
+    inline
+    value<std::monostate> for_b(const std::string& loop_variable_name, const value<T>& init, const value<T>& condition, const value<T>& post)
+    {
+        return make_op<std::monostate>(ops::FOR_START, name_type(T()), loop_variable_name, init.as_generic(), condition.as_generic(), post.as_generic());
+    }
+
+    template<typename Ctx, typename T, typename U, typename Func>
+    inline
+    void for_e(Ctx& ctx, const U& loop_variable_name, const value<T>& init, const value<T>& condition, const value<T>& post, Func&& func)
+    {
+        int id = ctx.sequenced.size();
+
+        ctx.exec(for_b(type_to_string(loop_variable_name), init, condition, post));
+
+        auto val = loop_variable_name;
+
+        ctx.exec(block_start());
+
+        func(val);
+
+        ctx.exec(block_end());
+    }
+
+    ///select
+    template<typename T>
+    requires std::is_arithmetic_v<T>
     auto if_v(bool condition, const T& if_true, const T& if_false)
     {
-        if(condition)
-            return if_true;
-        else
-            return if_false;
+        return condition ? if_true : if_false;
     }
 
     template<typename T, typename U>
     inline
     T divide_with_limit(const T& top, const T& bottom, const U& limit, float tol = 0.001f)
     {
-        return dual_types::if_v(bottom >= tol, top / bottom, limit);
+        if constexpr(std::is_arithmetic_v<T>)
+            return dual_types::if_v(std::fabs(bottom) >= tol, top / bottom, limit);
+        else
+            return dual_types::if_v(fabs(bottom) >= tol, top / bottom, T{limit});
+    }
+
+    template<typename U, typename... T>
+    inline
+    value<U> apply(const value<U>& name, T&&... args)
+    {
+        return make_op<U>(ops::UNKNOWN_FUNCTION, name, std::forward<T>(args)...);
     }
 
     template<typename... T>
-    value apply(const value& name, T&&... args)
+    inline
+    value<std::monostate> print(const std::string& fmt, T&&... args)
     {
-        return make_op(ops::UNKNOWN_FUNCTION, name, std::forward<T>(args)...);
+        std::vector<std::string> sargs;
+
+        (sargs.push_back(type_to_string(args)), ...);
+
+        std::string root = "printf(\"" + fmt + "\"";
+
+        for(int i=0; i < (int)sargs.size(); i++)
+        {
+            root += "," + sargs[i];
+        }
+
+        return root + ")";
     }
 
+    template<typename T>
     inline
-    value conjugate(const value& d1)
+    std::pair<value<std::monostate>, value<T>> declare_raw(const value<T>& v1, const std::string& name, bool is_mutable)
+    {
+        value declare_op = make_op<T>(ops::DECLARE, v1.original_type, name, v1);
+
+        declare_op.is_mutable = is_mutable;
+
+        value<T> result = name;
+        result.is_mutable = declare_op.is_mutable;
+
+        return {declare_op.as_generic(), result};
+    }
+
+    template<typename T, int... N>
+    struct stack_array
+    {
+        T prototype;
+
+        int expanded_size = (N * ...);
+        std::string name;
+
+        value_mut<typename T::value_type> operator[](const value<int>& in)
+        {
+            T v = prototype.bracket(in);
+            v.is_mutable = true;
+            return to_mutable(v);
+        }
+
+        value_mut<typename T::value_type> operator[](const value<int>& v1, const value<int>& v2)
+        {
+            tensor<int, N...> dims = {N...};
+
+            T v = prototype.bracket(v1 + v2 * dims[0]);
+            v.is_mutable = true;
+            return to_mutable(v);
+        }
+
+        value_mut<typename T::value_type> operator[](const value<int>& v1, const value<int>& v2, const value<int>& v3)
+        {
+            tensor<int, N...> dims = {N...};
+
+            T v = prototype.bracket(v1 + v2 * dims[0] + v3 * dims[0] * dims[1]);
+            v.is_mutable = true;
+            return to_mutable(v);
+        }
+    };
+
+    template<typename T, int... N>
+    inline
+    std::pair<value<std::monostate>, stack_array<T, N...>> declare_array_raw(const std::string& name)
+    {
+        int length = (N * ...);
+
+        value declare_op = make_op<typename T::value_type>(ops::DECLARE_ARRAY, name_type(typename T::value_type()), name, value<int>{length}.reinterpret_as<value<typename T::value_type>>());
+        declare_op.is_mutable = true;
+
+        stack_array<T, N...> result;
+        result.prototype = name;
+        result.prototype.is_mutable = declare_op.is_mutable;
+
+        return {declare_op.as_generic(), result};
+    }
+
+    template<typename T, int... N>
+    inline
+    stack_array<T, N...> declare_array(auto& executor, const std::string& name = "")
+    {
+        if(name == "")
+        {
+            int id = executor.sequenced.size();
+
+            std::string fname = "declared" + std::to_string(id);
+            return declare_array<T, N...>(executor, fname);
+        }
+
+        auto [declare_op, result] = declare_array_raw<T, N...>(name);
+
+        executor.exec(declare_op);
+
+        return result;
+    }
+
+    template<typename U, typename T>
+    inline
+    value<T> declare_impl(U& executor, const value<T>& v1, const std::string& name, bool is_mutable)
+    {
+        if(name == "")
+        {
+            int id = executor.sequenced.size();
+
+            std::string fname = "declared" + std::to_string(id);
+            return declare_impl(executor, v1, fname, is_mutable);
+        }
+
+        value declare_op = make_op<T>(ops::DECLARE, v1.original_type, name, v1);
+
+        declare_op.is_mutable = is_mutable;
+
+        executor.exec(declare_op);
+
+        value<T> result = name;
+        result.is_mutable = declare_op.is_mutable;
+
+        return result;
+    }
+
+    template<typename U, typename T, int N>
+    inline
+    tensor<value<T>, N> declare_impl(U& executor, const tensor<value<T>, N>& v1, bool is_mutable)
+    {
+        tensor<value<T>, N> ret;
+
+        for(int i=0; i < N; i++)
+        {
+            ret[i] = declare_impl(executor, v1[i], "", is_mutable);
+        }
+
+        return ret;
+    }
+
+    template<typename T, typename U>
+    inline
+    value<T> declare(U& executor, const value<T>& v1, const std::string& name = "")
+    {
+        return declare_impl(executor, v1, name, false);
+    }
+
+    template<typename T, typename U, int N>
+    inline
+    tensor<value<T>, N> declare(U& executor, const tensor<value<T>, N>& v1)
+    {
+        return declare_impl(executor, v1, false);
+    }
+
+    template<typename T, typename U>
+    inline
+    value_mut<T> declare_mut(U& executor, const value<T>& v1, const std::string& name = "")
+    {
+        return to_mutable(declare_impl(executor, v1, name, true));
+    }
+
+    template<typename T, typename U, int N>
+    inline
+    tensor<value_mut<T>, N> declare_mut(U& executor, const tensor<value<T>, N>& v1)
+    {
+        return to_mutable(declare_impl(executor, v1, true));
+    }
+
+    template<typename T>
+    void side_effect(T& executor, const std::string& effect)
+    {
+        executor.exec(make_op<std::monostate>(ops::SIDE_EFFECT, effect));
+    }
+
+    /*template<typename T>
+    auto assert_s(const value<T>& is_true)
+    {
+        value<std::monostate> print = "printf(\"Failed: %s\",\"" + type_to_string(is_true) + "\")";
+
+        return if_s(!is_true, print);
+    }*/
+
+    template<typename T>
+    inline
+    value<T> conjugate(const value<T>& d1)
     {
         return d1;
     }
 
+    template<typename T>
     inline
-    complex<value> psqrt(const complex<value>& d1)
+    complex<value<T>> psqrt(const complex<value<T>>& d1)
     {
         if(d1.imaginary.is_constant() && d1.imaginary.get_constant() == 0)
         {
@@ -1411,39 +2711,92 @@ namespace dual_types
         return sqrt(d1);
     }
 
+    template<typename T>
+    inline
+    value_mut<T> assign(const value_mut<T>& location, const value<T>& what)
+    {
+        value_mut<T> ret;
+
+        ret.set_from_constant(make_op<T>(ops::ASSIGN, location.as_constant(), what));
+
+        return ret;
+    }
+
+    template<typename T, typename U>
+    requires std::is_arithmetic_v<U>
+    inline
+    value_mut<T> assign(const value_mut<T>& location, const U& what)
+    {
+        value_mut<T> ret;
+
+        ret.set_from_constant(make_op<T>(ops::ASSIGN, location.as_constant(), what));
+
+        return ret;
+    }
+
+    template<typename T, typename U, int N>
+    inline
+    tensor<value_mut<T>, N> assign(const tensor<value_mut<T>, N>& location, const tensor<U, N>& what)
+    {
+        tensor<value_mut<T>, N> ret;
+
+        for(int i=0; i < N; i++)
+        {
+            ret[i] = assign(location[i], what[i]);
+        }
+
+        return ret;
+    }
+
+    template<typename T>
+    struct block
+    {
+        T& context;
+
+        block(T& in) : context(in)
+        {
+            in.exec(block_start());
+        }
+
+        ~block()
+        {
+            context.exec(block_end());
+        }
+    };
+
     inline
     void test_operation()
     {
-        value v1 = 1;
-        value v2 = 2;
+        value<float> v1 = 1;
+        value<float> v2 = 2;
 
-        value sum = v1 + v2;
+        value<float> sum = v1 + v2;
 
-        value root_3 = sqrt(sum);
+        value<float> root_3 = sqrt(sum);
 
-        dual_v<value> test_dual = 1234;
+        dual_v<value<float>> test_dual = 1234;
 
-        dual_v<value> test_operator = test_dual * 1111;
+        dual_v<value<float>> test_operator = test_dual * 1111;
 
-        value v = std::string("v");
+        value<float> v = "v";
 
-        value test_op = 2 * (v/2);
+        value<float> test_op = 2 * (v/2);
 
         assert(type_to_string(test_op) == "v");
 
-        value test_op2 = (v * 2)/2;
+        value<float> test_op2 = (v * 2)/2;
 
         assert(type_to_string(test_op2) == "v");
 
-        value test_op3 = (2 * ((2 * v/2) / 2) * 2) / 2;
+        value<float> test_op3 = (2 * ((2 * v/2) / 2) * 2) / 2;
 
         assert(type_to_string(test_op3) == "v");
 
-        value test_op4 = (2 * v) / v;
+        value<float> test_op4 = (2 * v) / v;
 
         assert(type_to_string(test_op4) == "2.0");
 
-        value test_op5 = (2 * sin(v)) / sin(v);
+        value<float> test_op5 = (2 * sin(v)) / sin(v);
 
         assert(type_to_string(test_op5) == "2.0");
 
@@ -1451,8 +2804,91 @@ namespace dual_types
     }
 }
 
-using dual = dual_types::dual_v<dual_types::value>;
-using dual_complex = dual_types::dual_v<dual_types::complex<dual_types::value>>;
-using value = dual_types::value;
+namespace tensor_impl
+{
+    template<typename T, int... N>
+    inline
+    auto as_constant(const tensor<T, N...>& in)
+    {
+        return tensor_for_each_unary(in, [](const T& v)
+        {
+            return as_constant(v);
+        });
+    }
+
+    template<typename T, int... N>
+    inline
+    auto to_mutable(const tensor<T, N...>& in)
+    {
+        return tensor_for_each_unary(in, [](const T& v)
+        {
+            return to_mutable(v);
+        });
+    }
+}
+
+template<typename T, typename U>
+inline
+T divide_with_callback(const T& top, const T& bottom, U&& if_nonfinite)
+{
+    using namespace std;
+
+    T result = top / bottom;
+
+    auto is_finite = isfinite(result);
+
+    if constexpr(std::is_same_v<T, float>)
+    {
+        static_assert(std::is_same_v<decltype(is_finite), bool>);
+    }
+
+    return dual_types::if_v(is_finite, result, if_nonfinite(top, bottom));
+}
+
+using dual = dual_types::dual_v<dual_types::value<float>>;
+using dual_complex = dual_types::dual_v<dual_types::complex<dual_types::value<float>>>;
+
+template<typename T>
+using value_base = dual_types::value<T>;
+using value = dual_types::value<float>;
+using value_i = dual_types::value<int>;
+using value_s = dual_types::value<short>;
+using value_us = dual_types::value<unsigned short>;
+using value_v = dual_types::value<std::monostate>;
+using value_h = dual_types::value<float16>;
+
+
+template<typename T>
+using value_base_mut = dual_types::value_mut<T>;
+using value_mut = dual_types::value_mut<float>;
+using value_i_mut = dual_types::value_mut<int>;
+using value_s_mut = dual_types::value_mut<short>;
+using value_us_mut = dual_types::value_mut<unsigned short>;
+using value_v_mut = dual_types::value_mut<std::monostate>;
+using value_h_mut = dual_types::value_mut<float16>;
+
+const inline auto return_s = dual_types::make_return_s();
+const inline auto break_s = dual_types::make_break_s();
+
+using v4f = tensor<value, 4>;
+using v4i = tensor<value_i, 4>;
+using v3f = tensor<value, 3>;
+using v3i = tensor<value_i, 3>;
+using v2f = tensor<value, 2>;
+using v2i = tensor<value_i, 2>;
+using v1f = tensor<value, 1>;
+using v1i = tensor<value_i, 1>;
+
+using v4f_mut = tensor<value_mut, 4>;
+using v4i_mut = tensor<value_i_mut, 4>;
+using v3f_mut = tensor<value_mut, 3>;
+using v3i_mut = tensor<value_i_mut, 3>;
+using v2f_mut = tensor<value_mut, 2>;
+using v2i_mut = tensor<value_i_mut, 2>;
+using v1f_mut = tensor<value_mut, 1>;
+using v1i_mut = tensor<value_i_mut, 1>;
+
+template<typename T, int... N>
+using stack_array = dual_types::stack_array<T, N...>;
 
 #endif // DUAL2_HPP_INCLUDED
