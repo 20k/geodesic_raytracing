@@ -10,5 +10,5 @@ cp steam_api64.dll ./build_public
 cp steam_appid.txt ./build_public
 cp VeraMono.ttf ./build_public
 cp -r ./scripts ./build_public/scripts
-cp bin/Release/geodesic_raytracing.exe ./build_public
-cp workshop/bin/Release/workshop.exe ./build_public
+cp build/mingw/x86_64/release/RelativityWorkshop.exe ./build_public
+cp build/mingw/x86_64/release/swt.exe ./build_public
