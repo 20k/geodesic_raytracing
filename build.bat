@@ -1,6 +1,16 @@
 rm -rf ./build_public
 mkdir build_public
 
+sh xmake
+
+cd ./deps/steamworks_sdk_153a/sdk/tools/ContentBuilder/
+./run_build.bat
+cd ..
+cd ..
+cd ..
+cd ..
+cd ..
+
 cp number.js ./build_public
 cp acknowledgements.txt ./build_public
 cp background.png ./build_public
