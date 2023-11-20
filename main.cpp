@@ -803,6 +803,10 @@ void DragFloatCol(const std::string& name, cl_float4& val, int highlight)
 ///i need the ability to have dynamic parameters
 int main(int argc, char* argv[])
 {
+    #ifdef REDIRECT_STDOUT
+    *stdout = *fopen("debug.txt","w"); 
+    #endif // REDIRECT_STDOUT
+
     std::optional<std::string> start_metric;
     bool should_print_frametime = false;
 

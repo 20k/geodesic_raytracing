@@ -46,7 +46,8 @@ add_defines("IMGUI_IMPL_OPENGL_LOADER_GLEW",
 "CONFIG_VERSION=\"\"",
 "CONFIG_BIGNUM",
 "NO_SERIALISE_RATELIMIT",
-"FAST_CL")
+"FAST_CL",
+"REDIRECT_STDOUT")
 
 add_packages("openssl", "opengl", "glfw", "glew", "freetype", "sfml")
 
@@ -61,6 +62,8 @@ add_ldflags("-l:libboost_filesystem-mt.a")
 
 if is_plat("mingw") then
     add_ldflags("-static -static-libstdc++")
+    add_cxflags("-mwindows")
+    add_ldflags("-mwindows")
 end
 
 target("swt")
