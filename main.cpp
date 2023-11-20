@@ -2025,9 +2025,6 @@ int main(int argc, char* argv[])
                 if(input.is_key_pressed("toggle_wormhole_space"))
                     flip_sign = !flip_sign;
 
-                if(input.is_key_pressed("toggle_ui"))
-                    display_ui = !display_ui;
-
                 if(input.is_key_pressed("toggle_geodesic_play"))
                     camera_time_progresses = !camera_time_progresses;
 

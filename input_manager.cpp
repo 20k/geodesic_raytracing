@@ -30,7 +30,6 @@ input_manager::input_manager()
         {"camera_turn_down", {GLFW_KEY_UP}},
         {"camera_turn_up", {GLFW_KEY_DOWN}},
         {"toggle_wormhole_space", {GLFW_KEY_1}},
-        {"toggle_ui", {GLFW_KEY_F1}},
         {"toggle_geodesic_play", {GLFW_KEY_F2}},
         {"play_speed_minus", {GLFW_KEY_MINUS}},
         {"play_speed_plus", {GLFW_KEY_EQUAL}},
