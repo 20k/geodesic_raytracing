@@ -6,13 +6,14 @@
 #include <vector>
 #include <utility>
 #include <map>
+#include <optional>
 
 struct render_window;
 
 struct input_manager
 {
-    std::vector<std::pair<std::string, int>> linear_keys;
-    std::map<std::string, int, std::less<>> glfw_key_map;
+    std::vector<std::pair<std::string, std::vector<int>>> linear_keys;
+    std::map<std::string, std::vector<int>, std::less<>> glfw_key_map;
 
     input_manager();
 
@@ -21,7 +22,11 @@ struct input_manager
     bool is_key_down(std::string_view view);
     bool is_key_pressed(std::string_view view);
 
-    void rebind(std::string_view name, int glfw_key);
+    void rebind(std::string_view name, const std::vector<int>& glfw_key);
+
+private:
+    std::vector<int> rebinding_keys;
+    std::optional<std::string> last_rebind_purpose;
 };
 
 #endif // INPUT_MANAGER_HPP_INCLUDED
