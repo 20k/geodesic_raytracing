@@ -1172,6 +1172,7 @@ int main(int argc, char* argv[])
     bool last_supersample = false;
     bool should_take_screenshot = false;
 
+    bool display_ui = true;
     bool time_progresses = false;
     float time_progression_factor = 1.f;
     bool flip_sign = false;
@@ -2019,6 +2020,27 @@ int main(int argc, char* argv[])
                     reset_camera = true;
                     set_camera_time = 0;
                     g_camera_pos_cart.write(clctx.cqueue, std::vector<cl_float4>{{0, 0, 0, 0}});
+                }
+
+                if(input.is_key_pressed("toggle_wormhole_space"))
+                    flip_sign = !flip_sign;
+
+                if(input.is_key_pressed("toggle_ui"))
+                    display_ui = !display_ui;
+
+                if(input.is_key_pressed("toggle_geodesic_play"))
+                    camera_time_progresses = !camera_time_progresses;
+
+                if(input.is_key_down("play_speed_minus"))
+                {
+                    camera_geodesic_time_progression_speed -= 1.f * frametime_s;
+                    camera_geodesic_time_progression_speed = clamp(camera_geodesic_time_progression_speed, 0.f, 4.f);
+                }
+
+                if(input.is_key_down("play_speed_plus"))
+                {
+                    camera_geodesic_time_progression_speed += 1.f * frametime_s;
+                    camera_geodesic_time_progression_speed = clamp(camera_geodesic_time_progression_speed, 0.f, 4.f);
                 }
 
                 vec2f delta;
