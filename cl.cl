@@ -2179,6 +2179,7 @@ void handle_controls_free(__global float4* camera_pos_cart, __global float4* cam
     offset += right * unrotated_translation.y;
     offset += up * unrotated_translation.z;
 
+    local_camera_pos_cart.x += unrotated_translation.w;
     local_camera_pos_cart.y += offset.x;
     local_camera_pos_cart.z += offset.y;
     local_camera_pos_cart.w += offset.z;

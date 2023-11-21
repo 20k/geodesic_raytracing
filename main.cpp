@@ -804,7 +804,7 @@ void DragFloatCol(const std::string& name, cl_float4& val, int highlight)
 int main(int argc, char* argv[])
 {
     #ifdef REDIRECT_STDOUT
-    *stdout = *fopen("debug.txt","w"); 
+    *stdout = *fopen("debug.txt","w");
     #endif // REDIRECT_STDOUT
 
     std::optional<std::string> start_metric;
@@ -1176,7 +1176,6 @@ int main(int argc, char* argv[])
     bool last_supersample = false;
     bool should_take_screenshot = false;
 
-    bool display_ui = true;
     bool time_progresses = false;
     float time_progression_factor = 1.f;
     bool flip_sign = false;
@@ -2064,14 +2063,15 @@ int main(int argc, char* argv[])
 
                 delta *= current_settings.mouse_sensitivity * M_PI/128;
 
-                vec3f translation_delta = {input.is_key_down("forward") - input.is_key_down("back"),
+                vec4f translation_delta = {input.is_key_down("forward") - input.is_key_down("back"),
                                            input.is_key_down("right") - input.is_key_down("left"),
-                                           input.is_key_down("down") - input.is_key_down("up")};
+                                           input.is_key_down("down") - input.is_key_down("up"),
+                                           input.is_key_down("time_forwards") - input.is_key_down("time_backwards")};
 
                 translation_delta *= current_settings.keyboard_sensitivity * controls_multiplier * speed;
 
                 cl_float2 cl_mouse = {delta.x(), delta.y()};
-                cl_float4 cl_translation = {translation_delta.x(), translation_delta.y(), translation_delta.z(), 0};
+                cl_float4 cl_translation = {translation_delta.x(), translation_delta.y(), translation_delta.z(), translation_delta.w()};
 
                 float universe_size = dfg.get_feature<float>("universe_size");
 

@@ -17,6 +17,8 @@ input_manager::input_manager()
         {"left", {GLFW_KEY_A}},
         {"up", {GLFW_KEY_Q}},
         {"down", {GLFW_KEY_E}},
+        {"time_forwards", {GLFW_KEY_R}},
+        {"time_backwards", {GLFW_KEY_F}},
         {"toggle_mouse", {GLFW_KEY_TAB}},
         {"hide_ui", {GLFW_KEY_F1}},
         {"speed_10x", {GLFW_KEY_LEFT_SHIFT}},
