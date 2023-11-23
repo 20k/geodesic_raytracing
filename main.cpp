@@ -191,25 +191,17 @@ cl::image load_mipped_image(sf::Image& img, opencl_context& clctx)
     int swidth = img.getSize().x;
     int sheight = img.getSize().y;
 
-    std::vector<std::vector<vec4f>> all_mip_levels;
-    all_mip_levels.reserve(max_mips);
+    std::vector<vec4f> as_uniform;
+    as_uniform.reserve(max_mips * sheight * swidth);
 
     for(int i=0; i < max_mips; i++)
     {
-        all_mip_levels.push_back(opengl_tex.read(i));
-    }
+        std::vector<vec4f> mip = opengl_tex.read(i);
 
-    std::vector<std::vector<vec4f>> uniformly_padded;
-
-    for(int i=0; i < max_mips; i++)
-    {
         int cwidth = swidth / pow(2, i);
         int cheight = sheight / pow(2, i);
 
-        assert(cwidth * cheight == all_mip_levels[i].size());
-
-        std::vector<vec4f> replacement;
-        replacement.resize(swidth * sheight);
+        assert(cwidth * cheight == mip.size());
 
         for(int y = 0; y < sheight; y++)
         {
@@ -219,20 +211,8 @@ cl::image load_mipped_image(sf::Image& img, opencl_context& clctx)
                 int lx = std::min(x, cwidth - 1);
                 int ly = std::min(y, cheight - 1);
 
-                replacement[y * swidth + x] = all_mip_levels[i][ly * cwidth + lx];
+                as_uniform.push_back(mip[ly * cwidth + lx]);
             }
-        }
-
-        uniformly_padded.push_back(replacement);
-    }
-
-    std::vector<vec4f> as_uniform;
-
-    for(auto& i : uniformly_padded)
-    {
-        for(auto& j : i)
-        {
-            as_uniform.push_back(j);
         }
     }
 
