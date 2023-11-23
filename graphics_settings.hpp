@@ -36,4 +36,13 @@ struct graphics_settings : serialisable, free_function
 
 DECLARE_SERIALISE_FUNCTION(graphics_settings);
 
+struct background_settings : serialisable, free_function
+{
+    std::string name;
+
+    void display();
+};
+
+DECLARE_SERIALISE_FUNCTION(background_settings);
+
 #endif // GRAPHICS_SETTINGS_HPP_INCLUDED

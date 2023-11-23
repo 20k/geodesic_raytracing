@@ -153,7 +153,7 @@ sf::Image load_image(const std::string& fname)
     return img;
 }
 
-cl::image load_mipped_image(sf::Image& img, opencl_context& clctx)
+cl::image load_mipped_image(sf::Image& img, cl::context& ctx, cl::command_queue& cqueue)
 {
     const uint8_t* as_uint8 = reinterpret_cast<const uint8_t*>(img.getPixelsPtr());
 
@@ -171,7 +171,7 @@ cl::image load_mipped_image(sf::Image& img, opencl_context& clctx)
 
     max_mips = std::min(max_mips, MIP_LEVELS);
 
-    cl::image image_mipped(clctx.ctx);
+    cl::image image_mipped(ctx);
     image_mipped.alloc((vec3i){img.getSize().x, img.getSize().y, max_mips}, {CL_RGBA, CL_FLOAT}, cl::image_flags::ARRAY);
 
     ///and all of THIS is to work around a bug in AMDs drivers, where you cant write to a specific array level!
@@ -206,7 +206,7 @@ cl::image load_mipped_image(sf::Image& img, opencl_context& clctx)
     vec<3, size_t> origin = {0, 0, 0};
     vec<3, size_t> region = {swidth, sheight, max_mips};
 
-    image_mipped.write(clctx.cqueue, (char*)as_uniform.data(), origin, region);
+    image_mipped.write(cqueue, (char*)as_uniform.data(), origin, region);
 
     return image_mipped;
 }
@@ -331,6 +331,7 @@ struct main_menu
     };
 
     graphics_settings sett;
+    background_settings background_sett;
 
     int state = MAIN;
     bool should_open = false;
@@ -387,6 +388,13 @@ struct main_menu
             if(ImGui::BeginTabItem("Keybinds"))
             {
                 input.display_key_rebindings(win);
+
+                ImGui::EndTabItem();
+            }
+
+            if(ImGui::BeginTabItem("Background"))
+            {
+                background_sett.display();
 
                 ImGui::EndTabItem();
             }
@@ -767,6 +775,40 @@ void DragFloatCol(const std::string& name, cl_float4& val, int highlight)
     ImGui::EndGroup();
 }
 
+struct background_images
+{
+    cl::image i1;
+    cl::image i2;
+
+    background_images(cl::context& clctx) : i1(clctx), i2(clctx){}
+
+    void load(cl::context& ctx, cl::command_queue& cqueue, const std::string& n1, const std::string& n2)
+    {
+        sf::Image img_1 = load_image(n1);
+
+        i1 = load_mipped_image(img_1, ctx, cqueue);
+
+        sf::Image img_2 = load_image(n2);
+
+        bool is_eq = false;
+
+        if(img_1.getSize().x == img_2.getSize().x && img_1.getSize().y == img_2.getSize().y)
+        {
+            size_t len = size_t{img_1.getSize().x} * size_t{img_1.getSize().y} * 4;
+
+            if(memcmp(img_1.getPixelsPtr(), img_2.getPixelsPtr(), len) == 0)
+            {
+                i2 = i1;
+
+                is_eq = true;
+            }
+        }
+
+        if(!is_eq)
+            i2 = load_mipped_image(img_2, ctx, cqueue);
+    }
+};
+
 ///i need the ability to have dynamic parameters
 int main(int argc, char* argv[])
 {
@@ -942,7 +984,7 @@ int main(int argc, char* argv[])
     cl::gl_rendertexture rtex{clctx.ctx};
     rtex.create_from_texture(tex.handle);
 
-    cl::image background_mipped(clctx.ctx);
+    /*cl::image background_mipped(clctx.ctx);
     cl::image background_mipped2(clctx.ctx);
 
     {
@@ -968,8 +1010,10 @@ int main(int argc, char* argv[])
 
         if(!is_eq)
             background_mipped2 = load_mipped_image(img_2, clctx);
-    }
+    }*/
 
+    background_images back_images(clctx.ctx);
+    back_images.load(clctx.ctx, clctx.cqueue, "background.png", "background2.png");
 
     #ifdef USE_DEVICE_SIDE_QUEUE
     print("Pre dqueue\n");
@@ -2292,8 +2336,8 @@ int main(int argc, char* argv[])
                 render_args.push_back(finished_1);
                 render_args.push_back(finished_count_1);
                 render_args.push_back(rtex);
-                render_args.push_back(background_mipped);
-                render_args.push_back(background_mipped2);
+                render_args.push_back(back_images.i1);
+                render_args.push_back(back_images.i2);
                 render_args.push_back(width);
                 render_args.push_back(height);
                 render_args.push_back(texture_coordinates);

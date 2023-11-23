@@ -67,3 +67,13 @@ bool graphics_settings::display_control_settings()
 
     return ImGui::Button("Apply");
 }
+
+DEFINE_SERIALISE_FUNCTION(background_settings)
+{
+    DO_FSERIALISE(name);
+}
+
+void background_settings::display()
+{
+
+}
