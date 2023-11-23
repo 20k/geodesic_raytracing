@@ -155,20 +155,7 @@ sf::Image load_image(const std::string& fname)
 
 cl::image load_mipped_image(sf::Image& img, opencl_context& clctx)
 {
-    std::vector<uint8_t> as_uint8;
-
-    for(int y=0; y < (int)img.getSize().y; y++)
-    {
-        for(int x=0; x < (int)img.getSize().x; x++)
-        {
-            auto col = img.getPixel(x, y);
-
-            as_uint8.push_back(col.r);
-            as_uint8.push_back(col.g);
-            as_uint8.push_back(col.b);
-            as_uint8.push_back(col.a);
-        }
-    }
+    const uint8_t* as_uint8 = reinterpret_cast<const uint8_t*>(img.getPixelsPtr());
 
     texture_settings bsett;
     bsett.width = img.getSize().x;
