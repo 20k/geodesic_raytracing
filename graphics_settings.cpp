@@ -1,6 +1,8 @@
 #include "graphics_settings.hpp"
 #include <imgui/imgui.h>
 #include <networking/serialisable.hpp>
+#include <SFML/Graphics.hpp>
+#include <toolkit/texture.hpp>
 
 DEFINE_SERIALISE_FUNCTION(graphics_settings)
 {
@@ -70,10 +72,151 @@ bool graphics_settings::display_control_settings()
 
 DEFINE_SERIALISE_FUNCTION(background_settings)
 {
-    DO_FSERIALISE(name);
+    DO_FSERIALISE(path1);
+    DO_FSERIALISE(path2);
 }
 
-void background_settings::display()
+sf::Image load_image(const std::string& fname)
 {
+    sf::Image img;
+    img.loadFromFile(fname);
 
+    return img;
+}
+
+cl::image load_mipped_image(sf::Image& img, cl::context& ctx, cl::command_queue& cqueue)
+{
+    const uint8_t* as_uint8 = reinterpret_cast<const uint8_t*>(img.getPixelsPtr());
+
+    texture_settings bsett;
+    bsett.width = img.getSize().x;
+    bsett.height = img.getSize().y;
+    bsett.is_srgb = false;
+
+    texture opengl_tex;
+    opengl_tex.load_from_memory(bsett, &as_uint8[0]);
+
+    #define MIP_LEVELS 10
+
+    int max_mips = floor(log2(std::min(img.getSize().x, img.getSize().y))) + 1;
+
+    max_mips = std::min(max_mips, MIP_LEVELS);
+
+    cl::image image_mipped(ctx);
+    image_mipped.alloc((vec3i){img.getSize().x, img.getSize().y, max_mips}, {CL_RGBA, CL_FLOAT}, cl::image_flags::ARRAY);
+
+    ///and all of THIS is to work around a bug in AMDs drivers, where you cant write to a specific array level!
+    int swidth = img.getSize().x;
+    int sheight = img.getSize().y;
+
+    std::vector<vec4f> as_uniform;
+    as_uniform.reserve(max_mips * sheight * swidth);
+
+    for(int i=0; i < max_mips; i++)
+    {
+        std::vector<vec4f> mip = opengl_tex.read(i);
+
+        int cwidth = swidth / pow(2, i);
+        int cheight = sheight / pow(2, i);
+
+        assert(cwidth * cheight == mip.size());
+
+        for(int y = 0; y < sheight; y++)
+        {
+            for(int x=0; x < swidth; x++)
+            {
+                ///clamp to border
+                int lx = std::min(x, cwidth - 1);
+                int ly = std::min(y, cheight - 1);
+
+                as_uniform.push_back(mip[ly * cwidth + lx]);
+            }
+        }
+    }
+
+    vec<3, size_t> origin = {0, 0, 0};
+    vec<3, size_t> region = {swidth, sheight, max_mips};
+
+    image_mipped.write(cqueue, (char*)as_uniform.data(), origin, region);
+
+    return image_mipped;
+}
+
+void background_images::load(const std::string& n1, const std::string& n2)
+{
+    sf::Image img_1 = load_image(n1);
+
+    i1 = load_mipped_image(img_1, ctx, cqueue);
+
+    sf::Image img_2;
+
+    if(n1 == n2)
+        img_2 = img_1;
+    else
+        img_2 = load_image(n2);
+
+    bool is_eq = false;
+
+    if(img_1.getSize().x == img_2.getSize().x && img_1.getSize().y == img_2.getSize().y)
+    {
+        size_t len = size_t{img_1.getSize().x} * size_t{img_1.getSize().y} * 4;
+
+        if(memcmp(img_1.getPixelsPtr(), img_2.getPixelsPtr(), len) == 0)
+        {
+            i2 = i1;
+
+            is_eq = true;
+        }
+    }
+
+    if(!is_eq)
+        i2 = load_mipped_image(img_2, ctx, cqueue);
+}
+
+void background_settings::display(background_images& bi)
+{
+    std::string ext = ".png";
+
+    std::vector<std::string> name;
+    std::vector<std::filesystem::path> paths;
+
+    for(const auto& entry : std::filesystem::directory_iterator{"backgrounds"})
+    {
+        if(entry.path().string().ends_with(ext))
+        {
+            name.push_back(entry.path().filename().string());
+            paths.push_back(entry.path());
+        }
+    }
+
+    for(int i=0; i < (int)name.size(); i++)
+    {
+        ImGui::Text("%s", name[i].c_str());
+
+        ImGui::SameLine();
+
+        if(ImGui::Button(("Set##" + std::to_string(i)).c_str()))
+        {
+            path1 = paths[i].string();
+            path2 = paths[i].string();
+
+            bi.load(path1, path2);
+        }
+
+        ImGui::SameLine();
+
+        if(ImGui::Button(("Set Only 1##" + std::to_string(i)).c_str()))
+        {
+            path1 = paths[i].string();
+            bi.load(path1, path2);
+        }
+
+        ImGui::SameLine();
+
+        if(ImGui::Button(("Set Only 2##" + std::to_string(i)).c_str()))
+        {
+            path2 = paths[i].string();
+            bi.load(path1, path2);
+        }
+    }
 }

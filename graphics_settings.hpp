@@ -3,6 +3,7 @@
 
 #include <networking/serialisable_fwd.hpp>
 #include <nlohmann/json.hpp>
+#include <toolkit/opencl.hpp>
 
 struct graphics_settings : serialisable, free_function
 {
@@ -36,11 +37,25 @@ struct graphics_settings : serialisable, free_function
 
 DECLARE_SERIALISE_FUNCTION(graphics_settings);
 
+struct background_images
+{
+    cl::context& ctx;
+    cl::command_queue& cqueue;
+
+    cl::image i1;
+    cl::image i2;
+
+    background_images(cl::context& _ctx, cl::command_queue& _cqueue) : ctx(_ctx), cqueue(_cqueue), i1(ctx), i2(ctx){}
+
+    void load(const std::string& n1, const std::string& n2);
+};
+
 struct background_settings : serialisable, free_function
 {
-    std::string name;
+    std::string path1;
+    std::string path2;
 
-    void display();
+    void display(background_images& bi);
 };
 
 DECLARE_SERIALISE_FUNCTION(background_settings);

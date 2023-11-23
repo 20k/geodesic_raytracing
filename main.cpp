@@ -145,72 +145,6 @@ struct lightray
 
 #define GENERIC_METRIC
 
-sf::Image load_image(const std::string& fname)
-{
-    sf::Image img;
-    img.loadFromFile(fname);
-
-    return img;
-}
-
-cl::image load_mipped_image(sf::Image& img, cl::context& ctx, cl::command_queue& cqueue)
-{
-    const uint8_t* as_uint8 = reinterpret_cast<const uint8_t*>(img.getPixelsPtr());
-
-    texture_settings bsett;
-    bsett.width = img.getSize().x;
-    bsett.height = img.getSize().y;
-    bsett.is_srgb = false;
-
-    texture opengl_tex;
-    opengl_tex.load_from_memory(bsett, &as_uint8[0]);
-
-    #define MIP_LEVELS 10
-
-    int max_mips = floor(log2(std::min(img.getSize().x, img.getSize().y))) + 1;
-
-    max_mips = std::min(max_mips, MIP_LEVELS);
-
-    cl::image image_mipped(ctx);
-    image_mipped.alloc((vec3i){img.getSize().x, img.getSize().y, max_mips}, {CL_RGBA, CL_FLOAT}, cl::image_flags::ARRAY);
-
-    ///and all of THIS is to work around a bug in AMDs drivers, where you cant write to a specific array level!
-    int swidth = img.getSize().x;
-    int sheight = img.getSize().y;
-
-    std::vector<vec4f> as_uniform;
-    as_uniform.reserve(max_mips * sheight * swidth);
-
-    for(int i=0; i < max_mips; i++)
-    {
-        std::vector<vec4f> mip = opengl_tex.read(i);
-
-        int cwidth = swidth / pow(2, i);
-        int cheight = sheight / pow(2, i);
-
-        assert(cwidth * cheight == mip.size());
-
-        for(int y = 0; y < sheight; y++)
-        {
-            for(int x=0; x < swidth; x++)
-            {
-                ///clamp to border
-                int lx = std::min(x, cwidth - 1);
-                int ly = std::min(y, cheight - 1);
-
-                as_uniform.push_back(mip[ly * cwidth + lx]);
-            }
-        }
-    }
-
-    vec<3, size_t> origin = {0, 0, 0};
-    vec<3, size_t> region = {swidth, sheight, max_mips};
-
-    image_mipped.write(cqueue, (char*)as_uniform.data(), origin, region);
-
-    return image_mipped;
-}
-
 void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& rays_out,
                                                cl::buffer& rays_finished,
                                                cl::buffer& count_in, cl::buffer& count_out,
@@ -367,7 +301,7 @@ struct main_menu
         }
     }
 
-    void display_settings_menu(render_window& win, input_manager& input)
+    void display_settings_menu(render_window& win, input_manager& input, background_images& bi)
     {
         if(ImGui::BeginTabBar("Tab Bar"))
         {
@@ -394,7 +328,7 @@ struct main_menu
 
             if(ImGui::BeginTabItem("Background"))
             {
-                background_sett.display();
+                background_sett.display(bi);
 
                 ImGui::EndTabItem();
             }
@@ -448,7 +382,7 @@ struct main_menu
         should_open = false;
     }
 
-    void display(render_window& win, input_manager& input)
+    void display(render_window& win, input_manager& input, background_images& bi)
     {
         if(state == SETTINGS)
         {
@@ -478,7 +412,7 @@ struct main_menu
 
             if(current_state == SETTINGS)
             {
-                display_settings_menu(win, input);
+                display_settings_menu(win, input, bi);
             }
 
             if(current_state == QUIT)
@@ -775,40 +709,6 @@ void DragFloatCol(const std::string& name, cl_float4& val, int highlight)
     ImGui::EndGroup();
 }
 
-struct background_images
-{
-    cl::image i1;
-    cl::image i2;
-
-    background_images(cl::context& clctx) : i1(clctx), i2(clctx){}
-
-    void load(cl::context& ctx, cl::command_queue& cqueue, const std::string& n1, const std::string& n2)
-    {
-        sf::Image img_1 = load_image(n1);
-
-        i1 = load_mipped_image(img_1, ctx, cqueue);
-
-        sf::Image img_2 = load_image(n2);
-
-        bool is_eq = false;
-
-        if(img_1.getSize().x == img_2.getSize().x && img_1.getSize().y == img_2.getSize().y)
-        {
-            size_t len = size_t{img_1.getSize().x} * size_t{img_1.getSize().y} * 4;
-
-            if(memcmp(img_1.getPixelsPtr(), img_2.getPixelsPtr(), len) == 0)
-            {
-                i2 = i1;
-
-                is_eq = true;
-            }
-        }
-
-        if(!is_eq)
-            i2 = load_mipped_image(img_2, ctx, cqueue);
-    }
-};
-
 ///i need the ability to have dynamic parameters
 int main(int argc, char* argv[])
 {
@@ -1012,9 +912,6 @@ int main(int argc, char* argv[])
             background_mipped2 = load_mipped_image(img_2, clctx);
     }*/
 
-    background_images back_images(clctx.ctx);
-    back_images.load(clctx.ctx, clctx.cqueue, "background.png", "background2.png");
-
     #ifdef USE_DEVICE_SIDE_QUEUE
     print("Pre dqueue\n");
 
@@ -1210,6 +1107,9 @@ int main(int argc, char* argv[])
     bool open_main_menu_trigger = true;
     main_menu menu;
 
+    menu.background_sett.path1 = "./backgrounds/nasa.png";
+    menu.background_sett.path2 = "./backgrounds/nasa.png";
+
     bool hide_ui = false;
 
     fullscreen_window_manager fullscreen;
@@ -1235,6 +1135,9 @@ int main(int argc, char* argv[])
     current_settings.fullscreen = win.backend->is_maximised();
 
     print("Pre main\n");
+
+    background_images back_images(clctx.ctx, clctx.cqueue);
+    back_images.load(menu.background_sett.path1, menu.background_sett.path2);
 
     triangle_rendering::manager tris(clctx.ctx);
 
@@ -1592,7 +1495,7 @@ int main(int argc, char* argv[])
         if(menu.is_open)
         {
             hide_ui = false;
-            menu.display(win, input);
+            menu.display(win, input, back_images);
         }
 
         {
