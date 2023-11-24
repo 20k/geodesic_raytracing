@@ -1110,6 +1110,11 @@ int main(int argc, char* argv[])
     menu.background_sett.path1 = "./backgrounds/nasa.png";
     menu.background_sett.path2 = "./backgrounds/nasa.png";
 
+    menu.background_sett.load();
+
+    background_images back_images(clctx.ctx, clctx.cqueue);
+    back_images.load(menu.background_sett.path1, menu.background_sett.path2);
+
     bool hide_ui = false;
 
     fullscreen_window_manager fullscreen;
@@ -1135,9 +1140,6 @@ int main(int argc, char* argv[])
     current_settings.fullscreen = win.backend->is_maximised();
 
     print("Pre main\n");
-
-    background_images back_images(clctx.ctx, clctx.cqueue);
-    back_images.load(menu.background_sett.path1, menu.background_sett.path2);
 
     triangle_rendering::manager tris(clctx.ctx);
 

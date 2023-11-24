@@ -55,6 +55,7 @@ struct background_settings : serialisable, free_function
     std::string path1;
     std::string path2;
 
+    void load();
     void display(background_images& bi);
 };
 

@@ -176,6 +176,17 @@ void background_images::load(const std::string& n1, const std::string& n2)
         i2 = load_mipped_image(img_2, ctx, cqueue);
 }
 
+void background_settings::load()
+{
+    try
+    {
+        nlohmann::json js = nlohmann::json::parse(file::read("backgrounds.json", file::mode::BINARY));
+
+        deserialise<background_settings>(js, *this, serialise_mode::DISK);
+    }
+    catch(...){}
+}
+
 void background_settings::display(background_images& bi)
 {
     std::string ext = ".png";
@@ -201,6 +212,8 @@ void background_settings::display(background_images& bi)
         }
     }
 
+    bool save = false;
+
     for(int i=0; i < (int)name.size(); i++)
     {
         if(ImGui::TreeNode(name[i].c_str()))
@@ -211,6 +224,7 @@ void background_settings::display(background_images& bi)
                 path2 = paths[i].string();
 
                 bi.load(path1, path2);
+                save = true;
             }
 
             ImGui::SameLine();
@@ -219,6 +233,7 @@ void background_settings::display(background_images& bi)
             {
                 path1 = paths[i].string();
                 bi.load(path1, path2);
+                save = true;
             }
 
             ImGui::SameLine();
@@ -227,6 +242,7 @@ void background_settings::display(background_images& bi)
             {
                 path2 = paths[i].string();
                 bi.load(path1, path2);
+                save = true;
             }
 
             if(license_data[i].size() > 0)
@@ -236,5 +252,10 @@ void background_settings::display(background_images& bi)
 
             ImGui::TreePop();
         }
+    }
+
+    if(save)
+    {
+        file::write_atomic("backgrounds.json", serialise(*this, serialise_mode::DISK).dump(), file::mode::BINARY);
     }
 }
