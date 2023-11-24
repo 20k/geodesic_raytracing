@@ -3,6 +3,9 @@
 #include <networking/serialisable.hpp>
 #include <SFML/Graphics.hpp>
 #include <toolkit/texture.hpp>
+#include <toolkit/clock.hpp>
+#include <iostream>
+#include <toolkit/fs_helpers.hpp>
 
 DEFINE_SERIALISE_FUNCTION(graphics_settings)
 {
@@ -78,14 +81,19 @@ DEFINE_SERIALISE_FUNCTION(background_settings)
 
 sf::Image load_image(const std::string& fname)
 {
+    steady_timer t;
     sf::Image img;
     img.loadFromFile(fname);
+
+    std::cout << "L " << t.get_elapsed_time_s() << std::endl;
 
     return img;
 }
 
 cl::image load_mipped_image(sf::Image& img, cl::context& ctx, cl::command_queue& cqueue)
 {
+    steady_timer t;
+
     const uint8_t* as_uint8 = reinterpret_cast<const uint8_t*>(img.getPixelsPtr());
 
     texture_settings bsett;
@@ -139,6 +147,8 @@ cl::image load_mipped_image(sf::Image& img, cl::context& ctx, cl::command_queue&
 
     image_mipped.write(cqueue, (char*)as_uniform.data(), origin, region);
 
+    std::cout << "T " << t.get_elapsed_time_s() << std::endl;
+
     return image_mipped;
 }
 
@@ -177,8 +187,10 @@ void background_settings::display(background_images& bi)
 {
     std::string ext = ".png";
 
+    std::vector<std::string> credits;
     std::vector<std::string> name;
     std::vector<std::filesystem::path> paths;
+    std::vector<std::string> license_data;
 
     for(const auto& entry : std::filesystem::directory_iterator{"backgrounds"})
     {
@@ -186,37 +198,50 @@ void background_settings::display(background_images& bi)
         {
             name.push_back(entry.path().filename().string());
             paths.push_back(entry.path());
+
+            std::filesystem::path path = entry.path();
+
+            std::string license_path = path.replace_extension("info").string();
+
+            std::string license = file::read(license_path, file::mode::TEXT);
+            license_data.push_back(license);
         }
     }
 
     for(int i=0; i < (int)name.size(); i++)
     {
-        ImGui::Text("%s", name[i].c_str());
-
-        ImGui::SameLine();
-
-        if(ImGui::Button(("Set##" + std::to_string(i)).c_str()))
+        if(ImGui::TreeNode(name[i].c_str()))
         {
-            path1 = paths[i].string();
-            path2 = paths[i].string();
+            if(ImGui::Button(("Set##" + std::to_string(i)).c_str()))
+            {
+                path1 = paths[i].string();
+                path2 = paths[i].string();
 
-            bi.load(path1, path2);
-        }
+                bi.load(path1, path2);
+            }
 
-        ImGui::SameLine();
+            ImGui::SameLine();
 
-        if(ImGui::Button(("Set Only 1##" + std::to_string(i)).c_str()))
-        {
-            path1 = paths[i].string();
-            bi.load(path1, path2);
-        }
+            if(ImGui::Button(("Set Main Background##" + std::to_string(i)).c_str()))
+            {
+                path1 = paths[i].string();
+                bi.load(path1, path2);
+            }
 
-        ImGui::SameLine();
+            ImGui::SameLine();
 
-        if(ImGui::Button(("Set Only 2##" + std::to_string(i)).c_str()))
-        {
-            path2 = paths[i].string();
-            bi.load(path1, path2);
+            if(ImGui::Button(("Set Second Background##" + std::to_string(i)).c_str()))
+            {
+                path2 = paths[i].string();
+                bi.load(path1, path2);
+            }
+
+            if(license_data[i].size() > 0)
+            {
+                ImGui::TextWrapped("%s", license_data[i].c_str());
+            }
+
+            ImGui::TreePop();
         }
     }
 }
