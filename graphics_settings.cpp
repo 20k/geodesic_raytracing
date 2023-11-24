@@ -81,19 +81,14 @@ DEFINE_SERIALISE_FUNCTION(background_settings)
 
 sf::Image load_image(const std::string& fname)
 {
-    steady_timer t;
     sf::Image img;
     img.loadFromFile(fname);
-
-    std::cout << "L " << t.get_elapsed_time_s() << std::endl;
 
     return img;
 }
 
 cl::image load_mipped_image(sf::Image& img, cl::context& ctx, cl::command_queue& cqueue)
 {
-    steady_timer t;
-
     const uint8_t* as_uint8 = reinterpret_cast<const uint8_t*>(img.getPixelsPtr());
 
     texture_settings bsett;
@@ -146,8 +141,6 @@ cl::image load_mipped_image(sf::Image& img, cl::context& ctx, cl::command_queue&
     vec<3, size_t> region = {swidth, sheight, max_mips};
 
     image_mipped.write(cqueue, (char*)as_uniform.data(), origin, region);
-
-    std::cout << "T " << t.get_elapsed_time_s() << std::endl;
 
     return image_mipped;
 }
