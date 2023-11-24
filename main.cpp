@@ -750,7 +750,7 @@ int main(int argc, char* argv[])
 
     //dual_types::test_operation();
 
-    graphics_settings current_settings;
+    main_menu menu;
 
     bool loaded_settings = false;
 
@@ -760,7 +760,7 @@ int main(int argc, char* argv[])
         {
             nlohmann::json js = nlohmann::json::parse(file::read("settings.json", file::mode::BINARY));
 
-            deserialise<graphics_settings>(js, current_settings, serialise_mode::DISK);
+            deserialise<graphics_settings>(js, menu.sett, serialise_mode::DISK);
 
             loaded_settings = true;
         }
@@ -779,11 +779,13 @@ int main(int argc, char* argv[])
     sett.no_decoration = true;
     sett.viewports = false;
 
+    //#define REMEMBER_SIZE
+
     if(loaded_settings)
     {
         #ifdef REMEMBER_SIZE
-        sett.width = current_settings.width;
-        sett.height = current_settings.height;
+        sett.width = menu.sett.width;
+        sett.height = menu.sett.height;
         #endif
     }
 
@@ -791,10 +793,10 @@ int main(int argc, char* argv[])
 
     if(loaded_settings)
     {
-        win.set_vsync(current_settings.vsync_enabled);
+        win.set_vsync(menu.sett.vsync_enabled);
         //win.backend->set_is_maximised(current_settings.fullscreen);
 
-        if(current_settings.fullscreen)
+        if(menu.sett.fullscreen)
         {
             win.backend->clear_demaximise_cache();
         }
@@ -1109,8 +1111,6 @@ int main(int argc, char* argv[])
     steady_timer frametime_timer;
 
     bool open_main_menu_trigger = true;
-    main_menu menu;
-    menu.sett = current_settings;
 
     menu.background_sett.path1 = "./backgrounds/nasa.png";
     menu.background_sett.path2 = "./backgrounds/nasa.png";
@@ -1139,12 +1139,12 @@ int main(int argc, char* argv[])
 
     metric_manager metric_manage;
 
-    current_settings.width = win.get_window_size().x();
-    current_settings.height = win.get_window_size().y();
-    current_settings.vsync_enabled = win.backend->is_vsync();
-    current_settings.fullscreen = win.backend->is_maximised();
 
-    std::cout << "Real " << current_settings.width << std::endl;
+    menu.sett.width = win.get_window_size().x();
+    menu.sett.height = win.get_window_size().y();
+    menu.sett.vsync_enabled = win.backend->is_vsync();
+    menu.sett.fullscreen = win.backend->is_maximised();
+
 
     print("Pre main\n");
 
@@ -1277,42 +1277,53 @@ int main(int argc, char* argv[])
     std::optional<cl_float4> last_camera_pos_polar;
     std::optional<cl_int> last_timelike_coordinate;
 
+    auto save_graphics = [&]()
+    {
+        file::write_atomic("./settings.json", serialise(menu.sett, serialise_mode::DISK).dump(), file::mode::BINARY);
+    };
+
     while(!win.should_close() && !menu.should_quit && fullscreen.open)
     {
         dfg.alloc_and_write_gpu_buffer(clctx.cqueue, dynamic_feature_buffer);
 
         if(menu.dirty_settings)
         {
-            current_settings = menu.sett;
-
-            if((vec2i){current_settings.width, current_settings.height} != win.get_window_size())
+            if((vec2i){menu.sett.width, menu.sett.height} != win.get_window_size())
             {
-                win.resize({current_settings.width, current_settings.height});
+                win.resize({menu.sett.width, menu.sett.height});
             }
 
-            if(win.backend->is_vsync() != current_settings.vsync_enabled)
+            if(win.backend->is_vsync() != menu.sett.vsync_enabled)
             {
-                win.backend->set_vsync(current_settings.vsync_enabled);
+                win.backend->set_vsync(menu.sett.vsync_enabled);
             }
 
-            if(win.backend->is_maximised() != current_settings.fullscreen)
+            if(win.backend->is_maximised() != menu.sett.fullscreen)
             {
-                win.backend->set_is_maximised(current_settings.fullscreen);
+                win.backend->set_is_maximised(menu.sett.fullscreen);
             }
 
-            file::write_atomic("./settings.json", serialise(current_settings, serialise_mode::DISK).dump(), file::mode::BINARY);
+            save_graphics();
         }
 
         if(!menu.is_open || menu.dirty_settings)
         {
             vec2i real_dim = win.get_window_size();
 
-            menu.sett = current_settings;
-
             menu.sett.width = real_dim.x();
             menu.sett.height = real_dim.y();
             menu.sett.vsync_enabled = win.backend->is_vsync();
             menu.sett.fullscreen = win.backend->is_maximised();
+
+            save_graphics();
+        }
+
+        if((vec2i){menu.sett.width, menu.sett.height} != win.get_window_size())
+        {
+            menu.sett.width = win.get_window_size().x();
+            menu.sett.height = win.get_window_size().y();
+
+            save_graphics();
         }
 
         menu.dirty_settings = false;
@@ -1347,7 +1358,7 @@ int main(int argc, char* argv[])
 
         float controls_multiplier = 1.f;
 
-        if(current_settings.time_adjusted_controls)
+        if(menu.sett.time_adjusted_controls)
         {
             ///16.f simulates the only camera speed at 16ms/frame
             controls_multiplier = (1000/16.f) * clamp(frametime_s, 0.f, 100.f);
@@ -1515,9 +1526,9 @@ int main(int argc, char* argv[])
 
             bool should_snapshot_geodesic = false;
 
-            vec<2, size_t> super_adjusted_width = current_settings.supersample ? (buffer_size / current_settings.supersample_factor) : buffer_size;
+            vec<2, size_t> super_adjusted_width = menu.sett.supersample ? (buffer_size / menu.sett.supersample_factor) : buffer_size;
 
-            if((vec2i){super_adjusted_width.x(), super_adjusted_width.y()} != win.get_window_size() || taking_screenshot || last_supersample != current_settings.supersample || last_supersample_mult != current_settings.supersample_factor || menu.dirty_settings)
+            if((vec2i){super_adjusted_width.x(), super_adjusted_width.y()} != win.get_window_size() || taking_screenshot || last_supersample != menu.sett.supersample || last_supersample_mult != menu.sett.supersample_factor || menu.dirty_settings)
             {
                 int width = 16;
                 int height = 16;
@@ -1527,20 +1538,20 @@ int main(int argc, char* argv[])
                     width = win.get_window_size().x();
                     height = win.get_window_size().y();
 
-                    if(current_settings.supersample)
+                    if(menu.sett.supersample)
                     {
-                        width *= current_settings.supersample_factor;
-                        height *= current_settings.supersample_factor;
+                        width *= menu.sett.supersample_factor;
+                        height *= menu.sett.supersample_factor;
                     }
                 }
                 else
                 {
-                    width = current_settings.screenshot_width * current_settings.supersample_factor;
-                    height = current_settings.screenshot_height * current_settings.supersample_factor;
+                    width = menu.sett.screenshot_width * menu.sett.supersample_factor;
+                    height = menu.sett.screenshot_height * menu.sett.supersample_factor;
                 }
 
-                width = std::max(width, 16 * current_settings.supersample_factor);
-                height = std::max(height, 16 * current_settings.supersample_factor);
+                width = std::max(width, 16 * menu.sett.supersample_factor);
+                height = std::max(height, 16 * menu.sett.supersample_factor);
 
                 ray_count = width * height;
 
@@ -1566,8 +1577,8 @@ int main(int argc, char* argv[])
 
                 gpu_intersections.alloc(sizeof(cl_int) * ray_count * 10);
 
-                last_supersample = current_settings.supersample;
-                last_supersample_mult = current_settings.supersample_factor;
+                last_supersample = menu.sett.supersample;
+                last_supersample_mult = menu.sett.supersample_factor;
             }
 
             rtex.acquire(clctx.cqueue);
@@ -1614,7 +1625,7 @@ int main(int argc, char* argv[])
                 {
                     if(ImGui::BeginTabItem("General"))
                     {
-                        if(!current_settings.no_gpu_reads)
+                        if(!menu.sett.no_gpu_reads)
                         {
                             if(last_camera_pos.has_value())
                             {
@@ -1737,7 +1748,7 @@ int main(int argc, char* argv[])
                         {
                             ImGui::Separator();
 
-                            if(!current_settings.no_gpu_reads)
+                            if(!menu.sett.no_gpu_reads)
                             {
                                 if(last_camera_pos.has_value())
                                 {
@@ -1984,14 +1995,14 @@ int main(int argc, char* argv[])
                     delta *= mouse_sensitivity_mult;
                 }
 
-                delta *= current_settings.mouse_sensitivity * M_PI/128;
+                delta *= menu.sett.mouse_sensitivity * M_PI/128;
 
                 vec4f translation_delta = {input.is_key_down("forward") - input.is_key_down("back"),
                                            input.is_key_down("right") - input.is_key_down("left"),
                                            input.is_key_down("down") - input.is_key_down("up"),
                                            input.is_key_down("time_forwards") - input.is_key_down("time_backwards")};
 
-                translation_delta *= current_settings.keyboard_sensitivity * controls_multiplier * speed;
+                translation_delta *= menu.sett.keyboard_sensitivity * controls_multiplier * speed;
 
                 cl_float2 cl_mouse = {delta.x(), delta.y()};
                 cl_float4 cl_translation = {translation_delta.x(), translation_delta.y(), translation_delta.z(), translation_delta.w()};
@@ -2253,7 +2264,7 @@ int main(int argc, char* argv[])
                 render_args.push_back(width);
                 render_args.push_back(height);
                 render_args.push_back(texture_coordinates);
-                render_args.push_back(current_settings.anisotropy);
+                render_args.push_back(menu.sett.anisotropy);
                 render_args.push_back(dynamic_config);
                 render_args.push_back(dynamic_feature_buffer);
 
@@ -2396,8 +2407,8 @@ int main(int argc, char* argv[])
 
                 clctx.cqueue.block();
 
-                int high_width = current_settings.screenshot_width * current_settings.supersample_factor;
-                int high_height = current_settings.screenshot_height * current_settings.supersample_factor;
+                int high_width = menu.sett.screenshot_width * menu.sett.supersample_factor;
+                int high_height = menu.sett.screenshot_height * menu.sett.supersample_factor;
 
                 print("Blocked\n");
 
@@ -2436,7 +2447,7 @@ int main(int argc, char* argv[])
 
                 img.saveToFile(fname);
 
-                bool add_to_steam_library = current_settings.use_steam_screenshots;
+                bool add_to_steam_library = menu.sett.use_steam_screenshots;
 
                 if(steam.is_enabled() && add_to_steam_library)
                 {

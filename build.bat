@@ -4,7 +4,7 @@ mkdir build_public
 sh xmake
 
 cd ./deps/steamworks_sdk_153a/sdk/tools/ContentBuilder/
-./run_build.bat
+sh ./run_build.bat
 cd ..
 cd ..
 cd ..
