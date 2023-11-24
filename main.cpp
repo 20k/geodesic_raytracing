@@ -781,8 +781,10 @@ int main(int argc, char* argv[])
 
     if(loaded_settings)
     {
-        //sett.width = current_settings.width;
-        //sett.height = current_settings.height;
+        #ifdef REMEMBER_SIZE
+        sett.width = current_settings.width;
+        sett.height = current_settings.height;
+        #endif
     }
 
     render_window win(sett, "Geodesics");
@@ -803,7 +805,9 @@ int main(int argc, char* argv[])
         win.backend->clear_demaximise_cache();
     }
 
+    #ifndef REMEMBER_SIZE
     win.backend->set_is_maximised(false);
+    #endif
 
     assert(win.clctx);
 
@@ -1106,6 +1110,7 @@ int main(int argc, char* argv[])
 
     bool open_main_menu_trigger = true;
     main_menu menu;
+    menu.sett = current_settings;
 
     menu.background_sett.path1 = "./backgrounds/nasa.png";
     menu.background_sett.path2 = "./backgrounds/nasa.png";
@@ -1138,6 +1143,8 @@ int main(int argc, char* argv[])
     current_settings.height = win.get_window_size().y();
     current_settings.vsync_enabled = win.backend->is_vsync();
     current_settings.fullscreen = win.backend->is_maximised();
+
+    std::cout << "Real " << current_settings.width << std::endl;
 
     print("Pre main\n");
 

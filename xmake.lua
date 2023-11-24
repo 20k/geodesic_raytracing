@@ -47,7 +47,8 @@ add_defines("IMGUI_IMPL_OPENGL_LOADER_GLEW",
 "CONFIG_BIGNUM",
 "NO_SERIALISE_RATELIMIT",
 "FAST_CL",
-"REDIRECT_STDOUT")
+"REDIRECT_STDOUT",
+"REMEMBER_SIZE")
 
 add_packages("openssl", "opengl", "glfw", "glew", "freetype", "sfml")
 
