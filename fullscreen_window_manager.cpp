@@ -33,7 +33,7 @@ namespace
     }
 }
 
-fullscreen_window_manager::fullscreen_window_manager()
+fullscreen_window_manager::fullscreen_window_manager(const std::string& _title) : title(_title)
 {
     ImGuiIO& io = ImGui::GetIO();
 
@@ -74,7 +74,7 @@ void fullscreen_window_manager::start(render_window& win)
     ImVec4 resize_col = ImGui::GetStyleColorVec4(ImGuiCol_ResizeGrip);
     ImU32 resize_colu32 = ImGui::ColorConvertFloat4ToU32(resize_col);
 
-    bool rendering = ImGui::Begin("Main Window", &open, flags);
+    bool rendering = ImGui::Begin(title.c_str(), &open, flags);
 
     if(ImGui::IsItemHovered() &&
        ImGui::IsMouseDragging(0) && !title_dragging && !resize_dragging)

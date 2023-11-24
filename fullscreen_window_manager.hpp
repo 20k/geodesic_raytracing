@@ -14,8 +14,9 @@ struct fullscreen_window_manager
     vec2f resize_start_pos;
     vec2f resize_start_mouse_pos_absolute;
     bool open = true;
+    std::string title;
 
-    fullscreen_window_manager();
+    fullscreen_window_manager(const std::string& _title);
 
     void start(render_window& win);
     void stop();

@@ -1117,7 +1117,7 @@ int main(int argc, char* argv[])
 
     bool hide_ui = false;
 
-    fullscreen_window_manager fullscreen;
+    fullscreen_window_manager fullscreen("Relativity Workshop");
 
     ImGuiStyle& style = ImGui::GetStyle();
 
