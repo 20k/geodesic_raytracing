@@ -274,6 +274,34 @@ struct main_menu
     bool should_quit = false;
     bool already_started = false;
 
+    bool load()
+    {
+        background_sett.path1 = "./backgrounds/nasa.png";
+        background_sett.path2 = "./backgrounds/nasa.png";
+
+        background_sett.load();
+
+        bool loaded_settings = false;
+
+        if(file::exists("settings.json"))
+        {
+            try
+            {
+                nlohmann::json js = nlohmann::json::parse(file::read("settings.json", file::mode::BINARY));
+
+                deserialise<graphics_settings>(js, sett, serialise_mode::DISK);
+
+                loaded_settings = true;
+            }
+            catch(std::exception& ex)
+            {
+                std::cout << "Failed to load settings.json " << ex.what() << std::endl;
+            }
+        }
+
+        return loaded_settings;
+    }
+
     bool is_first_time_main_menu_open()
     {
         return is_open && !already_started;
@@ -751,24 +779,7 @@ int main(int argc, char* argv[])
     //dual_types::test_operation();
 
     main_menu menu;
-
-    bool loaded_settings = false;
-
-    if(file::exists("settings.json"))
-    {
-        try
-        {
-            nlohmann::json js = nlohmann::json::parse(file::read("settings.json", file::mode::BINARY));
-
-            deserialise<graphics_settings>(js, menu.sett, serialise_mode::DISK);
-
-            loaded_settings = true;
-        }
-        catch(std::exception& ex)
-        {
-            std::cout << "Failed to load settings.json " << ex.what() << std::endl;
-        }
-    }
+    bool loaded_settings = menu.load();
 
     render_settings sett;
     sett.width = 1280;
@@ -779,7 +790,7 @@ int main(int argc, char* argv[])
     sett.no_decoration = true;
     sett.viewports = false;
 
-    //#define REMEMBER_SIZE
+    #define REMEMBER_SIZE
 
     if(loaded_settings)
     {
@@ -1111,11 +1122,6 @@ int main(int argc, char* argv[])
     steady_timer frametime_timer;
 
     bool open_main_menu_trigger = true;
-
-    menu.background_sett.path1 = "./backgrounds/nasa.png";
-    menu.background_sett.path2 = "./backgrounds/nasa.png";
-
-    menu.background_sett.load();
 
     background_images back_images(clctx.ctx, clctx.cqueue);
     back_images.load(menu.background_sett.path1, menu.background_sett.path2);
