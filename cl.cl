@@ -4123,7 +4123,7 @@ float4 periodic_diff(float4 in1, float4 in2, float4 periods)
 #define FAST_TRI
 #ifdef FAST_TRI
 #define TRI_GEODESIC_SKIP 8
-#define TRI_RAY_SKIP 4
+#define TRI_RAY_SKIP 8
 #endif
 
 __kernel
