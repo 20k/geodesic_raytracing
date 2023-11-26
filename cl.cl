@@ -4120,14 +4120,14 @@ float4 periodic_diff(float4 in1, float4 in2, float4 periods)
 #define TRI_GEODESIC_SKIP 1
 #define TRI_RAY_SKIP 1
 
-#define FAST_TRI
+//#define FAST_TRI
 #ifdef FAST_TRI
 #define TRI_GEODESIC_SKIP 8
 #define TRI_RAY_SKIP 4
 #endif
 
 __kernel
-void subsample_tri_quantity(int count, __global int* geodesic_counts, __global float* geodesic_ds, int element_size, __global char* data_in, __global char* data_out, __global int* out_counts)
+void subsample_tri_quantity(int count, __global const int* geodesic_counts, __global const float* geodesic_ds, int element_size, __global const char* data_in, __global char* data_out, __global int* out_counts)
 {
      int id = get_global_id(0);
 
