@@ -4136,7 +4136,13 @@ void subsample_tri_quantity(int count, __global const int* geodesic_counts, __gl
 
     int cnt = geodesic_counts[id];
 
-    #define FIXED_SKIPPING
+    if(cnt == 0)
+    {
+        out_counts[id] = 0;
+        return;
+    }
+
+    //#define FIXED_SKIPPING
     #ifdef FIXED_SKIPPING
     int skip = TRI_GEODESIC_SKIP;
 
@@ -4159,6 +4165,36 @@ void subsample_tri_quantity(int count, __global const int* geodesic_counts, __gl
 
     out_counts[id] = next_count;
     #endif // FIXED_SKIPPING
+
+    #define CAPPED_SKIPPING
+    #ifdef CAPPED_SKIPPING
+    int next_count = 0;
+
+    int max_steps = 32;
+    float fskip = cnt / (float)max_steps;
+
+    if(fskip < 1)
+        fskip = 1;
+
+    for(float fidx = 0; fidx < cnt; fidx += fskip)
+    {
+        int kk = fidx;
+
+        int current_idx = kk * count + id;
+        int out_idx = next_count * count + id;
+
+        for(int i=0; i < element_size; i++)
+        {
+            data_out[out_idx * element_size + i] = data_in[current_idx * element_size + i];
+        }
+
+        next_count++;
+    }
+
+    //printf("Count %i real %i\n", next_count, cnt);
+
+    out_counts[id] = next_count;
+    #endif
 
     //#define DS_SKIPPING
     #ifdef DS_SKIPPING
