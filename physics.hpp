@@ -23,13 +23,20 @@ struct physics
     cl::buffer generic_positions;
     cl::buffer timelike_vectors;
 
+    cl::buffer subsampled_paths;
+    cl::buffer subsampled_ds;
+    cl::buffer subsampled_counts;
+    std::array<cl::buffer, 4> subsampled_parallel_transported_tetrads;
+
+
     int object_count = 0;
 
     bool needs_trace = false;
 
     physics(cl::context& ctx) : geodesic_paths(ctx), geodesic_velocities(ctx), geodesic_ds(ctx), positions(ctx), counts(ctx), basis_speeds(ctx),
                                 gpu_object_count(ctx),
-                                tetrads{ctx, ctx, ctx, ctx}, parallel_transported_tetrads{ctx, ctx, ctx, ctx}, inverted_tetrads{ctx, ctx, ctx, ctx}, generic_positions(ctx), timelike_vectors(ctx)
+                                tetrads{ctx, ctx, ctx, ctx}, parallel_transported_tetrads{ctx, ctx, ctx, ctx}, inverted_tetrads{ctx, ctx, ctx, ctx}, generic_positions(ctx), timelike_vectors(ctx),
+                                subsampled_paths(ctx), subsampled_ds(ctx), subsampled_counts(ctx), subsampled_parallel_transported_tetrads{ctx, ctx, ctx, ctx}
     {
         gpu_object_count.alloc(sizeof(cl_int));
     }
@@ -49,11 +56,16 @@ struct physics
         basis_speeds.alloc(clamped_count * sizeof(cl_float3));
         basis_speeds.set_to_zero(cqueue);
 
+        subsampled_paths.alloc(clamped_count * sizeof(cl_float4) * max_path_length);
+        subsampled_counts.alloc(clamped_count * sizeof(cl_int));
+        subsampled_ds.alloc(clamped_count * sizeof(cl_float) * max_path_length);
+
         for(int i=0; i < 4; i++)
         {
             tetrads[i].alloc(clamped_count * sizeof(cl_float4));
             parallel_transported_tetrads[i].alloc(clamped_count * sizeof(cl_float4) * max_path_length);
             inverted_tetrads[i].alloc(clamped_count * sizeof(cl_float4) * max_path_length);
+            subsampled_parallel_transported_tetrads[i].alloc(clamped_count * sizeof(cl_float4) * max_path_length);
         }
 
         generic_positions.alloc(clamped_count * sizeof(cl_float4));
@@ -203,6 +215,28 @@ struct physics
         }
 
         cqueue.exec("calculate_tetrad_inverse", invert_args, {object_count}, {256});
+
+        {
+            cl::args args;
+            args.push_back(counts);
+            args.push_back(object_count);
+            args.push_back(geodesic_paths);
+
+            for(int i=0; i < 4; i++)
+                args.push_back(parallel_transported_tetrads[i]);
+
+            args.push_back(geodesic_ds);
+
+            args.push_back(subsampled_counts);
+            args.push_back(subsampled_paths);
+
+            for(int i=0; i < 4; i++)
+                args.push_back(subsampled_parallel_transported_tetrads[i]);
+
+            args.push_back(subsampled_ds);
+
+            cqueue.exec("subsample_tri_quantities", args, {object_count}, {256});
+        }
 
         needs_trace = false;
     }

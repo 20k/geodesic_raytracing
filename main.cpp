@@ -864,7 +864,7 @@ int main(int argc, char* argv[])
 
     dynamic_feature_config dfg;
     dfg.add_feature<bool>("use_triangle_rendering");
-    dfg.set_feature("use_triangle_rendering", false);
+    dfg.set_feature("use_triangle_rendering", true);
 
     dfg.add_feature<bool>("redshift");
     dfg.set_feature("redshift", false);

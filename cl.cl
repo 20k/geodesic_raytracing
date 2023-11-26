@@ -2577,6 +2577,26 @@ void calculate_tetrad_inverse(__global int* global_count, int count,
 }
 
 __kernel
+void subsample_tri_quantities(__global int* geodesic_counts, int count,
+                              __global float4* geodesic_path,
+                              __global float4* t_e0, __global float4* t_e1, __global float4* t_e2, __global float4* t_e3,
+                              __global float* geodesic_ds,
+
+                              __global int* out_counts,
+                              __global float4* out_path,
+                              __global float4* o_e0, __global float4* o_e1, __global float4* o_e2, __global float4* o_e3,
+                              __global float* out_ds
+                              )
+{
+    int id = get_global_id(0);
+
+    if(id >= count)
+        return;
+
+    int cnt = geodesic_counts[id];
+}
+
+__kernel
 void parallel_transport_quantity(__global float4* geodesic_path, __global float4* geodesic_velocity, __global float* ds_in, __global float4* quantity, __global int* count_in, int count, __global float4* quantity_out, dynamic_config_space struct dynamic_config* cfg)
 {
     int id = get_global_id(0);
@@ -4117,6 +4137,14 @@ float4 periodic_diff(float4 in1, float4 in2, float4 periods)
     return ret;
 }
 
+#define TRI_GEODESIC_SKIP 1
+#define TRI_RAY_SKIP 1
+
+#ifdef FAST_TRI
+#define TRI_GEODESIC_SKIP 8
+#define TRI_RAY_SKIP 4
+#endif
+
 __kernel
 void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                                           int obj_count,
@@ -4153,9 +4181,10 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
     float lowest_time = *ray_time_min - 1;
     float maximum_time = *ray_time_max + 1;
 
-    int skip = 1;
+    int skip = TRI_GEODESIC_SKIP;
 
     ///if I'm doing bresenhams, then ds_stepping makes no sense and I am insane
+    ///so, for all_check what I want to do is bring back ds_stepping
     for(int cc=0; cc < count - skip; cc += skip)
     {
         if(cc > 2048)
@@ -4228,7 +4257,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         local_tri.min_extents = min_extents;
         local_tri.max_extents = max_extents;
 
-        //#define ALL_CHECK
+        #define ALL_CHECK
         #ifdef ALL_CHECK
         int lid = atomic_inc(&offset_counts[0]);
 
@@ -4244,7 +4273,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         }
         #endif
 
-        #define SIMPLE_VOXELISE
+        //#define SIMPLE_VOXELISE
         #ifdef SIMPLE_VOXELISE
 
         min_extents.x = max(min_extents.x, lowest_time);
@@ -4925,7 +4954,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
             printf("Pos %f\n", position.x);
         }*/
 
-        if(GET_FEATURE(use_triangle_rendering, dfg) && (i % 1) == 0 && any_visible_tris > 0)
+        if(GET_FEATURE(use_triangle_rendering, dfg) && (i % TRI_RAY_SKIP) == 0 && any_visible_tris > 0)
         {
             float4 native_position = position;
             float4 native_velocity = velocity;
