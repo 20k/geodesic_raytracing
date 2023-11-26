@@ -2594,6 +2594,21 @@ void subsample_tri_quantities(__global int* geodesic_counts, int count,
         return;
 
     int cnt = geodesic_counts[id];
+
+    for(int kk=0; kk < cnt; kk++)
+    {
+        int current_idx = kk * count + id;
+
+        o_e0[current_idx] = t_e0[current_idx];
+        o_e1[current_idx] = t_e1[current_idx];
+        o_e2[current_idx] = t_e2[current_idx];
+        o_e3[current_idx] = t_e3[current_idx];
+
+        out_path[current_idx] = geodesic_path[current_idx];
+        out_ds[current_idx] = geodesic_ds[current_idx];
+    }
+
+    out_counts[id] = cnt;
 }
 
 __kernel

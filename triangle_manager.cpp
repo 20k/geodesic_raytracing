@@ -422,13 +422,13 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         accel.push_back(delta_times_memory);
         accel.push_back(unculled_counts);
         accel.push_back(any_visible);
-        accel.push_back(phys.geodesic_paths);
-        accel.push_back(phys.counts);
-        accel.push_back(phys.geodesic_ds);
+        accel.push_back(phys.subsampled_paths);
+        accel.push_back(phys.subsampled_counts);
+        accel.push_back(phys.subsampled_ds);
 
         for(int i=0; i < 4; i++)
         {
-            accel.push_back(phys.parallel_transported_tetrads[i]);
+            accel.push_back(phys.subsampled_parallel_transported_tetrads[i]);
         }
 
         accel.push_back(start_ds);
@@ -478,13 +478,13 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         accel.push_back(delta_times_memory);
         accel.push_back(unculled_counts);
         accel.push_back(any_visible);
-        accel.push_back(phys.geodesic_paths);
-        accel.push_back(phys.counts);
-        accel.push_back(phys.geodesic_ds);
+        accel.push_back(phys.subsampled_paths);
+        accel.push_back(phys.subsampled_counts);
+        accel.push_back(phys.subsampled_ds);
 
         for(int i=0; i < 4; i++)
         {
-            accel.push_back(phys.parallel_transported_tetrads[i]);
+            accel.push_back(phys.subsampled_parallel_transported_tetrads[i]);
         }
 
         accel.push_back(start_ds);
@@ -507,7 +507,7 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         cl::args args;
         args.push_back(memory);
         args.push_back(memory_count);
-        args.push_back(phys.geodesic_paths);
+        args.push_back(phys.subsampled_paths);
         args.push_back(linear_object_positions);
 
         cqueue.exec("pull_linear_object_positions", args, {data_max}, {256});
