@@ -4120,7 +4120,7 @@ float4 periodic_diff(float4 in1, float4 in2, float4 periods)
 #define TRI_GEODESIC_SKIP 1
 #define TRI_RAY_SKIP 1
 
-//#define FAST_TRI
+#define FAST_TRI
 #ifdef FAST_TRI
 #define TRI_GEODESIC_SKIP 8
 #define TRI_RAY_SKIP 4
@@ -4129,13 +4129,15 @@ float4 periodic_diff(float4 in1, float4 in2, float4 periods)
 __kernel
 void subsample_tri_quantity(int count, __global const int* geodesic_counts, __global const float* geodesic_ds, int element_size, __global const char* data_in, __global char* data_out, __global int* out_counts)
 {
-     int id = get_global_id(0);
+    int id = get_global_id(0);
 
     if(id >= count)
         return;
 
     int cnt = geodesic_counts[id];
 
+    #define FIXED_SKIPPING
+    #ifdef FIXED_SKIPPING
     int skip = TRI_GEODESIC_SKIP;
 
     int next_count = 0;
@@ -4153,9 +4155,53 @@ void subsample_tri_quantity(int count, __global const int* geodesic_counts, __gl
         next_count++;
     }
 
-    //printf("Count %i real %i\n", next_count, cnt);
+    printf("Count %i real %i\n", next_count, cnt);
 
     out_counts[id] = next_count;
+    #endif // FIXED_SKIPPING
+
+    //#define DS_SKIPPING
+    #ifdef DS_SKIPPING
+    float max_ds = 0.1;
+    float current_ds_budget = 0;
+
+    int next_count = 0;
+
+    {
+        int current_idx = 0 * count + id;
+
+        current_ds_budget = geodesic_ds[current_idx];
+
+        for(int i=0; i < element_size; i++)
+            data_out[id * element_size + i] = data_in[current_idx * element_size + i];
+
+        next_count = 1;
+    }
+
+    for(int kk=1; kk < cnt; kk++)
+    {
+        int current_idx = kk * count + id;
+
+        current_ds_budget += geodesic_ds[current_idx];
+
+        if(current_ds_budget < max_ds)
+            continue;
+
+        while(current_ds_budget >= max_ds)
+            current_ds_budget -= max_ds;
+
+        int out_idx = next_count * count + id;
+
+        for(int i=0; i < element_size; i++)
+            data_out[out_idx * element_size + i] = data_in[current_idx * element_size + i];
+
+        next_count++;
+    }
+
+    printf("Count %i real %i\n", next_count, cnt);
+
+    out_counts[id] = next_count;
+    #endif
 }
 
 #if 0
