@@ -24,9 +24,11 @@ struct physics
     cl::buffer timelike_vectors;
 
     cl::buffer subsampled_paths;
+    cl::buffer subsampled_velocities;
     cl::buffer subsampled_ds;
     cl::buffer subsampled_counts;
     std::array<cl::buffer, 4> subsampled_parallel_transported_tetrads;
+    std::array<cl::buffer, 4> subsampled_inverted_tetrads;
 
 
     int object_count = 0;
@@ -36,7 +38,7 @@ struct physics
     physics(cl::context& ctx) : geodesic_paths(ctx), geodesic_velocities(ctx), geodesic_ds(ctx), positions(ctx), counts(ctx), basis_speeds(ctx),
                                 gpu_object_count(ctx),
                                 tetrads{ctx, ctx, ctx, ctx}, parallel_transported_tetrads{ctx, ctx, ctx, ctx}, inverted_tetrads{ctx, ctx, ctx, ctx}, generic_positions(ctx), timelike_vectors(ctx),
-                                subsampled_paths(ctx), subsampled_ds(ctx), subsampled_counts(ctx), subsampled_parallel_transported_tetrads{ctx, ctx, ctx, ctx}
+                                subsampled_paths(ctx), subsampled_velocities(ctx), subsampled_ds(ctx), subsampled_counts(ctx), subsampled_parallel_transported_tetrads{ctx, ctx, ctx, ctx}, subsampled_inverted_tetrads{ctx, ctx, ctx, ctx}
     {
         gpu_object_count.alloc(sizeof(cl_int));
     }
@@ -57,8 +59,9 @@ struct physics
         basis_speeds.set_to_zero(cqueue);
 
         subsampled_paths.alloc(clamped_count * sizeof(cl_float4) * max_path_length);
-        subsampled_counts.alloc(clamped_count * sizeof(cl_int));
+        subsampled_velocities.alloc(clamped_count * sizeof(cl_float4) * max_path_length);
         subsampled_ds.alloc(clamped_count * sizeof(cl_float) * max_path_length);
+        subsampled_counts.alloc(clamped_count * sizeof(cl_int));
 
         for(int i=0; i < 4; i++)
         {
@@ -66,6 +69,7 @@ struct physics
             parallel_transported_tetrads[i].alloc(clamped_count * sizeof(cl_float4) * max_path_length);
             inverted_tetrads[i].alloc(clamped_count * sizeof(cl_float4) * max_path_length);
             subsampled_parallel_transported_tetrads[i].alloc(clamped_count * sizeof(cl_float4) * max_path_length);
+            subsampled_inverted_tetrads[i].alloc(clamped_count * sizeof(cl_float4) * max_path_length);
         }
 
         generic_positions.alloc(clamped_count * sizeof(cl_float4));
@@ -216,26 +220,33 @@ struct physics
 
         cqueue.exec("calculate_tetrad_inverse", invert_args, {object_count}, {256});
 
+
+        std::vector<int> sizes = {sizeof(cl_float4), sizeof(cl_float4),
+                                  sizeof(cl_float4),sizeof(cl_float4),sizeof(cl_float4),sizeof(cl_float4),
+                                  sizeof(cl_float4),sizeof(cl_float4),sizeof(cl_float4),sizeof(cl_float4),
+                                  sizeof(cl_float)
+                                  };
+
+        std::vector<cl::buffer> sub_in = {geodesic_paths, geodesic_velocities,
+                                          parallel_transported_tetrads[0], parallel_transported_tetrads[1], parallel_transported_tetrads[2], parallel_transported_tetrads[3],
+                                          inverted_tetrads[0], inverted_tetrads[1], inverted_tetrads[2], inverted_tetrads[3],
+                                          geodesic_ds};
+
+        std::vector<cl::buffer> sub_out = {subsampled_paths, subsampled_velocities,
+                                          subsampled_parallel_transported_tetrads[0], subsampled_parallel_transported_tetrads[1], subsampled_parallel_transported_tetrads[2], subsampled_parallel_transported_tetrads[3],
+                                          subsampled_inverted_tetrads[0], subsampled_inverted_tetrads[1], subsampled_inverted_tetrads[2], subsampled_inverted_tetrads[3],
+                                          subsampled_ds};
+
+        for(int i=0; i < (int)sub_in.size(); i++)
         {
             cl::args args;
-            args.push_back(counts);
-            args.push_back(object_count);
-            args.push_back(geodesic_paths);
-
-            for(int i=0; i < 4; i++)
-                args.push_back(parallel_transported_tetrads[i]);
-
-            args.push_back(geodesic_ds);
-
+            args.push_back(object_count, counts, geodesic_ds);
+            args.push_back(sizes.at(i));
+            args.push_back(sub_in[i]);
+            args.push_back(sub_out[i]);
             args.push_back(subsampled_counts);
-            args.push_back(subsampled_paths);
 
-            for(int i=0; i < 4; i++)
-                args.push_back(subsampled_parallel_transported_tetrads[i]);
-
-            args.push_back(subsampled_ds);
-
-            cqueue.exec("subsample_tri_quantities", args, {object_count}, {256});
+            cqueue.exec("subsample_tri_quantity", args, {object_count}, {256});
         }
 
         needs_trace = false;
