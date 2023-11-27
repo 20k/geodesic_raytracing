@@ -240,7 +240,9 @@ struct physics
         for(int i=0; i < (int)sub_in.size(); i++)
         {
             cl::args args;
-            args.push_back(object_count, counts, geodesic_ds);
+            args.push_back(object_count, counts, geodesic_paths, geodesic_velocities, geodesic_ds);
+            args.push_back(parallel_transported_tetrads[0], parallel_transported_tetrads[1], parallel_transported_tetrads[2], parallel_transported_tetrads[3]);
+            args.push_back(dynamic_config);
             args.push_back(sizes.at(i));
             args.push_back(sub_in[i]);
             args.push_back(sub_out[i]);

@@ -1307,6 +1307,7 @@ float3 cartesian_velocity_to_spherical_velocity_g(float3 v, float3 inv)
     return (float3)(o2, o3, o4);
 }
 
+///This function makes no sense. Why does it take an argument? Its literally unused
 float4 get_coordinate_period(float4 in, dynamic_config_space struct dynamic_config* cfg)
 {
     #ifdef HAS_COORDINATE_PERIODICITY
@@ -4126,8 +4127,13 @@ float4 periodic_diff(float4 in1, float4 in2, float4 periods)
 #define TRI_RAY_SKIP 8
 #endif
 
+///float4 tE1 = coordinate_to_tetrad_basis(approximate_basis[0], e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
+
 __kernel
-void subsample_tri_quantity(int count, __global const int* geodesic_counts, __global const float* geodesic_ds, int element_size, __global const char* data_in, __global char* data_out, __global int* out_counts)
+void subsample_tri_quantity(int count, __global const int* geodesic_counts, __global const float4* geodesic_path, __global const float4* geodesic_velocities, __global const float* geodesic_ds,
+                            __global const float4* t_e0, __global const float4* t_e1, __global const float4* t_e2, __global const float4* t_e3,
+                            dynamic_config_space struct dynamic_config* cfg,
+                            int element_size, __global const char* data_in, __global char* data_out, __global int* out_counts)
 {
     int id = get_global_id(0);
 
@@ -4141,6 +4147,8 @@ void subsample_tri_quantity(int count, __global const int* geodesic_counts, __gl
         out_counts[id] = 0;
         return;
     }
+
+    float4 periods = get_coordinate_period((float4)(0,0,0,0), cfg);
 
     //#define FIXED_SKIPPING
     #ifdef FIXED_SKIPPING
@@ -4166,7 +4174,7 @@ void subsample_tri_quantity(int count, __global const int* geodesic_counts, __gl
     out_counts[id] = next_count;
     #endif // FIXED_SKIPPING
 
-    #define CAPPED_SKIPPING
+    //#define CAPPED_SKIPPING
     #ifdef CAPPED_SKIPPING
     int next_count = 0;
 
@@ -4196,9 +4204,10 @@ void subsample_tri_quantity(int count, __global const int* geodesic_counts, __gl
     out_counts[id] = next_count;
     #endif
 
+    ///need to do this by distance, not time
     //#define DS_SKIPPING
     #ifdef DS_SKIPPING
-    float max_ds = 0.1;
+    float max_ds = 0.5;
     float current_ds_budget = 0;
 
     int next_count = 0;
@@ -4225,6 +4234,68 @@ void subsample_tri_quantity(int count, __global const int* geodesic_counts, __gl
 
         while(current_ds_budget >= max_ds)
             current_ds_budget -= max_ds;
+
+        int out_idx = next_count * count + id;
+
+        for(int i=0; i < element_size; i++)
+            data_out[out_idx * element_size + i] = data_in[current_idx * element_size + i];
+
+        next_count++;
+    }
+
+    printf("Count %i real %i\n", next_count, cnt);
+
+    out_counts[id] = next_count;
+    #endif
+
+    #define DISTANCE_SKIPPING
+    #ifdef DISTANCE_SKIPPING
+    float max_dist = 0.005;
+    float current_budget = 0;
+    float4 last_position;
+
+    int next_count = 0;
+
+    {
+        int current_idx = 0 * count + id;
+
+        last_position = geodesic_path[current_idx];
+
+        for(int i=0; i < element_size; i++)
+            data_out[id * element_size + i] = data_in[current_idx * element_size + i];
+
+        next_count = 1;
+    }
+
+    for(int kk=1; kk < cnt; kk++)
+    {
+        int current_idx = kk * count + id;
+
+        float4 e0 = t_e0[current_idx];
+        float4 e1 = t_e1[current_idx];
+        float4 e2 = t_e2[current_idx];
+        float4 e3 = t_e3[current_idx];
+
+        float4 e_lo[4];
+        get_tetrad_inverse(e0, e1, e2, e3, &e_lo[0], &e_lo[1], &e_lo[2], &e_lo[3]);
+
+        float4 current_position = geodesic_path[current_idx];
+
+        float4 to_next = periodic_diff(current_position, last_position, periods);
+
+        float4 in_tetrad = coordinate_to_tetrad_basis(to_next, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
+
+        last_position = current_position;
+
+        float dist = length(in_tetrad.yzw);
+
+        current_budget += dist;
+
+        if(current_budget < max_dist)
+            continue;
+
+        while(current_budget >= max_dist)
+            current_budget -= max_dist;
 
         int out_idx = next_count * count + id;
 
@@ -5097,6 +5168,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
             bool should_check = true;
 
             float4 rt_real_pos = last_real_pos;
+            ///I think this periodic diff is only necessary in constant theta metrics?
             float4 next_rt_real_pos = periodic_diff(native_position, last_real_pos, periods) + last_real_pos;
             float4 rt_velocity = last_real_velocity;
             //float4 rt_velocity = next_rt_real_pos - rt_real_pos;
