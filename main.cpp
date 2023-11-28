@@ -1018,16 +1018,12 @@ int main(int argc, char* argv[])
     cl::buffer geodesic_vel_buffer(clctx.ctx);
     geodesic_vel_buffer.alloc(max_trace_length * sizeof(cl_float4));
 
-    cl::buffer geodesic_dT_ds_buffer(clctx.ctx);
-    geodesic_dT_ds_buffer.alloc(max_trace_length * sizeof(cl_float));
-
     cl::buffer geodesic_ds_buffer(clctx.ctx);
     geodesic_ds_buffer.alloc(max_trace_length * sizeof(cl_float));
 
     geodesic_count_buffer.set_to_zero(clctx.cqueue);
     geodesic_trace_buffer.set_to_zero(clctx.cqueue);
     geodesic_vel_buffer.set_to_zero(clctx.cqueue);
-    geodesic_dT_ds_buffer.set_to_zero(clctx.cqueue);
     geodesic_ds_buffer.set_to_zero(clctx.cqueue);
 
     cl::buffer generic_geodesic_buffer(clctx.ctx);
@@ -2045,7 +2041,6 @@ int main(int argc, char* argv[])
                 cl::args interpolate_args;
                 interpolate_args.push_back(geodesic_trace_buffer);
                 interpolate_args.push_back(geodesic_vel_buffer);
-                interpolate_args.push_back(geodesic_dT_ds_buffer);
                 interpolate_args.push_back(geodesic_ds_buffer);
                 interpolate_args.push_back(g_camera_pos_generic);
 
@@ -2367,7 +2362,6 @@ int main(int argc, char* argv[])
                 }
 
                 geodesic_trace_buffer.set_to_zero(clctx.cqueue);
-                geodesic_dT_ds_buffer.set_to_zero(clctx.cqueue);
                 geodesic_count_buffer.set_to_zero(clctx.cqueue);
                 geodesic_vel_buffer.set_to_zero(clctx.cqueue);
                 geodesic_ds_buffer.set_to_zero(clctx.cqueue);
@@ -2376,7 +2370,6 @@ int main(int argc, char* argv[])
                 snapshot_args.push_back(generic_geodesic_buffer);
                 snapshot_args.push_back(geodesic_trace_buffer);
                 snapshot_args.push_back(geodesic_vel_buffer);
-                snapshot_args.push_back(geodesic_dT_ds_buffer);
                 snapshot_args.push_back(geodesic_ds_buffer);
                 snapshot_args.push_back(generic_geodesic_count);
 

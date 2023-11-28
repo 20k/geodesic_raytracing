@@ -2631,7 +2631,7 @@ void parallel_transport_quantity(__global float4* geodesic_path, __global float4
 }
 
 __kernel
-void handle_interpolating_geodesic(__global float4* geodesic_path, __global float4* geodesic_velocity, __global float* dT_ds, __global float* ds_in,
+void handle_interpolating_geodesic(__global float4* geodesic_path, __global float4* geodesic_velocity, __global float* ds_in,
                                    __global float4* g_camera_generic_out,
                                    __global float4* t_e0_in, __global float4* t_e1_in, __global float4* t_e2_in, __global float4* t_e3_in,
                                    __global float4* e0_out, __global float4* e1_out, __global float4* e2_out, __global float4* e3_out,
@@ -5650,7 +5650,6 @@ __kernel
 void get_geodesic_path(__global struct lightray* generic_rays_in,
                        __global float4* positions_out,
                        __global float4* velocities_out,
-                       __global float* dT_ds_out,
                        __global float* ds_out,
                        __global int* generic_count_in,
                        int max_path_length,
@@ -5749,9 +5748,8 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         }
 
         float4 next_position, next_velocity, next_acceleration;
-        float dT_ds = 0;
 
-        step_verlet(position, velocity, acceleration, false, ds, &next_position, &next_velocity, &next_acceleration, &dT_ds, cfg);
+        step_verlet(position, velocity, acceleration, false, ds, &next_position, &next_velocity, &next_acceleration, 0, cfg);
 
         #ifdef ADAPTIVE_PRECISION
         if(fabs(r_value) < new_max)
@@ -5834,9 +5832,6 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
 
         if(velocities_out)
             velocities_out[bufc * stride_out + id] = generic_velocity_out;
-
-        if(dT_ds_out)
-            dT_ds_out[bufc * stride_out + id] = dT_ds;
 
         if(ds_out)
             ds_out[bufc * stride_out + id] = ds;

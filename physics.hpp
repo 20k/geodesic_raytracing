@@ -177,7 +177,6 @@ struct physics
             snapshot_args.push_back(timelike_vectors);
             snapshot_args.push_back(geodesic_paths); // position
             snapshot_args.push_back(geodesic_velocities);        // velocity
-            snapshot_args.push_back(nullptr);        // dT_ds
             snapshot_args.push_back(geodesic_ds);    // ds
             snapshot_args.push_back(gpu_object_count);
             snapshot_args.push_back(max_path_length);
