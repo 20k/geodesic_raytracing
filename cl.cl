@@ -2711,7 +2711,7 @@ void handle_interpolating_geodesic(__global float4* geodesic_path, __global floa
         //float dt = next_pos.x - current_pos.x;
         //float next_proper_time = current_proper_time + dT_dt[i] * dt;
 
-        float next_proper_time = current_proper_time + dT_ds[i] * ds_in[i];
+        float next_proper_time = current_proper_time + ds_in[i];
 
         #ifdef INTERPOLATE_USE_COORDINATE_TIME
         if(target_time >= current_pos.x && target_time < next_pos.x || target_time < current_pos.x)
