@@ -4267,7 +4267,7 @@ void subsample_tri_quantity(int count, __global const int* geodesic_counts, __gl
         next_count = 1;
     }
 
-    for(int kk=1; kk < cnt; kk++)
+    for(int kk=1; kk < cnt - 1; kk++)
     {
         int current_idx = kk * count + id;
 
@@ -4297,6 +4297,16 @@ void subsample_tri_quantity(int count, __global const int* geodesic_counts, __gl
         while(current_budget >= max_dist)
             current_budget -= max_dist;
 
+        int out_idx = next_count * count + id;
+
+        for(int i=0; i < element_size; i++)
+            data_out[out_idx * element_size + i] = data_in[current_idx * element_size + i];
+
+        next_count++;
+    }
+
+    {
+        int current_idx = (cnt - 1) * count + id;
         int out_idx = next_count * count + id;
 
         for(int i=0; i < element_size; i++)
