@@ -1693,6 +1693,11 @@ int main(int argc, char* argv[])
 
                         bool has_redshift = dfg.get_feature<bool>("redshift");
 
+                        bool has_reparam = dfg.get_feature<bool>("reparameterisation");
+
+                        if(ImGui::Checkbox("Ray Reparam", &has_reparam))
+                            dfg.set_feature("reparameterisation", has_reparam);
+
                         if(ImGui::Checkbox("Redshift", &has_redshift))
                             dfg.set_feature("redshift", has_redshift);
 
@@ -1716,11 +1721,6 @@ int main(int argc, char* argv[])
                         {
                             ImGui::SetTooltip("Radius at which lightrays raise their precision checking unconditionally");
                         }
-
-                        bool has_reparam = dfg.get_feature<bool>("reparameterisation");
-
-                        if(ImGui::Checkbox("Ray Reparam", &has_reparam))
-                            dfg.set_feature("reparameterisation", has_reparam);
 
                         if(dfg.is_dirty)
                             should_soft_recompile = true;
