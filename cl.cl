@@ -5034,6 +5034,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
     float4 periods = get_coordinate_period(position, cfg);
 
+    float running_dlambda_dnew = 1;
+
     //#pragma unroll
     for(int i=0; i < loop_limit; i++)
     {
@@ -5089,7 +5091,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
         #endif // CYLINDRICAL_SINGULARITY
 
         #ifndef UNCONDITIONALLY_NONSINGULAR
-        if(fabs(velocity.x) > 1000 + f_in_x && fabs(acceleration.x) > 100)
+        if(fabs(velocity.x / running_dlambda_dnew) > 1000 + f_in_x && fabs(acceleration.x / running_dlambda_dnew) > 100)
         {
             if(GET_FEATURE(use_triangle_rendering, dfg))
             {
@@ -5560,9 +5562,13 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
         #ifdef VERLET_INTEGRATION_GENERIC
 
+        float dLambda_dNew = 1;
+
         float4 next_position, next_velocity, next_acceleration;
 
-        step_verlet(position, velocity, acceleration, true, ds, &next_position, &next_velocity, &next_acceleration, 0, cfg);
+        step_verlet(position, velocity, acceleration, true, ds, &next_position, &next_velocity, &next_acceleration, &dLambda_dNew, cfg);
+
+        running_dlambda_dnew *= dLambda_dNew;
 
         #ifdef ADAPTIVE_PRECISION
 
