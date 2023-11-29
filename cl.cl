@@ -3337,47 +3337,6 @@ float4 fix_light_velocity(float4 position, float4 velocity, bool always_lightlik
 ///this is actually regular velocity verlet with no modifications https://en.wikipedia.org/wiki/Verlet_integration#Velocity_Verlet
 void step_verlet(float4 position, float4 velocity, float4 acceleration, bool always_lightlike, float ds, float4* __restrict__ position_out, float4* __restrict__ velocity_out, float4* __restrict__ acceleration_out, dynamic_config_space struct dynamic_config* cfg)
 {
-    #ifdef OLD_METRIC_STEP
-    #ifndef GENERIC_BIG_METRIC
-    float g_metric[4] = {};
-    float g_partials[16] = {};
-    #else
-    float g_metric_big[16] = {};
-    float g_partials_big[64] = {};
-    #endif // GENERIC_BIG_METRIC
-
-    float4 next_position = position + velocity * ds + 0.5f * acceleration * ds * ds;
-
-    float4 intermediate_next_velocity = velocity + acceleration * ds;
-
-    #ifndef GENERIC_BIG_METRIC
-    calculate_metric_generic(next_position, g_metric, cfg);
-    calculate_partial_derivatives_generic(next_position, g_partials, cfg);
-
-    if(g_00_out)
-    {
-        *g_00_out = g_metric[0];
-    }
-
-    ///1ms
-    if(always_lightlike)
-        intermediate_next_velocity = fix_light_velocity2(intermediate_next_velocity, g_metric);
-
-    float4 next_acceleration = calculate_acceleration(intermediate_next_velocity, g_metric, g_partials);
-    #else
-    calculate_metric_generic_big(next_position, g_metric_big, cfg);
-    calculate_partial_derivatives_generic_big(next_position, g_partials_big, cfg);
-
-    if(g_00_out)
-    {
-        *g_00_out = g_metric_big[0];
-    }
-
-    //intermediate_next_velocity = fix_light_velocity_big(intermediate_next_velocity, g_metric_big);
-    float4 next_acceleration = calculate_acceleration_big(intermediate_next_velocity, g_metric_big, g_partials_big);
-    #endif // GENERIC_BIG_METRIC
-    #endif // 0
-
     float4 next_position = position + velocity * ds + 0.5f * acceleration * ds * ds;
     float4 intermediate_next_velocity = velocity + acceleration * ds;
 
