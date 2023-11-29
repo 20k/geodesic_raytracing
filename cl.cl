@@ -5677,6 +5677,8 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
     float4 periods = get_coordinate_period(position, cfg);
     float4 last_pos_generic;
 
+    float running_dlambda_dnew = 1;
+
     //#pragma unroll
     for(int i=0; i < max_path_length; i++)
     {
@@ -5727,9 +5729,13 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
             should_break = true;
         }
 
+        float dLambda_dNew = 1;
+
         float4 next_position, next_velocity, next_acceleration;
 
-        step_verlet(position, velocity, acceleration, false, ds, &next_position, &next_velocity, &next_acceleration, 0, cfg);
+        step_verlet(position, velocity, acceleration, false, ds, &next_position, &next_velocity, &next_acceleration, &dLambda_dNew, cfg);
+
+        running_dlambda_dnew *= dLambda_dNew;
 
         #ifdef ADAPTIVE_PRECISION
         if(fabs(r_value) < new_max)
@@ -5747,7 +5753,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         #endif // ADAPTIVE_PRECISION
 
         #ifndef UNCONDITIONALLY_NONSINGULAR
-        if(fabs(velocity.x) > 1000 + f_in_x && fabs(acceleration.x) > 100)
+        if(fabs(velocity.x / running_dlambda_dnew) > 1000 + f_in_x && fabs(acceleration.x / running_dlambda_dnew) > 100)
         {
             should_break = true;
         }
@@ -5810,6 +5816,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
 
         positions_out[bufc * stride_out + id] = generic_position_out;
 
+        ///do I want to reparameterise?
         if(velocities_out)
             velocities_out[bufc * stride_out + id] = generic_velocity_out;
 
