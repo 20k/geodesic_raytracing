@@ -14,6 +14,10 @@ struct triangle
 #define TRI_PRECESSION
 #endif // FEATURE_precession
 
+#if (FEATURE_reparameterisation == 1)
+#define RAY_REPARAM
+#endif
+
 #define TRI_PRECESSION
 #ifdef TRI_PRECESSION
 struct computed_triangle
@@ -3335,7 +3339,7 @@ float4 fix_light_velocity(float4 position, float4 velocity, bool always_lightlik
 ///it would be useful to be able to combine data from multiple ticks which are separated by some delta, but where I don't have control over that delta
 ///I wonder if a taylor series expansion of F(y + dt) might be helpful
 ///this is actually regular velocity verlet with no modifications https://en.wikipedia.org/wiki/Verlet_integration#Velocity_Verlet
-void step_verlet(float4 position, float4 velocity, float4 acceleration, bool always_lightlike, float ds, float4* __restrict__ position_out, float4* __restrict__ velocity_out, float4* __restrict__ acceleration_out, float* __restrict__ dLambda_dNew, dynamic_config_space struct dynamic_config* cfg)
+void step_verlet(float4 position, float4 velocity, float4 acceleration, bool always_lightlike, float ds, float4* __restrict__ position_out, float4* __restrict__ velocity_out, float4* __restrict__ acceleration_out, float* __restrict__ dLambda_dNew, dynamic_config_space struct dynamic_config* cfg, dynamic_config_space struct dynamic_feature_config* dfg)
 {
     float4 next_position = position + velocity * ds + 0.5f * acceleration * ds * ds;
     float4 intermediate_next_velocity = velocity + acceleration * ds;
@@ -3396,8 +3400,7 @@ void step_verlet(float4 position, float4 velocity, float4 acceleration, bool alw
     ///= (dX/dNew) / K
     ///all of this is fairly obvious but its worth spelling out
 
-    //#define REPARAM
-    #ifndef REPARAM
+    #ifndef RAY_REPARAM
     K = 1;
     #endif
 
@@ -5566,7 +5569,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
         float4 next_position, next_velocity, next_acceleration;
 
-        step_verlet(position, velocity, acceleration, true, ds, &next_position, &next_velocity, &next_acceleration, &dLambda_dNew, cfg);
+        step_verlet(position, velocity, acceleration, true, ds, &next_position, &next_velocity, &next_acceleration, &dLambda_dNew, cfg, dfg);
 
         running_dlambda_dnew *= dLambda_dNew;
 
@@ -5733,7 +5736,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
 
         float4 next_position, next_velocity, next_acceleration;
 
-        step_verlet(position, velocity, acceleration, false, ds, &next_position, &next_velocity, &next_acceleration, &dLambda_dNew, cfg);
+        step_verlet(position, velocity, acceleration, false, ds, &next_position, &next_velocity, &next_acceleration, &dLambda_dNew, cfg, dfg);
 
         running_dlambda_dnew *= dLambda_dNew;
 

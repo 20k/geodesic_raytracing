@@ -864,7 +864,7 @@ int main(int argc, char* argv[])
 
     dynamic_feature_config dfg;
     dfg.add_feature<bool>("use_triangle_rendering");
-    dfg.set_feature("use_triangle_rendering", true);
+    dfg.set_feature("use_triangle_rendering", false);
 
     dfg.add_feature<bool>("redshift");
     dfg.set_feature("redshift", false);
@@ -881,6 +881,10 @@ int main(int argc, char* argv[])
     dfg.add_feature<bool>("precession");
     dfg.set_feature("precession", true);
     dfg.set_always_static("precession", true);
+
+    dfg.add_feature<bool>("reparameterisation");
+    dfg.set_feature("reparameterisation", false);
+    dfg.set_always_static("reparameterisation", true);
 
     //print("WLs %f %f %f\n", chromaticity::srgb_to_wavelength({1, 0, 0}), chromaticity::srgb_to_wavelength({0, 1, 0}), chromaticity::srgb_to_wavelength({0, 0, 1}));
 
@@ -1690,10 +1694,7 @@ int main(int argc, char* argv[])
                         bool has_redshift = dfg.get_feature<bool>("redshift");
 
                         if(ImGui::Checkbox("Redshift", &has_redshift))
-                        {
                             dfg.set_feature("redshift", has_redshift);
-                            should_soft_recompile = true;
-                        }
 
                         float max_acceleration_change = dfg.get_feature<float>("max_acceleration_change");
                         ImGui::InputFloat("Error Tolerance", &max_acceleration_change, 0.0000001f, 0.00001f, "%.8f");
@@ -1715,6 +1716,11 @@ int main(int argc, char* argv[])
                         {
                             ImGui::SetTooltip("Radius at which lightrays raise their precision checking unconditionally");
                         }
+
+                        bool has_reparam = dfg.get_feature<bool>("reparameterisation");
+
+                        if(ImGui::Checkbox("Ray Reparam", &has_reparam))
+                            dfg.set_feature("reparameterisation", has_reparam);
 
                         if(dfg.is_dirty)
                             should_soft_recompile = true;
