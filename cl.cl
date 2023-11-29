@@ -3380,6 +3380,7 @@ void step_verlet(float4 position, float4 velocity, float4 acceleration, bool alw
     //float4 final_velocity = fix_light_velocity(next_position, next_velocity, always_lightlike, cfg);
 
     float max_divisor = max(max(fabs(next_velocity.x), fabs(next_velocity.y)), max(fabs(next_velocity.z), fabs(next_velocity.w)));
+    //float max_divisor = fabs(next_velocity.x);
     float K = 1/max_divisor;
 
     ///so. In the x position we have dt/dlambda
@@ -3397,7 +3398,7 @@ void step_verlet(float4 position, float4 velocity, float4 acceleration, bool alw
 
     //#define REPARAM
     #ifndef REPARAM
-    K = 0;
+    K = 1;
     #endif
 
     if(dLambda_dNew)
@@ -3405,12 +3406,8 @@ void step_verlet(float4 position, float4 velocity, float4 acceleration, bool alw
 
     *position_out = next_position;
 
-    #ifdef REPARAM
-    next_velocity = next_velocity * K;
-    #endif
-
-    *velocity_out = next_velocity;
-    *acceleration_out = next_acceleration;
+    *velocity_out = next_velocity * K;
+    *acceleration_out = next_acceleration * K * K;
 }
 
 void step_euler(float4 position, float4 velocity, float ds, float4* position_out, float4* velocity_out, dynamic_config_space struct dynamic_config* cfg)
