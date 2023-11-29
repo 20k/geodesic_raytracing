@@ -5016,7 +5016,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
     float uniform_coordinate_precision_divisor = max(max(W_V1, W_V2), max(W_V3, W_V4));
 
-    int loop_limit = 4096  * 2;
+    int loop_limit = 4096 * 4;
 
     #ifdef DEVICE_SIDE_ENQUEUE
     loop_limit /= 125;
