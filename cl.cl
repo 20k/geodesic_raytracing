@@ -3335,7 +3335,7 @@ float4 fix_light_velocity(float4 position, float4 velocity, bool always_lightlik
 ///it would be useful to be able to combine data from multiple ticks which are separated by some delta, but where I don't have control over that delta
 ///I wonder if a taylor series expansion of F(y + dt) might be helpful
 ///this is actually regular velocity verlet with no modifications https://en.wikipedia.org/wiki/Verlet_integration#Velocity_Verlet
-void step_verlet(float4 position, float4 velocity, float4 acceleration, bool always_lightlike, float ds, float4* __restrict__ position_out, float4* __restrict__ velocity_out, float4* __restrict__ acceleration_out, float* __restrict__ dT_ds, dynamic_config_space struct dynamic_config* cfg)
+void step_verlet(float4 position, float4 velocity, float4 acceleration, bool always_lightlike, float ds, float4* __restrict__ position_out, float4* __restrict__ velocity_out, float4* __restrict__ acceleration_out, dynamic_config_space struct dynamic_config* cfg)
 {
     #ifdef OLD_METRIC_STEP
     #ifndef GENERIC_BIG_METRIC
@@ -3377,19 +3377,6 @@ void step_verlet(float4 position, float4 velocity, float4 acceleration, bool alw
     float4 next_acceleration = calculate_acceleration_big(intermediate_next_velocity, g_metric_big, g_partials_big);
     #endif // GENERIC_BIG_METRIC
     #endif // 0
-
-    if(dT_ds)
-    {
-        #ifndef GENERIC_BIG_METRIC
-        float g_metric[4] = {};
-        calculate_metric_generic(position, g_metric, cfg);
-        #else
-        float g_metric[16] = {};
-        calculate_metric_generic_big(position, g_metric, cfg);
-        #endif // GENERIC_BIG_METRIC
-
-        *dT_ds = native_sqrt(fabs(dot_product_generic(velocity, velocity, g_metric)));
-    }
 
     float4 next_position = position + velocity * ds + 0.5f * acceleration * ds * ds;
     float4 intermediate_next_velocity = velocity + acceleration * ds;
@@ -5588,7 +5575,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
         float4 next_position, next_velocity, next_acceleration;
 
-        step_verlet(position, velocity, acceleration, true, ds, &next_position, &next_velocity, &next_acceleration, 0, cfg);
+        step_verlet(position, velocity, acceleration, true, ds, &next_position, &next_velocity, &next_acceleration, cfg);
 
         #ifdef ADAPTIVE_PRECISION
 
@@ -5749,7 +5736,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
 
         float4 next_position, next_velocity, next_acceleration;
 
-        step_verlet(position, velocity, acceleration, false, ds, &next_position, &next_velocity, &next_acceleration, 0, cfg);
+        step_verlet(position, velocity, acceleration, false, ds, &next_position, &next_velocity, &next_acceleration, cfg);
 
         #ifdef ADAPTIVE_PRECISION
         if(fabs(r_value) < new_max)
