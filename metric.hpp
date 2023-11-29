@@ -172,7 +172,8 @@ namespace metrics
     {
         tensor<value, 4> velocity = {"iv1", "iv2", "iv3", "iv4"};
 
-        if(inf.is_diagonal())
+        ///this is unnecessary because the light velocity is being dealt with elsewhere
+        /*if(inf.is_diagonal())
         {
             value is_lightlike = "always_lightlike";
 
@@ -182,7 +183,7 @@ namespace metrics
             {
                 velocity.idx(i) = dual_types::if_v(is_lightlike, fixed.idx(i), velocity.idx(i));
             }
-        }
+        }*/
 
         inverse_metric<value, 4, 4> inv = inf.met.invert();
 

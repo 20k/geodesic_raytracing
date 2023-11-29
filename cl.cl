@@ -3335,7 +3335,7 @@ float4 fix_light_velocity(float4 position, float4 velocity, bool always_lightlik
 ///it would be useful to be able to combine data from multiple ticks which are separated by some delta, but where I don't have control over that delta
 ///I wonder if a taylor series expansion of F(y + dt) might be helpful
 ///this is actually regular velocity verlet with no modifications https://en.wikipedia.org/wiki/Verlet_integration#Velocity_Verlet
-void step_verlet(float4 position, float4 velocity, float4 acceleration, bool always_lightlike, float ds, float4* __restrict__ position_out, float4* __restrict__ velocity_out, float4* __restrict__ acceleration_out, dynamic_config_space struct dynamic_config* cfg)
+void step_verlet(float4 position, float4 velocity, float4 acceleration, bool always_lightlike, float ds, float4* __restrict__ position_out, float4* __restrict__ velocity_out, float4* __restrict__ acceleration_out, float* __restrict__ dLambda_dNew, dynamic_config_space struct dynamic_config* cfg)
 {
     float4 next_position = position + velocity * ds + 0.5f * acceleration * ds * ds;
     float4 intermediate_next_velocity = velocity + acceleration * ds;
@@ -3377,8 +3377,39 @@ void step_verlet(float4 position, float4 velocity, float4 acceleration, bool alw
 
     //next_position = handle_coordinate_periodicity(next_position, cfg);
 
+    //float4 final_velocity = fix_light_velocity(next_position, next_velocity, always_lightlike, cfg);
+
+    float max_divisor = max(max(fabs(next_velocity.x), fabs(next_velocity.y)), max(fabs(next_velocity.z), fabs(next_velocity.w)));
+    float K = 1/max_divisor;
+
+    ///so. In the x position we have dt/dlambda
+    ///and our whole ray is parameterised as dX/dlambda
+    ///we have a new divisor for a new parameter, here multiplication by a constant K
+    ///we want to relate the old parameterisatin to the new parameterisation
+    ///dX/dNew = dlambda/dNew * dX/dlambda
+    ///dX/dNew = (dX/dLambda) * K
+    ///1/dNew = K/dLambda
+    ///dLambda/dNew = K, obviously ok i'm bad at rearranging simple equations today
+    ///but ok, so, if we want to recover the original, we have dX/dNew
+    ///so (dX/dNew) / (dLambda/dNew) = dX/dLambda
+    ///= (dX/dNew) / K
+    ///all of this is fairly obvious but its worth spelling out
+
+    //#define REPARAM
+    #ifndef REPARAM
+    K = 0;
+    #endif
+
+    if(dLambda_dNew)
+        *dLambda_dNew = K;
+
     *position_out = next_position;
-    *velocity_out = fix_light_velocity(next_position, next_velocity, always_lightlike, cfg);
+
+    #ifdef REPARAM
+    next_velocity = next_velocity * K;
+    #endif
+
+    *velocity_out = next_velocity;
     *acceleration_out = next_acceleration;
 }
 
@@ -5534,7 +5565,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
         float4 next_position, next_velocity, next_acceleration;
 
-        step_verlet(position, velocity, acceleration, true, ds, &next_position, &next_velocity, &next_acceleration, cfg);
+        step_verlet(position, velocity, acceleration, true, ds, &next_position, &next_velocity, &next_acceleration, 0, cfg);
 
         #ifdef ADAPTIVE_PRECISION
 
@@ -5695,7 +5726,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
 
         float4 next_position, next_velocity, next_acceleration;
 
-        step_verlet(position, velocity, acceleration, false, ds, &next_position, &next_velocity, &next_acceleration, cfg);
+        step_verlet(position, velocity, acceleration, false, ds, &next_position, &next_velocity, &next_acceleration, 0, cfg);
 
         #ifdef ADAPTIVE_PRECISION
         if(fabs(r_value) < new_max)
