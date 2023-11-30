@@ -103,8 +103,7 @@ struct metric_manager
 
             pending_dynamic_program_opt = std::nullopt;
 
-            cl::program pending(context, "cl.cl");
-            pending.build(context, dynamic_argument_string);
+            cl::program pending = cl::build_program_with_cache(context, {"cl.cl"}, true, dynamic_argument_string);
 
             pending_dynamic_program_opt = pending;
 
