@@ -798,6 +798,7 @@ struct lightray
     int sx, sy;
     float ku_uobsu;
     int early_terminate;
+    float running_dlambda_dnew;
 };
 
 #ifdef GENERIC_METRIC
@@ -2970,6 +2971,7 @@ struct lightray geodesic_to_render_ray(int cx, int cy, float4 position, float4 v
     ray.acceleration = lightray_acceleration;
     ray.initial_quat = corrected.inverse_quat;
     ray.early_terminate = 0;
+    ray.running_dlambda_dnew = 1;
 
     {
         float4 uobsu_upper = observer_velocity;
@@ -3035,6 +3037,7 @@ struct lightray geodesic_to_trace_ray(float4 position, float4 velocity, dynamic_
     ray.initial_quat = corrected.inverse_quat;
     ray.early_terminate = 0;
     ray.ku_uobsu = 1;
+    ray.running_dlambda_dnew = 1;
 
     return ray;
 };
@@ -5546,6 +5549,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
             out_ray.acceleration = 0;
             out_ray.ku_uobsu = ray->ku_uobsu;
             out_ray.early_terminate = 0;
+            out_ray.running_dlambda_dnew = running_dlambda_dnew;
 
             finished_rays[out_id] = out_ray;
             return;
@@ -5625,6 +5629,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
     out_ray.initial_quat = ray->initial_quat;
     out_ray.ku_uobsu = ray->ku_uobsu;
     out_ray.early_terminate = 0;
+    out_ray.running_dlambda_dnew = running_dlambda_dnew;
 
     generic_rays_out[out_id] = out_ray;
 }
@@ -6123,7 +6128,7 @@ void render(__global struct lightray* finished_rays, __global int* finished_coun
     float4 position = generic_to_spherical(ray->position, cfg);
     float4 velocity = generic_velocity_to_spherical_velocity(ray->position, ray->velocity, cfg);
 
-    float4 generic_velocity = ray->velocity;
+    float4 generic_velocity = ray->velocity / ray->running_dlambda_dnew;
 
     #ifdef IS_CONSTANT_THETA
     position.z = M_PIf/2;
