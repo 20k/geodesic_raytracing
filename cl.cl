@@ -4154,7 +4154,7 @@ void subsample_tri_quantity(int count, __global const int* geodesic_counts, __gl
     out_counts[id] = next_count;
     #endif // FIXED_SKIPPING
 
-    //#define CAPPED_SKIPPING
+    #define CAPPED_SKIPPING
     #ifdef CAPPED_SKIPPING
     int next_count = 0;
 
@@ -4228,7 +4228,7 @@ void subsample_tri_quantity(int count, __global const int* geodesic_counts, __gl
     out_counts[id] = next_count;
     #endif
 
-    #define DISTANCE_SKIPPING
+    //#define DISTANCE_SKIPPING
     #ifdef DISTANCE_SKIPPING
     float max_dist = 0.005;
     float current_budget = 0;
@@ -5685,7 +5685,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
     float4 periods = get_coordinate_period(position, cfg);
     float4 last_pos_generic;
 
-    float running_dlambda_dnew = 1;
+    double running_dlambda_dnew = 1;
 
     //#pragma unroll
     for(int i=0; i < max_path_length; i++)
@@ -5729,7 +5729,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         #ifndef SINGULAR
         if(fabs(polar_position.y) >= GET_FEATURE(universe_size, dfg))
         #else
-        if(fabs(polar_position.y) < rs*SINGULAR_TERMINATOR || fabs(polar_position.y) >= GET_FEATURE(universe_size, dfg))
+        if(fabs(polar_position.y) >= GET_FEATURE(universe_size, dfg))
         #endif // SINGULAR
         {
             //printf("Escaped\n");
@@ -5750,21 +5750,21 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         {
             int res = calculate_ds_error(ds, next_acceleration, acceleration, max_accel, &next_ds);
 
-            if(res == DS_RETURN)
+            /*if(res == DS_RETURN)
             {
                 should_break = true;
-            }
+            }*/
 
-            if(res == DS_SKIP)
-                continue;
+            //if(res == DS_SKIP)
+            //    continue;
         }
         #endif // ADAPTIVE_PRECISION
 
         #ifndef UNCONDITIONALLY_NONSINGULAR
-        if(fabs(velocity.x / running_dlambda_dnew) > 1000 + f_in_x && fabs(acceleration.x / running_dlambda_dnew) > 100)
+        /*if(fabs(velocity.x / running_dlambda_dnew) > 1000 + f_in_x && fabs(acceleration.x / running_dlambda_dnew) > 100)
         {
             should_break = true;
-        }
+        }*/
         #endif // UNCONDITIONALLY_NONSINGULAR
 
         float4 generic_position_out = position;
@@ -5812,11 +5812,13 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         ///in the event that velocity and acceleration is 0, it'd be ideal to have a fast path
         if(any(IS_DEGENERATE(next_position)) || any(IS_DEGENERATE(next_velocity)) || any(IS_DEGENERATE(next_acceleration)))
         {
-            //printf("Degenerate");
+            printf("Degenerate");
             break;
         }
 
-        //printf("Pos %f %f %f %f\n", next_position.x,next_position.y,next_position.z,next_position.w);
+        printf("Pos %f %f %f %f %i %.128f\n", next_position.x,next_position.y,next_position.z,next_position.w, i, running_dlambda_dnew);
+
+        //printf("Running %f\n", running_dlambda_dnew);
 
         position = next_position;
         velocity = next_velocity;
@@ -5834,7 +5836,10 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         bufc++;
 
         if(should_break)
+        {
+            printf("Should break\n");
             break;
+        }
     }
 
     count_out[id] = bufc;

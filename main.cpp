@@ -864,7 +864,7 @@ int main(int argc, char* argv[])
 
     dynamic_feature_config dfg;
     dfg.add_feature<bool>("use_triangle_rendering");
-    dfg.set_feature("use_triangle_rendering", false);
+    dfg.set_feature("use_triangle_rendering", true);
 
     dfg.add_feature<bool>("redshift");
     dfg.set_feature("redshift", false);
@@ -883,7 +883,7 @@ int main(int argc, char* argv[])
     dfg.set_always_static("precession", true);
 
     dfg.add_feature<bool>("reparameterisation");
-    dfg.set_feature("reparameterisation", false);
+    dfg.set_feature("reparameterisation", true);
     dfg.set_always_static("reparameterisation", true);
 
     //print("WLs %f %f %f\n", chromaticity::srgb_to_wavelength({1, 0, 0}), chromaticity::srgb_to_wavelength({0, 1, 0}), chromaticity::srgb_to_wavelength({0, 0, 1}));
@@ -1013,6 +1013,8 @@ int main(int argc, char* argv[])
 
     cl::buffer geodesic_count_buffer(clctx.ctx);
     geodesic_count_buffer.alloc(sizeof(cl_int));
+
+
 
     int max_trace_length = 64000;
 
