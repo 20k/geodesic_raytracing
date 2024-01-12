@@ -1312,22 +1312,15 @@ int main(int argc, char* argv[])
             save_graphics();
         }
 
-        if(!menu.is_open || menu.dirty_settings)
-        {
-            vec2i real_dim = win.get_window_size();
-
-            menu.sett.width = real_dim.x();
-            menu.sett.height = real_dim.y();
-            menu.sett.vsync_enabled = win.backend->is_vsync();
-            menu.sett.fullscreen = win.backend->is_maximised();
-
-            save_graphics();
-        }
-
-        if((vec2i){menu.sett.width, menu.sett.height} != win.get_window_size())
+        if(((vec2i){menu.sett.width, menu.sett.height} != win.get_window_size() ||
+           menu.sett.vsync_enabled != win.backend->is_vsync() ||
+           menu.sett.fullscreen != win.backend->is_maximised())
+           && !menu.dirty_settings && !menu.is_open)
         {
             menu.sett.width = win.get_window_size().x();
             menu.sett.height = win.get_window_size().y();
+            menu.sett.vsync_enabled = win.backend->is_vsync();
+            menu.sett.fullscreen = win.backend->is_maximised();
 
             save_graphics();
         }
@@ -2015,17 +2008,20 @@ int main(int argc, char* argv[])
                 cl_float2 cl_mouse = {delta.x(), delta.y()};
                 cl_float4 cl_translation = {translation_delta.x(), translation_delta.y(), translation_delta.z(), translation_delta.w()};
 
-                float universe_size = dfg.get_feature<float>("universe_size");
+                if(translation_delta.x() != 0 || translation_delta.y() != 0 || translation_delta.z() != 0 || translation_delta.w() != 0)
+                {
+                    float universe_size = dfg.get_feature<float>("universe_size");
 
-                cl::args controls_args;
-                controls_args.push_back(g_camera_pos_cart);
-                controls_args.push_back(g_camera_quat);
-                controls_args.push_back(cl_mouse);
-                controls_args.push_back(cl_translation);
-                controls_args.push_back(universe_size);
-                controls_args.push_back(dynamic_config);
+                    cl::args controls_args;
+                    controls_args.push_back(g_camera_pos_cart);
+                    controls_args.push_back(g_camera_quat);
+                    controls_args.push_back(cl_mouse);
+                    controls_args.push_back(cl_translation);
+                    controls_args.push_back(universe_size);
+                    controls_args.push_back(dynamic_config);
 
-                clctx.cqueue.exec("handle_controls_free", controls_args, {1}, {1});
+                    clctx.cqueue.exec("handle_controls_free", controls_args, {1}, {1});
+                }
             }
 
             //if(should_set_observer_velocity)
