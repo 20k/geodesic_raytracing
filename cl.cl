@@ -3062,7 +3062,8 @@ void init_inertial_ray(__global float4* g_generic_position_in, int ray_count,
 
     metric_rays[id] = trace;
 
-    atomic_inc(metric_ray_count);
+    if(id == 0)
+        *metric_ray_count = ray_count;
 }
 
 __kernel
