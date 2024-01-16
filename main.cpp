@@ -2007,7 +2007,7 @@ int main(int argc, char* argv[])
                 cl_float2 cl_mouse = {delta.x(), delta.y()};
                 cl_float4 cl_translation = {translation_delta.x(), translation_delta.y(), translation_delta.z(), translation_delta.w()};
 
-                if(translation_delta.x() != 0 || translation_delta.y() != 0 || translation_delta.z() != 0 || translation_delta.w() != 0)
+                if(translation_delta.x() != 0 || translation_delta.y() != 0 || translation_delta.z() != 0 || translation_delta.w() != 0 || delta.x() != 0 || delta.y() != 0)
                 {
                     float universe_size = dfg.get_feature<float>("universe_size");
 
