@@ -4,7 +4,7 @@ add_requireconfs("*", {configs = {shared = false}, system=false})
 add_requires("zlib")
 add_requires("freetype")
 add_requires("openssl", "opengl", "glfw", "glew", "sfml")
-add_requires("boost", {configs={filesystem=true}})
+add_requires("boost", {})
 
 add_files("workshop/steam_ugc_manager.cpp")
 add_files("deps/imgui/backends/imgui_impl_glfw.cpp")
@@ -57,9 +57,6 @@ set_optimize("fastest")
 add_linkdirs("deps/steamworks_sdk_153a/sdk/redistributable_bin/win64/")
 add_links("steam_api64")
 add_links("imm32")
-
---add_packages("boost") causes compilation to fail
-add_ldflags("-l:libboost_filesystem-mt.a")
 
 if is_plat("mingw") then
     add_ldflags("-static -static-libstdc++")
