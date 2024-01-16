@@ -884,7 +884,6 @@ int main(int argc, char* argv[])
 
     dfg.add_feature<bool>("reparameterisation");
     dfg.set_feature("reparameterisation", false);
-    dfg.set_always_static("reparameterisation", true);
 
     //print("WLs %f %f %f\n", chromaticity::srgb_to_wavelength({1, 0, 0}), chromaticity::srgb_to_wavelength({0, 1, 0}), chromaticity::srgb_to_wavelength({0, 0, 1}));
 
