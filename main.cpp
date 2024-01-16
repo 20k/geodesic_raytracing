@@ -814,7 +814,7 @@ int main(int argc, char* argv[])
     }
     else
     {
-        //win.backend->set_is_maximised(true);
+        win.backend->set_is_maximised(true);
         win.backend->clear_demaximise_cache();
     }
 
