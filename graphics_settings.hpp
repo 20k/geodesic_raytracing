@@ -7,6 +7,9 @@
 
 struct graphics_settings : serialisable, free_function
 {
+    int pos_x = 0;
+    int pos_y = 0;
+
     int width = 1920;
     int height = 1080;
 

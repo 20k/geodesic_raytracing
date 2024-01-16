@@ -410,6 +410,11 @@ struct main_menu
         should_open = false;
     }
 
+    bool in_settings()
+    {
+        return state == SETTINGS && is_open;
+    }
+
     void display(render_window& win, input_manager& input, background_images& bi)
     {
         if(state == SETTINGS)
@@ -801,6 +806,10 @@ int main(int argc, char* argv[])
     }
 
     render_window win(sett, "Geodesics");
+
+    #ifdef REMEMBER_SIZE
+    win.backend->set_window_position({menu.sett.pos_x, menu.sett.pos_y});
+    #endif // REMEMBER_SIZE
 
     if(loaded_settings)
     {
@@ -1308,21 +1317,29 @@ int main(int argc, char* argv[])
                 win.backend->set_is_maximised(menu.sett.fullscreen);
             }
 
+            if(win.backend->get_window_position() != (vec2i){menu.sett.pos_x, menu.sett.pos_y})
+            {
+                win.backend->set_window_position({menu.sett.pos_x, menu.sett.pos_y});
+            }
+
             save_graphics();
         }
 
         if(((vec2i){menu.sett.width, menu.sett.height} != win.get_window_size() ||
            menu.sett.vsync_enabled != win.backend->is_vsync() ||
-           menu.sett.fullscreen != win.backend->is_maximised())
-           && !menu.dirty_settings && !menu.is_open)
+           menu.sett.fullscreen != win.backend->is_maximised() ||
+           (vec2i){menu.sett.pos_x, menu.sett.pos_y} != win.backend->get_window_position())
+           && !menu.dirty_settings && !menu.in_settings())
         {
             menu.sett.width = win.get_window_size().x();
             menu.sett.height = win.get_window_size().y();
             menu.sett.vsync_enabled = win.backend->is_vsync();
             menu.sett.fullscreen = win.backend->is_maximised();
+            menu.sett.pos_x = win.backend->get_window_position().x();
+            menu.sett.pos_y = win.backend->get_window_position().y();
 
             save_graphics();
-        }
+       }
 
         menu.dirty_settings = false;
 

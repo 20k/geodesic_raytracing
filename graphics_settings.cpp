@@ -9,6 +9,8 @@
 
 DEFINE_SERIALISE_FUNCTION(graphics_settings)
 {
+    DO_FSERIALISE(pos_x);
+    DO_FSERIALISE(pos_y);
     DO_FSERIALISE(width);
     DO_FSERIALISE(height);
     DO_FSERIALISE(fullscreen);
@@ -27,6 +29,9 @@ DEFINE_SERIALISE_FUNCTION(graphics_settings)
 
 bool graphics_settings::display_video_settings()
 {
+    ImGui::InputInt("Position (x)", &pos_x);
+    ImGui::InputInt("Position (y)", &pos_y);
+
     ImGui::InputInt("Width", &width);
     ImGui::InputInt("Height", &height);
 
