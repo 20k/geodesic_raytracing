@@ -2166,8 +2166,6 @@ int main(int argc, char* argv[])
                 ///should invert geodesics is unused for the moment
                 int isnap = 0;
 
-                float on_geodesic = camera_on_geodesic ? 1 : 0;
-
                 cl_int prepass_width = width/16;
                 cl_int prepass_height = height/16;
 
