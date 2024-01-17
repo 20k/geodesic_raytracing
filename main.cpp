@@ -132,18 +132,6 @@ vec4f cartesian_to_schwarz(vec4f position)
     return (vec4f){position.x(), polar.x(), polar.y(), polar.z()};
 }
 
-struct lightray
-{
-    cl_float4 position;
-    cl_float4 velocity;
-    cl_float4 initial_quat;
-    cl_float4 acceleration;
-    cl_uint sx, sy;
-    cl_float ku_uobsu;
-    cl_int early_terminate;
-    cl_float running_dlambda_dnew;
-};
-
 #define GENERIC_METRIC
 
 void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& rays_out,
