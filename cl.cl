@@ -2123,6 +2123,7 @@ float4 parallel_transport_get_velocity(float4 X, float4 geodesic_position, float
     return (float4){vel[0], vel[1], vel[2], vel[3]};
 }
 
+#if 0
 __kernel
 void init_basis_speed(__global float4* camera_rot, float speed, __global float4* basis_speed_out)
 {
@@ -2135,73 +2136,7 @@ void init_basis_speed(__global float4* camera_rot, float speed, __global float4*
 
     *basis_speed_out = (float4)(normalize(rotated) * speed, 0);
 }
-
-///ok I've been procrastinating this for a while
-///I want to parallel transport my camera vectors, if and only if I'm on a geodesic
-///so: I need to first define local camera vectors
-///then I need to get a local tetrad
-///then I need to multiply my camera vectors out by the tetrad to get them in global coordinates. This means converting from a tetrad basis, to a coordinate basis
-///once in global coordinates, I need to parallel transport them
-///then, to render, I.. want to convert them back to a tetrad basis?
-__kernel
-void handle_controls_free(__global float4* camera_pos_cart, __global float4* camera_rot,
-                          float2 mouse_delta, float4 unrotated_translation, float universe_size,
-                          dynamic_config_space struct dynamic_config* cfg)
-{
-    ///translation is: .x is forward - back, .y = right - left, .z = down - up
-    ///totally arbitrary, purely to pass to the GPU
-    if(get_global_id(0) != 0)
-        return;
-
-    float4 local_camera_quat = *camera_rot;
-
-    if(mouse_delta.x != 0)
-    {
-        float4 q = aa_to_quat((float3)(0, 0, -1), mouse_delta.x);
-
-        local_camera_quat = quat_multiply(q, local_camera_quat);
-    }
-
-    {
-        float3 right = rot_quat((float3){1, 0, 0}, local_camera_quat);
-
-        if(mouse_delta.y != 0)
-        {
-            float4 q = aa_to_quat(right, mouse_delta.y);
-
-            local_camera_quat = quat_multiply(q, local_camera_quat);
-        }
-    }
-
-    float4 local_camera_pos_cart = *camera_pos_cart;
-
-    float3 up = {0, 0, -1};
-    float3 right = rot_quat((float3){1, 0, 0}, local_camera_quat);
-    float3 forw = rot_quat((float3){0, 0, 1}, local_camera_quat);
-
-    float3 offset = {0,0,0};
-
-    offset += forw * unrotated_translation.x;
-    offset += right * unrotated_translation.y;
-    offset += up * unrotated_translation.z;
-
-    local_camera_pos_cart.x += unrotated_translation.w;
-    local_camera_pos_cart.y += offset.x;
-    local_camera_pos_cart.z += offset.y;
-    local_camera_pos_cart.w += offset.z;
-
-    {
-        float rad = length(local_camera_pos_cart.yzw);
-
-        if(rad > universe_size * 0.99f)
-        {
-            local_camera_pos_cart.yzw = normalize(local_camera_pos_cart.yzw) * universe_size * 0.99f;
-        }
-    }
-
-    *camera_pos_cart = local_camera_pos_cart;
-    *camera_rot = local_camera_quat;
-}
+#endif
 
 /*__kernel
 void quat_to_basis(__global float4* camera_quat,
@@ -6786,20 +6721,3 @@ void camera_polar_to_generic(__global float4* g_camera_pos_polar, __global float
     *g_camera_pos_generic = spherical_to_generic(*g_camera_pos_polar, cfg);
 }
 
-__kernel
-void advance_time(__global float4* camera, float time)
-{
-    if(get_global_id(0) != 0)
-        return;
-
-    camera->x += time;
-}
-
-__kernel
-void set_time(__global float4* camera, float time)
-{
-    if(get_global_id(0) != 0)
-        return;
-
-    camera->x = time;
-}
