@@ -1208,13 +1208,17 @@ int main(int argc, char* argv[])
 
     print("Pre main\n");
 
-    cl::command_queue mqueue(clctx.ctx, 1 << 9);
+    #ifdef UNSTRUCTURED
+    std::array<cl::command_queue, 3> cqueues{clctx.ctx, clctx.ctx, clctx.ctx};
+    #else
+    cl::command_queue mqueue(clctx.ctx, 1<<9);
+    #endif
 
     std::vector<render_state> states;
 
     for(int i=0; i < 3; i++)
     {
-        states.emplace_back(clctx.ctx, mqueue);
+        states.emplace_back(clctx.ctx, clctx.cqueue);
         states[i].realloc(start_width, start_height);
     }
 
@@ -1239,6 +1243,9 @@ int main(int argc, char* argv[])
     while(!win.should_close() && !menu.should_quit && fullscreen.open)
     {
         render_state& st = states[which_state];
+        #ifdef UNSTRUCTURED
+        cl::command_queue& mqueue = cqueues[which_state];
+        #endif
 
         which_state = (which_state + 1) % states.size();
 
@@ -2408,7 +2415,7 @@ int main(int argc, char* argv[])
         once = true;
     }
 
-    mqueue.block();
+    //mqueue.block();
     clctx.cqueue.block();
 
     return 0;
