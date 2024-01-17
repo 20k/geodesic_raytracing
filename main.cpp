@@ -676,41 +676,6 @@ std::vector<triangle> make_cube(vec3f pos)
     return tris;
 }
 
-float positive_fmod(float a, float b)
-{
-    /*float v = fmod(a, b);
-
-    if(v < 0.f)
-       v += b;
-
-    return v;*/
-
-    return a - floor(a/b)*b;
-}
-
-float circular_diff_p(float f1, float f2, float period)
-{
-    f1 = positive_fmod(f1, period);
-    f2 = positive_fmod(f2, period);
-
-    float df = f2 - f1;
-
-    if(df >= 0)
-    {
-        if(df >= period/2.f)
-            return period - df;
-        else
-            return df;
-    }
-    else
-    {
-        if(df <= -period/2.f)
-            return -(period - (-df));
-        else
-            return df;
-    }
-}
-
 void DragFloatCol(const std::string& name, cl_float4& val, int highlight)
 {
     ImGui::BeginGroup();
