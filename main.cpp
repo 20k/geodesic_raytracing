@@ -26,6 +26,7 @@
 #include "triangle_manager.hpp"
 #include "physics.hpp"
 #include "dynamic_feature_config.hpp"
+#include "render_state.hpp"
 //#include "dual_complex.hpp"
 
 /**
@@ -1029,14 +1030,6 @@ int main(int argc, char* argv[])
         parallel_transported_tetrads[i].alloc(max_trace_length * sizeof(cl_float4));
         parallel_transported_tetrads[i].set_to_zero(clctx.cqueue);
     }
-
-    cl::buffer timelike_geodesic_pos{clctx.ctx};
-    timelike_geodesic_pos.alloc(sizeof(cl_float4));
-    timelike_geodesic_pos.set_to_zero(clctx.cqueue);
-
-    cl::buffer timelike_geodesic_vel{clctx.ctx};
-    timelike_geodesic_vel.alloc(sizeof(cl_float4));
-    timelike_geodesic_vel.set_to_zero(clctx.cqueue);
 
     print("Alloc trace buffer\n");
 

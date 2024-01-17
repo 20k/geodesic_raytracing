@@ -187,6 +187,7 @@
 		<Unit filename="print.hpp" />
 		<Unit filename="raw_input.cpp" />
 		<Unit filename="raw_input.hpp" />
+		<Unit filename="render_state.hpp" />
 		<Unit filename="scripts/alcubierre.js">
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>
