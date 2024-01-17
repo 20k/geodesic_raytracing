@@ -1028,7 +1028,6 @@ int main(int argc, char* argv[])
 
     read_queue_pool<cl_float4> camera_q;
     read_queue_pool<cl_float4> geodesic_q;
-    read_queue_pool<cl_float4> camera_polar_q;
     read_queue_pool<cl_int> timelike_q;
 
     print("Finished async read queue init\n");
@@ -1219,7 +1218,6 @@ int main(int argc, char* argv[])
 
     std::optional<cl_float4> last_camera_pos;
     std::optional<cl_float4> last_geodesic_velocity;
-    std::optional<cl_float4> last_camera_pos_polar;
     std::optional<cl_int> last_timelike_coordinate;
 
     auto save_graphics = [&]()
@@ -1519,18 +1517,12 @@ int main(int argc, char* argv[])
 
             {
                 std::vector<cl_float4> cam_data = camera_q.fetch();
-                std::vector<cl_float4> cam_data_polar = camera_polar_q.fetch();
                 std::vector<cl_float4> geodesic_data = geodesic_q.fetch();
                 std::vector<cl_int> timelike_data = timelike_q.fetch();
 
                 if(cam_data.size() > 0)
                 {
                     last_camera_pos = cam_data.back();
-                }
-
-                if(cam_data_polar.size() > 0)
-                {
-                    last_camera_pos_polar = cam_data_polar.back();
                 }
 
                 if(geodesic_data.size() > 0)
@@ -1807,7 +1799,7 @@ int main(int argc, char* argv[])
 
             dfg.alloc_and_write_gpu_buffer(mqueue, dynamic_feature_buffer);
 
-            if(dfg.get_feature<bool>("use_triangle_rendering") && should_chuck_object && last_camera_pos_polar.has_value())
+            if(dfg.get_feature<bool>("use_triangle_rendering") && should_chuck_object)
             {
                 std::shared_ptr<triangle_rendering::object> obj = tris.make_new();
 
