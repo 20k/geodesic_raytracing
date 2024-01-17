@@ -773,6 +773,101 @@ struct camera
     }
 };
 
+template<typename T>
+struct mt_queue
+{
+    std::mutex mut;
+    std::vector<T> dat;
+
+    void push(T&& in)
+    {
+        std::scoped_lock lck(mut);
+        dat.push_back(std::move(in));
+    }
+
+    std::optional<T> pop()
+    {
+        std::scoped_lock lck(mut);
+        T val = std::move(dat.back());
+        dat.pop_back();
+        return val;
+    }
+};
+
+struct event_data
+{
+    vec2f mouse;
+    vec4f keyboard;
+};
+
+struct resize_data
+{
+    vec2i size;
+};
+
+struct shared_data
+{
+    mt_queue<event_data> event_q;
+    mt_queue<resize_data> resize_q;
+
+    mt_queue<cl::image> finished_textures;
+
+    std::atomic_bool is_open{true};
+
+    std::mutex data_lock;
+    float universe_size = 0;
+};
+
+void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size)
+{
+    cl::command_queue cqueue(ctx, 1<<9);
+
+    std::vector<render_state> states;
+
+    for(int i=0; i < 3; i++)
+    {
+        states.emplace_back(ctx, cqueue);
+        states[i].realloc(start_size.x(), start_size.y());
+    }
+
+    camera cam;
+
+    vec2i window_size = start_size;
+
+    while(shared.is_open)
+    {
+        while(auto opt = shared.resize_q.pop())
+        {
+            resize_data& next_size = opt.value();
+
+            for(auto& i : states)
+            {
+                i.realloc(next_size.size.x(), next_size.size.y());
+                window_size = next_size.size;
+            }
+        }
+
+        while(auto opt = shared.event_q.pop())
+        {
+            float universe_size = 0;
+
+            {
+                std::scoped_lock lck(shared.data_lock);
+                universe_size = shared.universe_size;
+            }
+
+            cam.handle_input(opt.value().mouse, opt.value().keyboard, universe_size);
+        }
+
+        cl_image_format fmt;
+        fmt.image_channel_order = CL_RGBA;
+        fmt.image_channel_data_type = CL_UNSIGNED_INT8;
+
+        cl::image img(ctx);
+        img.alloc({window_size.x(), window_size.y()}, fmt);
+    }
+}
+
 ///i need the ability to have dynamic parameters
 int main(int argc, char* argv[])
 {
