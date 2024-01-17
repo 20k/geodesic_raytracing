@@ -1234,11 +1234,13 @@ int main(int argc, char* argv[])
 
     camera cam;
 
+    int which_state = 0;
+
     while(!win.should_close() && !menu.should_quit && fullscreen.open)
     {
-        int which_st = 0;
+        render_state& st = states[which_state];
 
-        render_state& st = states[which_st];
+        which_state = (which_state + 1) % states.size();
 
         dfg.alloc_and_write_gpu_buffer(mqueue, dynamic_feature_buffer);
 
@@ -1510,7 +1512,8 @@ int main(int argc, char* argv[])
                 width = std::max(width, 16 * menu.sett.supersample_factor);
                 height = std::max(height, 16 * menu.sett.supersample_factor);
 
-                st.realloc(width, height);
+                for(auto& i : states)
+                    i.realloc(width, height);
 
                 last_supersample = menu.sett.supersample;
                 last_supersample_mult = menu.sett.supersample_factor;
