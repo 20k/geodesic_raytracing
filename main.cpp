@@ -701,6 +701,12 @@ struct camera
     vec4f pos;
     quat rot;
 
+    camera()
+    {
+        pos = {0, 0, -4, 0};
+        rot.load_from_axis_angle({1, 0, 0, -M_PI/2});
+    }
+
     void handle_input(vec2f mouse_delta, vec4f keyboard_input, float universe_size)
     {
         ///translation is: .x is forward - back, .y = right - left, .z = down - up

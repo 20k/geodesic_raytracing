@@ -83,19 +83,6 @@ struct render_state
 
         accel_ray_time_min.alloc(sizeof(cl_int));
         accel_ray_time_max.alloc(sizeof(cl_int));
-
-        {
-            cl_float4 camera_start_pos = {0, 0, -4, 0};
-
-            quat camera_start_quat;
-            camera_start_quat.load_from_axis_angle({1, 0, 0, -M_PI/2});
-
-            //g_camera_pos_cart.write(cqueue, std::span{&camera_start_pos, 1});
-
-            cl_float4 as_cl_camera_quat = {camera_start_quat.q.x(), camera_start_quat.q.y(), camera_start_quat.q.z(), camera_start_quat.q.w()};
-
-            //g_camera_quat.write(cqueue, std::span{&as_cl_camera_quat, 1});
-        }
     }
 
     void realloc(uint32_t width, uint32_t height)
