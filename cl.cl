@@ -944,7 +944,7 @@ struct dynamic_feature_config
 #define dynamic_config_space __constant
 
 #ifndef GENERIC_BIG_METRIC
-void calculate_metric_generic(float4 spacetime_position, float g_metric_out[], dynamic_config_space struct dynamic_config* cfg)
+void calculate_metric_generic(float4 spacetime_position, float g_metric_out[], dynamic_config_space const struct dynamic_config* cfg)
 {
     float v1 = spacetime_position.x;
     float v2 = spacetime_position.y;
@@ -962,7 +962,7 @@ void calculate_metric_generic(float4 spacetime_position, float g_metric_out[], d
     g_metric_out[3] = F4_I;
 }
 
-void calculate_partial_derivatives_generic(float4 spacetime_position, float g_metric_partials[], dynamic_config_space struct dynamic_config* cfg)
+void calculate_partial_derivatives_generic(float4 spacetime_position, float g_metric_partials[], dynamic_config_space const struct dynamic_config* cfg)
 {
     float v1 = spacetime_position.x;
     float v2 = spacetime_position.y;
@@ -998,7 +998,7 @@ void calculate_partial_derivatives_generic(float4 spacetime_position, float g_me
 ///[8, 9, 10,11]
 ///[12,13,14,15]
 #ifdef GENERIC_BIG_METRIC
-void calculate_metric_generic_big(float4 spacetime_position, float g_metric_out[], dynamic_config_space struct dynamic_config* cfg)
+void calculate_metric_generic_big(float4 spacetime_position, float g_metric_out[], dynamic_config_space const struct dynamic_config* cfg)
 {
     float v1 = spacetime_position.x;
     float v2 = spacetime_position.y;
@@ -1028,7 +1028,7 @@ void calculate_metric_generic_big(float4 spacetime_position, float g_metric_out[
     g_metric_out[15] = F16_I;
 }
 
-void calculate_partial_derivatives_generic_big(float4 spacetime_position, float g_metric_partials[], dynamic_config_space struct dynamic_config* cfg)
+void calculate_partial_derivatives_generic_big(float4 spacetime_position, float g_metric_partials[], dynamic_config_space const struct dynamic_config* cfg)
 {
     //#define NUMERICAL_DIFFERENTIATION
     #ifdef NUMERICAL_DIFFERENTIATION
@@ -1177,7 +1177,7 @@ void calculate_partial_derivatives_generic_big(float4 spacetime_position, float 
 }
 #endif // GENERIC_BIG_METRIC
 
-float4 generic_to_spherical(float4 in, dynamic_config_space struct dynamic_config* cfg)
+float4 generic_to_spherical(float4 in, dynamic_config_space const struct dynamic_config* cfg)
 {
     float v1 = in.x;
     float v2 = in.y;
@@ -1192,7 +1192,7 @@ float4 generic_to_spherical(float4 in, dynamic_config_space struct dynamic_confi
     return (float4)(o1, o2, o3, o4);
 }
 
-float4 generic_velocity_to_spherical_velocity(float4 in, float4 inv, dynamic_config_space struct dynamic_config* cfg)
+float4 generic_velocity_to_spherical_velocity(float4 in, float4 inv, dynamic_config_space const struct dynamic_config* cfg)
 {
     float v1 = in.x;
     float v2 = in.y;
@@ -1212,7 +1212,7 @@ float4 generic_velocity_to_spherical_velocity(float4 in, float4 inv, dynamic_con
     return (float4)(o1, o2, o3, o4);
 }
 
-float4 spherical_to_generic(float4 in, dynamic_config_space struct dynamic_config* cfg)
+float4 spherical_to_generic(float4 in, dynamic_config_space const struct dynamic_config* cfg)
 {
     float v1 = in.x;
     float v2 = in.y;
@@ -1227,7 +1227,7 @@ float4 spherical_to_generic(float4 in, dynamic_config_space struct dynamic_confi
     return (float4)(o1, o2, o3, o4);
 }
 
-float4 spherical_velocity_to_generic_velocity(float4 in, float4 inv, dynamic_config_space struct dynamic_config* cfg)
+float4 spherical_velocity_to_generic_velocity(float4 in, float4 inv, dynamic_config_space const struct dynamic_config* cfg)
 {
     float v1 = in.x;
     float v2 = in.y;
@@ -1247,14 +1247,14 @@ float4 spherical_velocity_to_generic_velocity(float4 in, float4 inv, dynamic_con
     return (float4)(o1, o2, o3, o4);
 }
 
-float4 generic_to_cartesian(float4 in, dynamic_config_space struct dynamic_config* cfg)
+float4 generic_to_cartesian(float4 in, dynamic_config_space const struct dynamic_config* cfg)
 {
     float4 spherical = generic_to_spherical(in, cfg);
 
     return (float4)(spherical.x, polar_to_cartesian(spherical.yzw));
 }
 
-float4 generic_velocity_to_cartesian_velocity(float4 in, float4 in_v, dynamic_config_space struct dynamic_config* cfg)
+float4 generic_velocity_to_cartesian_velocity(float4 in, float4 in_v, dynamic_config_space const struct dynamic_config* cfg)
 {
     float4 spherical = generic_to_spherical(in, cfg);
     float4 spherical_v = generic_velocity_to_spherical_velocity(in, in_v, cfg);
@@ -1262,14 +1262,14 @@ float4 generic_velocity_to_cartesian_velocity(float4 in, float4 in_v, dynamic_co
     return (float4)(spherical_v.x, spherical_velocity_to_cartesian_velocity(spherical.yzw, spherical_v.yzw));
 }
 
-float4 cartesian_to_generic(float4 in, dynamic_config_space struct dynamic_config* cfg)
+float4 cartesian_to_generic(float4 in, dynamic_config_space const struct dynamic_config* cfg)
 {
     float3 polar = cartesian_to_polar(in.yzw);
 
     return spherical_to_generic((float4)(in.x, polar), cfg);
 }
 
-float4 cartesian_velocity_to_generic_velocity(float4 in, float4 in_v, dynamic_config_space struct dynamic_config* cfg)
+float4 cartesian_velocity_to_generic_velocity(float4 in, float4 in_v, dynamic_config_space const struct dynamic_config* cfg)
 {
     float3 polar = cartesian_to_polar(in.yzw);
     float3 polar_v = cartesian_velocity_to_polar_velocity(in.yzw, in_v.yzw);
@@ -1313,7 +1313,7 @@ float3 cartesian_velocity_to_spherical_velocity_g(float3 v, float3 inv)
 }
 
 ///This function makes no sense. Why does it take an argument? Its literally unused
-float4 get_coordinate_period(float4 in, dynamic_config_space struct dynamic_config* cfg)
+float4 get_coordinate_period(float4 in, dynamic_config_space const struct dynamic_config* cfg)
 {
     #ifdef HAS_COORDINATE_PERIODICITY
     float v1 = in.x;
@@ -1352,7 +1352,7 @@ float4 positive_fmod4(float4 a, float4 b)
                     positive_fmod(a.w, b.w));
 }
 
-float4 handle_coordinate_periodicity(float4 in, dynamic_config_space struct dynamic_config* cfg)
+float4 handle_coordinate_periodicity(float4 in, dynamic_config_space const struct dynamic_config* cfg)
 {
     float4 periods = get_coordinate_period(in, cfg);
 
@@ -1975,7 +1975,7 @@ float3 calculate_pixel_direction(int cx, int cy, float width, float height, floa
     return pixel_direction;
 }
 
-int should_early_terminate(int x, int y, int width, int height, __global int* termination_buffer)
+int should_early_terminate(int x, int y, int width, int height, __global const int* termination_buffer)
 {
     if(x < 0 || y < 0 || x > width-1 || y > height-1)
         return false;
@@ -2078,7 +2078,7 @@ float4 matrix_to_quat(float m[9])
 }
 
 ///https://physics.stackexchange.com/questions/524242/parallel-transport-of-a-vectors
-float4 parallel_transport_get_velocity(float4 X, float4 geodesic_position, float4 geodesic_velocity, dynamic_config_space struct dynamic_config* cfg)
+float4 parallel_transport_get_velocity(float4 X, float4 geodesic_position, float4 geodesic_velocity, dynamic_config_space const struct dynamic_config* cfg)
 {
     float X_arr[4] = {X.x, X.y, X.z, X.w};
     float Y_arr[4] = {geodesic_velocity.x, geodesic_velocity.y, geodesic_velocity.z, geodesic_velocity.w};
@@ -2173,7 +2173,7 @@ float4 get_timelike_vector(float3 cartesian_basis_speed, float time_direction,
 }
 
 __kernel
-void calculate_timelike_coordinate(__global float4* generic_position, dynamic_config_space struct dynamic_config* cfg, __global int* coordinate_out)
+void calculate_timelike_coordinate(__global const float4* generic_position, dynamic_config_space const struct dynamic_config* cfg, __global int* coordinate_out)
 {
     if(get_global_id(0) != 0)
         return;
@@ -2204,7 +2204,7 @@ void calculate_timelike_coordinate(__global float4* generic_position, dynamic_co
 
 void calculate_tetrads(float4 at_metric, float3 cartesian_basis_speed,
                        float4* e0_out, float4* e1_out, float4* e2_out, float4* e3_out,
-                       dynamic_config_space struct dynamic_config* cfg, int should_orient)
+                       dynamic_config_space const struct dynamic_config* cfg, int should_orient)
 {
     float4 polar_camera = generic_to_spherical(at_metric, cfg);
 
@@ -2396,7 +2396,7 @@ void calculate_tetrads(float4 at_metric, float3 cartesian_basis_speed,
 __kernel
 void boost_tetrad(__global float4* generic_in, int count, __global float3* geodesic_basis_speed,
                   __global float4* e0_io, __global float4* e1_io, __global float4* e2_io, __global float4* e3_io,
-                  dynamic_config_space struct dynamic_config* cfg)
+                  dynamic_config_space const struct dynamic_config* cfg)
 {
     int id = get_global_id(0);
 
@@ -2436,10 +2436,10 @@ void boost_tetrad(__global float4* generic_in, int count, __global float3* geode
 }
 
 __kernel
-void init_basis_vectors(__global float4* generic_in, int count,
+void init_basis_vectors(__global const float4* generic_in, int count,
                         float3 cartesian_basis_speed,
                         __global float4* e0_out, __global float4* e1_out, __global float4* e2_out, __global float4* e3_out,
-                        dynamic_config_space struct dynamic_config* cfg)
+                        dynamic_config_space const struct dynamic_config* cfg)
 {
     int id = get_global_id(0);
 
@@ -2518,7 +2518,7 @@ void calculate_tetrad_inverse(__global int* global_count, int count,
 }
 
 __kernel
-void parallel_transport_quantity(__global float4* geodesic_path, __global float4* geodesic_velocity, __global float* ds_in, __global float4* quantity, __global int* count_in, int count, __global float4* quantity_out, dynamic_config_space struct dynamic_config* cfg)
+void parallel_transport_quantity(__global float4* geodesic_path, __global float4* geodesic_velocity, __global float* ds_in, __global float4* quantity, __global int* count_in, int count, __global float4* quantity_out, dynamic_config_space const struct dynamic_config* cfg)
 {
     int id = get_global_id(0);
 
@@ -2571,16 +2571,16 @@ void parallel_transport_quantity(__global float4* geodesic_path, __global float4
 }
 
 __kernel
-void handle_interpolating_geodesic(__global float4* geodesic_path, __global float4* geodesic_velocity, __global float* ds_in,
+void handle_interpolating_geodesic(__global const float4* geodesic_path, __global const float4* geodesic_velocity, __global const float* ds_in,
                                    __global float4* g_camera_generic_out,
-                                   __global float4* t_e0_in, __global float4* t_e1_in, __global float4* t_e2_in, __global float4* t_e3_in,
+                                   __global const float4* t_e0_in, __global const float4* t_e1_in, __global const float4* t_e2_in, __global const float4* t_e3_in,
                                    __global float4* e0_out, __global float4* e1_out, __global float4* e2_out, __global float4* e3_out,
                                    float target_time,
-                                   __global int* count_in,
+                                   __global const int* count_in,
                                    int parallel_transport_observer,
-                                   __global float3* geodesic_basis_speed,
+                                   __global const float3* geodesic_basis_speed,
                                    __global float4* interpolated_geodesic_velocity,
-                                   dynamic_config_space struct dynamic_config* cfg)
+                                   dynamic_config_space const struct dynamic_config* cfg)
 {
     if(get_global_id(0) != 0)
         return;
@@ -2744,7 +2744,7 @@ __kernel void pull_object_positions(__global struct object* current_pos, __globa
 }
 
 #if 0
-__kernel void push_object_positions(__global float4* geodesics_in, __global int* counts_in, __global struct object* pos_out, float target_time, int object_count, dynamic_config_space struct dynamic_config* cfg)
+__kernel void push_object_positions(__global float4* geodesics_in, __global int* counts_in, __global struct object* pos_out, float target_time, int object_count, dynamic_config_space const struct dynamic_config* cfg)
 {
     int id = get_global_id(0);
 
@@ -2808,7 +2808,7 @@ struct corrected_lightray
     float4 inverse_quat;
 };
 
-struct corrected_lightray correct_lightray(float4 position, float4 velocity, dynamic_config_space struct dynamic_config* cfg)
+struct corrected_lightray correct_lightray(float4 position, float4 velocity, dynamic_config_space const struct dynamic_config* cfg)
 {
     float4 extra_quat = (float4)(0, 0, 0, 1);
 
@@ -2859,7 +2859,7 @@ struct corrected_lightray correct_lightray(float4 position, float4 velocity, dyn
 };
 
 ///fully set up except for ray.early_terminate
-struct lightray geodesic_to_render_ray(int cx, int cy, float4 position, float4 velocity, float4 observer_velocity, dynamic_config_space struct dynamic_config* cfg)
+struct lightray geodesic_to_render_ray(int cx, int cy, float4 position, float4 velocity, float4 observer_velocity, dynamic_config_space const struct dynamic_config* cfg)
 {
     struct corrected_lightray corrected = correct_lightray(position, velocity, cfg);
 
@@ -2925,7 +2925,7 @@ struct lightray geodesic_to_render_ray(int cx, int cy, float4 position, float4 v
     return ray;
 };
 
-struct lightray geodesic_to_trace_ray(float4 position, float4 velocity, dynamic_config_space struct dynamic_config* cfg)
+struct lightray geodesic_to_trace_ray(float4 position, float4 velocity, dynamic_config_space const struct dynamic_config* cfg)
 {
     struct corrected_lightray corrected = correct_lightray(position, velocity, cfg);
 
@@ -2982,7 +2982,7 @@ void init_inertial_ray(__global float4* g_generic_position_in, int ray_count,
                        __global struct lightray* metric_rays, __global int* metric_ray_count,
                        __global float4* e0, __global float4* e1, __global float4* e2, __global float4* e3,
                        __global float3* geodesic_basis_speed,
-                       dynamic_config_space struct dynamic_config* cfg)
+                       dynamic_config_space const struct dynamic_config* cfg)
 {
     int id = get_global_id(0);
 
@@ -3002,14 +3002,14 @@ void init_inertial_ray(__global float4* g_generic_position_in, int ray_count,
 }
 
 __kernel
-void init_rays_generic(__global float4* g_generic_camera_in, __global float4* g_camera_quat,
+void init_rays_generic(__global const float4* g_generic_camera_in, __global const float4* g_camera_quat,
                        __global struct lightray* metric_rays, __global int* metric_ray_count,
                        int width, int height,
-                       __global int* termination_buffer,
+                       __global const int* termination_buffer,
                        int prepass_width, int prepass_height,
                        int flip_geodesic_direction,
-                       __global float4* e0, __global float4* e1, __global float4* e2, __global float4* e3,
-                       dynamic_config_space struct dynamic_config* cfg)
+                       __global const float4* e0, __global const float4* e1, __global const float4* e2, __global const float4* e3,
+                       dynamic_config_space const struct dynamic_config* cfg)
 {
     int id = get_global_id(0);
 
@@ -3258,7 +3258,7 @@ float4 rk4_f(float t, float4 position, float4 velocity)
 }*/
 #endif // GENERIC_BIG_METRIC
 
-float4 fix_light_velocity(float4 position, float4 velocity, bool always_lightlike, dynamic_config_space struct dynamic_config* cfg)
+float4 fix_light_velocity(float4 position, float4 velocity, bool always_lightlike, dynamic_config_space const struct dynamic_config* cfg)
 {
     float v1 = position.x;
     float v2 = position.y;
@@ -3278,7 +3278,7 @@ float4 fix_light_velocity(float4 position, float4 velocity, bool always_lightlik
 ///it would be useful to be able to combine data from multiple ticks which are separated by some delta, but where I don't have control over that delta
 ///I wonder if a taylor series expansion of F(y + dt) might be helpful
 ///this is actually regular velocity verlet with no modifications https://en.wikipedia.org/wiki/Verlet_integration#Velocity_Verlet
-void step_verlet(float4 position, float4 velocity, float4 acceleration, bool always_lightlike, float ds, float4* __restrict__ position_out, float4* __restrict__ velocity_out, float4* __restrict__ acceleration_out, float* __restrict__ dLambda_dNew, dynamic_config_space struct dynamic_config* cfg, dynamic_config_space struct dynamic_feature_config* dfg)
+void step_verlet(float4 position, float4 velocity, float4 acceleration, bool always_lightlike, float ds, float4* __restrict__ position_out, float4* __restrict__ velocity_out, float4* __restrict__ acceleration_out, float* __restrict__ dLambda_dNew, dynamic_config_space const struct dynamic_config* cfg, dynamic_config_space const struct dynamic_feature_config* dfg)
 {
     float4 next_position = position + velocity * ds + 0.5f * acceleration * ds * ds;
     float4 intermediate_next_velocity = velocity + acceleration * ds;
@@ -3352,7 +3352,7 @@ void step_verlet(float4 position, float4 velocity, float4 acceleration, bool alw
     *acceleration_out = next_acceleration * K * K;
 }
 
-void step_euler(float4 position, float4 velocity, float ds, float4* position_out, float4* velocity_out, dynamic_config_space struct dynamic_config* cfg)
+void step_euler(float4 position, float4 velocity, float ds, float4* position_out, float4* velocity_out, dynamic_config_space const struct dynamic_config* cfg)
 {
     #ifndef GENERIC_BIG_METRIC
     float g_metric[4] = {};
@@ -3381,7 +3381,7 @@ void step_euler(float4 position, float4 velocity, float ds, float4* position_out
     *velocity_out = velocity;
 }
 
-float get_distance_to_object(float4 polar, dynamic_config_space struct dynamic_config* cfg)
+float get_distance_to_object(float4 polar, dynamic_config_space const struct dynamic_config* cfg)
 {
     float v1 = polar.x;
     float v2 = polar.y;
@@ -3859,7 +3859,7 @@ float calculate_ray_t(struct step_setup* step)
     return min(min(fabs(step->tMax_x), fabs(step->tMax_y)), min(fabs(step->tMax_z), fabs(step->tMax_w)));
 }
 
-unsigned int index_generic(float4 in_voxel4, float width, float time_width, int width_num, dynamic_config_space struct dynamic_config* cfg)
+unsigned int index_generic(float4 in_voxel4, float width, float time_width, int width_num, dynamic_config_space const struct dynamic_config* cfg)
 {
     float4 world4 = voxel_to_world4(in_voxel4, width, time_width, width_num);
 
@@ -3876,7 +3876,7 @@ unsigned int index_generic(float4 in_voxel4, float width, float time_width, int 
     return ifloor.x * width_num * width_num * width_num + ifloor.w * width_num * width_num + ifloor.z * width_num + ifloor.y;
 }
 
-unsigned int index_acceleration(struct step_setup* step, float width, float time_width, int width_num, dynamic_config_space struct dynamic_config* cfg)
+unsigned int index_acceleration(struct step_setup* step, float width, float time_width, int width_num, dynamic_config_space const struct dynamic_config* cfg)
 {
     float4 step_pos = (float4)(step->current_x + step->off_current_x,
                                step->current_y + step->off_current_y,
@@ -4048,7 +4048,7 @@ float4 periodic_diff(float4 in1, float4 in2, float4 periods)
 __kernel
 void subsample_tri_quantity(int count, __global const int* geodesic_counts, __global const float4* geodesic_path, __global const float4* geodesic_velocities, __global const float* geodesic_ds,
                             __global const float4* t_e0, __global const float4* t_e1, __global const float4* t_e2, __global const float4* t_e3,
-                            dynamic_config_space struct dynamic_config* cfg,
+                            dynamic_config_space const struct dynamic_config* cfg,
                             int element_size, __global const char* data_in, __global char* data_out, __global int* out_counts)
 {
     int id = get_global_id(0);
@@ -4254,7 +4254,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                                           __global int* old_cell_time_min, __global int* old_cell_time_max,
                                           int should_store,
                                           int generate_unculled_counts,
-                                          dynamic_config_space struct dynamic_config* cfg)
+                                          dynamic_config_space const struct dynamic_config* cfg)
 {
     int id = get_global_id(0);
 
@@ -4747,8 +4747,8 @@ bool intersects_at_fraction(float3 v0, float3 normal, float4 initial_origin, flo
 }
 
 ///dir is not normalised, should really use a pos2
-bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 ray_vel4, float ds, __global struct computed_triangle* ctri, float4 object_geodesic_origin, float4 next_object_geodesic_origin,
-                              __global float4* restrict inverse_e0s, __global float4* restrict inverse_e1s, __global float4* restrict inverse_e2s, __global float4* restrict inverse_e3s,
+bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 ray_vel4, float ds, __global const struct computed_triangle* ctri, float4 object_geodesic_origin, float4 next_object_geodesic_origin,
+                              __global const float4* restrict inverse_e0s, __global const float4* restrict inverse_e1s, __global const float4* restrict inverse_e2s, __global const float4* restrict inverse_e3s,
                               float* t_out, bool debug, float4 periods)
 {
     float4 min_extents = ctri->min_extents;
@@ -4881,25 +4881,25 @@ __kernel void pull_linear_object_positions(__global struct computed_triangle* li
 }
 
 __kernel
-void do_generic_rays (__global struct lightray* restrict generic_rays_in, __global struct lightray* restrict generic_rays_out,
+void do_generic_rays (__global const struct lightray* restrict generic_rays_in, __global struct lightray* restrict generic_rays_out,
                       __global struct lightray* restrict finished_rays,
-                      __global int* restrict generic_count_in, __global int* restrict generic_count_out,
+                      __global const int* restrict generic_count_in, __global int* restrict generic_count_out,
                       __global int* restrict finished_count_out,
                       //__global float4* path_out, __global int* counts_out,
-                      __global struct triangle* restrict tris, int tri_count, __global struct intersection* restrict intersections_out, __global int* restrict intersection_count,
-                      __global int* restrict counts, __global int* restrict offsets, __global struct computed_triangle* restrict linear_mem, __global int* restrict linear_mem_size, __global float* restrict linear_start_times, __global float* restrict linear_delta_times,
-                      __global float4* restrict linear_object_positions,
-                      __global int* restrict unculled_counts,
-                      __constant int* restrict any_visible,
+                      __global const struct triangle* restrict tris, int tri_count, __global struct intersection* restrict intersections_out, __global int* restrict intersection_count,
+                      __global const int* restrict counts, __global const int* restrict offsets, __global const struct computed_triangle* restrict linear_mem, __global const int* restrict linear_mem_size, __global const float* restrict linear_start_times, __global const float* restrict linear_delta_times,
+                      __global const float4* restrict linear_object_positions,
+                      __global const int* restrict unculled_counts,
+                      __constant const int* restrict any_visible,
                       float accel_width, float accel_time_width, int accel_width_num,
-                      __global int* restrict cell_time_min, __global int* restrict cell_time_max,
-                      __global struct object* restrict objs,
+                      //__global int* restrict cell_time_min, __global int* restrict cell_time_max,
+                      __global const struct object* restrict objs,
                       __global int* restrict ray_time_min, __global int* restrict ray_time_max,
-                      __global float4* restrict object_positions,
-                      __global float4* restrict object_velocities,
-                      __global float4* restrict inverse_e0s, __global float4* restrict inverse_e1s, __global float4* restrict inverse_e2s, __global float4* restrict inverse_e3s,
-                      dynamic_config_space struct dynamic_config* restrict cfg,
-                      dynamic_config_space struct dynamic_feature_config* restrict dfg,
+                      __global const float4* restrict object_positions,
+                      __global const float4* restrict object_velocities,
+                      __global const float4* restrict inverse_e0s, __global const float4* restrict inverse_e1s, __global const float4* restrict inverse_e2s, __global const float4* restrict inverse_e3s,
+                      dynamic_config_space const struct dynamic_config* restrict cfg,
+                      dynamic_config_space const struct dynamic_feature_config* restrict dfg,
                       int mouse_x, int mouse_y)
 {
     int id = get_global_id(0);
@@ -4909,7 +4909,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
 
     int ray_num = *generic_count_in;
 
-    __global struct lightray* ray = &generic_rays_in[id];
+    __global const struct lightray* ray = &generic_rays_in[id];
 
     //counts_out[id] = 0;
 
@@ -5124,7 +5124,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in, __glob
                 {
                     float4 origin_1 = linear_object_positions[tidx];
 
-                    __global struct computed_triangle* ctri = &linear_mem[tidx];
+                    __global const struct computed_triangle* ctri = &linear_mem[tidx];
 
                     float4 origin_2 = object_positions[ctri->next_geodesic_segment];
 
@@ -5577,8 +5577,8 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
                        __global float* ds_out,
                        __global int* generic_count_in,
                        int max_path_length,
-                       dynamic_config_space struct dynamic_config* cfg,
-                       dynamic_config_space struct dynamic_feature_config* dfg,
+                       dynamic_config_space const struct dynamic_config* cfg,
+                       dynamic_config_space const struct dynamic_feature_config* dfg,
                        __global int* count_out)
 {
     int id = get_global_id(0);
@@ -5783,7 +5783,7 @@ void relauncher_generic(__global struct lightray* generic_rays_in, __global stru
                         __global int* restrict generic_count_in, __global int* restrict generic_count_out,
                         __global int* finished_count_out,
                         int fallback,
-                        dynamic_config_space struct dynamic_config* cfg)
+                        dynamic_config_space const struct dynamic_config* cfg)
 {
     ///failed to converge
     if(fallback > 125)
@@ -5843,7 +5843,7 @@ void clear_termination_buffer(__global int* termination_buffer, int width, int h
 }
 
 __kernel
-void calculate_singularities(__global struct lightray* finished_rays, __global int* finished_count, __global int* termination_buffer, int width, int height)
+void calculate_singularities(__global const struct lightray* finished_rays, __global const int* finished_count, __global int* termination_buffer, int width, int height)
 {
     int id = get_global_id(0);
 
@@ -5859,15 +5859,15 @@ void calculate_singularities(__global struct lightray* finished_rays, __global i
 #endif // GENERIC_METRIC
 
 __kernel
-void calculate_texture_coordinates(__global struct lightray* finished_rays, __global int* finished_count_in, __global float2* texture_coordinates, int width, int height,
-                                   dynamic_config_space struct dynamic_config* cfg, dynamic_config_space struct dynamic_feature_config* dfg)
+void calculate_texture_coordinates(__global const struct lightray* finished_rays, __global const int* finished_count_in, __global float2* texture_coordinates, int width, int height,
+                                   dynamic_config_space const struct dynamic_config* cfg, dynamic_config_space const struct dynamic_feature_config* dfg)
 {
     int id = get_global_id(0);
 
     if(id >= *finished_count_in)
         return;
 
-    __global struct lightray* ray = &finished_rays[id];
+    __global const struct lightray* ray = &finished_rays[id];
 
     int pos = ray->sy * width + ray->sx;
     int sx = ray->sx;
@@ -6040,17 +6040,17 @@ float4 read_mipmap(image2d_array_t mipmap1, image2d_array_t mipmap2, float posit
 #define MIPMAP_CONDITIONAL(x) ((position.y >= 0) ? x(mip_background) : x(mip_background2))
 
 __kernel
-void render(__global struct lightray* finished_rays, __global int* finished_count_in, __write_only image2d_t out,
+void render(__global const struct lightray* finished_rays, __global const int* finished_count_in, __write_only image2d_t out,
             __read_only image2d_array_t mip_background, __read_only image2d_array_t mip_background2,
-            int width, int height, __global float2* texture_coordinates, int maxProbes,
-            dynamic_config_space struct dynamic_config* cfg, dynamic_config_space struct dynamic_feature_config* dfg)
+            int width, int height, __global const float2* texture_coordinates, int maxProbes,
+            dynamic_config_space const struct dynamic_config* cfg, dynamic_config_space const struct dynamic_feature_config* dfg)
 {
     int id = get_global_id(0);
 
     if(id >= *finished_count_in)
         return;
 
-    __global struct lightray* ray = &finished_rays[id];
+    __global const struct lightray* ray = &finished_rays[id];
 
     int sx = ray->sx;
     int sy = ray->sy;
@@ -6489,7 +6489,7 @@ void render_tris(__global struct triangle* tris, int tri_count,
                  __global float4* traced_positions, __global int* traced_positions_count,
                  int width, int height,
                  __write_only image2d_t screen,
-                 dynamic_config_space struct dynamic_config* cfg)
+                 dynamic_config_space const struct dynamic_config* cfg)
 {
     /*int id = get_global_id(0);
 
@@ -6634,15 +6634,15 @@ void render_potential_intersections(__global struct potential_intersection* in, 
 #endif // 0
 
 __kernel
-void render_intersections(__global struct intersection* in, __global int* cnt, __global struct computed_triangle* linear_mem, __write_only image2d_t screen)
+void render_intersections(__global const struct intersection* in, __global const int* cnt, __global const struct computed_triangle* linear_mem, __write_only image2d_t screen)
 {
     int id = get_global_id(0);
 
     if(id >= *cnt)
         return;
 
-    __global struct intersection* mine = &in[id];
-    __global struct computed_triangle* ctri = &linear_mem[mine->computed_parent];
+    __global const struct intersection* mine = &in[id];
+    __global const struct computed_triangle* ctri = &linear_mem[mine->computed_parent];
 
     #ifndef TRI_PRECESSION
     float3 to_v1 = (float3)(ctri->dv1x, ctri->dv1y, ctri->dv1z);
@@ -6676,7 +6676,7 @@ void render_intersections(__global struct intersection* in, __global int* cnt, _
 
 ///todo: make flip global
 __kernel
-void cart_to_polar_kernel(__global float4* position_cart_in, __global float4* position_polar_out, int count, float flip)
+void cart_to_polar_kernel(__global const float4* position_cart_in, __global float4* position_polar_out, int count, float flip)
 {
     int id = get_global_id(0);
 
@@ -6695,7 +6695,7 @@ void cart_to_polar_kernel(__global float4* position_cart_in, __global float4* po
 
 ///todo: make flip global
 __kernel
-void cart_to_generic_kernel(__global float4* position_cart_in, __global float4* position_generic_out, int count, float flip, dynamic_config_space struct dynamic_config* cfg)
+void cart_to_generic_kernel(__global const float4* position_cart_in, __global float4* position_generic_out, int count, float flip, dynamic_config_space const struct dynamic_config* cfg)
 {
     int id = get_global_id(0);
 
@@ -6713,7 +6713,7 @@ void cart_to_generic_kernel(__global float4* position_cart_in, __global float4* 
 }
 
 __kernel
-void camera_polar_to_generic(__global float4* g_camera_pos_polar, __global float4* g_camera_pos_generic, dynamic_config_space struct dynamic_config* cfg)
+void camera_polar_to_generic(__global const float4* g_camera_pos_polar, __global float4* g_camera_pos_generic, dynamic_config_space const struct dynamic_config* cfg)
 {
     if(get_global_id(0) != 0)
         return;

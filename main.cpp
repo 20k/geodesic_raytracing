@@ -138,6 +138,7 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
                                                cl::buffer& rays_finished,
                                                cl::buffer& count_in, cl::buffer& count_out,
                                                cl::buffer& count_finished,
+                                               cl::buffer& ray_time_min, cl::buffer& ray_time_max,
                                                //cl::buffer& visual_path, cl::buffer& visual_ray_counts,
                                                triangle_rendering::manager& manage, cl::buffer& intersections, cl::buffer& intersections_count,
                                                triangle_rendering::acceleration& accel,
@@ -216,11 +217,11 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
         run_args.push_back(accel.offset_width);
         run_args.push_back(accel.time_width);
         run_args.push_back(accel.offset_size.x());
-        run_args.push_back(accel.cell_time_min);
-        run_args.push_back(accel.cell_time_max);
+        //run_args.push_back(accel.cell_time_min);
+        //run_args.push_back(accel.cell_time_max);
         run_args.push_back(manage.objects);
-        run_args.push_back(accel.ray_time_min);
-        run_args.push_back(accel.ray_time_max);
+        run_args.push_back(ray_time_min);
+        run_args.push_back(ray_time_max);
 
         run_args.push_back(phys.subsampled_paths);
         run_args.push_back(phys.subsampled_velocities);
@@ -236,6 +237,10 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
         run_args.push_back(mouse_y);
 
         cqueue.exec("do_generic_rays", run_args, {num_rays}, {256});
+
+        ///todo: no idea if this is correct
+        accel.ray_time_min = ray_time_min;
+        accel.ray_time_max = ray_time_max;
     }
 }
 
@@ -2097,7 +2102,7 @@ int main(int argc, char* argv[])
 
                     int rays_num = calculate_ray_count(prepass_width, prepass_height);
 
-                    execute_kernel(mqueue, st.rays_prepass, st.rays_out, st.rays_finished, st.rays_count_prepass, st.rays_count_out, st.rays_count_finished, tris, st.tri_intersections, st.tri_intersections_count, accel, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer);
+                    execute_kernel(mqueue, st.rays_prepass, st.rays_out, st.rays_finished, st.rays_count_prepass, st.rays_count_out, st.rays_count_finished, st.accel_ray_time_min, st.accel_ray_time_max, tris, st.tri_intersections, st.tri_intersections_count, accel, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer);
 
                     cl::args singular_args;
                     singular_args.push_back(st.rays_finished);
@@ -2132,7 +2137,7 @@ int main(int argc, char* argv[])
 
                 int rays_num = calculate_ray_count(width, height);
 
-                execute_kernel(mqueue, st.rays_in, st.rays_out, st.rays_finished, st.rays_count_in, st.rays_count_out, st.rays_count_finished, tris, st.tri_intersections, st.tri_intersections_count, accel, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer);
+                execute_kernel(mqueue, st.rays_in, st.rays_out, st.rays_finished, st.rays_count_in, st.rays_count_out, st.rays_count_finished, st.accel_ray_time_min, st.accel_ray_time_max, tris, st.tri_intersections, st.tri_intersections_count, accel, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer);
 
                 cl::args texture_args;
                 texture_args.push_back(st.rays_finished);
