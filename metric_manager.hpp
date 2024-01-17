@@ -168,6 +168,7 @@ struct metric_manager
 
         ///Is this necessary?
         termination_buffer.set_to_zero(cqueue);
+        cqueue.block();
 
         return true;
     }

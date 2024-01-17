@@ -1,4 +1,5 @@
 #include <iostream>
+#include <thread>
 #include <toolkit/render_window.hpp>
 #include <toolkit/texture.hpp>
 #include <vec/vec.hpp>
@@ -785,6 +786,12 @@ struct mt_queue
         dat.push_back(std::move(in));
     }
 
+    int peek_size()
+    {
+        std::scoped_lock lck(mut);
+        return dat.size();
+    }
+
     std::optional<T> pop()
     {
         std::scoped_lock lck(mut);
@@ -836,6 +843,11 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size)
 
     while(shared.is_open)
     {
+        while(shared.finished_textures.peek_size() >= 3)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+
         while(auto opt = shared.resize_q.pop())
         {
             resize_data& next_size = opt.value();
@@ -865,6 +877,10 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size)
 
         cl::image img(ctx);
         img.alloc({window_size.x(), window_size.y()}, fmt);
+
+
+
+        shared.finished_textures.push(std::move(img));
     }
 }
 
