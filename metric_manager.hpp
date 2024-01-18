@@ -18,7 +18,7 @@ struct metric_manager
     ///this is a bit of a giant mess
     bool check_recompile(bool should_recompile, bool should_soft_recompile,
                          const std::vector<content*>& parent_directories, content_manager& all_content, std::vector<std::string>& metric_names,
-                         cl::buffer& dynamic_config, cl::command_queue& cqueue, dynamic_feature_config& dfg, render_settings& sett, cl::context& context, int selected_idx)
+                         std::optional<std::vector<float>>& dynamic_config, dynamic_feature_config& dfg, render_settings& sett, cl::context& context, int selected_idx)
     {
         if(!(should_recompile || current_idx == -1 || should_soft_recompile))
             return false;
@@ -53,21 +53,12 @@ struct metric_manager
 
             printj("ALLOCATING DYNCONFIG ", current_metric->sand.cfg.default_values.size());
 
-            int dyn_config_bytes = current_metric->sand.cfg.default_values.size() * sizeof(cl_float);
-
-            if(dyn_config_bytes < 4)
-                dyn_config_bytes = 4;
-
-            dynamic_config.alloc(dyn_config_bytes);
-
             std::vector<float> vars = current_metric->sand.cfg.default_values;
 
             if(vars.size() == 0)
                 vars.resize(1);
 
-            dynamic_config.write(cqueue, vars);
-
-            cqueue.block();
+            dynamic_config = vars;
         }
 
         std::string argument_string_prefix = "-cl-std=CL1.2 -cl-unsafe-math-optimizations ";

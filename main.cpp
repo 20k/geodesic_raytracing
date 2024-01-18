@@ -1067,12 +1067,12 @@ int main(int argc, char* argv[])
 
     while(!win.should_close() && !menu.should_quit && fullscreen.open)
     {
-        render_state& st = states[which_state];
+        //render_state& st = states[which_state];
         #ifdef UNSTRUCTURED
         cl::command_queue& mqueue = cqueues[which_state];
         #endif
 
-        which_state = (which_state + 1) % states.size();
+        //which_state = (which_state + 1) % states.size();
 
         if(dfg.alloc_and_write_gpu_buffer(mqueue, dynamic_feature_buffer))
         {
@@ -1118,7 +1118,14 @@ int main(int argc, char* argv[])
             menu.sett.pos_y = win.backend->get_window_position().y();
 
             save_graphics();
-       }
+        }
+
+        {
+            settings_data sett;
+            sett.anisotropy = menu.sett.anisotropy;
+
+            shared.settings_q.push(sett);
+        }
 
         menu.dirty_settings = false;
 
@@ -1632,11 +1639,18 @@ int main(int argc, char* argv[])
                 dfg.is_static_dirty = false;
             }
 
+            std::optional<std::vector<float>> out_cfg;
+
             if(metric_manage.check_recompile(should_recompile, should_soft_recompile, parent_directories,
-                                          all_content, metric_names, dynamic_config, mqueue, dfg,
+                                          all_content, metric_names, out_cfg, dfg,
                                           sett, clctx.ctx, selected_metric))
             {
                 phys.needs_trace = true;
+            }
+
+            if(out_cfg)
+            {
+                shared.dynamic_config_q.push(out_cfg.value());
             }
 
             #ifdef UNIMPLEMENTED
@@ -2062,13 +2076,13 @@ int main(int argc, char* argv[])
             tsett.generate_mipmaps = false;
 
             texture tex;
-            tex.load_from_memory(tsett);
+            tex.load_from_memory(tsett, nullptr);
 
-            cl::gl_rendertexture render_tex;
+            cl::gl_rendertexture render_tex(clctx.ctx);
             render_tex.create_from_texture(tex.handle);
 
             render_tex.acquire(clctx.cqueue);
-            cl::copy_image(clctx.cqueue, opt.value(), render_tex, {0,0}, {tsett.width, tsett.height});
+            cl::copy_image(clctx.cqueue, opt.value(), render_tex, (vec2i){0,0}, (vec2i){tsett.width, tsett.height});
             render_tex.unacquire(clctx.cqueue);
 
             ImDrawList* lst = hide_ui ?
