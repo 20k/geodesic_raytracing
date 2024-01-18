@@ -331,7 +331,7 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
             printf("Clogged\n");
 
             //std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            //sf::sleep(sf::milliseconds(1));
+            sf::sleep(sf::milliseconds(1));
             continue;
         }
 
@@ -357,7 +357,7 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
 
             //pending_event_queue.front().block();
 
-            //sf::sleep(sf::milliseconds(1));
+            sf::sleep(sf::milliseconds(1));
             //std::this_thread::sleep_for(std::chrono::milliseconds(1));
             continue;
         }

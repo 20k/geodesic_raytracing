@@ -1067,6 +1067,7 @@ int main(int argc, char* argv[])
 
     int selected_metric = -1;
     camera cam;
+    camera last_cam;
     shared_data shared;
     vec2i last_size = win.backend->get_window_size();
 
@@ -1794,9 +1795,12 @@ int main(int argc, char* argv[])
                 }
             }
 
+            if(last_cam.pos != cam.pos || last_cam.rot.q != cam.rot.q)
             {
                 event_data dat;
                 dat.cam = cam;
+
+                last_cam = cam;
 
                 shared.event_q.push(dat);
             }
