@@ -1063,6 +1063,8 @@ int main(int argc, char* argv[])
     shared_data shared;
     vec2i last_size = win.backend->get_window_size();
 
+    std::jthread([&](){render_thread(clctx.ctx, shared, last_size, metric_manage, back_images);}).detach();
+
     int which_state = 0;
 
     while(!win.should_close() && !menu.should_quit && fullscreen.open)
