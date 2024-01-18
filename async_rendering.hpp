@@ -326,16 +326,12 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
     {
         //steady_timer t;
 
-        render_state& st = states[which_state];
-        //cl::command_queue& mqueue = circ[which_state];
-        which_state = (which_state + 1) % states.size();
-
-        while(shared.shared_textures.peek_rendered_size() >= 2)
+        while(shared.shared_textures.peek_rendered_size() >= 4)
         {
             printf("Clogged\n");
 
             //std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            sf::sleep(sf::milliseconds(1));
+            //sf::sleep(sf::milliseconds(1));
             continue;
         }
 
@@ -347,7 +343,7 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
 
         while(pending_event_queue.size() > 0 && pending_event_queue.front().is_finished())
         {
-            std::cout << "Ftime " << frame_time.restart() * 1000. << std::endl;
+            printf("Ftime %f\n", frame_time.restart() * 1000.);
 
             shared.shared_textures.push_rendered(pending_image_queue.front());
 
@@ -355,16 +351,20 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
             pending_image_queue.erase(pending_image_queue.begin());
         }
 
-        if(pending_event_queue.size() >= 2)
+        if(pending_event_queue.size() >= 6)
         {
-            printf("Clogged 2\n");
+            //printf("Clogged 2\n");
 
-            pending_event_queue.front().block();
+            //pending_event_queue.front().block();
 
             //sf::sleep(sf::milliseconds(1));
             //std::this_thread::sleep_for(std::chrono::milliseconds(1));
             continue;
         }
+
+        render_state& st = states[which_state];
+        //cl::command_queue& mqueue = circ[which_state];
+        which_state = (which_state + 1) % states.size();
 
         while(auto opt = shared.resize_q.pop())
         {

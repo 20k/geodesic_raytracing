@@ -233,5 +233,7 @@ bool dynamic_feature_config::alloc_and_write_gpu_buffer(cl::command_queue& cqueu
 
     inout.write(cqueue, buf);
 
+    is_dirty = false;
+
     return true;
 }

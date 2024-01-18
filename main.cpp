@@ -2171,7 +2171,7 @@ int main(int argc, char* argv[])
 
         once = true;
 
-        sf::sleep(sf::milliseconds(4));
+        sf::sleep(sf::milliseconds(1));
     }
 
     shared.is_open = false;
