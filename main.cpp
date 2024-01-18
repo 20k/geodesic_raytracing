@@ -2098,7 +2098,7 @@ int main(int argc, char* argv[])
             render_tex.unacquire(clctx.cqueue);
         }*/
 
-        if(auto opt = shared.finished_textures.pop(); opt.has_value())
+        /*if(auto opt = shared.finished_textures.pop(); opt.has_value())
         {
             auto dim = opt.value().size<2>();
 
@@ -2109,6 +2109,25 @@ int main(int argc, char* argv[])
                 cl::copy_image(clctx.cqueue, opt.value(), render_tex, (vec2i){0,0}, (vec2i){dim.x(), dim.y()});
 
                 render_tex.unacquire(clctx.cqueue);
+            }
+        }*/
+
+        if(auto opt = shared.shared_textures.pop_rendered(); opt.has_value())
+        {
+            auto dim = opt.value().size<2>();
+
+            ///very rare this is false, resize only
+            if(dim.x() <= render_tex.size<2>().x() && dim.y() <= render_tex.size<2>().y())
+            {
+                render_tex.acquire(clctx.cqueue);
+
+                cl::copy_image(clctx.cqueue, opt.value(), render_tex, (vec2i){0,0}, (vec2i){dim.x(), dim.y()});
+
+                render_tex.unacquire(clctx.cqueue);
+
+                clctx.cqueue.block();
+
+                shared.shared_textures.push_free(opt.value());
             }
         }
 
@@ -2151,6 +2170,8 @@ int main(int argc, char* argv[])
             return 0;
 
         once = true;
+
+        sf::sleep(sf::milliseconds(4));
     }
 
     shared.is_open = false;

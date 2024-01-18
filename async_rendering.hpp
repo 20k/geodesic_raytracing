@@ -179,6 +179,80 @@ struct dynamic_config_data
     int for_whomst = -1;
 };
 
+struct image_shared_queue
+{
+    std::mutex mut;
+
+    std::vector<cl::image> unprocessed;
+    std::vector<cl::image> free_images;
+
+    int peek_rendered_size()
+    {
+        std::scoped_lock guard(mut);
+
+        return unprocessed.size();
+    }
+
+    void push_rendered(cl::image img)
+    {
+        std::scoped_lock guard(mut);
+
+        unprocessed.push_back(img);
+    }
+
+    std::optional<cl::image> pop_rendered()
+    {
+        std::scoped_lock guard(mut);
+
+        if(unprocessed.size() == 0)
+            return std::nullopt;
+
+        auto first = unprocessed.front();
+        unprocessed.erase(unprocessed.begin());
+        return first;
+    }
+
+    void push_free(cl::image img)
+    {
+        std::scoped_lock guard(mut);
+
+        free_images.push_back(img);
+    }
+
+    cl::image pop_free_or_make_new(cl::context& ctx, int width, int height)
+    {
+        std::scoped_lock guard(mut);
+
+        if(free_images.size() > 0)
+        {
+            auto size = free_images.back().size<2>();
+
+            if(size.x() == width && size.y() == height)
+            {
+                auto next = free_images.back();
+
+                free_images.pop_back();
+
+                return next;
+            }
+            else
+            {
+                free_images.clear();
+            }
+        }
+
+        cl_image_format fmt;
+        fmt.image_channel_order = CL_RGBA;
+        fmt.image_channel_data_type = CL_FLOAT;
+
+        cl::image img(ctx);
+        img.alloc({width, height}, fmt);
+
+        return img;
+    }
+};
+
+
 struct shared_data
 {
     mt_queue<event_data> event_q;
@@ -187,7 +261,9 @@ struct shared_data
     mt_queue<cl::buffer> dfg_q;
     mt_queue<settings_data> settings_q;
 
-    mt_queue<cl::image> finished_textures;
+    image_shared_queue shared_textures;
+
+    //mt_queue<cl::image> finished_textures;
 
     std::atomic_bool is_open{true};
 
@@ -199,12 +275,18 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
 {
     cl::command_queue mqueue(ctx, 1<<9);
 
+    cl::command_queue tqueue(ctx);
+
+    std::vector<cl::command_queue> circ;
+
     std::vector<render_state> states;
 
-    for(int i=0; i < 6; i++)
+    for(int i=0; i < 3; i++)
     {
-        states.emplace_back(ctx, mqueue);
+        states.emplace_back(ctx, tqueue);
         states[i].realloc(start_size.x(), start_size.y());
+
+        circ.emplace_back(ctx);
     }
 
     camera cam;
@@ -218,7 +300,7 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
 
     cl::buffer dynamic_feature_buffer(ctx);
     dynamic_feature_buffer.alloc(sizeof(cl_float) * 2);
-    dynamic_feature_buffer.set_to_zero(mqueue);
+    dynamic_feature_buffer.set_to_zero(tqueue);
 
     bool camera_on_geodesic = false;
 
@@ -236,6 +318,8 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
     std::vector<cl::image> pending_image_queue;
     std::vector<cl::event> pending_event_queue;
 
+    tqueue.block();
+
     steady_timer frame_time;
 
     while(shared.is_open)
@@ -243,9 +327,10 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
         //steady_timer t;
 
         render_state& st = states[which_state];
+        //cl::command_queue& mqueue = circ[which_state];
         which_state = (which_state + 1) % states.size();
 
-        while(shared.finished_textures.peek_size() >= 8)
+        while(shared.shared_textures.peek_rendered_size() >= 6)
         {
             printf("Clogged\n");
 
@@ -254,21 +339,29 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
             continue;
         }
 
+        /*if(pending_event_queue.size() > 2)
+        {
+            printf("Blocked\n");
+            pending_event_queue.front().block();
+        }*/
+
         while(pending_event_queue.size() > 0 && pending_event_queue.front().is_finished())
         {
             std::cout << "Ftime " << frame_time.restart() * 1000. << std::endl;
 
-            shared.finished_textures.push(pending_image_queue.front());
+            shared.shared_textures.push_rendered(pending_image_queue.front());
 
             pending_event_queue.erase(pending_event_queue.begin());
             pending_image_queue.erase(pending_image_queue.begin());
         }
 
-        if(pending_event_queue.size() >= 6)
+        if(pending_event_queue.size() >= 3)
         {
             printf("Clogged 2\n");
 
-            sf::sleep(sf::milliseconds(1));
+            pending_event_queue.front().block();
+
+            //sf::sleep(sf::milliseconds(1));
             //std::this_thread::sleep_for(std::chrono::milliseconds(1));
             continue;
         }
@@ -282,7 +375,7 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
                 i.realloc(next_size.size.x(), next_size.size.y());
                 window_size = next_size.size;
 
-                printf("Realloc?\n");
+                //printf("Realloc?\n");
             }
         }
 
@@ -321,22 +414,30 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
             continue;
         }
 
-        cl_image_format fmt;
+        //steady_timer gpu_submit_time;
+
+        /*cl_image_format fmt;
         fmt.image_channel_order = CL_RGBA;
         fmt.image_channel_data_type = CL_FLOAT;
 
+        auto& img = pending_image_queue.emplace_back(ctx);*/
+
+        cl::image root = shared.shared_textures.pop_free_or_make_new(ctx, window_size.x(), window_size.y());
+
         auto& img = pending_image_queue.emplace_back(ctx);
+        img = root;
+
         auto& next_image_event = pending_event_queue.emplace_back();
 
-        img.alloc({window_size.x(), window_size.y()}, fmt);
-
         cl::buffer& g_camera_pos_cart = st.g_camera_pos_cart;
-        g_camera_pos_cart.write(mqueue, std::span{&cam.pos.v[0], 4});
+        cl::event camera_evt = g_camera_pos_cart.write_async(mqueue, std::span{&cam.pos.v[0], 4});
 
         cl::buffer& g_camera_quat = st.g_camera_quat;
-        g_camera_quat.write(mqueue, std::span{&cam.rot.q.v[0], 4});
+        cl::event camera_quat_evt = g_camera_quat.write_async(mqueue, std::span{&cam.rot.q.v[0], 4});
 
         cl::buffer& g_geodesic_basis_speed = st.g_geodesic_basis_speed;
+
+        cl::event basis_speed_evt;
 
         //if(should_set_observer_velocity)
         {
@@ -346,7 +447,7 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
 
             vec4f geodesic_basis_speed = (vec4f){rotated.x(), rotated.y(), rotated.z(), 0.f};
 
-            g_geodesic_basis_speed.write(mqueue, std::span{&geodesic_basis_speed.v[0], 4});
+            basis_speed_evt = g_geodesic_basis_speed.write_async(mqueue, std::span{&geodesic_basis_speed.v[0], 4});
         }
 
         if(!camera_on_geodesic)
@@ -361,7 +462,7 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
                                clflip,
                                dynamic_config);
 
-                mqueue.exec("cart_to_generic_kernel", args, {1}, {1});
+                mqueue.exec("cart_to_generic_kernel", args, {1}, {1}, {camera_evt});
             }
 
             {
@@ -434,7 +535,7 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
 
                 init_args_prepass.push_back(dynamic_config);
 
-                mqueue.exec("init_rays_generic", init_args_prepass, {prepass_width*prepass_height}, {256});
+                mqueue.exec("init_rays_generic", init_args_prepass, {prepass_width*prepass_height}, {256}, {camera_quat_evt});
 
                 int rays_num = calculate_ray_count(prepass_width, prepass_height);
 
@@ -470,7 +571,7 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
 
             init_args.push_back(dynamic_config);
 
-            mqueue.exec("init_rays_generic", init_args, {width*height}, {16*16});
+            mqueue.exec("init_rays_generic", init_args, {width*height}, {16*16}, {camera_quat_evt});
 
             int rays_num = width * height;
 
@@ -503,7 +604,7 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
             next_image_event = mqueue.exec("render", render_args, {width * height}, {256});
         }
 
-        std::cout << "GPUT " << gpu_submit_time.get_elapsed_time_s() * 1000. << std::endl;
+        //std::cout << "GPUT " << gpu_submit_time.get_elapsed_time_s() * 1000. << std::endl;
 
         //mqueue.flush();
 
