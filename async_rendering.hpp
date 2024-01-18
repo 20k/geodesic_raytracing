@@ -201,7 +201,7 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
 
     std::vector<render_state> states;
 
-    for(int i=0; i < 3; i++)
+    for(int i=0; i < 6; i++)
     {
         states.emplace_back(ctx, mqueue);
         states[i].realloc(start_size.x(), start_size.y());
@@ -233,14 +233,44 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
 
     int live_metric = -1;
 
+    std::vector<cl::image> pending_image_queue;
+    std::vector<cl::event> pending_event_queue;
+
+    steady_timer frame_time;
+
     while(shared.is_open)
     {
+        //steady_timer t;
+
         render_state& st = states[which_state];
         which_state = (which_state + 1) % states.size();
 
-        while(shared.finished_textures.peek_size() >= 3)
+        while(shared.finished_textures.peek_size() >= 8)
         {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            printf("Clogged\n");
+
+            //std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            sf::sleep(sf::milliseconds(1));
+            continue;
+        }
+
+        while(pending_event_queue.size() > 0 && pending_event_queue.front().is_finished())
+        {
+            std::cout << "Ftime " << frame_time.restart() * 1000. << std::endl;
+
+            shared.finished_textures.push(pending_image_queue.front());
+
+            pending_event_queue.erase(pending_event_queue.begin());
+            pending_image_queue.erase(pending_image_queue.begin());
+        }
+
+        if(pending_event_queue.size() >= 6)
+        {
+            printf("Clogged 2\n");
+
+            sf::sleep(sf::milliseconds(1));
+            //std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            continue;
         }
 
         while(auto opt = shared.resize_q.pop())
@@ -251,6 +281,8 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
             {
                 i.realloc(next_size.size.x(), next_size.size.y());
                 window_size = next_size.size;
+
+                printf("Realloc?\n");
             }
         }
 
@@ -284,7 +316,8 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
 
         if(live_metric == -1)
         {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            sf::sleep(sf::milliseconds(1));
+            //std::this_thread::sleep_for(std::chrono::milliseconds(1));
             continue;
         }
 
@@ -292,39 +325,18 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
         fmt.image_channel_order = CL_RGBA;
         fmt.image_channel_data_type = CL_FLOAT;
 
-        cl::image img(ctx);
+        auto& img = pending_image_queue.emplace_back(ctx);
+        auto& next_image_event = pending_event_queue.emplace_back();
+
         img.alloc({window_size.x(), window_size.y()}, fmt);
 
-        {
-            /*if(dfg.is_static_dirty)
-            {
-                should_recompile = true;
-                dfg.is_static_dirty = false;
-            }
-
-            if(metric_manage.check_recompile(should_recompile, should_soft_recompile, parent_directories,
-                                          all_content, metric_names, dynamic_config, mqueue, dfg,
-                                          sett, clctx.ctx, selected_metric))
-            {
-                //phys.needs_trace = true;
-
-                alloc_from_dfg(dfg, mqueue, dynamic_feature_buffer);
-            }*/
-
-            //dfg.alloc_and_write_gpu_buffer(mqueue, dynamic_feature_buffer);
-        }
-
-
-        cl::buffer g_camera_pos_cart(ctx);
-        g_camera_pos_cart.alloc(sizeof(cl_float4));
+        cl::buffer& g_camera_pos_cart = st.g_camera_pos_cart;
         g_camera_pos_cart.write(mqueue, std::span{&cam.pos.v[0], 4});
 
-        cl::buffer g_camera_quat(ctx);
-        g_camera_quat.alloc(sizeof(cl_float4));
+        cl::buffer& g_camera_quat = st.g_camera_quat;
         g_camera_quat.write(mqueue, std::span{&cam.rot.q.v[0], 4});
 
-        cl::buffer g_geodesic_basis_speed(ctx);
-        g_geodesic_basis_speed.alloc(sizeof(cl_float4));
+        cl::buffer& g_geodesic_basis_speed = st.g_geodesic_basis_speed;
 
         //if(should_set_observer_velocity)
         {
@@ -488,12 +500,14 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
             render_args.push_back(dynamic_config);
             render_args.push_back(dynamic_feature_buffer);
 
-            mqueue.exec("render", render_args, {width * height}, {256});
+            next_image_event = mqueue.exec("render", render_args, {width * height}, {256});
         }
 
-        mqueue.block();
+        std::cout << "GPUT " << gpu_submit_time.get_elapsed_time_s() * 1000. << std::endl;
 
-        shared.finished_textures.push(std::move(img));
+        //mqueue.flush();
+
+        //std::cout << "Time " << t.get_elapsed_time_s() * 1000. << std::endl;
     }
 }
 

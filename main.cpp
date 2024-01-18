@@ -2084,7 +2084,7 @@ int main(int argc, char* argv[])
             #endif
         }
 
-        while(auto opt = shared.finished_textures.pop())
+        /*while(auto opt = shared.finished_textures.pop())
         {
             auto dim = opt.value().size<2>();
 
@@ -2092,16 +2092,27 @@ int main(int argc, char* argv[])
                 continue;
 
             render_tex.acquire(clctx.cqueue);
-            clctx.cqueue.block();
 
             cl::copy_image(clctx.cqueue, opt.value(), render_tex, (vec2i){0,0}, (vec2i){dim.x(), dim.y()});
 
-            clctx.cqueue.block();
-
             render_tex.unacquire(clctx.cqueue);
+        }*/
 
-            clctx.cqueue.block();
+        if(auto opt = shared.finished_textures.pop(); opt.has_value())
+        {
+            auto dim = opt.value().size<2>();
 
+            if(dim.x() <= render_tex.size<2>().x() && dim.y() <= render_tex.size<2>().y())
+            {
+                render_tex.acquire(clctx.cqueue);
+
+                cl::copy_image(clctx.cqueue, opt.value(), render_tex, (vec2i){0,0}, (vec2i){dim.x(), dim.y()});
+
+                render_tex.unacquire(clctx.cqueue);
+            }
+        }
+
+        {
             ImDrawList* lst = hide_ui ?
                               ImGui::GetForegroundDrawList(ImGui::GetMainViewport()) :
                               ImGui::GetBackgroundDrawList(ImGui::GetMainViewport());
