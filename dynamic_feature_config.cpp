@@ -179,10 +179,10 @@ std::string dynamic_feature_config::generate_static_argument_string() const
     return str;
 }
 
-void dynamic_feature_config::alloc_and_write_gpu_buffer(cl::command_queue& cqueue, cl::buffer& inout)
+bool dynamic_feature_config::alloc_and_write_gpu_buffer(cl::command_queue& cqueue, cl::buffer& inout)
 {
     if(!is_dirty)
-        return;
+        return false;
 
     std::vector<std::pair<std::string, bool>> bool_features;
     std::vector<std::pair<std::string, float>> float_features;
@@ -233,5 +233,5 @@ void dynamic_feature_config::alloc_and_write_gpu_buffer(cl::command_queue& cqueu
 
     inout.write(cqueue, buf);
 
-    is_dirty = false;
+    return true;
 }

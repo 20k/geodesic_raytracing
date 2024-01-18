@@ -28,6 +28,8 @@
 #include "physics.hpp"
 #include "dynamic_feature_config.hpp"
 #include "render_state.hpp"
+#include "async_rendering.hpp"
+#include "camera.hpp"
 //#include "dual_complex.hpp"
 
 /**
@@ -134,116 +136,6 @@ vec4f cartesian_to_schwarz(vec4f position)
 }
 
 #define GENERIC_METRIC
-
-void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& rays_out,
-                                               cl::buffer& rays_finished,
-                                               cl::buffer& count_in, cl::buffer& count_out,
-                                               cl::buffer& count_finished,
-                                               cl::buffer& ray_time_min, cl::buffer& ray_time_max,
-                                               //cl::buffer& visual_path, cl::buffer& visual_ray_counts,
-                                               triangle_rendering::manager& manage, cl::buffer& intersections, cl::buffer& intersections_count,
-                                               triangle_rendering::acceleration& accel,
-                                               physics& phys,
-                                               int num_rays,
-                                               bool use_device_side_enqueue,
-                                               dynamic_feature_config& dfg,
-                                               cl::buffer& dynamic_config,
-                                               cl::buffer& dynamic_feature_config)
-{
-    if(use_device_side_enqueue)
-    {
-        int fallback = 0;
-
-        cl::args run_args;
-        run_args.push_back(rays_in);
-        run_args.push_back(rays_out);
-        run_args.push_back(rays_finished);
-        run_args.push_back(count_in);
-        run_args.push_back(count_out);
-        run_args.push_back(count_finished);
-        run_args.push_back(fallback);
-        run_args.push_back(dynamic_config);
-
-        cqueue.exec("relauncher_generic", run_args, {1}, {1});
-    }
-    else
-    {
-        count_in.write_async(cqueue, (const char*)&num_rays, sizeof(int));
-        count_out.set_to_zero(cqueue);
-        count_finished.set_to_zero(cqueue);
-        intersections_count.set_to_zero(cqueue);
-
-        if(dfg.get_feature<bool>("use_triangle_rendering"))
-        {
-            assert(accel.is_allocated);
-
-            cl_int my_min = INT_MAX;
-            cl_int my_max = INT_MIN;
-
-            accel.ray_time_min.write(cqueue, std::vector<cl_int>{my_min});
-            accel.ray_time_max.write(cqueue, std::vector<cl_int>{my_max});
-
-            if(accel.use_cell_based_culling)
-            {
-                accel.cell_time_min.fill(cqueue, my_min);
-                accel.cell_time_max.fill(cqueue, my_max);
-            }
-        }
-
-        int mouse_x = ImGui::GetMousePos().x;
-        int mouse_y = ImGui::GetMousePos().y;
-
-        cl::args run_args;
-        run_args.push_back(rays_in);
-        run_args.push_back(rays_out);
-        run_args.push_back(rays_finished);
-        run_args.push_back(count_in);
-        run_args.push_back(count_out);
-        run_args.push_back(count_finished);
-        //run_args.push_back(visual_path);
-        //run_args.push_back(visual_ray_counts);
-        run_args.push_back(manage.tris);
-        run_args.push_back(manage.tri_count);
-        run_args.push_back(intersections);
-        run_args.push_back(intersections_count);
-        run_args.push_back(accel.counts);
-        run_args.push_back(accel.offsets);
-        run_args.push_back(accel.memory);
-        run_args.push_back(accel.memory_count);
-        run_args.push_back(accel.start_times_memory);
-        run_args.push_back(accel.delta_times_memory);
-        run_args.push_back(accel.linear_object_positions);
-        run_args.push_back(accel.unculled_counts);
-        run_args.push_back(accel.any_visible);
-        run_args.push_back(accel.offset_width);
-        run_args.push_back(accel.time_width);
-        run_args.push_back(accel.offset_size.x());
-        //run_args.push_back(accel.cell_time_min);
-        //run_args.push_back(accel.cell_time_max);
-        run_args.push_back(manage.objects);
-        run_args.push_back(ray_time_min);
-        run_args.push_back(ray_time_max);
-
-        run_args.push_back(phys.subsampled_paths);
-        run_args.push_back(phys.subsampled_velocities);
-
-        for(int i=0; i < 4; i++)
-        {
-            run_args.push_back(phys.subsampled_inverted_tetrads[i]);
-        }
-
-        run_args.push_back(dynamic_config);
-        run_args.push_back(dynamic_feature_config);
-        run_args.push_back(mouse_x);
-        run_args.push_back(mouse_y);
-
-        cqueue.exec("do_generic_rays", run_args, {num_rays}, {256});
-
-        ///todo: no idea if this is correct
-        accel.ray_time_min = ray_time_min;
-        accel.ray_time_max = ray_time_max;
-    }
-}
 
 int calculate_ray_count(int width, int height)
 {
@@ -702,192 +594,6 @@ void DragFloatCol(const std::string& name, cl_float4& val, int highlight)
     ImGui::EndGroup();
 }
 
-struct camera
-{
-    vec4f pos;
-    quat rot;
-
-    camera()
-    {
-        pos = {0, 0, -4, 0};
-        rot.load_from_axis_angle({1, 0, 0, -M_PI/2});
-    }
-
-    void handle_input(vec2f mouse_delta, vec4f keyboard_input, float universe_size)
-    {
-        ///translation is: .x is forward - back, .y = right - left, .z = down - up
-        ///totally arbitrary
-        quat local_camera_quat = rot;
-
-        if(mouse_delta.x() != 0)
-        {
-            quat q;
-            q.load_from_axis_angle((vec4f){0, 0, -1, mouse_delta.x()});
-
-            local_camera_quat = q * local_camera_quat;
-        }
-
-        {
-            vec3f right = rot_quat((vec3f){1, 0, 0}, local_camera_quat);
-
-            if(mouse_delta.y() != 0)
-            {
-                quat q;
-                q.load_from_axis_angle({right.x(), right.y(), right.z(), mouse_delta.y()});
-
-                local_camera_quat = q * local_camera_quat;
-            }
-        }
-
-        vec4f local_camera_pos_cart = pos;
-
-        vec3f up = {0, 0, -1};
-        vec3f right = rot_quat((vec3f){1, 0, 0}, local_camera_quat);
-        vec3f forw = rot_quat((vec3f){0, 0, 1}, local_camera_quat);
-
-        vec3f offset = {0,0,0};
-
-        offset += forw * keyboard_input.x();
-        offset += right * keyboard_input.y();
-        offset += up * keyboard_input.z();
-
-        local_camera_pos_cart.x() += keyboard_input.w();
-        local_camera_pos_cart.y() += offset.x();
-        local_camera_pos_cart.z() += offset.y();
-        local_camera_pos_cart.w() += offset.z();
-
-        {
-            float rad = local_camera_pos_cart.yzw().length();
-
-            if(rad > universe_size * 0.99f)
-            {
-                vec3f next = local_camera_pos_cart.yzw().norm() * universe_size * 0.99f;
-
-                local_camera_pos_cart.y() = next.x();
-                local_camera_pos_cart.z() = next.y();
-                local_camera_pos_cart.w() = next.z();
-            }
-        }
-
-        pos = local_camera_pos_cart;
-        rot = local_camera_quat;
-    }
-};
-
-template<typename T>
-struct mt_queue
-{
-    std::mutex mut;
-    std::vector<T> dat;
-
-    void push(T&& in)
-    {
-        std::scoped_lock lck(mut);
-        dat.push_back(std::move(in));
-    }
-
-    int peek_size()
-    {
-        std::scoped_lock lck(mut);
-        return dat.size();
-    }
-
-    std::optional<T> pop()
-    {
-        std::scoped_lock lck(mut);
-        T val = std::move(dat.front());
-        dat.erase(dat.begin());
-        return val;
-    }
-};
-
-struct event_data
-{
-    vec2f mouse;
-    vec4f keyboard;
-};
-
-struct resize_data
-{
-    vec2i size;
-};
-
-struct shared_data
-{
-    mt_queue<event_data> event_q;
-    mt_queue<resize_data> resize_q;
-    mt_queue<std::vector<float>> dynamic_config_q;
-    mt_queue<int> selected_metric;
-
-    mt_queue<cl::image> finished_textures;
-
-    std::atomic_bool is_open{true};
-
-    std::mutex data_lock;
-    float universe_size = 0;
-};
-
-void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size)
-{
-    cl::command_queue cqueue(ctx, 1<<9);
-
-    std::vector<render_state> states;
-
-    for(int i=0; i < 3; i++)
-    {
-        states.emplace_back(ctx, cqueue);
-        states[i].realloc(start_size.x(), start_size.y());
-    }
-
-    camera cam;
-
-    vec2i window_size = start_size;
-
-    cl::buffer dynamic_config(ctx);
-    dynamic_config.alloc(sizeof(cl_float));
-
-    while(shared.is_open)
-    {
-        while(shared.finished_textures.peek_size() >= 3)
-        {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        }
-
-        while(auto opt = shared.resize_q.pop())
-        {
-            resize_data& next_size = opt.value();
-
-            for(auto& i : states)
-            {
-                i.realloc(next_size.size.x(), next_size.size.y());
-                window_size = next_size.size;
-            }
-        }
-
-        while(auto opt = shared.event_q.pop())
-        {
-            float universe_size = 0;
-
-            {
-                std::scoped_lock lck(shared.data_lock);
-                universe_size = shared.universe_size;
-            }
-
-            cam.handle_input(opt.value().mouse, opt.value().keyboard, universe_size);
-        }
-
-        cl_image_format fmt;
-        fmt.image_channel_order = CL_RGBA;
-        fmt.image_channel_data_type = CL_UNSIGNED_INT8;
-
-        cl::image img(ctx);
-        img.alloc({window_size.x(), window_size.y()}, fmt);
-
-
-
-        shared.finished_textures.push(std::move(img));
-    }
-}
 
 ///i need the ability to have dynamic parameters
 int main(int argc, char* argv[])
@@ -1100,7 +806,7 @@ int main(int argc, char* argv[])
 
     sf::Clock clk;
 
-    cl::buffer dynamic_config(clctx.ctx);
+    //cl::buffer dynamic_config(clctx.ctx);
 
     print("Post buffer declarations\n");
 
@@ -1167,7 +873,7 @@ int main(int argc, char* argv[])
     float camera_geodesic_time_progression_speed = 1.f;
     float set_camera_time = 0;
     bool parallel_transport_observer = true;
-    cl_float4 cartesian_basis_speed = {0,0,0,0};
+    //cl_float4 cartesian_basis_speed = {0,0,0,0};
     float linear_basis_speed = 0.f;
     float object_chuck_speed = 0.f;
 
@@ -1368,7 +1074,10 @@ int main(int argc, char* argv[])
 
         which_state = (which_state + 1) % states.size();
 
-        dfg.alloc_and_write_gpu_buffer(mqueue, dynamic_feature_buffer);
+        if(dfg.alloc_and_write_gpu_buffer(mqueue, dynamic_feature_buffer))
+        {
+            shared.dfg_q.push(dynamic_feature_buffer);
+        }
 
         if(menu.dirty_settings)
         {
@@ -1649,10 +1358,9 @@ int main(int argc, char* argv[])
                 last_supersample_mult = menu.sett.supersample_factor;
             }
 
-            st.rtex.acquire(mqueue);
-
             float time = clk.restart().asMicroseconds() / 1000.;
 
+            #ifdef UNIMPLEMENTED
             {
                 std::vector<cl_float4> cam_data = camera_q.fetch();
                 std::vector<cl_float4> geodesic_data = geodesic_q.fetch();
@@ -1673,6 +1381,7 @@ int main(int argc, char* argv[])
                     last_timelike_coordinate = timelike_data.back();
                 }
             }
+            #endif
 
             bool should_soft_recompile = false;
             bool should_update_camera_time = false;
@@ -1844,8 +1553,10 @@ int main(int argc, char* argv[])
 
                         if(dfg.is_dirty && use_triangle_rendering)
                         {
+                            #ifdef UNIMPLEMENTED
                             tris.build(mqueue, accel.offset_width / accel.offset_size.x());
                             phys.setup(mqueue, tris);
+                            #endif
                         }
 
                         if(dfg.is_dirty)
@@ -1928,8 +1639,7 @@ int main(int argc, char* argv[])
                 phys.needs_trace = true;
             }
 
-            dfg.alloc_and_write_gpu_buffer(mqueue, dynamic_feature_buffer);
-
+            #ifdef UNIMPLEMENTED
             if(dfg.get_feature<bool>("use_triangle_rendering") && should_chuck_object)
             {
                 std::shared_ptr<triangle_rendering::object> obj = tris.make_new();
@@ -1949,8 +1659,9 @@ int main(int argc, char* argv[])
 
                 should_chuck_object = false;
             }
+            #endif
 
-            metric_manage.check_substitution(clctx.ctx);
+            //metric_manage.check_substitution(clctx.ctx);
 
             if(time_progresses)
             {
@@ -2047,28 +1758,14 @@ int main(int argc, char* argv[])
                 }
             }
 
-            cl::buffer g_camera_pos_cart(clctx.ctx);
-            g_camera_pos_cart.alloc(sizeof(cl_float4));
-            g_camera_pos_cart.write(mqueue, std::span{&cam.pos.v[0], 4});
-
-            cl::buffer g_camera_quat(clctx.ctx);
-            g_camera_quat.alloc(sizeof(cl_float4));
-            g_camera_quat.write(mqueue, std::span{&cam.rot.q.v[0], 4});
-
-            cl::buffer g_geodesic_basis_speed(clctx.ctx);
-            g_geodesic_basis_speed.alloc(sizeof(cl_float4));
-
-            //if(should_set_observer_velocity)
             {
-                vec3f base = {0, 0, 1};
+                event_data dat;
+                dat.cam = cam;
 
-                vec3f rotated = rot_quat(base, cam.rot).norm() * linear_basis_speed;
-
-                vec4f geodesic_basis_speed = (vec4f){rotated.x(), rotated.y(), rotated.z(), 0.f};
-
-                g_geodesic_basis_speed.write(mqueue, std::span{&geodesic_basis_speed.v[0], 4});
+                shared.event_q.push(dat);
             }
 
+            #ifdef UNIMPLEMENTED
             if(camera_on_geodesic)
             {
                 cl::buffer next_geodesic_velocity = geodesic_q.get_buffer(clctx.ctx);
@@ -2102,7 +1799,9 @@ int main(int argc, char* argv[])
 
                 geodesic_q.start_read(clctx.ctx, async_queue, std::move(next_geodesic_velocity), {evt});
             }
+            #endif
 
+            #if 0
             if(!camera_on_geodesic)
             {
                 {
@@ -2136,7 +1835,9 @@ int main(int argc, char* argv[])
                     mqueue.exec("init_basis_vectors", tetrad_args, {1}, {1});
                 }
             }
+            #endif
 
+            #ifdef UNIMPLEMENTED
             {
                 cl::buffer next_generic_camera = camera_q.get_buffer(clctx.ctx);
                 cl::event copy_generic = cl::copy(mqueue, st.g_camera_pos_generic, next_generic_camera);
@@ -2156,15 +1857,9 @@ int main(int argc, char* argv[])
 
                 timelike_q.start_read(clctx.ctx, async_queue, std::move(next_timelike_coordinate), {evt});
             }
+            #endif
 
-            int width = st.rtex.size<2>().x();
-            int height = st.rtex.size<2>().y();
-
-            cl::args clr;
-            clr.push_back(st.rtex);
-
-            mqueue.exec("clear", clr, {width, height}, {16, 16});
-
+            #ifdef UNIMPLEMENTED
             if(dfg.get_feature<bool>("use_triangle_rendering"))
             {
                 tris.update_objects(mqueue);
@@ -2182,128 +1877,9 @@ int main(int argc, char* argv[])
                 phys = physics(clctx.ctx);
                 accel = triangle_rendering::acceleration(clctx.ctx);
             }
+            #endif
 
-            {
-                ///should invert geodesics is unused for the moment
-                int isnap = 0;
-
-                cl_int prepass_width = width/16;
-                cl_int prepass_height = height/16;
-
-                if(metric_manage.current_metric->metric_cfg.use_prepass && tris.cpu_objects.size() > 0)
-                {
-                    st.termination_buffer.set_to_zero(mqueue);
-                }
-
-                if(metric_manage.current_metric->metric_cfg.use_prepass && tris.cpu_objects.size() == 0)
-                {
-                    cl::args clear_args;
-                    clear_args.push_back(st.termination_buffer);
-                    clear_args.push_back(prepass_width);
-                    clear_args.push_back(prepass_height);
-
-                    mqueue.exec("clear_termination_buffer", clear_args, {prepass_width*prepass_height}, {256});
-
-                    cl::args init_args_prepass;
-
-                    init_args_prepass.push_back(st.g_camera_pos_generic);
-                    init_args_prepass.push_back(g_camera_quat);
-                    init_args_prepass.push_back(st.rays_prepass);
-                    init_args_prepass.push_back(st.rays_count_prepass);
-                    init_args_prepass.push_back(prepass_width);
-                    init_args_prepass.push_back(prepass_height);
-                    init_args_prepass.push_back(st.termination_buffer);
-                    init_args_prepass.push_back(prepass_width);
-                    init_args_prepass.push_back(prepass_height);
-                    init_args_prepass.push_back(isnap);
-
-                    for(auto& i : st.tetrad)
-                    {
-                        init_args_prepass.push_back(i);
-                    }
-
-                    init_args_prepass.push_back(dynamic_config);
-
-                    mqueue.exec("init_rays_generic", init_args_prepass, {prepass_width*prepass_height}, {256});
-
-                    int rays_num = calculate_ray_count(prepass_width, prepass_height);
-
-                    execute_kernel(mqueue, st.rays_prepass, st.rays_out, st.rays_finished, st.rays_count_prepass, st.rays_count_out, st.rays_count_finished, st.accel_ray_time_min, st.accel_ray_time_max, tris, st.tri_intersections, st.tri_intersections_count, accel, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer);
-
-                    cl::args singular_args;
-                    singular_args.push_back(st.rays_finished);
-                    singular_args.push_back(st.rays_count_finished);
-                    singular_args.push_back(st.termination_buffer);
-                    singular_args.push_back(prepass_width);
-                    singular_args.push_back(prepass_height);
-
-                    mqueue.exec("calculate_singularities", singular_args, {prepass_width*prepass_height}, {256});
-                }
-
-                cl::args init_args;
-                init_args.push_back(st.g_camera_pos_generic);
-                init_args.push_back(g_camera_quat);
-                init_args.push_back(st.rays_in);
-                init_args.push_back(st.rays_count_in);
-                init_args.push_back(width);
-                init_args.push_back(height);
-                init_args.push_back(st.termination_buffer);
-                init_args.push_back(prepass_width);
-                init_args.push_back(prepass_height);
-                init_args.push_back(isnap);
-
-                for(auto& i : st.tetrad)
-                {
-                    init_args.push_back(i);
-                }
-
-                init_args.push_back(dynamic_config);
-
-                mqueue.exec("init_rays_generic", init_args, {width*height}, {16*16});
-
-                int rays_num = calculate_ray_count(width, height);
-
-                execute_kernel(mqueue, st.rays_in, st.rays_out, st.rays_finished, st.rays_count_in, st.rays_count_out, st.rays_count_finished, st.accel_ray_time_min, st.accel_ray_time_max, tris, st.tri_intersections, st.tri_intersections_count, accel, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer);
-
-                cl::args texture_args;
-                texture_args.push_back(st.rays_finished);
-                texture_args.push_back(st.rays_count_finished);
-                texture_args.push_back(st.texture_coordinates);
-                texture_args.push_back(width);
-                texture_args.push_back(height);
-                texture_args.push_back(dynamic_config);
-                texture_args.push_back(dynamic_feature_buffer);
-
-                mqueue.exec("calculate_texture_coordinates", texture_args, {width * height}, {256});
-
-                cl::args render_args;
-                render_args.push_back(st.rays_finished);
-                render_args.push_back(st.rays_count_finished);
-                render_args.push_back(st.rtex);
-                render_args.push_back(back_images.i1);
-                render_args.push_back(back_images.i2);
-                render_args.push_back(width);
-                render_args.push_back(height);
-                render_args.push_back(st.texture_coordinates);
-                render_args.push_back(menu.sett.anisotropy);
-                render_args.push_back(dynamic_config);
-                render_args.push_back(dynamic_feature_buffer);
-
-                mqueue.exec("render", render_args, {width * height}, {256});
-
-                /*{
-                    cl::args dbg;
-                    dbg.push_back(rtex);
-
-                    mqueue.exec("interpolate_debug", dbg, {width, height}, {16, 16});
-                }*/
-
-                /*cl::args dbg;
-                dbg.push_back(rtex);
-
-                mqueue.exec("interpolate_debug2", dbg, {width, height}, {16, 16});*/
-            }
-
+            #ifdef UNIMPLEMENTED
             if(dfg.get_feature<bool>("use_triangle_rendering"))
             {
                 cl::args intersect_args;
@@ -2314,23 +1890,9 @@ int main(int argc, char* argv[])
 
                 mqueue.exec("render_intersections", intersect_args, {width * height}, {256});
             }
+            #endif
 
-            /*{
-                cl::args tri_args;
-                tri_args.push_back(gpu_tris);
-                tri_args.push_back(tri_count);
-                tri_args.push_back(finished_1);
-                tri_args.push_back(finished_count_1);
-                tri_args.push_back(visual_ray_path);
-                tri_args.push_back(visual_ray_counts);
-                tri_args.push_back(width);
-                tri_args.push_back(height);
-                tri_args.push_back(rtex);
-                tri_args.push_back(dynamic_config);
-
-                mqueue.exec("render_tris", tri_args, {width, height}, {16, 16});
-            }*/
-
+            #ifdef UNIMPLEMENTED
             if(should_snapshot_geodesic)
             {
                 current_geodesic_time = 0;
@@ -2417,9 +1979,9 @@ int main(int argc, char* argv[])
                     mqueue.exec("parallel_transport_quantity", pt_args, {1}, {1});
                 }
             }
+            #endif
 
-            st.rtex.unacquire(mqueue);
-
+            #ifdef UNIMPLEMENTED
             if(taking_screenshot)
             {
                 print("Taking screenie\n");
@@ -2488,9 +2050,27 @@ int main(int argc, char* argv[])
                     SteamAPI_ISteamScreenshots_WriteScreenshot(iss, as_rgb.data(), sizeof(vec<3, char>) * as_rgb.size(), high_width, high_height);
                }
             }
+            #endif
         }
 
+        while(auto opt = shared.finished_textures.pop())
         {
+            texture_settings tsett;
+            tsett.width = opt.value().size<2>().x();
+            tsett.height = opt.value().size<2>().y();
+            tsett.is_srgb = false;
+            tsett.generate_mipmaps = false;
+
+            texture tex;
+            tex.load_from_memory(tsett);
+
+            cl::gl_rendertexture render_tex;
+            render_tex.create_from_texture(tex.handle);
+
+            render_tex.acquire(clctx.cqueue);
+            cl::copy_image(clctx.cqueue, opt.value(), render_tex, {0,0}, {tsett.width, tsett.height});
+            render_tex.unacquire(clctx.cqueue);
+
             ImDrawList* lst = hide_ui ?
                               ImGui::GetForegroundDrawList(ImGui::GetMainViewport()) :
                               ImGui::GetBackgroundDrawList(ImGui::GetMainViewport());
@@ -2509,7 +2089,7 @@ int main(int argc, char* argv[])
                 br.y += screen_pos.y;
             }
 
-            lst->AddImage((void*)st.rtex.texture_id, tl, br, ImVec2(0, 0), ImVec2(1, 1));
+            lst->AddImage((void*)render_tex.texture_id, tl, br, ImVec2(0, 0), ImVec2(1, 1));
         }
 
         ImGui::PopAllowKeyboardFocus();

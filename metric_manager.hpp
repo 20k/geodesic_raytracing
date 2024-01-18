@@ -9,6 +9,7 @@ struct metric_manager
     int current_idx = -1;
     metrics::metric* current_metric = nullptr;
 
+    std::mutex program_lock;
     bool using_swapped = false;
     std::optional<cl::program> substituted_program_opt;
     std::optional<cl::program> pending_dynamic_program_opt;
@@ -84,12 +85,16 @@ struct metric_manager
 
         if(should_hard_recompile)
         {
-            using_swapped = false;
-
             printj("Building");
             std::string dynamic_argument_string = argument_string_prefix + build_argument_string(*current_metric, current_metric->desc.abstract, false, dfg, {});
 
             file::write("./argument_string.txt", dynamic_argument_string, file::mode::TEXT);
+
+            cl::program pending = cl::build_program_with_cache(context, {"cl.cl"}, true, dynamic_argument_string);
+
+            std::lock_guard guard(program_lock);
+
+            using_swapped = false;
 
             if(substituted_program_opt.has_value())
             {
@@ -102,10 +107,6 @@ struct metric_manager
                 pending_dynamic_program_opt->cancel();
                 pending_dynamic_program_opt = std::nullopt;
             }
-
-            pending_dynamic_program_opt = std::nullopt;
-
-            cl::program pending = cl::build_program_with_cache(context, {"cl.cl"}, true, dynamic_argument_string);
 
             pending_dynamic_program_opt = pending;
 
@@ -132,6 +133,12 @@ struct metric_manager
 
         if(should_soft_recompile || should_hard_recompile)
         {
+            auto substitution_map = current_metric->sand.cfg.as_substitution_map();
+            metrics::metric_impl<std::string> substituted_impl = metrics::build_concrete(substitution_map, current_metric->desc.raw);
+            std::string substituted_argument_string = argument_string_prefix + build_argument_string(*current_metric, substituted_impl, true, dfg, substitution_map);
+
+            std::lock_guard guard(program_lock);
+
             if(using_swapped)
             {
                 assert(pending_dynamic_program_opt.has_value());
@@ -152,12 +159,6 @@ struct metric_manager
 
             using_swapped = false;
 
-            auto substitution_map = current_metric->sand.cfg.as_substitution_map();
-
-            metrics::metric_impl<std::string> substituted_impl = metrics::build_concrete(substitution_map, current_metric->desc.raw);
-
-            std::string substituted_argument_string = argument_string_prefix + build_argument_string(*current_metric, substituted_impl, true, dfg, substitution_map);
-
             if(substituted_program_opt.has_value())
             {
                 substituted_program_opt->cancel();
@@ -173,6 +174,8 @@ struct metric_manager
 
     void check_substitution(cl::context& ctx)
     {
+        std::lock_guard guard(program_lock);
+
         if(pending_dynamic_program_opt.has_value())
         {
             cl::program& pending = pending_dynamic_program_opt.value();

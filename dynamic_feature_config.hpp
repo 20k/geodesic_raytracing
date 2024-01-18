@@ -57,10 +57,12 @@ struct dynamic_feature_config
 
     std::string generate_dynamic_argument_string() const;
     std::string generate_static_argument_string() const;
-    void alloc_and_write_gpu_buffer(cl::command_queue& cqueue, cl::buffer& inout);
+    bool alloc_and_write_gpu_buffer(cl::command_queue& cqueue, cl::buffer& inout);
 
 private:
     void add_feature_impl(const std::string& feature, const std::type_info& inf);
 };
+
+//void alloc_from_dfg(dynamic_feature_config& dfg, cl::command_queue& cqueue, cl::buffer& inout);
 
 #endif // DYNAMIC_FEATURE_CONFIG_HPP_INCLUDED
