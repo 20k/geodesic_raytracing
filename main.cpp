@@ -2121,6 +2121,16 @@ int main(int argc, char* argv[])
             }
         }*/
 
+        /*std::optional<cl::image> opt;
+
+        while(!opt.has_value())
+        {
+            opt = shared.shared_textures.pop_rendered();
+
+            if(!opt.has_value())
+                sf::sleep(sf::milliseconds(1));
+        }*/
+
         if(auto opt = shared.shared_textures.pop_rendered(); opt.has_value())
         {
             auto dim = opt.value().size<2>();
@@ -2180,7 +2190,7 @@ int main(int argc, char* argv[])
 
         once = true;
 
-        sf::sleep(sf::milliseconds(1));
+        //sf::sleep(sf::milliseconds(1));
     }
 
     shared.is_open = false;

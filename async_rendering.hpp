@@ -328,8 +328,6 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
 
         while(shared.shared_textures.peek_rendered_size() >= 4)
         {
-            printf("Clogged\n");
-
             //std::this_thread::sleep_for(std::chrono::milliseconds(1));
             sf::sleep(sf::milliseconds(1));
             continue;
@@ -424,8 +422,7 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
 
         cl::image root = shared.shared_textures.pop_free_or_make_new(ctx, window_size.x(), window_size.y());
 
-        auto& img = pending_image_queue.emplace_back(ctx);
-        img = root;
+        auto& img = pending_image_queue.emplace_back(root);
 
         auto& next_image_event = pending_event_queue.emplace_back();
 
