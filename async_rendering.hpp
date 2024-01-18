@@ -170,7 +170,7 @@ struct resize_data
 
 struct settings_data
 {
-    float anisotropy = 0;
+    int anisotropy = 0;
 };
 
 struct dynamic_config_data
@@ -311,7 +311,7 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
     triangle_rendering::acceleration accel(ctx);
     triangle_rendering::manager tris(ctx);
 
-    float anisotropy = 16;
+    int anisotropy = 16;
 
     int live_metric = -1;
 

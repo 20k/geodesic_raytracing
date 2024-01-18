@@ -1074,6 +1074,8 @@ int main(int argc, char* argv[])
 
     int which_state = 0;
 
+    int last_sent_aniso = -1;
+
     while(!win.should_close() && !menu.should_quit && fullscreen.open)
     {
         //render_state& st = states[which_state];
@@ -1129,9 +1131,12 @@ int main(int argc, char* argv[])
             save_graphics();
         }
 
+        if(last_sent_aniso != menu.sett.anisotropy)
         {
             settings_data sett;
             sett.anisotropy = menu.sett.anisotropy;
+
+            last_sent_aniso = menu.sett.anisotropy;
 
             shared.settings_q.push(sett);
         }
