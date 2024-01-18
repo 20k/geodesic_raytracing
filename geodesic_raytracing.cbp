@@ -112,6 +112,8 @@
 			<Add library="deps/steamworks_sdk_153a/sdk/redistributable_bin/win64/libsteam_api64.a" />
 			<Add directory="deps/steamworks_sdk_153a/sdk/public/steam/lib/win64" />
 		</Linker>
+		<Unit filename="async_rendering.hpp" />
+		<Unit filename="camera.hpp" />
 		<Unit filename="chromaticity.hpp" />
 		<Unit filename="cl.cl">
 			<Option target="&lt;{~None~}&gt;" />

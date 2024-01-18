@@ -1445,7 +1445,11 @@ int main(int argc, char* argv[])
                                 if(vars.size() < 1)
                                     vars.resize(1);
 
-                                shared.dynamic_config_q.push(std::move(vars));
+                                dynamic_config_data dcd;
+                                dcd.vars = std::move(vars);
+                                dcd.for_whomst = metric_manage.current_idx;
+
+                                shared.dynamic_config_q.push(std::move(dcd));
                                 should_soft_recompile = true;
                             }
                         }
@@ -1646,11 +1650,6 @@ int main(int argc, char* argv[])
                                           sett, clctx.ctx, selected_metric))
             {
                 phys.needs_trace = true;
-            }
-
-            if(out_cfg)
-            {
-                shared.dynamic_config_q.push(out_cfg.value());
             }
 
             #ifdef UNIMPLEMENTED

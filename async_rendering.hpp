@@ -168,24 +168,22 @@ struct resize_data
     bool is_screenshot = false;
 };
 
-struct recompile_data
-{
-    //bool should_soft_recompile = false;
-    //bool should_hard_recompile = false;
-};
-
 struct settings_data
 {
     float anisotropy = 0;
+};
+
+struct dynamic_config_data
+{
+    std::vector<float> vars;
+    int for_whomst = -1;
 };
 
 struct shared_data
 {
     mt_queue<event_data> event_q;
     mt_queue<resize_data> resize_q;
-    mt_queue<std::vector<float>> dynamic_config_q;
-    mt_queue<int> selected_metric_q;
-    mt_queue<recompile_data> recompile_data_q;
+    mt_queue<dynamic_config_data> dynamic_config_q;
     mt_queue<cl::buffer> dfg_q;
     mt_queue<settings_data> settings_q;
 
@@ -233,6 +231,8 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
 
     float anisotropy = 16;
 
+    int live_metric = -1;
+
     while(shared.is_open)
     {
         render_state& st = states[which_state];
@@ -256,15 +256,6 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
 
         while(auto opt = shared.event_q.pop())
         {
-            /*float universe_size = 0;
-
-            {
-                std::scoped_lock lck(shared.data_lock);
-                universe_size = shared.universe_size;
-            }
-
-            cam.handle_input(opt.value().mouse, opt.value().keyboard, universe_size);*/
-
             cam = opt.value().cam;
         }
 
@@ -275,10 +266,13 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
 
         while(auto opt = shared.dynamic_config_q.pop())
         {
-            std::vector<float> vals = opt.value();
+            dynamic_config_data dcd = opt.value();
 
-            dynamic_config.alloc(vals.size() * sizeof(cl_float));
-            dynamic_config.write(mqueue, vals);
+            if(dcd.for_whomst != live_metric)
+                continue;
+
+            dynamic_config.alloc(dcd.vars.size() * sizeof(cl_float));
+            dynamic_config.write(mqueue, dcd.vars);
         }
 
         while(auto opt = shared.settings_q.pop())
@@ -286,7 +280,13 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
             anisotropy = opt.value().anisotropy;
         }
 
-        manage.check_substitution(ctx);
+        live_metric = manage.check_substitution(ctx);
+
+        if(live_metric == -1)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            continue;
+        }
 
         cl_image_format fmt;
         fmt.image_channel_order = CL_RGBA;

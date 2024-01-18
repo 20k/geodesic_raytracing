@@ -9,11 +9,14 @@ struct metric_manager
     int current_idx = -1;
     metrics::metric* current_metric = nullptr;
 
+    ///everything below the mutex is guarded by it
     std::mutex program_lock;
+    bool has_built = false;
     bool using_swapped = false;
+    int which_metric_is_live = -1;
+    std::optional<std::vector<float>> mandatory_dynamic_values;
     std::optional<cl::program> substituted_program_opt;
     std::optional<cl::program> pending_dynamic_program_opt;
-    bool has_built = false;
 
     ///this is a bit of a giant mess
     bool check_recompile(bool should_recompile, bool should_soft_recompile,
@@ -50,15 +53,6 @@ struct metric_manager
             assert(current_metric);
 
             dfg.set_feature("max_acceleration_change", current_metric->metric_cfg.max_acceleration_change);
-
-            printj("ALLOCATING DYNCONFIG ", current_metric->sand.cfg.default_values.size());
-
-            std::vector<float> vars = current_metric->sand.cfg.default_values;
-
-            if(vars.size() == 0)
-                vars.resize(1);
-
-            dynamic_config = vars;
         }
 
         std::string argument_string_prefix = "-cl-std=CL1.2 -cl-unsafe-math-optimizations ";
@@ -76,6 +70,15 @@ struct metric_manager
 
         if(should_hard_recompile)
         {
+            printj("ALLOCATING DYNCONFIG ", current_metric->sand.cfg.default_values.size());
+
+            std::vector<float> vars = current_metric->sand.cfg.default_values;
+
+            if(vars.size() == 0)
+                vars.resize(1);
+
+            dynamic_config = vars;
+
             printj("Building");
             std::string dynamic_argument_string = argument_string_prefix + build_argument_string(*current_metric, current_metric->desc.abstract, false, dfg, {});
 
@@ -84,6 +87,10 @@ struct metric_manager
             cl::program pending = cl::build_program_with_cache(context, {"cl.cl"}, true, dynamic_argument_string);
 
             std::lock_guard guard(program_lock);
+
+            which_metric_is_live = current_idx;
+
+            mandatory_dynamic_values = dynamic_config;
 
             using_swapped = false;
 
@@ -163,7 +170,7 @@ struct metric_manager
         return true;
     }
 
-    void check_substitution(cl::context& ctx)
+    int check_substitution(cl::context& ctx)
     {
         std::lock_guard guard(program_lock);
 
@@ -212,6 +219,8 @@ struct metric_manager
                 using_swapped = true;
             }
         }
+
+        return which_metric_is_live;
     }
 };
 
