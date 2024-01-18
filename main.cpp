@@ -676,7 +676,7 @@ int main(int argc, char* argv[])
     }
     else
     {
-        win.backend->set_is_maximised(true);
+        //win.backend->set_is_maximised(true);
         win.backend->clear_demaximise_cache();
     }
 
@@ -1036,14 +1036,6 @@ int main(int argc, char* argv[])
     cl::command_queue mqueue(clctx.ctx, 1<<9);
     #endif
 
-    std::vector<render_state> states;
-
-    for(int i=0; i < 3; i++)
-    {
-        states.emplace_back(clctx.ctx, clctx.cqueue);
-        states[i].realloc(start_width, start_height);
-    }
-
     bool reset_camera = true;
     bool once = false;
 
@@ -1057,6 +1049,21 @@ int main(int argc, char* argv[])
     };
 
     clctx.cqueue.block();
+
+    texture tex;
+
+    {
+        texture_settings tsett;
+        tsett.width = start_width;
+        tsett.height = start_height;
+        tsett.is_srgb = false;
+        tsett.generate_mipmaps = false;
+
+        tex.load_from_memory(tsett, nullptr);
+    }
+
+    cl::gl_rendertexture render_tex(clctx.ctx);
+    render_tex.create_from_texture(tex.handle);
 
     int selected_metric = -1;
     camera cam;
@@ -1362,6 +1369,15 @@ int main(int argc, char* argv[])
                 shared.resize_q.push(std::move(dat));
 
                 last_size = {width, height};
+
+                texture_settings new_sett;
+                new_sett.width = width;
+                new_sett.height = height;
+                new_sett.is_srgb = false;
+                new_sett.generate_mipmaps = false;
+
+                tex.load_from_memory(new_sett, nullptr);
+                render_tex.create_from_texture(tex.handle);
 
                 last_supersample = menu.sett.supersample;
                 last_supersample_mult = menu.sett.supersample_factor;
@@ -2070,21 +2086,21 @@ int main(int argc, char* argv[])
 
         while(auto opt = shared.finished_textures.pop())
         {
-            texture_settings tsett;
-            tsett.width = opt.value().size<2>().x();
-            tsett.height = opt.value().size<2>().y();
-            tsett.is_srgb = false;
-            tsett.generate_mipmaps = false;
+            auto dim = opt.value().size<2>();
 
-            texture tex;
-            tex.load_from_memory(tsett, nullptr);
-
-            cl::gl_rendertexture render_tex(clctx.ctx);
-            render_tex.create_from_texture(tex.handle);
+            if(dim.x() > render_tex.size<2>().x() || dim.y() > render_tex.size<2>().y())
+                continue;
 
             render_tex.acquire(clctx.cqueue);
-            cl::copy_image(clctx.cqueue, opt.value(), render_tex, (vec2i){0,0}, (vec2i){tsett.width, tsett.height});
+            clctx.cqueue.block();
+
+            cl::copy_image(clctx.cqueue, opt.value(), render_tex, (vec2i){0,0}, (vec2i){dim.x(), dim.y()});
+
+            clctx.cqueue.block();
+
             render_tex.unacquire(clctx.cqueue);
+
+            clctx.cqueue.block();
 
             ImDrawList* lst = hide_ui ?
                               ImGui::GetForegroundDrawList(ImGui::GetMainViewport()) :

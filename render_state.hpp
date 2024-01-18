@@ -44,8 +44,8 @@ struct render_state
 
     cl::buffer texture_coordinates;
 
-    texture tex;
-    cl::gl_rendertexture rtex;
+    //texture tex;
+    //cl::gl_rendertexture rtex;
 
     cl::buffer accel_ray_time_min;
     cl::buffer accel_ray_time_max;
@@ -58,7 +58,7 @@ struct render_state
         tri_intersections(ctx), tri_intersections_count(ctx),
         termination_buffer(ctx),
         texture_coordinates(ctx),
-        rtex(ctx),
+        //rtex(ctx),
         accel_ray_time_min(ctx), accel_ray_time_max(ctx)
     {
         //g_camera_pos_cart.alloc(sizeof(cl_float4));
@@ -94,14 +94,14 @@ struct render_state
         rays_finished.alloc(ray_count * sizeof(lightray));
         rays_prepass.alloc(ray_count * sizeof(lightray));
 
-        texture_settings new_sett;
+        /*texture_settings new_sett;
         new_sett.width = width;
         new_sett.height = height;
         new_sett.is_srgb = false;
         new_sett.generate_mipmaps = false;
 
         tex.load_from_memory(new_sett, nullptr);
-        rtex.create_from_texture(tex.handle);
+        rtex.create_from_texture(tex.handle);*/
 
         termination_buffer.alloc(width * height * sizeof(cl_int));
         texture_coordinates.alloc(width * height * sizeof(float) * 2);

@@ -290,7 +290,7 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
 
         cl_image_format fmt;
         fmt.image_channel_order = CL_RGBA;
-        fmt.image_channel_data_type = CL_UNSIGNED_INT8;
+        fmt.image_channel_data_type = CL_FLOAT;
 
         cl::image img(ctx);
         img.alloc({window_size.x(), window_size.y()}, fmt);
@@ -478,7 +478,7 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
             cl::args render_args;
             render_args.push_back(st.rays_finished);
             render_args.push_back(st.rays_count_finished);
-            render_args.push_back(st.rtex);
+            render_args.push_back(img);
             render_args.push_back(back_images.i1);
             render_args.push_back(back_images.i2);
             render_args.push_back(width);
@@ -490,6 +490,8 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
 
             mqueue.exec("render", render_args, {width * height}, {256});
         }
+
+        mqueue.block();
 
         shared.finished_textures.push(std::move(img));
     }

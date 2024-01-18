@@ -152,6 +152,9 @@ std::vector<std::string> load_sorting_file(std::filesystem::path filename)
 
 std::vector<std::filesystem::path> get_files_with_extension(std::filesystem::path folder, const std::string& ext)
 {
+    if(!std::filesystem::is_directory(folder))
+        return {};
+
     std::vector<std::filesystem::path> ret;
 
     try
