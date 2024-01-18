@@ -330,7 +330,7 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
         //cl::command_queue& mqueue = circ[which_state];
         which_state = (which_state + 1) % states.size();
 
-        while(shared.shared_textures.peek_rendered_size() >= 6)
+        while(shared.shared_textures.peek_rendered_size() >= 2)
         {
             printf("Clogged\n");
 
@@ -355,7 +355,7 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
             pending_image_queue.erase(pending_image_queue.begin());
         }
 
-        if(pending_event_queue.size() >= 3)
+        if(pending_event_queue.size() >= 2)
         {
             printf("Clogged 2\n");
 
