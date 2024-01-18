@@ -7,7 +7,6 @@
 struct metric_manager
 {
     int current_idx = -1;
-    int selected_idx = -1;
     metrics::metric* current_metric = nullptr;
 
     bool using_swapped = false;
@@ -18,7 +17,7 @@ struct metric_manager
     ///this is a bit of a giant mess
     bool check_recompile(bool should_recompile, bool should_soft_recompile,
                          const std::vector<content*>& parent_directories, content_manager& all_content, std::vector<std::string>& metric_names,
-                         cl::buffer& dynamic_config, cl::command_queue& cqueue, dynamic_feature_config& dfg, render_settings& sett, cl::context& context, cl::buffer& termination_buffer)
+                         cl::buffer& dynamic_config, cl::command_queue& cqueue, dynamic_feature_config& dfg, render_settings& sett, cl::context& context, int selected_idx)
     {
         if(!(should_recompile || current_idx == -1 || should_soft_recompile))
             return false;
@@ -32,13 +31,15 @@ struct metric_manager
 
         if(selected_idx != current_idx)
         {
+            current_idx = selected_idx;
+
             should_block = true;
 
-            metrics::metric* next = parent_directories[selected_idx]->lazy_fetch(all_content, metric_names[selected_idx]);
+            metrics::metric* next = parent_directories[current_idx]->lazy_fetch(all_content, metric_names[current_idx]);
 
             if(next == nullptr)
             {
-                printj("Broken metric ", metric_names[selected_idx]);
+                printj("Broken metric ", metric_names[current_idx]);
             }
             else
             {
@@ -64,9 +65,10 @@ struct metric_manager
                 vars.resize(1);
 
             dynamic_config.write(cqueue, vars);
+
+            cqueue.block();
         }
 
-        current_idx = selected_idx;
         std::string argument_string_prefix = "-cl-std=CL1.2 -cl-unsafe-math-optimizations ";
 
         ///use device side enqueue
@@ -165,10 +167,6 @@ struct metric_manager
             substituted_program_opt.emplace(context, "cl.cl");
             substituted_program_opt->build(context, substituted_argument_string);
         }
-
-        ///Is this necessary?
-        termination_buffer.set_to_zero(cqueue);
-        cqueue.block();
 
         return true;
     }

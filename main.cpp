@@ -795,8 +795,8 @@ struct mt_queue
     std::optional<T> pop()
     {
         std::scoped_lock lck(mut);
-        T val = std::move(dat.back());
-        dat.pop_back();
+        T val = std::move(dat.front());
+        dat.erase(dat.begin());
         return val;
     }
 };
@@ -816,6 +816,8 @@ struct shared_data
 {
     mt_queue<event_data> event_q;
     mt_queue<resize_data> resize_q;
+    mt_queue<std::vector<float>> dynamic_config_q;
+    mt_queue<int> selected_metric;
 
     mt_queue<cl::image> finished_textures;
 
@@ -840,6 +842,9 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size)
     camera cam;
 
     vec2i window_size = start_size;
+
+    cl::buffer dynamic_config(ctx);
+    dynamic_config.alloc(sizeof(cl_float));
 
     while(shared.is_open)
     {
@@ -1347,7 +1352,10 @@ int main(int argc, char* argv[])
 
     clctx.cqueue.block();
 
+    int selected_metric = -1;
     camera cam;
+    shared_data shared;
+    vec2i last_size = win.backend->get_window_size();
 
     int which_state = 0;
 
@@ -1483,7 +1491,7 @@ int main(int argc, char* argv[])
             }
         }
 
-        if(start_metric && metric_manage.selected_idx == -1)
+        if(start_metric && selected_metric == -1)
         {
             for(int selected = 0; selected < (int)metric_names.size(); selected++)
             {
@@ -1491,7 +1499,7 @@ int main(int argc, char* argv[])
 
                 if(name == start_metric.value())
                 {
-                    metric_manage.selected_idx = selected;
+                    selected_metric = selected;
                     should_recompile = true;
                     break;
                 }
@@ -1510,12 +1518,12 @@ int main(int argc, char* argv[])
 
                 ImGui::Text("Metric: ");
 
-                bool valid_selected_idx = metric_manage.selected_idx >= 0 && metric_manage.selected_idx < metric_names.size();
+                bool valid_selected_idx = selected_metric >= 0 && selected_metric < metric_names.size();
 
                 std::string preview = "None";
 
                 if(valid_selected_idx)
-                    preview = metric_names[metric_manage.selected_idx];
+                    preview = metric_names[selected_metric];
 
                 if(ImGui::BeginCombo("##Metrics Box", preview.c_str()))
                 {
@@ -1523,9 +1531,9 @@ int main(int argc, char* argv[])
                     {
                         std::string name = metric_names[selected];
 
-                        if(ImGui::Selectable(name.c_str(), selected == metric_manage.selected_idx))
+                        if(ImGui::Selectable(name.c_str(), selected == selected_metric))
                         {
-                            metric_manage.selected_idx = selected;
+                            selected_metric = selected;
                             should_recompile = true;
                         }
 
@@ -1596,14 +1604,14 @@ int main(int argc, char* argv[])
         }
 
         {
-            auto buffer_size = st.rtex.size<2>();
+            //auto buffer_size = st.rtex.size<2>();
 
             bool taking_screenshot = should_take_screenshot;
             should_take_screenshot = false;
 
             bool should_snapshot_geodesic = false;
 
-            vec<2, size_t> super_adjusted_width = menu.sett.supersample ? (buffer_size / menu.sett.supersample_factor) : buffer_size;
+            vec2i super_adjusted_width = menu.sett.supersample ? (last_size / menu.sett.supersample_factor) : last_size;
 
             if((vec2i){super_adjusted_width.x(), super_adjusted_width.y()} != win.get_window_size() || taking_screenshot || last_supersample != menu.sett.supersample || last_supersample_mult != menu.sett.supersample_factor || menu.dirty_settings)
             {
@@ -1630,8 +1638,12 @@ int main(int argc, char* argv[])
                 width = std::max(width, 16 * menu.sett.supersample_factor);
                 height = std::max(height, 16 * menu.sett.supersample_factor);
 
-                for(auto& i : states)
-                    i.realloc(width, height);
+                resize_data dat;
+                dat.size = {width, height};
+
+                shared.resize_q.push(std::move(dat));
+
+                last_size = {width, height};
 
                 last_supersample = menu.sett.supersample;
                 last_supersample_mult = menu.sett.supersample_factor;
@@ -1712,19 +1724,12 @@ int main(int argc, char* argv[])
                         {
                             if(metric_manage.current_metric->sand.cfg.display())
                             {
-                                int dyn_config_bytes = metric_manage.current_metric->sand.cfg.current_values.size() * sizeof(cl_float);
-
-                                if(dyn_config_bytes < 4)
-                                    dyn_config_bytes = 4;
-
-                                dynamic_config.alloc(dyn_config_bytes);
-
                                 std::vector<float> vars = metric_manage.current_metric->sand.cfg.current_values;
 
-                                if(vars.size() == 0)
+                                if(vars.size() < 1)
                                     vars.resize(1);
 
-                                dynamic_config.write(mqueue, vars);
+                                shared.dynamic_config_q.push(std::move(vars));
                                 should_soft_recompile = true;
                             }
                         }
@@ -1918,7 +1923,7 @@ int main(int argc, char* argv[])
 
             if(metric_manage.check_recompile(should_recompile, should_soft_recompile, parent_directories,
                                           all_content, metric_names, dynamic_config, mqueue, dfg,
-                                          sett, clctx.ctx, st.termination_buffer))
+                                          sett, clctx.ctx, selected_metric))
             {
                 phys.needs_trace = true;
             }
@@ -2525,6 +2530,8 @@ int main(int argc, char* argv[])
 
         once = true;
     }
+
+    shared.is_open = false;
 
     //mqueue.block();
     clctx.cqueue.block();
