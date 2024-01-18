@@ -1931,16 +1931,14 @@ int main(int argc, char* argv[])
                 }
             }
 
-            cl::buffer g_camera_pos_cart(clctx.ctx);
-            g_camera_pos_cart.alloc(sizeof(cl_float4));
-            g_camera_pos_cart.write(mqueue, std::span{&cam.pos.v[0], 4});
+            cl::buffer& g_camera_pos_cart = st.g_camera_pos_cart;
+            cl::event camera_pos_event = g_camera_pos_cart.write_async(mqueue, std::span{&cam.pos.v[0], 4});
 
-            cl::buffer g_camera_quat(clctx.ctx);
-            g_camera_quat.alloc(sizeof(cl_float4));
-            g_camera_quat.write(mqueue, std::span{&cam.rot.q.v[0], 4});
+            cl::buffer& g_camera_quat = st.g_camera_quat;
+            cl::event camera_quat_event = g_camera_quat.write_async(mqueue, std::span{&cam.rot.q.v[0], 4});
 
-            cl::buffer g_geodesic_basis_speed(clctx.ctx);
-            g_geodesic_basis_speed.alloc(sizeof(cl_float4));
+            cl::event geodesic_event;
+            cl::buffer& g_geodesic_basis_speed = st.g_geodesic_basis_speed;
 
             //if(should_set_observer_velocity)
             {
@@ -1950,7 +1948,7 @@ int main(int argc, char* argv[])
 
                 vec4f geodesic_basis_speed = (vec4f){rotated.x(), rotated.y(), rotated.z(), 0.f};
 
-                g_geodesic_basis_speed.write(mqueue, std::span{&geodesic_basis_speed.v[0], 4});
+                geodesic_event = g_geodesic_basis_speed.write_async(mqueue, std::span{&geodesic_basis_speed.v[0], 4});
             }
 
             if(camera_on_geodesic)
@@ -1982,7 +1980,7 @@ int main(int argc, char* argv[])
                 interpolate_args.push_back(next_geodesic_velocity);
                 interpolate_args.push_back(dynamic_config);
 
-                cl::event evt = mqueue.exec("handle_interpolating_geodesic", interpolate_args, {1}, {1});
+                cl::event evt = mqueue.exec("handle_interpolating_geodesic", interpolate_args, {1}, {1}, {geodesic_event});
 
                 geodesic_q.start_read(clctx.ctx, async_queue, std::move(next_geodesic_velocity), {evt});
             }
@@ -1999,7 +1997,7 @@ int main(int argc, char* argv[])
                                    clflip,
                                    dynamic_config);
 
-                    mqueue.exec("cart_to_generic_kernel", args, {1}, {1});
+                    mqueue.exec("cart_to_generic_kernel", args, {1}, {1}, {camera_pos_event});
                 }
 
                 {
@@ -2108,7 +2106,7 @@ int main(int argc, char* argv[])
 
                     init_args_prepass.push_back(dynamic_config);
 
-                    mqueue.exec("init_rays_generic", init_args_prepass, {prepass_width*prepass_height}, {256});
+                    mqueue.exec("init_rays_generic", init_args_prepass, {prepass_width*prepass_height}, {256}, {camera_quat_event});
 
                     int rays_num = calculate_ray_count(prepass_width, prepass_height);
 
@@ -2143,7 +2141,7 @@ int main(int argc, char* argv[])
 
                 init_args.push_back(dynamic_config);
 
-                mqueue.exec("init_rays_generic", init_args, {width*height}, {16*16});
+                mqueue.exec("init_rays_generic", init_args, {width*height}, {16*16}, {camera_quat_event});
 
                 int rays_num = calculate_ray_count(width, height);
 
@@ -2240,7 +2238,7 @@ int main(int argc, char* argv[])
 
                     lorentz.push_back(dynamic_config);
 
-                    mqueue.exec("boost_tetrad", lorentz, {1}, {1});
+                    mqueue.exec("boost_tetrad", lorentz, {1}, {1}, {geodesic_event});
                 }
 
                 {
