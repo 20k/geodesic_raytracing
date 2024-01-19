@@ -183,7 +183,7 @@ struct image_shared_queue
 {
     std::mutex mut;
 
-    std::vector<cl::image> unprocessed;
+    std::vector<std::pair<cl::image, cl::event>> unprocessed;
     std::vector<cl::image> free_images;
 
     int peek_rendered_size()
@@ -193,14 +193,14 @@ struct image_shared_queue
         return unprocessed.size();
     }
 
-    void push_rendered(cl::image img)
+    void push_rendered(cl::image img, cl::event evt)
     {
         std::scoped_lock guard(mut);
 
-        unprocessed.push_back(img);
+        unprocessed.push_back({img, evt});
     }
 
-    std::optional<cl::image> pop_rendered()
+    std::optional<std::pair<cl::image, cl::event>> pop_rendered()
     {
         std::scoped_lock guard(mut);
 
@@ -225,13 +225,13 @@ struct image_shared_queue
 
         if(free_images.size() > 0)
         {
-            auto size = free_images.back().size<2>();
+            auto size = free_images.front().size<2>();
 
             if(size.x() == width && size.y() == height)
             {
-                auto next = free_images.back();
+                auto next = free_images.front();
 
-                free_images.pop_back();
+                free_images.erase(free_images.begin());
 
                 return next;
             }
@@ -271,9 +271,16 @@ struct shared_data
     float universe_size = 0;
 };
 
-void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metric_manager& manage, background_images& back_images)
+steady_timer last_elapsed;
+
+void callback(cl_event event, cl_int event_command_status, void *user_data)
 {
-    cl::command_queue mqueue(ctx, 1<<9);
+    std::cout << "Last " << last_elapsed.restart() * 1000. << std::endl;
+}
+
+void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metric_manager& manage, background_images& back_images, cl::command_queue& mqueue)
+{
+    //cl::command_queue mqueue(ctx, 1<<9);
 
     cl::command_queue tqueue(ctx);
 
@@ -322,16 +329,24 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
 
     steady_timer frame_time;
 
+    steady_timer last_submit_time;
+
+    steady_timer t;
+
     while(shared.is_open)
     {
-        //steady_timer t;
+        //std::cout << "TTime " << t.restart() * 1000. << std::endl;
 
-        while(shared.shared_textures.peek_rendered_size() >= 4)
+        while(shared.shared_textures.peek_rendered_size() >= 5)
         {
+            //printf("Clog1\n");
+
             //std::this_thread::sleep_for(std::chrono::milliseconds(1));
             sf::sleep(sf::milliseconds(1));
             continue;
         }
+
+        //printf("Peeked %i\n", shared.shared_textures.peek_rendered_size());
 
         /*if(pending_event_queue.size() > 2)
         {
@@ -339,6 +354,7 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
             pending_event_queue.front().block();
         }*/
 
+        #if 0
         while(pending_event_queue.size() > 0 && pending_event_queue.front().is_finished())
         {
             printf("Ftime %f\n", frame_time.restart() * 1000.);
@@ -349,7 +365,7 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
             pending_image_queue.erase(pending_image_queue.begin());
         }
 
-        if(pending_event_queue.size() >= 6)
+        if(pending_event_queue.size() >= 4)
         {
             //printf("Clogged 2\n");
 
@@ -359,6 +375,7 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
             //std::this_thread::sleep_for(std::chrono::milliseconds(1));
             continue;
         }
+        #endif
 
         render_state& st = states[which_state];
         //cl::command_queue& mqueue = circ[which_state];
@@ -420,11 +437,10 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
 
         auto& img = pending_image_queue.emplace_back(ctx);*/
 
-        cl::image root = shared.shared_textures.pop_free_or_make_new(ctx, window_size.x(), window_size.y());
+        cl::image img = shared.shared_textures.pop_free_or_make_new(ctx, window_size.x(), window_size.y());
 
-        auto& img = pending_image_queue.emplace_back(root);
-
-        auto& next_image_event = pending_event_queue.emplace_back();
+        //auto& img = pending_image_queue.emplace_back(root);
+        //auto& next_image_event = pending_event_queue.emplace_back();
 
         cl::buffer& g_camera_pos_cart = st.g_camera_pos_cart;
         cl::event camera_evt = g_camera_pos_cart.write_async(mqueue, std::span{&cam.pos.v[0], 4});
@@ -486,120 +502,129 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
         int width = img.size<2>().x();
         int height = img.size<2>().y();
 
+
+        int isnap = 0;
+
+        cl_int prepass_width = width/16;
+        cl_int prepass_height = height/16;
+
+        #ifdef UNIMPLEMENTED
+        if(metric_manage.current_metric->metric_cfg.use_prepass && tris.cpu_objects.size() > 0)
+        {
+            st.termination_buffer.set_to_zero(mqueue);
+        }
+
+        if(metric_manage.current_metric->metric_cfg.use_prepass && tris.cpu_objects.size() == 0)
+        {
+            cl::args clear_args;
+            clear_args.push_back(st.termination_buffer);
+            clear_args.push_back(prepass_width);
+            clear_args.push_back(prepass_height);
+
+            mqueue.exec("clear_termination_buffer", clear_args, {prepass_width*prepass_height}, {256});
+
+            cl::args init_args_prepass;
+
+            init_args_prepass.push_back(st.g_camera_pos_generic);
+            init_args_prepass.push_back(g_camera_quat);
+            init_args_prepass.push_back(st.rays_prepass);
+            init_args_prepass.push_back(st.rays_count_prepass);
+            init_args_prepass.push_back(prepass_width);
+            init_args_prepass.push_back(prepass_height);
+            init_args_prepass.push_back(st.termination_buffer);
+            init_args_prepass.push_back(prepass_width);
+            init_args_prepass.push_back(prepass_height);
+            init_args_prepass.push_back(isnap);
+
+            for(auto& i : st.tetrad)
+            {
+                init_args_prepass.push_back(i);
+            }
+
+            init_args_prepass.push_back(dynamic_config);
+
+            mqueue.exec("init_rays_generic", init_args_prepass, {prepass_width*prepass_height}, {256}, {camera_quat_evt});
+
+            int rays_num = calculate_ray_count(prepass_width, prepass_height);
+
+            execute_kernel(mqueue, st.rays_prepass, st.rays_out, st.rays_finished, st.rays_count_prepass, st.rays_count_out, st.rays_count_finished, st.accel_ray_time_min, st.accel_ray_time_max, tris, st.tri_intersections, st.tri_intersections_count, accel, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer);
+
+            cl::args singular_args;
+            singular_args.push_back(st.rays_finished);
+            singular_args.push_back(st.rays_count_finished);
+            singular_args.push_back(st.termination_buffer);
+            singular_args.push_back(prepass_width);
+            singular_args.push_back(prepass_height);
+
+            mqueue.exec("calculate_singularities", singular_args, {prepass_width*prepass_height}, {256});
+        }
+        #endif
+
+        cl::args init_args;
+        init_args.push_back(st.g_camera_pos_generic);
+        init_args.push_back(g_camera_quat);
+        init_args.push_back(st.rays_in);
+        init_args.push_back(st.rays_count_in);
+        init_args.push_back(width);
+        init_args.push_back(height);
+        init_args.push_back(st.termination_buffer);
+        init_args.push_back(prepass_width);
+        init_args.push_back(prepass_height);
+        init_args.push_back(isnap);
+
+        for(auto& i : st.tetrad)
+        {
+            init_args.push_back(i);
+        }
+
+        init_args.push_back(dynamic_config);
+
+        mqueue.exec("init_rays_generic", init_args, {width*height}, {16*16}, {camera_quat_evt});
+
+        int rays_num = width * height;
+
+        execute_kernel(mqueue, st.rays_in, st.rays_out, st.rays_finished, st.rays_count_in, st.rays_count_out, st.rays_count_finished, st.accel_ray_time_min, st.accel_ray_time_max, tris, st.tri_intersections, st.tri_intersections_count, accel, phys, rays_num, false, false, dynamic_config, dynamic_feature_buffer);
+
+        cl::args texture_args;
+        texture_args.push_back(st.rays_finished);
+        texture_args.push_back(st.rays_count_finished);
+        texture_args.push_back(st.texture_coordinates);
+        texture_args.push_back(width);
+        texture_args.push_back(height);
+        texture_args.push_back(dynamic_config);
+        texture_args.push_back(dynamic_feature_buffer);
+
+        mqueue.exec("calculate_texture_coordinates", texture_args, {width * height}, {256});
+
         cl::args clr;
         clr.push_back(img);
 
         mqueue.exec("clear", clr, {width, height}, {16, 16});
 
-        {
-            int isnap = 0;
+        cl::args render_args;
+        render_args.push_back(st.rays_finished);
+        render_args.push_back(st.rays_count_finished);
+        render_args.push_back(img);
+        render_args.push_back(back_images.i1);
+        render_args.push_back(back_images.i2);
+        render_args.push_back(width);
+        render_args.push_back(height);
+        render_args.push_back(st.texture_coordinates);
+        render_args.push_back(anisotropy);
+        render_args.push_back(dynamic_config);
+        render_args.push_back(dynamic_feature_buffer);
 
-            cl_int prepass_width = width/16;
-            cl_int prepass_height = height/16;
+        cl::event next_image_event = mqueue.exec("render", render_args, {width * height}, {256});
 
-            #ifdef UNIMPLEMENTED
-            if(metric_manage.current_metric->metric_cfg.use_prepass && tris.cpu_objects.size() > 0)
-            {
-                st.termination_buffer.set_to_zero(mqueue);
-            }
+        next_image_event.set_completion_callback(callback, nullptr);
 
-            if(metric_manage.current_metric->metric_cfg.use_prepass && tris.cpu_objects.size() == 0)
-            {
-                cl::args clear_args;
-                clear_args.push_back(st.termination_buffer);
-                clear_args.push_back(prepass_width);
-                clear_args.push_back(prepass_height);
+        //mqueue.block();
 
-                mqueue.exec("clear_termination_buffer", clear_args, {prepass_width*prepass_height}, {256});
+        //mqueue.flush();
 
-                cl::args init_args_prepass;
+        shared.shared_textures.push_rendered(img, next_image_event);
 
-                init_args_prepass.push_back(st.g_camera_pos_generic);
-                init_args_prepass.push_back(g_camera_quat);
-                init_args_prepass.push_back(st.rays_prepass);
-                init_args_prepass.push_back(st.rays_count_prepass);
-                init_args_prepass.push_back(prepass_width);
-                init_args_prepass.push_back(prepass_height);
-                init_args_prepass.push_back(st.termination_buffer);
-                init_args_prepass.push_back(prepass_width);
-                init_args_prepass.push_back(prepass_height);
-                init_args_prepass.push_back(isnap);
-
-                for(auto& i : st.tetrad)
-                {
-                    init_args_prepass.push_back(i);
-                }
-
-                init_args_prepass.push_back(dynamic_config);
-
-                mqueue.exec("init_rays_generic", init_args_prepass, {prepass_width*prepass_height}, {256}, {camera_quat_evt});
-
-                int rays_num = calculate_ray_count(prepass_width, prepass_height);
-
-                execute_kernel(mqueue, st.rays_prepass, st.rays_out, st.rays_finished, st.rays_count_prepass, st.rays_count_out, st.rays_count_finished, st.accel_ray_time_min, st.accel_ray_time_max, tris, st.tri_intersections, st.tri_intersections_count, accel, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer);
-
-                cl::args singular_args;
-                singular_args.push_back(st.rays_finished);
-                singular_args.push_back(st.rays_count_finished);
-                singular_args.push_back(st.termination_buffer);
-                singular_args.push_back(prepass_width);
-                singular_args.push_back(prepass_height);
-
-                mqueue.exec("calculate_singularities", singular_args, {prepass_width*prepass_height}, {256});
-            }
-            #endif
-
-            cl::args init_args;
-            init_args.push_back(st.g_camera_pos_generic);
-            init_args.push_back(g_camera_quat);
-            init_args.push_back(st.rays_in);
-            init_args.push_back(st.rays_count_in);
-            init_args.push_back(width);
-            init_args.push_back(height);
-            init_args.push_back(st.termination_buffer);
-            init_args.push_back(prepass_width);
-            init_args.push_back(prepass_height);
-            init_args.push_back(isnap);
-
-            for(auto& i : st.tetrad)
-            {
-                init_args.push_back(i);
-            }
-
-            init_args.push_back(dynamic_config);
-
-            mqueue.exec("init_rays_generic", init_args, {width*height}, {16*16}, {camera_quat_evt});
-
-            int rays_num = width * height;
-
-            execute_kernel(mqueue, st.rays_in, st.rays_out, st.rays_finished, st.rays_count_in, st.rays_count_out, st.rays_count_finished, st.accel_ray_time_min, st.accel_ray_time_max, tris, st.tri_intersections, st.tri_intersections_count, accel, phys, rays_num, false, false, dynamic_config, dynamic_feature_buffer);
-
-            cl::args texture_args;
-            texture_args.push_back(st.rays_finished);
-            texture_args.push_back(st.rays_count_finished);
-            texture_args.push_back(st.texture_coordinates);
-            texture_args.push_back(width);
-            texture_args.push_back(height);
-            texture_args.push_back(dynamic_config);
-            texture_args.push_back(dynamic_feature_buffer);
-
-            mqueue.exec("calculate_texture_coordinates", texture_args, {width * height}, {256});
-
-            cl::args render_args;
-            render_args.push_back(st.rays_finished);
-            render_args.push_back(st.rays_count_finished);
-            render_args.push_back(img);
-            render_args.push_back(back_images.i1);
-            render_args.push_back(back_images.i2);
-            render_args.push_back(width);
-            render_args.push_back(height);
-            render_args.push_back(st.texture_coordinates);
-            render_args.push_back(anisotropy);
-            render_args.push_back(dynamic_config);
-            render_args.push_back(dynamic_feature_buffer);
-
-            next_image_event = mqueue.exec("render", render_args, {width * height}, {256});
-        }
+        //printf("Last Submitted %f\n", last_submit_time.restart() * 1000);
 
         //std::cout << "GPUT " << gpu_submit_time.get_elapsed_time_s() * 1000. << std::endl;
 

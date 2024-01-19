@@ -1071,11 +1071,17 @@ int main(int argc, char* argv[])
     shared_data shared;
     vec2i last_size = win.backend->get_window_size();
 
-    std::jthread([&](){render_thread(clctx.ctx, shared, last_size, metric_manage, back_images);}).detach();
+    //cl::command_queue mqueue(clctx.ctx, 1<<9);
+
+    std::jthread([&](){render_thread(clctx.ctx, shared, last_size, metric_manage, back_images, mqueue);}).detach();
 
     int which_state = 0;
 
     int last_sent_aniso = -1;
+
+    float avg_frametime = 0;
+
+    std::vector<std::pair<cl::image, cl::event>> unprocessed;
 
     while(!win.should_close() && !menu.should_quit && fullscreen.open)
     {
@@ -1171,6 +1177,7 @@ int main(int argc, char* argv[])
         }
 
         float frametime_s = frametime_timer.restart();
+        avg_frametime = avg_frametime * 0.9 + frametime_s * 0.1;
 
         float controls_multiplier = 1.f;
 
@@ -2131,22 +2138,30 @@ int main(int argc, char* argv[])
                 sf::sleep(sf::milliseconds(1));
         }*/
 
-        if(auto opt = shared.shared_textures.pop_rendered(); opt.has_value())
+        while(auto opt = shared.shared_textures.pop_rendered())
         {
-            auto dim = opt.value().size<2>();
+            auto dim = opt.value().first.size<2>();
 
             ///very rare this is false, resize only
             if(dim.x() <= render_tex.size<2>().x() && dim.y() <= render_tex.size<2>().y())
             {
-                render_tex.acquire(clctx.cqueue);
+                ///todo: trying to totally remove queue blocking
+                ///need to pipe texture into a render texture
+                ///need to have multiple render textures
 
-                cl::copy_image(clctx.cqueue, opt.value(), render_tex, (vec2i){0,0}, (vec2i){dim.x(), dim.y()});
+                //steady_timer t;
 
-                render_tex.unacquire(clctx.cqueue);
+                render_tex.acquire(mqueue, {opt.value().second});
+                cl::copy_image(mqueue, opt.value().first, render_tex, (vec2i){0,0}, (vec2i){dim.x(), dim.y()});
+                render_tex.unacquire(mqueue);
 
-                clctx.cqueue.block();
+                //std::cout << "TTT " << t.get_elapsed_time_s() * 1000. << std::endl;
 
-                shared.shared_textures.push_free(opt.value());
+                //clctx.cqueue.block();
+
+                //opt.value().second.block();
+
+                shared.shared_textures.push_free(opt.value().first);
             }
         }
 
@@ -2185,12 +2200,14 @@ int main(int argc, char* argv[])
             printf("Frametime Elapsed: %f\n", frametime_ms);
         }
 
+        //printf("Avg %f\n", avg_frametime * 1000.);
+
         if(frametime_s > 20 && once)
             return 0;
 
         once = true;
 
-        //sf::sleep(sf::milliseconds(1));
+        sf::sleep(sf::milliseconds(1));
     }
 
     shared.is_open = false;
