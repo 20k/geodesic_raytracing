@@ -594,7 +594,6 @@ void DragFloatCol(const std::string& name, cl_float4& val, int highlight)
     ImGui::EndGroup();
 }
 
-
 ///i need the ability to have dynamic parameters
 int main(int argc, char* argv[])
 {
@@ -1050,7 +1049,9 @@ int main(int argc, char* argv[])
 
     clctx.cqueue.block();
 
-    texture tex;
+    constexpr int max_tex_c = 3;
+
+    std::array<texture, max_tex_c> texture_storage;
 
     {
         texture_settings tsett;
@@ -1059,11 +1060,19 @@ int main(int argc, char* argv[])
         tsett.is_srgb = false;
         tsett.generate_mipmaps = false;
 
-        tex.load_from_memory(tsett, nullptr);
+        for(auto& tex : texture_storage)
+            tex.load_from_memory(tsett, nullptr);
     }
 
-    cl::gl_rendertexture render_tex(clctx.ctx);
-    render_tex.create_from_texture(tex.handle);
+    std::vector<cl::gl_rendertexture> render_tex_storage;
+    int which_render_tex = 0;
+    int last_valid_render_tex = 0;
+
+    for(int i=0; i < (int)texture_storage.size(); i++)
+    {
+        render_tex_storage.emplace_back(clctx.ctx);
+        render_tex_storage.back().create_from_texture(texture_storage[i].handle);
+    }
 
     int selected_metric = -1;
     camera cam;
@@ -1082,6 +1091,8 @@ int main(int argc, char* argv[])
     float avg_frametime = 0;
 
     std::vector<std::pair<cl::image, cl::event>> unprocessed;
+
+    async_executor<cl::image> aexec;
 
     while(!win.should_close() && !menu.should_quit && fullscreen.open)
     {
@@ -1389,8 +1400,11 @@ int main(int argc, char* argv[])
                 new_sett.is_srgb = false;
                 new_sett.generate_mipmaps = false;
 
-                tex.load_from_memory(new_sett, nullptr);
-                render_tex.create_from_texture(tex.handle);
+                for(int i=0; i < (int)render_tex_storage.size(); i++)
+                {
+                    texture_storage[i].load_from_memory(new_sett, nullptr);
+                    render_tex_storage[i].create_from_texture(texture_storage[i].handle);
+                }
 
                 last_supersample = menu.sett.supersample;
                 last_supersample_mult = menu.sett.supersample_factor;
@@ -2143,7 +2157,7 @@ int main(int argc, char* argv[])
             auto dim = opt.value().first.size<2>();
 
             ///very rare this is false, resize only
-            if(dim.x() <= render_tex.size<2>().x() && dim.y() <= render_tex.size<2>().y())
+            if(dim.x() <= render_tex_storage[0].size<2>().x() && dim.y() <= render_tex_storage[0].size<2>().y())
             {
                 ///todo: trying to totally remove queue blocking
                 ///need to pipe texture into a render texture
@@ -2151,9 +2165,15 @@ int main(int argc, char* argv[])
 
                 //steady_timer t;
 
-                render_tex.acquire(mqueue, {opt.value().second});
-                cl::copy_image(mqueue, opt.value().first, render_tex, (vec2i){0,0}, (vec2i){dim.x(), dim.y()});
-                render_tex.unacquire(mqueue);
+                last_valid_render_tex = which_render_tex;
+
+                render_tex_storage[which_render_tex].acquire(mqueue, {opt.value().second});
+                cl::copy_image(mqueue, opt.value().first, render_tex_storage[which_render_tex], (vec2i){0,0}, (vec2i){dim.x(), dim.y()});
+                auto done = render_tex_storage[which_render_tex].unacquire(mqueue);
+
+                which_render_tex = (which_render_tex + 1) % render_tex_storage.size();
+
+                aexec.add(opt.value().first, done);
 
                 //std::cout << "TTT " << t.get_elapsed_time_s() * 1000. << std::endl;
 
@@ -2161,8 +2181,15 @@ int main(int argc, char* argv[])
 
                 //opt.value().second.block();
 
-                shared.shared_textures.push_free(opt.value().first);
+                //shared.shared_textures.push_free(opt.value().first);
             }
+        }
+
+        //std::cout << "Aexec size " << aexec.yields.size() << std:endl;
+
+        while(auto opt = aexec.produce())
+        {
+            shared.shared_textures.push_free(opt.value());
         }
 
         {
@@ -2184,7 +2211,7 @@ int main(int argc, char* argv[])
                 br.y += screen_pos.y;
             }
 
-            lst->AddImage((void*)render_tex.texture_id, tl, br, ImVec2(0, 0), ImVec2(1, 1));
+            lst->AddImage((void*)render_tex_storage[last_valid_render_tex].texture_id, tl, br, ImVec2(0, 0), ImVec2(1, 1));
         }
 
         ImGui::PopAllowKeyboardFocus();

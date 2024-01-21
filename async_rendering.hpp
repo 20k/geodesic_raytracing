@@ -223,7 +223,7 @@ struct image_shared_queue
     {
         std::scoped_lock guard(mut);
 
-        if(free_images.size() > 0)
+        if(free_images.size() > 4)
         {
             auto size = free_images.front().size<2>();
 
@@ -269,6 +269,37 @@ struct shared_data
 
     std::mutex data_lock;
     float universe_size = 0;
+};
+
+template<typename T>
+struct async_executor
+{
+    std::mutex mut;
+    std::vector<std::pair<T, cl::event>> yields;
+
+    void add(const T& in, cl::event evt)
+    {
+        std::lock_guard guard(mut);
+
+        yields.push_back({in, evt});
+    }
+
+    std::optional<T> produce()
+    {
+        std::lock_guard guard(mut);
+
+        if(yields.size() == 0)
+            return std::nullopt;
+
+        if(yields.front().second.is_finished())
+        {
+            auto val = yields.front().first;
+            yields.erase(yields.begin());
+            return val;
+        }
+
+        return std::nullopt;
+    }
 };
 
 steady_timer last_elapsed;
