@@ -22,7 +22,7 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
                                                bool use_device_side_enqueue,
                                                bool use_triangle_rendering,
                                                cl::buffer& dynamic_config,
-                                               cl::buffer& dynamic_feature_config)
+                                               cl::buffer& dynamic_feature_config, cl::event evt)
 {
     if(use_device_side_enqueue)
     {
@@ -111,7 +111,7 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
         run_args.push_back(mouse_x);
         run_args.push_back(mouse_y);
 
-        cqueue.exec("do_generic_rays", run_args, {num_rays}, {256});
+        cqueue.exec("do_generic_rays", run_args, {num_rays}, {256}, {evt});
 
         ///todo: no idea if this is correct
         accel.ray_time_min = ray_time_min;
@@ -364,6 +364,9 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
 
     steady_timer t;
 
+    cl::event last_render_event;
+    cl::event last_last_render_event;
+
     while(shared.is_open)
     {
         //std::cout << "TTime " << t.restart() * 1000. << std::endl;
@@ -373,7 +376,7 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
             //printf("Clog1\n");
 
             //std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            sf::sleep(sf::milliseconds(1));
+            //sf::sleep(sf::milliseconds(1));
             continue;
         }
 
@@ -614,7 +617,7 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
 
         int rays_num = width * height;
 
-        execute_kernel(mqueue, st.rays_in, st.rays_out, st.rays_finished, st.rays_count_in, st.rays_count_out, st.rays_count_finished, st.accel_ray_time_min, st.accel_ray_time_max, tris, st.tri_intersections, st.tri_intersections_count, accel, phys, rays_num, false, false, dynamic_config, dynamic_feature_buffer);
+        execute_kernel(mqueue, st.rays_in, st.rays_out, st.rays_finished, st.rays_count_in, st.rays_count_out, st.rays_count_finished, st.accel_ray_time_min, st.accel_ray_time_max, tris, st.tri_intersections, st.tri_intersections_count, accel, phys, rays_num, false, false, dynamic_config, dynamic_feature_buffer, last_render_event);
 
         cl::args texture_args;
         texture_args.push_back(st.rays_finished);
@@ -645,9 +648,12 @@ void render_thread(cl::context& ctx, shared_data& shared, vec2i start_size, metr
         render_args.push_back(dynamic_config);
         render_args.push_back(dynamic_feature_buffer);
 
-        cl::event next_image_event = mqueue.exec("render", render_args, {width * height}, {256});
+        cl::event next_image_event = mqueue.exec("render", render_args, {width * height}, {256}, {last_last_render_event});
 
         next_image_event.set_completion_callback(callback, nullptr);
+
+        last_last_render_event = last_render_event;
+        last_render_event = next_image_event;
 
         //mqueue.block();
 
