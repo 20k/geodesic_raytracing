@@ -773,6 +773,111 @@ struct camera
     }
 };
 
+template<typename T>
+struct async_executor
+{
+    std::mutex mut;
+    std::vector<std::pair<T, cl::event>> yields;
+
+    void add(const T& in, cl::event evt)
+    {
+        std::lock_guard guard(mut);
+
+        yields.push_back({in, evt});
+    }
+
+    std::optional<T> produce()
+    {
+        std::lock_guard guard(mut);
+
+        if(yields.size() == 0)
+            return std::nullopt;
+
+        if(yields.front().second.is_finished())
+        {
+            auto val = yields.front().first;
+            yields.erase(yields.begin());
+            return val;
+        }
+
+        return std::nullopt;
+    }
+};
+
+struct image_shared_queue
+{
+    std::mutex mut;
+
+    std::vector<std::pair<cl::image, cl::event>> unprocessed;
+    std::vector<cl::image> free_images;
+
+    int peek_rendered_size()
+    {
+        std::scoped_lock guard(mut);
+
+        return unprocessed.size();
+    }
+
+    void push_rendered(cl::image img, cl::event evt)
+    {
+        std::scoped_lock guard(mut);
+
+        unprocessed.push_back({img, evt});
+    }
+
+    std::optional<std::pair<cl::image, cl::event>> pop_rendered()
+    {
+        std::scoped_lock guard(mut);
+
+        if(unprocessed.size() == 0)
+            return std::nullopt;
+
+        auto first = unprocessed.front();
+        unprocessed.erase(unprocessed.begin());
+        return first;
+    }
+
+    void push_free(cl::image img)
+    {
+        std::scoped_lock guard(mut);
+
+        free_images.push_back(img);
+    }
+
+    cl::image pop_free_or_make_new(cl::context& ctx, int width, int height)
+    {
+        std::scoped_lock guard(mut);
+
+        if(free_images.size() > 4)
+        {
+            auto size = free_images.front().size<2>();
+
+            if(size.x() == width && size.y() == height)
+            {
+                auto next = free_images.front();
+
+                free_images.erase(free_images.begin());
+
+                return next;
+            }
+            else
+            {
+                free_images.clear();
+            }
+        }
+
+        cl_image_format fmt;
+        fmt.image_channel_order = CL_RGBA;
+        fmt.image_channel_data_type = CL_FLOAT;
+
+        cl::image img(ctx);
+        img.alloc({width, height}, fmt);
+
+        return img;
+    }
+};
+
+
 ///i need the ability to have dynamic parameters
 int main(int argc, char* argv[])
 {
@@ -1236,7 +1341,18 @@ int main(int argc, char* argv[])
 
     clctx.cqueue.block();
 
+    async_executor<cl::image> iexec;
+
     camera cam;
+
+    std::vector<cl::command_queue> circ;
+
+    for(int i=0; i < 3; i++)
+        circ.emplace_back(clctx.ctx);
+
+    int which_circ = 0;
+
+    image_shared_queue isq;
 
     int which_state = 0;
 
@@ -1485,7 +1601,7 @@ int main(int argc, char* argv[])
         }
 
         {
-            auto buffer_size = st.rtex.size<2>();
+            auto buffer_size = (vec<2, size_t>){st.width, st.height};
 
             bool taking_screenshot = should_take_screenshot;
             should_take_screenshot = false;
@@ -1525,8 +1641,6 @@ int main(int argc, char* argv[])
                 last_supersample = menu.sett.supersample;
                 last_supersample_mult = menu.sett.supersample_factor;
             }
-
-            st.rtex.acquire(mqueue);
 
             float time = clk.restart().asMicroseconds() / 1000.;
 
@@ -2039,11 +2153,13 @@ int main(int argc, char* argv[])
                 timelike_q.start_read(clctx.ctx, async_queue, std::move(next_timelike_coordinate), {evt});
             }
 
-            int width = st.rtex.size<2>().x();
-            int height = st.rtex.size<2>().y();
+            cl::image img = isq.pop_free_or_make_new(clctx.ctx, st.width, st.height);
+
+            int width = img.size<2>().x();
+            int height = img.size<2>().y();
 
             cl::args clr;
-            clr.push_back(st.rtex);
+            clr.push_back(img);
 
             mqueue.exec("clear", clr, {width, height}, {16, 16});
 
@@ -2161,7 +2277,7 @@ int main(int argc, char* argv[])
                 cl::args render_args;
                 render_args.push_back(st.rays_finished);
                 render_args.push_back(st.rays_count_finished);
-                render_args.push_back(st.rtex);
+                render_args.push_back(img);
                 render_args.push_back(back_images.i1);
                 render_args.push_back(back_images.i2);
                 render_args.push_back(width);
@@ -2171,7 +2287,9 @@ int main(int argc, char* argv[])
                 render_args.push_back(dynamic_config);
                 render_args.push_back(dynamic_feature_buffer);
 
-                mqueue.exec("render", render_args, {width * height}, {256});
+                auto produce = mqueue.exec("render", render_args, {width * height}, {256});
+
+                iexec.add(img, produce);
 
                 /*{
                     cl::args dbg;
@@ -2192,7 +2310,7 @@ int main(int argc, char* argv[])
                 intersect_args.push_back(st.tri_intersections);
                 intersect_args.push_back(st.tri_intersections_count);
                 intersect_args.push_back(accel.memory);
-                intersect_args.push_back(st.rtex);
+                intersect_args.push_back(img);
 
                 mqueue.exec("render_intersections", intersect_args, {width * height}, {256});
             }
@@ -2300,8 +2418,6 @@ int main(int argc, char* argv[])
                 }
             }
 
-            st.rtex.unacquire(mqueue);
-
             if(taking_screenshot)
             {
                 print("Taking screenie\n");
@@ -2371,6 +2487,26 @@ int main(int argc, char* argv[])
                }
             }
         }
+
+        /*steady_timer stead;
+
+        {
+            st.rtex.acquire(mqueue);
+            cl::copy_image(mqueue, st.img, st.rtex, (vec2i){0,0}, (vec2i){st.img.size<2>().x(), st.img.size<2>().y()});
+            st.rtex.unacquire(mqueue);
+        }*/
+
+        steady_timer stead;
+
+        if(auto opt = iexec.produce(); opt.has_value())
+        {
+            st.rtex.acquire(circ[which_circ]);
+            cl::copy_image(circ[which_circ], opt.value(), st.rtex, (vec2i){0,0}, (vec2i){opt.value().size<2>().x(), opt.value().size<2>().y()});
+            ///ok so, an unacquire basically does a block. We need to pipe the unacquire onto a separate thread
+            st.rtex.unacquire(circ[which_circ]);
+        }
+
+        std::cout << "Stead " << stead.get_elapsed_time_s() * 1000. << std::endl;
 
         {
             ImDrawList* lst = hide_ui ?
