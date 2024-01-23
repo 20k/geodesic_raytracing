@@ -807,35 +807,7 @@ struct async_executor
 struct image_shared_queue
 {
     std::mutex mut;
-
-    std::vector<std::pair<cl::image, cl::event>> unprocessed;
     std::vector<cl::image> free_images;
-
-    int peek_rendered_size()
-    {
-        std::scoped_lock guard(mut);
-
-        return unprocessed.size();
-    }
-
-    void push_rendered(cl::image img, cl::event evt)
-    {
-        std::scoped_lock guard(mut);
-
-        unprocessed.push_back({img, evt});
-    }
-
-    std::optional<std::pair<cl::image, cl::event>> pop_rendered()
-    {
-        std::scoped_lock guard(mut);
-
-        if(unprocessed.size() == 0)
-            return std::nullopt;
-
-        auto first = unprocessed.front();
-        unprocessed.erase(unprocessed.begin());
-        return first;
-    }
 
     void push_free(cl::image img)
     {
@@ -2505,6 +2477,8 @@ int main(int argc, char* argv[])
             ///ok so, an unacquire basically does a block. We need to pipe the unacquire onto a separate thread
             st.rtex.unacquire(circ[which_circ]);
             which_circ = (which_circ + 1) % circ.size();
+
+            isq.push_free(opt.value());
         }
 
         std::cout << "Stead " << stead.get_elapsed_time_s() * 1000. << std::endl;
