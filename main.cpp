@@ -2504,6 +2504,7 @@ int main(int argc, char* argv[])
             cl::copy_image(circ[which_circ], opt.value(), st.rtex, (vec2i){0,0}, (vec2i){opt.value().size<2>().x(), opt.value().size<2>().y()});
             ///ok so, an unacquire basically does a block. We need to pipe the unacquire onto a separate thread
             st.rtex.unacquire(circ[which_circ]);
+            which_circ = (which_circ + 1) % circ.size();
         }
 
         std::cout << "Stead " << stead.get_elapsed_time_s() * 1000. << std::endl;
