@@ -788,21 +788,43 @@ struct async_executor
         yields.push_back({std::move(in), evt});
     }
 
-    std::optional<T> produce()
+    std::optional<T> produce(bool at_least_one = false, int retries = 100)
     {
-        std::lock_guard guard(mut);
-
-        if(yields.size() == 0)
-            return std::nullopt;
-
-        if(yields.front().second.is_finished())
+        if(!at_least_one)
         {
-            auto val = std::move(yields.front().first);
-            yields.erase(yields.begin());
-            return val;
-        }
+            std::lock_guard guard(mut);
 
-        return std::nullopt;
+            if(yields.size() == 0)
+                return std::nullopt;
+
+            if(yields.front().second.is_finished())
+            {
+                auto val = std::move(yields.front().first);
+                yields.erase(yields.begin());
+                return val;
+            }
+
+            return std::nullopt;
+        }
+        else
+        {
+            for(int i=0; i < retries; i++)
+            {
+                std::lock_guard guard(mut);
+
+                if(yields.size() == 0)
+                    continue;
+
+                if(yields.front().second.is_finished())
+                {
+                    auto val = std::move(yields.front().first);
+                    yields.erase(yields.begin());
+                    return val;
+                }
+            }
+
+            return std::nullopt;
+        }
     }
 };
 
@@ -2645,7 +2667,7 @@ int main(int argc, char* argv[])
 
         //steady_timer t;
 
-        if(auto opt = glexec.produce(); opt.has_value())
+        if(auto opt = glexec.produce(true, 1024); opt.has_value())
         {
             if(last_frame_opt.has_value())
             {
