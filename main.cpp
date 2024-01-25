@@ -2649,7 +2649,9 @@ int main(int argc, char* argv[])
             isq.push_free(opt.value());
         }*/
 
-        if(auto opt = iexec.produce(); opt.has_value())
+        //if(auto opt = iexec.produce(); opt.has_value())
+
+        while(auto opt = iexec.produce())
         {
             int width = opt.value().size<2>().x();
             int height = opt.value().size<2>().y();
@@ -2667,7 +2669,7 @@ int main(int argc, char* argv[])
 
         //steady_timer t;
 
-        if(auto opt = glexec.produce(true, 1024); opt.has_value())
+        while(auto opt = glexec.produce(true, 1024))
         {
             if(last_frame_opt.has_value())
             {
