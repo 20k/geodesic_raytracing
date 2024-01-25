@@ -2223,7 +2223,7 @@ int main(int argc, char* argv[])
                                    clflip,
                                    dynamic_config);
 
-                    mqueue.exec("cart_to_generic_kernel", args, {1}, {1}, {camera_pos_event});
+                    mqueue.exec("cart_to_generic_kernel", args, {1}, {1}, {camera_pos_event, last_event});
                 }
 
                 {
