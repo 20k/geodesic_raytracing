@@ -27,6 +27,7 @@
 #include "physics.hpp"
 #include "dynamic_feature_config.hpp"
 #include "render_state.hpp"
+#include <thread>
 //#include "dual_complex.hpp"
 
 /**
@@ -147,7 +148,8 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
                                                bool use_device_side_enqueue,
                                                dynamic_feature_config& dfg,
                                                cl::buffer& dynamic_config,
-                                               cl::buffer& dynamic_feature_config)
+                                               cl::buffer& dynamic_feature_config,
+                                               cl::event evt)
 {
     if(use_device_side_enqueue)
     {
@@ -236,7 +238,7 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
         run_args.push_back(mouse_x);
         run_args.push_back(mouse_y);
 
-        cqueue.exec("do_generic_rays", run_args, {num_rays}, {256});
+        cqueue.exec("do_generic_rays", run_args, {num_rays}, {256}, {evt});
 
         ///todo: no idea if this is correct
         accel.ray_time_min = ray_time_min;
@@ -779,11 +781,11 @@ struct async_executor
     std::mutex mut;
     std::vector<std::pair<T, cl::event>> yields;
 
-    void add(const T& in, cl::event evt)
+    void add(T&& in, cl::event evt)
     {
         std::lock_guard guard(mut);
 
-        yields.push_back({in, evt});
+        yields.push_back({std::move(in), evt});
     }
 
     std::optional<T> produce()
@@ -795,12 +797,73 @@ struct async_executor
 
         if(yields.front().second.is_finished())
         {
-            auto val = yields.front().first;
+            auto val = std::move(yields.front().first);
             yields.erase(yields.begin());
             return val;
         }
 
         return std::nullopt;
+    }
+};
+
+struct gl_image_shared
+{
+    texture tex;
+    cl::gl_rendertexture rtex;
+
+    gl_image_shared(cl::context& ctx) : rtex(ctx){}
+
+    void make(int width, int height)
+    {
+        texture_settings new_sett;
+        new_sett.width = width;
+        new_sett.height = height;
+        new_sett.is_srgb = false;
+        new_sett.generate_mipmaps = false;
+
+        tex.load_from_memory(new_sett, nullptr);
+        rtex.create_from_texture(tex.handle);
+    }
+};
+
+struct gl_image_shared_queue
+{
+    std::vector<gl_image_shared> free_images;
+    std::mutex mut;
+
+    void push_free(gl_image_shared&& gl)
+    {
+        std::scoped_lock guard(mut);
+
+        free_images.push_back(std::move(gl));
+    }
+
+    gl_image_shared pop_free_or_make_new(cl::context& ctx, int width, int height)
+    {
+        std::scoped_lock guard(mut);
+
+        if(free_images.size() > 4)
+        {
+            auto size = free_images.front().rtex.size<2>();
+
+            if(size.x() == width && size.y() == height)
+            {
+                auto next = std::move(free_images.front());
+
+                free_images.erase(free_images.begin());
+
+                return next;
+            }
+            else
+            {
+                free_images.clear();
+            }
+        }
+
+        gl_image_shared shared(ctx);
+        shared.make(width, height);
+
+        return shared;
     }
 };
 
@@ -1319,12 +1382,18 @@ int main(int argc, char* argv[])
 
     std::vector<cl::command_queue> circ;
 
-    for(int i=0; i < 3; i++)
+    for(int i=0; i < 8; i++)
         circ.emplace_back(clctx.ctx);
 
     int which_circ = 0;
 
     image_shared_queue isq;
+    gl_image_shared_queue glisq;
+    async_executor<gl_image_shared> glexec;
+
+    std::optional<gl_image_shared> last_frame_opt;
+
+    cl::event last_event;
 
     int which_state = 0;
 
@@ -1409,6 +1478,8 @@ int main(int argc, char* argv[])
         }
 
         float frametime_s = frametime_timer.restart();
+
+        std::cout << "Ftime " << frametime_s * 1000. << std::endl;
 
         float controls_multiplier = 1.f;
 
@@ -2198,7 +2269,7 @@ int main(int argc, char* argv[])
 
                     int rays_num = calculate_ray_count(prepass_width, prepass_height);
 
-                    execute_kernel(mqueue, st.rays_prepass, st.rays_out, st.rays_finished, st.rays_count_prepass, st.rays_count_out, st.rays_count_finished, st.accel_ray_time_min, st.accel_ray_time_max, tris, st.tri_intersections, st.tri_intersections_count, accel, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer);
+                    execute_kernel(mqueue, st.rays_prepass, st.rays_out, st.rays_finished, st.rays_count_prepass, st.rays_count_out, st.rays_count_finished, st.accel_ray_time_min, st.accel_ray_time_max, tris, st.tri_intersections, st.tri_intersections_count, accel, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer, last_event);
 
                     cl::args singular_args;
                     singular_args.push_back(st.rays_finished);
@@ -2233,7 +2304,9 @@ int main(int argc, char* argv[])
 
                 int rays_num = calculate_ray_count(width, height);
 
-                execute_kernel(mqueue, st.rays_in, st.rays_out, st.rays_finished, st.rays_count_in, st.rays_count_out, st.rays_count_finished, st.accel_ray_time_min, st.accel_ray_time_max, tris, st.tri_intersections, st.tri_intersections_count, accel, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer);
+                execute_kernel(mqueue, st.rays_in, st.rays_out, st.rays_finished, st.rays_count_in, st.rays_count_out, st.rays_count_finished, st.accel_ray_time_min, st.accel_ray_time_max, tris, st.tri_intersections, st.tri_intersections_count, accel, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer, last_event);
+
+                last_event.block();
 
                 cl::args texture_args;
                 texture_args.push_back(st.rays_finished);
@@ -2261,7 +2334,9 @@ int main(int argc, char* argv[])
 
                 auto produce = mqueue.exec("render", render_args, {width * height}, {256});
 
-                iexec.add(img, produce);
+                last_event = produce;
+
+                iexec.add(std::move(img), produce);
 
                 /*{
                     cl::args dbg;
@@ -2468,9 +2543,9 @@ int main(int argc, char* argv[])
             st.rtex.unacquire(mqueue);
         }*/
 
-        steady_timer stead;
+        //steady_timer stead;
 
-        if(auto opt = iexec.produce(); opt.has_value())
+        /*if(auto opt = iexec.produce(); opt.has_value())
         {
             st.rtex.acquire(circ[which_circ]);
             cl::copy_image(circ[which_circ], opt.value(), st.rtex, (vec2i){0,0}, (vec2i){opt.value().size<2>().x(), opt.value().size<2>().y()});
@@ -2479,10 +2554,47 @@ int main(int argc, char* argv[])
             which_circ = (which_circ + 1) % circ.size();
 
             isq.push_free(opt.value());
+        }*/
+
+        if(auto opt = iexec.produce(); opt.has_value())
+        {
+            int width = opt.value().size<2>().x();
+            int height = opt.value().size<2>().y();
+
+            gl_image_shared glis = glisq.pop_free_or_make_new(clctx.ctx, width, height);
+
+            std::jthread([width, height, img=std::move(opt.value()), cqueue=circ[which_circ], gl=std::move(glis), &glexec, &isq] () mutable
+            {
+                gl.rtex.acquire(cqueue);
+                cl::copy_image(cqueue, img, gl.rtex, (vec2i){0,0}, (vec2i){width, height});
+                auto evt = gl.rtex.unacquire(cqueue);
+                cqueue.block();
+
+                isq.push_free(img);
+                glexec.add(std::move(gl), evt);
+            }).detach();
+
+            which_circ = (which_circ + 1) % circ.size();
         }
 
-        std::cout << "Stead " << stead.get_elapsed_time_s() * 1000. << std::endl;
+        //std::cout << "Stead " << stead.get_elapsed_time_s() * 1000. << std::endl;
 
+        //steady_timer t;
+
+        if(auto opt = glexec.produce(); opt.has_value())
+        {
+            if(last_frame_opt.has_value())
+            {
+                glisq.push_free(std::move(last_frame_opt.value()));
+                last_frame_opt = std::nullopt;
+            }
+
+            last_frame_opt = std::move(opt.value());
+        }
+
+        //std::cout << "T " << t.get_elapsed_time_s() * 1000. << std::endl;
+
+        #if 0
         {
             ImDrawList* lst = hide_ui ?
                               ImGui::GetForegroundDrawList(ImGui::GetMainViewport()) :
@@ -2503,6 +2615,32 @@ int main(int argc, char* argv[])
             }
 
             lst->AddImage((void*)st.rtex.texture_id, tl, br, ImVec2(0, 0), ImVec2(1, 1));
+        }
+        #endif
+
+
+
+        if(last_frame_opt.has_value())
+        {
+            ImDrawList* lst = hide_ui ?
+                              ImGui::GetForegroundDrawList(ImGui::GetMainViewport()) :
+                              ImGui::GetBackgroundDrawList(ImGui::GetMainViewport());
+
+            ImVec2 screen_pos = ImGui::GetMainViewport()->Pos;
+
+            ImVec2 tl = {0,0};
+            ImVec2 br = {win.get_window_size().x(),win.get_window_size().y()};
+
+            if(win.get_render_settings().viewports)
+            {
+                tl.x += screen_pos.x;
+                tl.y += screen_pos.y;
+
+                br.x += screen_pos.x;
+                br.y += screen_pos.y;
+            }
+
+            lst->AddImage((void*)last_frame_opt.value().tex.handle, tl, br, ImVec2(0, 0), ImVec2(1, 1));
         }
 
         ImGui::PopAllowKeyboardFocus();
