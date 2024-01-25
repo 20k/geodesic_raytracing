@@ -1439,7 +1439,7 @@ int main(int argc, char* argv[])
                 glexec.add(std::move(gl), evt);
             })*/
 
-    async_executor<std::pair<gl_image_shared, cl::image>> glsq;
+    spsc<std::pair<gl_image_shared, cl::image>> glsq;
 
     std::jthread([&]()
     {
@@ -1452,7 +1452,6 @@ int main(int argc, char* argv[])
                 auto dim = gl.rtex.size<2>();
 
                 auto cqueue = circ[which_circ % circ.size()];
-                //auto cqueue = circ[which_circ % circ.size()];
                 which_circ++;
 
                 gl.rtex.acquire(cqueue);
@@ -2387,7 +2386,6 @@ int main(int argc, char* argv[])
 
                 mqueue.exec("calculate_texture_coordinates", texture_args, {width * height}, {256});
 
-
                 cl::args render_args;
                 render_args.push_back(st.rays_finished);
                 render_args.push_back(st.rays_count_finished);
@@ -2401,16 +2399,13 @@ int main(int argc, char* argv[])
                 render_args.push_back(dynamic_config);
                 render_args.push_back(dynamic_feature_buffer);
 
-                //steady_timer t;
+                last_event.block();
 
                 auto produce = mqueue.exec("render", render_args, {width * height}, {256});
-                last_event.block();
-                //std::cout << "T " << t.restart() * 1000. << std::endl;
 
                 last_event = produce;
 
                 iexec.add(std::move(img), produce);
-
 
                 /*{
                     cl::args dbg;
@@ -2637,14 +2632,11 @@ int main(int argc, char* argv[])
 
             gl_image_shared glis = glisq.pop_free_or_make_new(clctx.ctx, width, height);
 
-            //auto evt = glis.rtex.acquire(mqueue);
-            //auto evt = cl::copy_image(mqueue, opt.value(), glis.rtex, (vec2i){0,0}, (vec2i){width, height});
-
             std::pair<gl_image_shared, cl::image> p{std::move(glis), std::move(opt.value())};
 
-            glsq.add(std::move(p), cl::event());
+            glsq.add(std::move(p));
 
-            //which_circ = (which_circ + 1) % circ.size();
+            which_circ = (which_circ + 1) % circ.size();
         }
 
         //std::cout << "Stead " << stead.get_elapsed_time_s() * 1000. << std::endl;
