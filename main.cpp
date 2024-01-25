@@ -2636,7 +2636,7 @@ int main(int argc, char* argv[])
 
             glsq.add(std::move(p));
 
-            which_circ = (which_circ + 1) % circ.size();
+            //which_circ = (which_circ + 1) % circ.size();
         }
 
         //std::cout << "Stead " << stead.get_elapsed_time_s() * 1000. << std::endl;
