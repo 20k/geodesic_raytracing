@@ -826,6 +826,37 @@ struct gl_image_shared
     }
 };
 
+
+template<typename T>
+struct spsc
+{
+    std::mutex mut;
+    std::vector<T> dat;
+
+    void add(T&& in)
+    {
+        std::lock_guard guard(mut);
+        dat.push_back(std::move(in));
+    }
+
+    std::optional<T> produce()
+    {
+        std::lock_guard guard(mut);
+
+        if(dat.size() == 0)
+            return std::nullopt;
+
+        if(dat.size() > 0)
+        {
+            auto val = std::move(dat[0]);
+            dat.erase(dat.begin());
+            return std::move(val);
+        }
+
+        return std::nullopt;
+    }
+};
+
 struct gl_image_shared_queue
 {
     std::vector<gl_image_shared> free_images;
@@ -1385,7 +1416,7 @@ int main(int argc, char* argv[])
     for(int i=0; i < 8; i++)
         circ.emplace_back(clctx.ctx);
 
-    int which_circ = 0;
+    std::atomic_int which_circ{0};
 
     image_shared_queue isq;
     gl_image_shared_queue glisq;
@@ -1396,6 +1427,44 @@ int main(int argc, char* argv[])
     cl::event last_event;
 
     int which_state = 0;
+
+    /*std::jthread([width, height, img=std::move(opt.value()), cqueue=circ[which_circ], gl=std::move(glis), &glexec, &isq] () mutable
+            {
+                gl.rtex.acquire(cqueue);
+                cl::copy_image(cqueue, img, gl.rtex, (vec2i){0,0}, (vec2i){width, height});
+                auto evt = gl.rtex.unacquire(cqueue);
+                cqueue.block();
+
+                isq.push_free(img);
+                glexec.add(std::move(gl), evt);
+            })*/
+
+    spsc<std::pair<gl_image_shared, cl::image>> glsq;
+
+    std::jthread([&]()
+    {
+        while(1)
+        {
+            while(auto opt = glsq.produce())
+            {
+                auto& [gl, img] = opt.value();
+
+                auto dim = gl.rtex.size<2>();
+
+                auto cqueue = circ[which_circ % circ.size()];
+                which_circ++;
+
+                gl.rtex.acquire(cqueue);
+                cl::copy_image(cqueue, img, gl.rtex, (vec2i){0,0}, (vec2i){dim.x(), dim.y()});
+                auto evt = gl.rtex.unacquire(cqueue);
+
+                cqueue.block();
+
+                isq.push_free(img);
+                glexec.add(std::move(gl), evt);
+            }
+        }
+    }).detach();
 
     while(!win.should_close() && !menu.should_quit && fullscreen.open)
     {
@@ -2306,8 +2375,6 @@ int main(int argc, char* argv[])
 
                 execute_kernel(mqueue, st.rays_in, st.rays_out, st.rays_finished, st.rays_count_in, st.rays_count_out, st.rays_count_finished, st.accel_ray_time_min, st.accel_ray_time_max, tris, st.tri_intersections, st.tri_intersections_count, accel, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer, last_event);
 
-                last_event.block();
-
                 cl::args texture_args;
                 texture_args.push_back(st.rays_finished);
                 texture_args.push_back(st.rays_count_finished);
@@ -2331,6 +2398,8 @@ int main(int argc, char* argv[])
                 render_args.push_back(menu.sett.anisotropy);
                 render_args.push_back(dynamic_config);
                 render_args.push_back(dynamic_feature_buffer);
+
+                last_event.block();
 
                 auto produce = mqueue.exec("render", render_args, {width * height}, {256});
 
@@ -2563,16 +2632,9 @@ int main(int argc, char* argv[])
 
             gl_image_shared glis = glisq.pop_free_or_make_new(clctx.ctx, width, height);
 
-            std::jthread([width, height, img=std::move(opt.value()), cqueue=circ[which_circ], gl=std::move(glis), &glexec, &isq] () mutable
-            {
-                gl.rtex.acquire(cqueue);
-                cl::copy_image(cqueue, img, gl.rtex, (vec2i){0,0}, (vec2i){width, height});
-                auto evt = gl.rtex.unacquire(cqueue);
-                cqueue.block();
+            std::pair<gl_image_shared, cl::image> p{std::move(glis), std::move(opt.value())};
 
-                isq.push_free(img);
-                glexec.add(std::move(gl), evt);
-            }).detach();
+            glsq.add(std::move(p));
 
             which_circ = (which_circ + 1) % circ.size();
         }
