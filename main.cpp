@@ -1425,6 +1425,7 @@ int main(int argc, char* argv[])
     std::optional<gl_image_shared> last_frame_opt;
 
     cl::event last_event;
+    cl::event last_last_event;
 
     int which_state = 0;
 
@@ -2223,7 +2224,7 @@ int main(int argc, char* argv[])
                                    clflip,
                                    dynamic_config);
 
-                    mqueue.exec("cart_to_generic_kernel", args, {1}, {1}, {camera_pos_event, last_event});
+                    mqueue.exec("cart_to_generic_kernel", args, {1}, {1}, {camera_pos_event});
                 }
 
                 {
@@ -2267,14 +2268,6 @@ int main(int argc, char* argv[])
 
             cl::image img = isq.pop_free_or_make_new(clctx.ctx, st.width, st.height);
 
-            int width = img.size<2>().x();
-            int height = img.size<2>().y();
-
-            cl::args clr;
-            clr.push_back(img);
-
-            mqueue.exec("clear", clr, {width, height}, {16, 16});
-
             if(dfg.get_feature<bool>("use_triangle_rendering"))
             {
                 tris.update_objects(mqueue);
@@ -2294,6 +2287,9 @@ int main(int argc, char* argv[])
             }
 
             {
+                int width = img.size<2>().x();
+                int height = img.size<2>().y();
+
                 ///should invert geodesics is unused for the moment
                 int isnap = 0;
 
@@ -2334,7 +2330,7 @@ int main(int argc, char* argv[])
 
                     init_args_prepass.push_back(dynamic_config);
 
-                    mqueue.exec("init_rays_generic", init_args_prepass, {prepass_width*prepass_height}, {256}, {camera_quat_event});
+                    mqueue.exec("init_rays_generic", init_args_prepass, {prepass_width*prepass_height}, {256}, {camera_quat_event, last_last_event});
 
                     int rays_num = calculate_ray_count(prepass_width, prepass_height);
 
@@ -2369,7 +2365,7 @@ int main(int argc, char* argv[])
 
                 init_args.push_back(dynamic_config);
 
-                mqueue.exec("init_rays_generic", init_args, {width*height}, {16*16}, {camera_quat_event});
+                mqueue.exec("init_rays_generic", init_args, {width*height}, {16*16}, {camera_quat_event, last_last_event});
 
                 int rays_num = calculate_ray_count(width, height);
 
@@ -2386,6 +2382,11 @@ int main(int argc, char* argv[])
 
                 mqueue.exec("calculate_texture_coordinates", texture_args, {width * height}, {256});
 
+                cl::args clr;
+                clr.push_back(img);
+
+                mqueue.exec("clear", clr, {width, height}, {16, 16});
+
                 cl::args render_args;
                 render_args.push_back(st.rays_finished);
                 render_args.push_back(st.rays_count_finished);
@@ -2399,10 +2400,11 @@ int main(int argc, char* argv[])
                 render_args.push_back(dynamic_config);
                 render_args.push_back(dynamic_feature_buffer);
 
-                last_event.block();
+                last_last_event.block();
 
                 auto produce = mqueue.exec("render", render_args, {width * height}, {256});
 
+                last_last_event = last_event;
                 last_event = produce;
 
                 iexec.add(std::move(img), produce);
@@ -2428,7 +2430,7 @@ int main(int argc, char* argv[])
                 intersect_args.push_back(accel.memory);
                 intersect_args.push_back(img);
 
-                mqueue.exec("render_intersections", intersect_args, {width * height}, {256});
+                mqueue.exec("render_intersections", intersect_args, {img.size<2>().x() * img.size<2>().y()}, {256});
             }
 
             /*{
