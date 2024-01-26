@@ -2674,8 +2674,6 @@ int main(int argc, char* argv[])
             #endif
         }
 
-        mqueue.block();
-
         //while(auto opt = iexec.produce())
         {
             //int width = opt.value().size<2>().x();
