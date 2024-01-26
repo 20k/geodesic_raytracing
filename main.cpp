@@ -1451,7 +1451,7 @@ int main(int argc, char* argv[])
     {
         std::vector<cl::command_queue> circ;
 
-        for(int i=0; i < 8; i++)
+        for(int i=0; i < 4; i++)
             circ.emplace_back(clctx.ctx);
 
         std::atomic_uint which_circ{0};
@@ -1469,9 +1469,7 @@ int main(int argc, char* argv[])
 
                 auto evt = gl.rtex.unacquire(cqueue);
 
-                //cqueue.block();
-
-                //glexec.add(std::move(gl), evt);
+                cqueue.flush();
 
                 unfinished.push_back({std::move(gl), cqueue, evt});
             }
@@ -1492,7 +1490,7 @@ int main(int argc, char* argv[])
     {
         std::vector<cl::command_queue> circ;
 
-        for(int i=0; i < 8; i++)
+        for(int i=0; i < 4; i++)
             circ.emplace_back(clctx.ctx);
 
         std::atomic_uint which_circ{0};
@@ -1775,7 +1773,11 @@ int main(int argc, char* argv[])
 
         gl_image_shared glis = glisq.pop_free_or_make_new(clctx.ctx, st.width, st.height);
 
-        glis.rtex.acquire(mqueue);
+        if(!glis.rtex.acquired)
+        {
+            glis.rtex.acquire(mqueue);
+            printf("Ack Fail\n");
+        }
 
         {
             auto buffer_size = (vec<2, size_t>){st.width, st.height};
@@ -2672,6 +2674,8 @@ int main(int argc, char* argv[])
             #endif
         }
 
+        mqueue.block();
+
         //while(auto opt = iexec.produce())
         {
             //int width = opt.value().size<2>().x();
@@ -2686,7 +2690,7 @@ int main(int argc, char* argv[])
             glsq.add(std::move(p), last_event);
         }
 
-        while(auto opt = glexec.produce(true, 1024))
+        if(auto opt = glexec.produce(true, 1024); opt.has_value())
         {
             if(last_frame_opt.has_value())
                 unacquired.add(std::move(last_frame_opt.value()), cl::event());
