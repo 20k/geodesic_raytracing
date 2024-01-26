@@ -2547,6 +2547,7 @@ int main(int argc, char* argv[])
                 }
             }
 
+            #ifdef UNIMPLEMENTED
             if(taking_screenshot)
             {
                 print("Taking screenie\n");
@@ -2615,6 +2616,7 @@ int main(int argc, char* argv[])
                     SteamAPI_ISteamScreenshots_WriteScreenshot(iss, as_rgb.data(), sizeof(vec<3, char>) * as_rgb.size(), high_width, high_height);
                }
             }
+            #endif
         }
 
         while(auto opt = iexec.produce())
