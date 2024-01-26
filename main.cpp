@@ -530,10 +530,10 @@ struct read_queue_pool
 
     cl::buffer get_buffer(cl::context& ctx)
     {
-        if(pool.size() > 0)
+        if(pool.size() > 4)
         {
-            cl::buffer next = pool.back();
-            pool.pop_back();
+            cl::buffer next = pool.front();
+            pool.erase(pool.begin());
             return next;
         }
 
@@ -1451,7 +1451,7 @@ int main(int argc, char* argv[])
 
     int which_state = 0;
 
-    spsc<std::pair<gl_image_shared, cl::image>> glsq;
+    async_executor<gl_image_shared> glsq;
 
     std::jthread([&]()
     {
@@ -1459,7 +1459,7 @@ int main(int argc, char* argv[])
         {
             while(auto opt = glsq.produce())
             {
-                auto& [gl, img] = opt.value();
+                /*auto& [gl, img] = opt.value();
 
                 auto dim = gl.rtex.size<2>();
 
@@ -1473,6 +1473,17 @@ int main(int argc, char* argv[])
                 cqueue.block();
 
                 isq.push_free(img);
+                glexec.add(std::move(gl), evt);*/
+
+                auto cqueue = circ[which_circ % circ.size()];
+                which_circ++;
+
+                auto& gl = opt.value();
+
+                auto evt = gl.rtex.unacquire(cqueue);
+
+                cqueue.block();
+
                 glexec.add(std::move(gl), evt);
             }
         }
@@ -1723,6 +1734,10 @@ int main(int argc, char* argv[])
             hide_ui = false;
             menu.display(win, input, back_images);
         }
+
+        gl_image_shared glis = glisq.pop_free_or_make_new(clctx.ctx, st.width, st.height);
+
+        glis.rtex.acquire(mqueue);
 
         {
             auto buffer_size = (vec<2, size_t>){st.width, st.height};
@@ -2277,7 +2292,7 @@ int main(int argc, char* argv[])
                 timelike_q.start_read(clctx.ctx, async_queue, std::move(next_timelike_coordinate), {evt});
             }
 
-            cl::image img = isq.pop_free_or_make_new(clctx.ctx, st.width, st.height);
+            //cl::image img = isq.pop_free_or_make_new(clctx.ctx, st.width, st.height);
 
             if(dfg.get_feature<bool>("use_triangle_rendering"))
             {
@@ -2298,8 +2313,8 @@ int main(int argc, char* argv[])
             }
 
             {
-                int width = img.size<2>().x();
-                int height = img.size<2>().y();
+                int width = glis.rtex.size<2>().x();
+                int height = glis.rtex.size<2>().y();
 
                 ///should invert geodesics is unused for the moment
                 int isnap = 0;
@@ -2394,14 +2409,14 @@ int main(int argc, char* argv[])
                 mqueue.exec("calculate_texture_coordinates", texture_args, {width * height}, {256});
 
                 cl::args clr;
-                clr.push_back(img);
+                clr.push_back(glis.rtex);
 
                 mqueue.exec("clear", clr, {width, height}, {16, 16});
 
                 cl::args render_args;
                 render_args.push_back(st.rays_finished);
                 render_args.push_back(st.rays_count_finished);
-                render_args.push_back(img);
+                render_args.push_back(glis.rtex);
                 render_args.push_back(back_images.i1);
                 render_args.push_back(back_images.i2);
                 render_args.push_back(width);
@@ -2418,7 +2433,7 @@ int main(int argc, char* argv[])
                 last_last_event = last_event;
                 last_event = produce;
 
-                iexec.add(std::move(img), produce);
+                //iexec.add(std::move(img), produce);
 
                 /*{
                     cl::args dbg;
@@ -2439,9 +2454,9 @@ int main(int argc, char* argv[])
                 intersect_args.push_back(st.tri_intersections);
                 intersect_args.push_back(st.tri_intersections_count);
                 intersect_args.push_back(accel.memory);
-                intersect_args.push_back(img);
+                intersect_args.push_back(glis.rtex);
 
-                mqueue.exec("render_intersections", intersect_args, {img.size<2>().x() * img.size<2>().y()}, {256});
+                mqueue.exec("render_intersections", intersect_args, {glis.rtex.size<2>().x() * glis.rtex.size<2>().y()}, {256});
             }
 
             /*{
@@ -2619,16 +2634,18 @@ int main(int argc, char* argv[])
             #endif
         }
 
-        while(auto opt = iexec.produce())
+        //while(auto opt = iexec.produce())
         {
-            int width = opt.value().size<2>().x();
-            int height = opt.value().size<2>().y();
+            //int width = opt.value().size<2>().x();
+            //int height = opt.value().size<2>().y();
 
-            gl_image_shared glis = glisq.pop_free_or_make_new(clctx.ctx, width, height);
+            //gl_image_shared glis = glisq.pop_free_or_make_new(clctx.ctx, width, height);
 
-            std::pair<gl_image_shared, cl::image> p{std::move(glis), std::move(opt.value())};
+            //std::pair<gl_image_shared, cl::image> p{std::move(glis), std::move(opt.value())};
 
-            glsq.add(std::move(p));
+            auto&& p = std::move(glis);
+
+            glsq.add(std::move(p), last_event);
         }
 
         while(auto opt = glexec.produce(true, 1024))
