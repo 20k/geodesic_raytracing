@@ -1433,13 +1433,6 @@ int main(int argc, char* argv[])
 
     camera cam;
 
-    std::vector<cl::command_queue> circ;
-
-    for(int i=0; i < 8; i++)
-        circ.emplace_back(clctx.ctx);
-
-    std::atomic_int which_circ{0};
-
     image_shared_queue isq;
     gl_image_shared_queue glisq;
     async_executor<gl_image_shared> glexec;
@@ -1456,9 +1449,18 @@ int main(int argc, char* argv[])
 
     std::jthread([&]()
     {
+        std::vector<cl::command_queue> circ;
+
+        for(int i=0; i < 8; i++)
+            circ.emplace_back(clctx.ctx);
+
+        std::atomic_uint which_circ{0};
+
+        std::vector<std::tuple<gl_image_shared, cl::command_queue, cl::event>> unfinished;
+
         while(1)
         {
-            while(auto opt = glsq.produce())
+            if(auto opt = glsq.produce(); opt.has_value())
             {
                 auto cqueue = circ[which_circ % circ.size()];
                 which_circ++;
@@ -1467,18 +1469,39 @@ int main(int argc, char* argv[])
 
                 auto evt = gl.rtex.unacquire(cqueue);
 
-                cqueue.block();
+                //cqueue.block();
 
-                glexec.add(std::move(gl), evt);
+                //glexec.add(std::move(gl), evt);
+
+                unfinished.push_back({std::move(gl), cqueue, evt});
+            }
+
+            if(unfinished.size() > 0)
+            {
+                if(std::get<2>(unfinished.front()).is_finished())
+                {
+                    std::get<1>(unfinished.front()).block();
+                    glexec.add(std::move(std::get<0>(unfinished.front())), cl::event());
+                    unfinished.erase(unfinished.begin());
+                }
             }
         }
     }).detach();
 
     std::jthread([&]()
     {
+        std::vector<cl::command_queue> circ;
+
+        for(int i=0; i < 8; i++)
+            circ.emplace_back(clctx.ctx);
+
+        std::atomic_uint which_circ{0};
+
+        std::vector<std::tuple<gl_image_shared, cl::command_queue, cl::event>> unfinished;
+
         while(1)
         {
-            while(auto opt = unacquired.produce())
+            if(auto opt = unacquired.produce(); opt.has_value())
             {
                 auto& gl = opt.value();
 
@@ -1487,9 +1510,19 @@ int main(int argc, char* argv[])
 
                 auto evt = gl.rtex.acquire(cqueue);
 
-                cqueue.block();
+                cqueue.flush();
 
-                glisq.push_free(std::move(gl));
+                unfinished.push_back({std::move(gl), cqueue, evt});
+            }
+
+            if(unfinished.size() > 0)
+            {
+                if(std::get<2>(unfinished.front()).is_finished())
+                {
+                    std::get<1>(unfinished.front()).block();
+                    glisq.push_free(std::move(std::get<0>(unfinished.front())));
+                    unfinished.erase(unfinished.begin());
+                }
             }
         }
     }).detach();
