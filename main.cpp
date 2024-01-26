@@ -1443,6 +1443,7 @@ int main(int argc, char* argv[])
     image_shared_queue isq;
     gl_image_shared_queue glisq;
     async_executor<gl_image_shared> glexec;
+    async_executor<gl_image_shared> unacquired;
 
     std::optional<gl_image_shared> last_frame_opt;
 
@@ -1459,22 +1460,6 @@ int main(int argc, char* argv[])
         {
             while(auto opt = glsq.produce())
             {
-                /*auto& [gl, img] = opt.value();
-
-                auto dim = gl.rtex.size<2>();
-
-                auto cqueue = circ[which_circ % circ.size()];
-                which_circ++;
-
-                gl.rtex.acquire(cqueue);
-                cl::copy_image(cqueue, img, gl.rtex, (vec2i){0,0}, (vec2i){dim.x(), dim.y()});
-                auto evt = gl.rtex.unacquire(cqueue);
-
-                cqueue.block();
-
-                isq.push_free(img);
-                glexec.add(std::move(gl), evt);*/
-
                 auto cqueue = circ[which_circ % circ.size()];
                 which_circ++;
 
@@ -1485,6 +1470,26 @@ int main(int argc, char* argv[])
                 cqueue.block();
 
                 glexec.add(std::move(gl), evt);
+            }
+        }
+    }).detach();
+
+    std::jthread([&]()
+    {
+        while(1)
+        {
+            while(auto opt = unacquired.produce())
+            {
+                auto& gl = opt.value();
+
+                auto cqueue = circ[which_circ % circ.size()];
+                which_circ++;
+
+                auto evt = gl.rtex.acquire(cqueue);
+
+                cqueue.block();
+
+                glisq.push_free(std::move(gl));
             }
         }
     }).detach();
@@ -2651,7 +2656,7 @@ int main(int argc, char* argv[])
         while(auto opt = glexec.produce(true, 1024))
         {
             if(last_frame_opt.has_value())
-                glisq.push_free(std::move(last_frame_opt.value()));
+                unacquired.add(std::move(last_frame_opt.value()), cl::event());
 
             last_frame_opt = std::move(opt.value());
         }
