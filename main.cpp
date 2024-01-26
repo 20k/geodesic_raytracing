@@ -1560,7 +1560,7 @@ int main(int argc, char* argv[])
 
         float frametime_s = frametime_timer.restart();
 
-        std::cout << "Ftime " << frametime_s * 1000. << std::endl;
+        printf("Ftime %f\n", frametime_s * 1000.);
 
         float controls_multiplier = 1.f;
 
