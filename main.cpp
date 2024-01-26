@@ -1479,7 +1479,7 @@ int main(int argc, char* argv[])
                 if(std::get<2>(unfinished.front()).is_finished())
                 {
                     std::get<1>(unfinished.front()).block();
-                    glexec.add(std::move(std::get<0>(unfinished.front())), cl::event());
+                    glexec.add(std::move(std::get<0>(unfinished.front())), std::get<2>(unfinished.front()));
                     unfinished.erase(unfinished.begin());
                 }
             }
