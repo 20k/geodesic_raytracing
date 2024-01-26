@@ -1451,17 +1451,6 @@ int main(int argc, char* argv[])
 
     int which_state = 0;
 
-    /*std::jthread([width, height, img=std::move(opt.value()), cqueue=circ[which_circ], gl=std::move(glis), &glexec, &isq] () mutable
-            {
-                gl.rtex.acquire(cqueue);
-                cl::copy_image(cqueue, img, gl.rtex, (vec2i){0,0}, (vec2i){width, height});
-                auto evt = gl.rtex.unacquire(cqueue);
-                cqueue.block();
-
-                isq.push_free(img);
-                glexec.add(std::move(gl), evt);
-            })*/
-
     spsc<std::pair<gl_image_shared, cl::image>> glsq;
 
     std::jthread([&]()
@@ -2643,10 +2632,7 @@ int main(int argc, char* argv[])
         while(auto opt = glexec.produce(true, 1024))
         {
             if(last_frame_opt.has_value())
-            {
                 glisq.push_free(std::move(last_frame_opt.value()));
-                last_frame_opt = std::nullopt;
-            }
 
             last_frame_opt = std::move(opt.value());
         }
