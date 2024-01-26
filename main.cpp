@@ -2628,29 +2628,6 @@ int main(int argc, char* argv[])
             }
         }
 
-        /*steady_timer stead;
-
-        {
-            st.rtex.acquire(mqueue);
-            cl::copy_image(mqueue, st.img, st.rtex, (vec2i){0,0}, (vec2i){st.img.size<2>().x(), st.img.size<2>().y()});
-            st.rtex.unacquire(mqueue);
-        }*/
-
-        //steady_timer stead;
-
-        /*if(auto opt = iexec.produce(); opt.has_value())
-        {
-            st.rtex.acquire(circ[which_circ]);
-            cl::copy_image(circ[which_circ], opt.value(), st.rtex, (vec2i){0,0}, (vec2i){opt.value().size<2>().x(), opt.value().size<2>().y()});
-            ///ok so, an unacquire basically does a block. We need to pipe the unacquire onto a separate thread
-            st.rtex.unacquire(circ[which_circ]);
-            which_circ = (which_circ + 1) % circ.size();
-
-            isq.push_free(opt.value());
-        }*/
-
-        //if(auto opt = iexec.produce(); opt.has_value())
-
         while(auto opt = iexec.produce())
         {
             int width = opt.value().size<2>().x();
@@ -2661,13 +2638,7 @@ int main(int argc, char* argv[])
             std::pair<gl_image_shared, cl::image> p{std::move(glis), std::move(opt.value())};
 
             glsq.add(std::move(p));
-
-            //which_circ = (which_circ + 1) % circ.size();
         }
-
-        //std::cout << "Stead " << stead.get_elapsed_time_s() * 1000. << std::endl;
-
-        //steady_timer t;
 
         while(auto opt = glexec.produce(true, 1024))
         {
@@ -2679,34 +2650,6 @@ int main(int argc, char* argv[])
 
             last_frame_opt = std::move(opt.value());
         }
-
-        //std::cout << "T " << t.get_elapsed_time_s() * 1000. << std::endl;
-
-        #if 0
-        {
-            ImDrawList* lst = hide_ui ?
-                              ImGui::GetForegroundDrawList(ImGui::GetMainViewport()) :
-                              ImGui::GetBackgroundDrawList(ImGui::GetMainViewport());
-
-            ImVec2 screen_pos = ImGui::GetMainViewport()->Pos;
-
-            ImVec2 tl = {0,0};
-            ImVec2 br = {win.get_window_size().x(),win.get_window_size().y()};
-
-            if(win.get_render_settings().viewports)
-            {
-                tl.x += screen_pos.x;
-                tl.y += screen_pos.y;
-
-                br.x += screen_pos.x;
-                br.y += screen_pos.y;
-            }
-
-            lst->AddImage((void*)st.rtex.texture_id, tl, br, ImVec2(0, 0), ImVec2(1, 1));
-        }
-        #endif
-
-
 
         if(last_frame_opt.has_value())
         {
