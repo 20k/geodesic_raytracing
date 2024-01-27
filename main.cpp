@@ -1523,6 +1523,8 @@ int main(int argc, char* argv[])
         }
     }).detach();
 
+    int unprocessed_frames = 0;
+
     while(!win.should_close() && !menu.should_quit && fullscreen.open)
     {
         render_state& st = states[which_state];
@@ -2471,6 +2473,8 @@ int main(int argc, char* argv[])
                 last_last_event = last_event;
                 last_event = produce;
 
+                unprocessed_frames++;
+
                 //iexec.add(std::move(img), produce);
 
                 /*{
@@ -2686,12 +2690,17 @@ int main(int argc, char* argv[])
             glsq.add(std::move(p), last_event);
         }
 
-        if(auto opt = glexec.produce(true, 1024); opt.has_value())
+        if(unprocessed_frames >= 2)
         {
-            if(last_frame_opt.has_value())
-                unacquired.add(std::move(last_frame_opt.value()), cl::event());
+            if(auto opt = glexec.produce(true, 1024 * 1024 * 1024); opt.has_value())
+            {
+                unprocessed_frames--;
 
-            last_frame_opt = std::move(opt.value());
+                if(last_frame_opt.has_value())
+                    unacquired.add(std::move(last_frame_opt.value()), cl::event());
+
+                last_frame_opt = std::move(opt.value());
+            }
         }
 
         if(last_frame_opt.has_value())
