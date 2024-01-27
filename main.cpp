@@ -1462,10 +1462,9 @@ int main(int argc, char* argv[])
         {
             if(auto opt = glsq.produce(); opt.has_value())
             {
+                auto& gl = opt.value();
                 auto cqueue = circ[which_circ % circ.size()];
                 which_circ++;
-
-                auto& gl = opt.value();
 
                 auto evt = gl.rtex.unacquire(cqueue);
 
@@ -1502,7 +1501,6 @@ int main(int argc, char* argv[])
             if(auto opt = unacquired.produce(); opt.has_value())
             {
                 auto& gl = opt.value();
-
                 auto cqueue = circ[which_circ % circ.size()];
                 which_circ++;
 
