@@ -154,6 +154,12 @@ std::vector<std::filesystem::path> get_files_with_extension(std::filesystem::pat
 {
     std::vector<std::filesystem::path> ret;
 
+    if(!std::filesystem::is_directory(folder))
+    {
+        std::cout << "No content " << folder << " for ext " << ext << std::endl;
+        return ret;
+    }
+
     try
     {
         for(const auto& entry : std::filesystem::directory_iterator{folder})
