@@ -1620,8 +1620,6 @@ int main(int argc, char* argv[])
 
         float frametime_s = frametime_timer.restart();
 
-        printf("Ftime %f\n", frametime_s * 1000.);
-
         float controls_multiplier = 1.f;
 
         if(menu.sett.time_adjusted_controls)
