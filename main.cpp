@@ -1784,14 +1784,6 @@ int main(int argc, char* argv[])
             menu.display(win, input, back_images);
         }
 
-        gl_image_shared glis = glisq.pop_free_or_make_new(clctx.ctx, st.width, st.height);
-
-        if(!glis.rtex.acquired)
-        {
-            glis.rtex.acquire(mqueue);
-            printf("Ack Fail\n");
-        }
-
         {
             auto buffer_size = (vec<2, size_t>){st.width, st.height};
 
@@ -1832,6 +1824,14 @@ int main(int argc, char* argv[])
 
                 last_supersample = menu.sett.supersample;
                 last_supersample_mult = menu.sett.supersample_factor;
+            }
+
+            gl_image_shared glis = glisq.pop_free_or_make_new(clctx.ctx, st.width, st.height);
+
+            if(!glis.rtex.acquired)
+            {
+                glis.rtex.acquire(mqueue);
+                print("Ack\n");
             }
 
             float time = clk.restart().asMicroseconds() / 1000.;
@@ -2365,6 +2365,8 @@ int main(int argc, char* argv[])
                 accel = triangle_rendering::acceleration(clctx.ctx);
             }
 
+            cl::event produce_event;
+
             {
                 int width = glis.rtex.size<2>().x();
                 int height = glis.rtex.size<2>().y();
@@ -2481,14 +2483,7 @@ int main(int argc, char* argv[])
 
                 last_last_event.block();
 
-                auto produce = mqueue.exec("render", render_args, {width * height}, {256});
-
-                last_last_event = last_event;
-                last_event = produce;
-
-                unprocessed_frames++;
-
-                //iexec.add(std::move(img), produce);
+                produce_event = mqueue.exec("render", render_args, {width * height}, {256});
 
                 /*{
                     cl::args dbg;
@@ -2511,8 +2506,11 @@ int main(int argc, char* argv[])
                 intersect_args.push_back(accel.memory);
                 intersect_args.push_back(glis.rtex);
 
-                mqueue.exec("render_intersections", intersect_args, {glis.rtex.size<2>().x() * glis.rtex.size<2>().y()}, {256});
+                produce_event = mqueue.exec("render_intersections", intersect_args, {glis.rtex.size<2>().x() * glis.rtex.size<2>().y()}, {256});
             }
+
+            last_last_event = last_event;
+            last_event = produce_event;
 
             /*{
                 cl::args tri_args;
@@ -2617,9 +2615,16 @@ int main(int argc, char* argv[])
                 }
             }
 
-            #ifdef UNIMPLEMENTED
+            if(!taking_screenshot)
+            {
+                unprocessed_frames++;
+                glsq.add(std::move(glis), last_event);
+            }
+
             if(taking_screenshot)
             {
+                glis.rtex.unacquire(mqueue);
+
                 print("Taking screenie\n");
 
                 mqueue.block();
@@ -2631,7 +2636,7 @@ int main(int argc, char* argv[])
 
                 std::cout << "WIDTH " << high_width << " HEIGHT "<< high_height << std::endl;
 
-                std::vector<vec4f> pixels = st.tex.read(0);
+                std::vector<vec4f> pixels = glis.tex.read(0);
 
                 std::cout << "pixels size " << pixels.size() << std::endl;
 
@@ -2684,12 +2689,11 @@ int main(int argc, char* argv[])
                     ISteamScreenshots* iss = SteamAPI_SteamScreenshots();
 
                     SteamAPI_ISteamScreenshots_WriteScreenshot(iss, as_rgb.data(), sizeof(vec<3, char>) * as_rgb.size(), high_width, high_height);
-               }
-            }
-            #endif
-        }
+                }
 
-        glsq.add(std::move(glis), last_event);
+                unacquired.add(std::move(glis), cl::event());
+            }
+        }
 
         if(glexec.peek() || unprocessed_frames >= 3)
         {
