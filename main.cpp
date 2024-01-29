@@ -1829,7 +1829,6 @@ int main(int argc, char* argv[])
             if(!glis.rtex.acquired)
             {
                 glis.rtex.acquire(mqueue);
-                print("Ack\n");
             }
 
             float time = clk.restart().asMicroseconds() / 1000.;
