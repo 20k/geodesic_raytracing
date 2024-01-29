@@ -2114,6 +2114,11 @@ int main(int argc, char* argv[])
                                           sett, clctx.ctx, st.termination_buffer))
             {
                 phys.needs_trace = true;
+
+                for(auto& i : states)
+                {
+                    i.termination_buffer.set_to_zero(mqueue);
+                }
             }
 
             dfg.alloc_and_write_gpu_buffer(mqueue, dynamic_feature_buffer);
