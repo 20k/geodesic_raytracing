@@ -72,6 +72,7 @@
 			<Add option="-DCONFIG_BIGNUM" />
 			<Add option="-DNO_SERIALISE_RATELIMIT" />
 			<Add option="-DFAST_CL" />
+			<Add option="-DNO_OPENCL_SCREEN" />
 			<Add directory="deps" />
 			<Add directory="deps/imgui" />
 			<Add directory="deps/steamworks_sdk_153a/sdk/public" />
