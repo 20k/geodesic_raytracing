@@ -5024,7 +5024,7 @@ void do_generic_rays (__global const struct lightray* restrict generic_rays_in, 
         bool should_terminate = fabs(polar_position.y) >= GET_FEATURE(universe_size, dfg);
 
         #ifdef SINGULAR
-        should_terminate |= fabs(polar_position.y) < rs*SINGULAR_TERMINATOR;
+        should_terminate |= fabs(polar_position.y) < SINGULAR_TERMINATOR;
         #endif // SINGULAR
 
         #ifdef HAS_CYLINDRICAL_SINGULARITY
@@ -5665,7 +5665,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         #ifndef SINGULAR
         if(fabs(polar_position.y) >= GET_FEATURE(universe_size, dfg))
         #else
-        if(fabs(polar_position.y) < rs*SINGULAR_TERMINATOR || fabs(polar_position.y) >= GET_FEATURE(universe_size, dfg))
+        if(fabs(polar_position.y) < SINGULAR_TERMINATOR || fabs(polar_position.y) >= GET_FEATURE(universe_size, dfg))
         #endif // SINGULAR
         {
             //printf("Escaped\n");
@@ -5896,11 +5896,10 @@ void calculate_texture_coordinates(__global const struct lightray* finished_rays
         #endif
     }
 
-    float rs = 1;
     float r_value = position.y;
 
     #if !defined(TRAVERSABLE_EVENT_HORIZON) || (defined(NO_EVENT_HORIZON_CROSSING) && !defined(GENERIC_METRIC))
-    if(fabs(r_value) <= rs)
+    if(fabs(r_value) <= 1)
     {
         return;
     }
@@ -6085,11 +6084,10 @@ void render(__global const struct lightray* finished_rays, __global const int* f
         #endif
     }
 
-    float rs = 1;
     float r_value = position.y;
 
     #if !defined(TRAVERSABLE_EVENT_HORIZON) || (defined(NO_EVENT_HORIZON_CROSSING) && !defined(GENERIC_METRIC))
-    if(fabs(r_value) <= rs * 2)
+    if(fabs(r_value) <= 2)
     {
         write_imagef(out, (int2){sx, sy}, (float4)(0, 0, 0, 1));
         return;
