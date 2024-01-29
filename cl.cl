@@ -6098,7 +6098,7 @@ void render(__global const struct lightray* finished_rays, __global const int* f
     float syf = texture_coordinates[sy * width + sx].y;
 
     ///we actually do have an event horizon
-    if(fabs(r_value) <= rs)
+    if(fabs(r_value) <= 1)
     //if(fabs(r_value) <= rs || r_value < 0)
     {
         float4 val = (float4)(0,0,0,1);
@@ -6454,7 +6454,7 @@ void render(__global const struct lightray* finished_rays, __global const int* f
             printf("Shift %f vx %f obvsu %f\n", z_shift, velocity.x, -ray->ku_uobsu);
         }*/
 
-        if(fabs(r_value) > rs * 2)
+        if(fabs(r_value) > 2)
         {
             /*if(sx == width/2 && sy == height/2)
             {
