@@ -781,6 +781,13 @@ struct async_executor
     std::mutex mut;
     std::vector<std::pair<T, cl::event>> yields;
 
+    int peek()
+    {
+        std::lock_guard guard(mut);
+
+        return yields.size();
+    }
+
     void add(T&& in, cl::event evt)
     {
         std::lock_guard guard(mut);
@@ -788,7 +795,7 @@ struct async_executor
         yields.push_back({std::move(in), evt});
     }
 
-    std::optional<T> produce(bool at_least_one = false, int retries = 100)
+    std::optional<T> produce(bool at_least_one = false)
     {
         if(!at_least_one)
         {
@@ -808,7 +815,7 @@ struct async_executor
         }
         else
         {
-            for(int i=0; i < retries; i++)
+            while(1)
             {
                 std::lock_guard guard(mut);
 
@@ -1447,7 +1454,7 @@ int main(int argc, char* argv[])
 
     async_executor<gl_image_shared> glsq;
 
-    std::jthread([&]()
+    std::jthread acquire_thread([&](std::stop_token stoken)
     {
         std::vector<cl::command_queue> circ;
 
@@ -1460,6 +1467,9 @@ int main(int argc, char* argv[])
 
         while(1)
         {
+            if(stoken.stop_requested())
+                return;
+
             if(auto opt = glsq.produce(); opt.has_value())
             {
                 auto& gl = opt.value();
@@ -1483,9 +1493,9 @@ int main(int argc, char* argv[])
                 }
             }
         }
-    }).detach();
+    });
 
-    std::jthread([&]()
+    std::jthread release_thread([&](std::stop_token stoken)
     {
         std::vector<cl::command_queue> circ;
 
@@ -1498,6 +1508,9 @@ int main(int argc, char* argv[])
 
         while(1)
         {
+            if(stoken.stop_requested())
+                return;
+
             if(auto opt = unacquired.produce(); opt.has_value())
             {
                 auto& gl = opt.value();
@@ -1521,7 +1534,7 @@ int main(int argc, char* argv[])
                 }
             }
         }
-    }).detach();
+    });
 
     int unprocessed_frames = 0;
 
@@ -2676,23 +2689,11 @@ int main(int argc, char* argv[])
             #endif
         }
 
-        //while(auto opt = iexec.produce())
+        glsq.add(std::move(glis), last_event);
+
+        if(glexec.peek() || unprocessed_frames >= 3)
         {
-            //int width = opt.value().size<2>().x();
-            //int height = opt.value().size<2>().y();
-
-            //gl_image_shared glis = glisq.pop_free_or_make_new(clctx.ctx, width, height);
-
-            //std::pair<gl_image_shared, cl::image> p{std::move(glis), std::move(opt.value())};
-
-            auto&& p = std::move(glis);
-
-            glsq.add(std::move(p), last_event);
-        }
-
-        if(unprocessed_frames >= 2)
-        {
-            if(auto opt = glexec.produce(true, 1024 * 1024 * 1024); opt.has_value())
+            if(auto opt = glexec.produce(true); opt.has_value())
             {
                 unprocessed_frames--;
 
@@ -2744,6 +2745,9 @@ int main(int argc, char* argv[])
 
         once = true;
     }
+
+    release_thread.request_stop();
+    acquire_thread.request_stop();
 
     //mqueue.block();
     clctx.cqueue.block();
