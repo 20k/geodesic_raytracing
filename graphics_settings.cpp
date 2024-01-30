@@ -25,6 +25,7 @@ DEFINE_SERIALISE_FUNCTION(graphics_settings)
     DO_FSERIALISE(use_steam_screenshots);
     DO_FSERIALISE(anisotropy);
     DO_FSERIALISE(no_gpu_reads);
+    DO_FSERIALISE(max_frames_ahead);
 }
 
 bool graphics_settings::display_video_settings()
@@ -54,6 +55,13 @@ bool graphics_settings::display_video_settings()
     if(ImGui::IsItemHovered())
     {
         ImGui::SetTooltip("May improve performance");
+    }
+
+    ImGui::DragInt("Max Frames Ahead", &max_frames_ahead, 1, 0, 6);
+
+    if(ImGui::IsItemHovered())
+    {
+        ImGui::SetTooltip("Improves performance at the expense of input latency");
     }
 
     ImGui::NewLine();
