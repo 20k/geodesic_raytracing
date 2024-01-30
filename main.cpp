@@ -1859,7 +1859,7 @@ int main(int argc, char* argv[])
                                 if(vars.size() == 0)
                                     vars.resize(1);
 
-                                dynamic_config.write_async(mqueue, std::span<float>{vars});
+                                dynamic_config.write_async(mqueue, vars);
                                 should_soft_recompile = true;
                             }
                         }
