@@ -928,52 +928,6 @@ struct gl_image_shared_queue
     }
 };
 
-struct image_shared_queue
-{
-    std::mutex mut;
-    std::vector<cl::image> free_images;
-
-    void push_free(cl::image img)
-    {
-        std::scoped_lock guard(mut);
-
-        free_images.push_back(img);
-    }
-
-    cl::image pop_free_or_make_new(cl::context& ctx, int width, int height)
-    {
-        std::scoped_lock guard(mut);
-
-        if(free_images.size() > 4)
-        {
-            auto size = free_images.front().size<2>();
-
-            if(size.x() == width && size.y() == height)
-            {
-                auto next = free_images.front();
-
-                free_images.erase(free_images.begin());
-
-                return next;
-            }
-            else
-            {
-                free_images.clear();
-            }
-        }
-
-        cl_image_format fmt;
-        fmt.image_channel_order = CL_RGBA;
-        fmt.image_channel_data_type = CL_FLOAT;
-
-        cl::image img(ctx);
-        img.alloc({width, height}, fmt);
-
-        return img;
-    }
-};
-
-
 ///i need the ability to have dynamic parameters
 int main(int argc, char* argv[])
 {
@@ -1437,11 +1391,8 @@ int main(int argc, char* argv[])
 
     clctx.cqueue.block();
 
-    async_executor<cl::image> iexec;
-
     camera cam;
 
-    image_shared_queue isq;
     gl_image_shared_queue glisq;
     async_executor<gl_image_shared> glexec;
     async_executor<gl_image_shared> unacquired;
@@ -2347,8 +2298,6 @@ int main(int argc, char* argv[])
 
                 timelike_q.start_read(clctx.ctx, async_queue, std::move(next_timelike_coordinate), {evt});
             }
-
-            //cl::image img = isq.pop_free_or_make_new(clctx.ctx, st.width, st.height);
 
             if(dfg.get_feature<bool>("use_triangle_rendering"))
             {
