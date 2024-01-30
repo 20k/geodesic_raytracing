@@ -28,12 +28,10 @@ struct render_state
     std::array<cl::buffer, 4> tetrad;
 
     cl::buffer rays_in;
-    cl::buffer rays_out;
     cl::buffer rays_finished;
     cl::buffer rays_prepass;
 
     cl::buffer rays_count_in;
-    cl::buffer rays_count_out;
     cl::buffer rays_count_finished;
     cl::buffer rays_count_prepass;
 
@@ -54,8 +52,8 @@ struct render_state
         g_camera_pos_cart(ctx), g_camera_quat(ctx),
         g_camera_pos_generic(ctx), g_camera_pos_polar_readback(ctx), g_geodesic_basis_speed(ctx),
         tetrad{ctx, ctx, ctx, ctx},
-        rays_in(ctx), rays_out(ctx), rays_finished(ctx), rays_prepass(ctx),
-        rays_count_in(ctx), rays_count_out(ctx), rays_count_finished(ctx), rays_count_prepass(ctx),
+        rays_in(ctx), rays_finished(ctx), rays_prepass(ctx),
+        rays_count_in(ctx), rays_count_finished(ctx), rays_count_prepass(ctx),
         tri_intersections(ctx), tri_intersections_count(ctx),
         termination_buffer(ctx),
         texture_coordinates(ctx),
@@ -74,7 +72,6 @@ struct render_state
         }
 
         rays_count_in.alloc(sizeof(cl_int));
-        rays_count_out.alloc(sizeof(cl_int));
         rays_count_finished.alloc(sizeof(cl_int));
         rays_count_prepass.alloc(sizeof(cl_int));
 
@@ -93,7 +90,6 @@ struct render_state
         uint32_t ray_count = width * height;
 
         rays_in.alloc(ray_count * sizeof(lightray));
-        rays_out.alloc(ray_count * sizeof(lightray));
         rays_finished.alloc(ray_count * sizeof(lightray));
         rays_prepass.alloc(ray_count * sizeof(lightray));
 

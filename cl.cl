@@ -4881,9 +4881,9 @@ __kernel void pull_linear_object_positions(__global struct computed_triangle* li
 }
 
 __kernel
-void do_generic_rays (__global const struct lightray* restrict generic_rays_in, __global struct lightray* restrict generic_rays_out,
+void do_generic_rays (__global const struct lightray* restrict generic_rays_in,
                       __global struct lightray* restrict finished_rays,
-                      __global const int* restrict generic_count_in, __global int* restrict generic_count_out,
+                      __global const int* restrict generic_count_in,
                       __global int* restrict finished_count_out,
                       //__global float4* path_out, __global int* counts_out,
                       __global const struct triangle* restrict tris, int tri_count, __global struct intersection* restrict intersections_out, __global int* restrict intersection_count,

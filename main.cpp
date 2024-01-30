@@ -135,9 +135,9 @@ vec4f cartesian_to_schwarz(vec4f position)
 
 #define GENERIC_METRIC
 
-void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& rays_out,
+void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in,
                                                cl::buffer& rays_finished,
-                                               cl::buffer& count_in, cl::buffer& count_out,
+                                               cl::buffer& count_in,
                                                cl::buffer& count_finished,
                                                cl::buffer& ray_time_min, cl::buffer& ray_time_max,
                                                //cl::buffer& visual_path, cl::buffer& visual_ray_counts,
@@ -157,10 +157,8 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
 
         cl::args run_args;
         run_args.push_back(rays_in);
-        run_args.push_back(rays_out);
         run_args.push_back(rays_finished);
         run_args.push_back(count_in);
-        run_args.push_back(count_out);
         run_args.push_back(count_finished);
         run_args.push_back(fallback);
         run_args.push_back(dynamic_config);
@@ -170,7 +168,6 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
     else
     {
         count_in.write_async(cqueue, (const char*)&num_rays, sizeof(int));
-        //count_out.set_to_zero(cqueue);
         count_finished.set_to_zero(cqueue);
 
         if(dfg.get_feature<bool>("use_triangle_rendering"))
@@ -197,10 +194,8 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
 
         cl::args run_args;
         run_args.push_back(rays_in);
-        run_args.push_back(rays_out);
         run_args.push_back(rays_finished);
         run_args.push_back(count_in);
-        run_args.push_back(count_out);
         run_args.push_back(count_finished);
         //run_args.push_back(visual_path);
         //run_args.push_back(visual_ray_counts);
@@ -2367,7 +2362,7 @@ int main(int argc, char* argv[])
 
                     int rays_num = calculate_ray_count(prepass_width, prepass_height);
 
-                    execute_kernel(mqueue, st.rays_prepass, st.rays_out, st.rays_finished, st.rays_count_prepass, st.rays_count_out, st.rays_count_finished, st.accel_ray_time_min, st.accel_ray_time_max, tris, st.tri_intersections, st.tri_intersections_count, accel, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer, last_event);
+                    execute_kernel(mqueue, st.rays_prepass, st.rays_finished, st.rays_count_prepass, st.rays_count_finished, st.accel_ray_time_min, st.accel_ray_time_max, tris, st.tri_intersections, st.tri_intersections_count, accel, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer, last_event);
 
                     cl::args singular_args;
                     singular_args.push_back(st.rays_finished);
@@ -2402,7 +2397,7 @@ int main(int argc, char* argv[])
 
                 int rays_num = calculate_ray_count(width, height);
 
-                execute_kernel(mqueue, st.rays_in, st.rays_out, st.rays_finished, st.rays_count_in, st.rays_count_out, st.rays_count_finished, st.accel_ray_time_min, st.accel_ray_time_max, tris, st.tri_intersections, st.tri_intersections_count, accel, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer, last_event);
+                execute_kernel(mqueue, st.rays_in, st.rays_finished, st.rays_count_in, st.rays_count_finished, st.accel_ray_time_min, st.accel_ray_time_max, tris, st.tri_intersections, st.tri_intersections_count, accel, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer, last_event);
 
                 cl::args texture_args;
                 texture_args.push_back(st.rays_finished);
