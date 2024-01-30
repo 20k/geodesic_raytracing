@@ -136,9 +136,7 @@ vec4f cartesian_to_schwarz(vec4f position)
 #define GENERIC_METRIC
 
 void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in,
-                                               cl::buffer& rays_finished,
                                                cl::buffer& count_in,
-                                               cl::buffer& count_finished,
                                                cl::buffer& ray_time_min, cl::buffer& ray_time_max,
                                                //cl::buffer& visual_path, cl::buffer& visual_ray_counts,
                                                triangle_rendering::manager& manage, cl::buffer& intersections, cl::buffer& intersections_count,
@@ -149,6 +147,7 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in,
                                                dynamic_feature_config& dfg,
                                                cl::buffer& dynamic_config,
                                                cl::buffer& dynamic_feature_config,
+                                               int width, int height,
                                                cl::event evt)
 {
     if(use_device_side_enqueue)
@@ -157,9 +156,7 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in,
 
         cl::args run_args;
         run_args.push_back(rays_in);
-        run_args.push_back(rays_finished);
         run_args.push_back(count_in);
-        run_args.push_back(count_finished);
         run_args.push_back(fallback);
         run_args.push_back(dynamic_config);
 
@@ -168,7 +165,6 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in,
     else
     {
         count_in.write_async(cqueue, (const char*)&num_rays, sizeof(int));
-        count_finished.set_to_zero(cqueue);
 
         if(dfg.get_feature<bool>("use_triangle_rendering"))
         {
@@ -194,9 +190,7 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in,
 
         cl::args run_args;
         run_args.push_back(rays_in);
-        run_args.push_back(rays_finished);
         run_args.push_back(count_in);
-        run_args.push_back(count_finished);
         //run_args.push_back(visual_path);
         //run_args.push_back(visual_ray_counts);
         run_args.push_back(manage.tris);
@@ -231,6 +225,8 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in,
 
         run_args.push_back(dynamic_config);
         run_args.push_back(dynamic_feature_config);
+        run_args.push_back(width);
+        run_args.push_back(height);
         run_args.push_back(mouse_x);
         run_args.push_back(mouse_y);
 
@@ -2342,8 +2338,8 @@ int main(int argc, char* argv[])
 
                     init_args_prepass.push_back(st.g_camera_pos_generic);
                     init_args_prepass.push_back(g_camera_quat);
-                    init_args_prepass.push_back(st.rays_prepass);
-                    init_args_prepass.push_back(st.rays_count_prepass);
+                    init_args_prepass.push_back(st.rays_in);
+                    init_args_prepass.push_back(st.rays_count_in);
                     init_args_prepass.push_back(prepass_width);
                     init_args_prepass.push_back(prepass_height);
                     init_args_prepass.push_back(st.termination_buffer);
@@ -2362,11 +2358,11 @@ int main(int argc, char* argv[])
 
                     int rays_num = calculate_ray_count(prepass_width, prepass_height);
 
-                    execute_kernel(mqueue, st.rays_prepass, st.rays_finished, st.rays_count_prepass, st.rays_count_finished, st.accel_ray_time_min, st.accel_ray_time_max, tris, st.tri_intersections, st.tri_intersections_count, accel, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer, last_event);
+                    execute_kernel(mqueue, st.rays_in, st.rays_count_in, st.accel_ray_time_min, st.accel_ray_time_max, tris, st.tri_intersections, st.tri_intersections_count, accel, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer, st.width, st.height, last_event);
 
                     cl::args singular_args;
-                    singular_args.push_back(st.rays_finished);
-                    singular_args.push_back(st.rays_count_finished);
+                    singular_args.push_back(st.rays_in);
+                    singular_args.push_back(st.rays_count_in);
                     singular_args.push_back(st.termination_buffer);
                     singular_args.push_back(prepass_width);
                     singular_args.push_back(prepass_height);
@@ -2397,27 +2393,22 @@ int main(int argc, char* argv[])
 
                 int rays_num = calculate_ray_count(width, height);
 
-                execute_kernel(mqueue, st.rays_in, st.rays_finished, st.rays_count_in, st.rays_count_finished, st.accel_ray_time_min, st.accel_ray_time_max, tris, st.tri_intersections, st.tri_intersections_count, accel, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer, last_event);
+                execute_kernel(mqueue, st.rays_in, st.rays_count_in, st.accel_ray_time_min, st.accel_ray_time_max, tris, st.tri_intersections, st.tri_intersections_count, accel, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer, st.width, st.height, last_event);
 
                 cl::args texture_args;
-                texture_args.push_back(st.rays_finished);
-                texture_args.push_back(st.rays_count_finished);
+                texture_args.push_back(st.rays_in);
+                texture_args.push_back(st.rays_count_in);
                 texture_args.push_back(st.texture_coordinates);
                 texture_args.push_back(width);
                 texture_args.push_back(height);
                 texture_args.push_back(dynamic_config);
                 texture_args.push_back(dynamic_feature_buffer);
 
-                mqueue.exec("calculate_texture_coordinates", texture_args, {width * height}, {256});
-
-                cl::args clr;
-                clr.push_back(glis.rtex);
-
-                mqueue.exec("clear", clr, {width, height}, {16, 16});
+                mqueue.exec("calculate_texture_coordinates", texture_args, {width, height}, {16, 16});
 
                 cl::args render_args;
-                render_args.push_back(st.rays_finished);
-                render_args.push_back(st.rays_count_finished);
+                render_args.push_back(st.rays_in);
+                render_args.push_back(st.rays_count_in);
                 render_args.push_back(glis.rtex);
                 render_args.push_back(back_images.i1);
                 render_args.push_back(back_images.i2);
@@ -2430,7 +2421,7 @@ int main(int argc, char* argv[])
 
                 last_last_event.block();
 
-                produce_event = mqueue.exec("render", render_args, {width * height}, {256});
+                produce_event = mqueue.exec("render", render_args, {width, height}, {16, 16});
 
                 /*{
                     cl::args dbg;

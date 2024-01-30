@@ -795,10 +795,9 @@ struct lightray
     float4 velocity;
     float4 initial_quat;
     float4 acceleration;
-    int sx, sy;
     float ku_uobsu;
-    int early_terminate;
     float running_dlambda_dnew;
+    int terminated;
 };
 
 #ifdef GENERIC_METRIC
@@ -2899,14 +2898,12 @@ struct lightray geodesic_to_render_ray(int cx, int cy, float4 position, float4 v
     }
 
     struct lightray ray;
-    ray.sx = cx;
-    ray.sy = cy;
     ray.position = position;
     ray.velocity = velocity;
     ray.acceleration = lightray_acceleration;
     ray.initial_quat = corrected.inverse_quat;
-    ray.early_terminate = 0;
     ray.running_dlambda_dnew = 1;
+    ray.terminated = 0;
 
     {
         float4 uobsu_upper = observer_velocity;
@@ -2964,15 +2961,13 @@ struct lightray geodesic_to_trace_ray(float4 position, float4 velocity, dynamic_
     }
 
     struct lightray ray;
-    ray.sx = 0;
-    ray.sy = 0;
     ray.position = position;
     ray.velocity = velocity;
     ray.acceleration = lightray_acceleration;
     ray.initial_quat = corrected.inverse_quat;
-    ray.early_terminate = 0;
     ray.ku_uobsu = 1;
     ray.running_dlambda_dnew = 1;
+    ray.terminated = 0;
 
     return ray;
 };
@@ -3086,7 +3081,7 @@ void init_rays_generic(__global const float4* g_generic_camera_in, __global cons
            should_early_terminate(lx, ly-1, prepass_width, prepass_height, termination_buffer) &&
            should_early_terminate(lx, ly+1, prepass_width, prepass_height, termination_buffer))
         {
-            ray.early_terminate = 1;
+            ray.terminated = 2;
         }
     }
     #endif // USE_PREPASS
@@ -4881,10 +4876,8 @@ __kernel void pull_linear_object_positions(__global struct computed_triangle* li
 }
 
 __kernel
-void do_generic_rays (__global const struct lightray* restrict generic_rays_in,
-                      __global struct lightray* restrict finished_rays,
+void do_generic_rays (__global struct lightray* restrict generic_rays_in,
                       __global const int* restrict generic_count_in,
-                      __global int* restrict finished_count_out,
                       //__global float4* path_out, __global int* counts_out,
                       __global const struct triangle* restrict tris, int tri_count, __global struct intersection* restrict intersections_out, __global int* restrict intersection_count,
                       __global const int* restrict counts, __global const int* restrict offsets, __global const struct computed_triangle* restrict linear_mem, __global const int* restrict linear_mem_size, __global const float* restrict linear_start_times, __global const float* restrict linear_delta_times,
@@ -4900,6 +4893,7 @@ void do_generic_rays (__global const struct lightray* restrict generic_rays_in,
                       __global const float4* restrict inverse_e0s, __global const float4* restrict inverse_e1s, __global const float4* restrict inverse_e2s, __global const float4* restrict inverse_e3s,
                       dynamic_config_space const struct dynamic_config* restrict cfg,
                       dynamic_config_space const struct dynamic_feature_config* restrict dfg,
+                      int width, int height,
                       int mouse_x, int mouse_y)
 {
     int id = get_global_id(0);
@@ -4909,11 +4903,9 @@ void do_generic_rays (__global const struct lightray* restrict generic_rays_in,
 
     int ray_num = *generic_count_in;
 
-    __global const struct lightray* ray = &generic_rays_in[id];
+    __global struct lightray* ray = &generic_rays_in[id];
 
-    //counts_out[id] = 0;
-
-    if(ray->early_terminate)
+    if(ray->terminated == 2)
         return;
 
     float4 position = ray->position;
@@ -4928,8 +4920,8 @@ void do_generic_rays (__global const struct lightray* restrict generic_rays_in,
 
     float f_in_x = fabs(velocity.x);
 
-    int sx = ray->sx;
-    int sy = ray->sy;
+    int sx = id % width;
+    int sy = id / width;
 
     #ifdef IS_CONSTANT_THETA
     position.z = M_PIf/2;
@@ -5474,20 +5466,12 @@ void do_generic_rays (__global const struct lightray* restrict generic_rays_in,
                 atomic_max(ray_time_max, (int)ceil(my_max));
             }
 
-            int out_id = atomic_inc(finished_count_out);
+            generic_rays_in[id].position = position;
+            generic_rays_in[id].velocity = velocity;
+            generic_rays_in[id].acceleration = 0;
+            generic_rays_in[id].running_dlambda_dnew = running_dlambda_dnew;
+            generic_rays_in[id].terminated = 1;
 
-            struct lightray out_ray;
-            out_ray.sx = sx;
-            out_ray.sy = sy;
-            out_ray.position = position;
-            out_ray.velocity = velocity;
-            out_ray.initial_quat = ray->initial_quat;
-            out_ray.acceleration = 0;
-            out_ray.ku_uobsu = ray->ku_uobsu;
-            out_ray.early_terminate = 0;
-            out_ray.running_dlambda_dnew = running_dlambda_dnew;
-
-            finished_rays[out_id] = out_ray;
             return;
         }
 
@@ -5850,10 +5834,10 @@ void calculate_singularities(__global const struct lightray* finished_rays, __gl
     if(id >= *finished_count)
         return;
 
-    int sx = finished_rays[id].sx;
-    int sy = finished_rays[id].sy;
+    int sx = id % width;
+    int sy = id / width;
 
-    termination_buffer[sy * width + sx] = 0;
+    termination_buffer[sy * width + sx] = !finished_rays[id].terminated;
 }
 
 #endif // GENERIC_METRIC
@@ -5862,16 +5846,18 @@ __kernel
 void calculate_texture_coordinates(__global const struct lightray* finished_rays, __global const int* finished_count_in, __global float2* texture_coordinates, int width, int height,
                                    dynamic_config_space const struct dynamic_config* cfg, dynamic_config_space const struct dynamic_feature_config* dfg)
 {
-    int id = get_global_id(0);
+    int sx = get_global_id(0);
+    int sy = get_global_id(1);
 
-    if(id >= *finished_count_in)
+    if(sx >= width || sy >= height)
         return;
 
-    __global const struct lightray* ray = &finished_rays[id];
+     __global const struct lightray* ray = &finished_rays[sy * width + sx];
 
-    int pos = ray->sy * width + ray->sx;
-    int sx = ray->sx;
-    int sy = ray->sy;
+    if(ray->terminated != 1)
+        return;
+
+    int pos = sy * width + sx;
 
     float4 position = generic_to_spherical(ray->position, cfg);
     float4 velocity = generic_velocity_to_spherical_velocity(ray->position, ray->velocity, cfg);
@@ -6044,21 +6030,19 @@ void render(__global const struct lightray* finished_rays, __global const int* f
             int width, int height, __global const float2* texture_coordinates, int maxProbes,
             dynamic_config_space const struct dynamic_config* cfg, dynamic_config_space const struct dynamic_feature_config* dfg)
 {
-    int id = get_global_id(0);
-
-    if(id >= *finished_count_in)
-        return;
-
-    __global const struct lightray* ray = &finished_rays[id];
-
-    int sx = ray->sx;
-    int sy = ray->sy;
+    int sx = get_global_id(0);
+    int sy = get_global_id(1);
 
     if(sx >= width || sy >= height)
         return;
 
-    if(sx < 0 || sy < 0)
+    __global const struct lightray* ray = &finished_rays[sy * width + sx];
+
+    if(ray->terminated != 1)
+    {
+        write_imagef(out, (int2)(sx, sy), (float4)(0,0,0,1));
         return;
+    }
 
     float4 position = generic_to_spherical(ray->position, cfg);
     float4 velocity = generic_velocity_to_spherical_velocity(ray->position, ray->velocity, cfg);
