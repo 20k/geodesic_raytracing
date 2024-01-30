@@ -57,7 +57,9 @@ bool graphics_settings::display_video_settings()
         ImGui::SetTooltip("May improve performance");
     }
 
-    ImGui::DragInt("Max Frames Ahead", &max_frames_ahead, 1, 0, 6);
+    ImGui::InputInt("Max Frames Ahead", &max_frames_ahead, 1);
+
+    max_frames_ahead = clamp(max_frames_ahead, 0, 6);
 
     if(ImGui::IsItemHovered())
     {
