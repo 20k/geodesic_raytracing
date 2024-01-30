@@ -231,7 +231,7 @@ void dynamic_feature_config::alloc_and_write_gpu_buffer(cl::command_queue& cqueu
         buf_ptr += sizeof(cl_int);
     }
 
-    inout.write(cqueue, buf);
+    inout.write_async(cqueue, std::span<cl_char>{buf});
 
     is_dirty = false;
 }

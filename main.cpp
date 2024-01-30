@@ -2053,10 +2053,11 @@ int main(int argc, char* argv[])
 
             if(metric_manage.check_recompile(should_recompile, should_soft_recompile, parent_directories,
                                           all_content, metric_names, dynamic_config, mqueue, dfg,
-                                          sett, clctx.ctx, st.termination_buffer))
+                                          sett, clctx.ctx))
             {
                 phys.needs_trace = true;
 
+                ///clearing the termination buffers is necessary
                 for(auto& i : states)
                 {
                     i.termination_buffer.set_to_zero(mqueue);

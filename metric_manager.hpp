@@ -18,7 +18,7 @@ struct metric_manager
     ///this is a bit of a giant mess
     bool check_recompile(bool should_recompile, bool should_soft_recompile,
                          const std::vector<content*>& parent_directories, content_manager& all_content, std::vector<std::string>& metric_names,
-                         cl::buffer& dynamic_config, cl::command_queue& cqueue, dynamic_feature_config& dfg, render_settings& sett, cl::context& context, cl::buffer& termination_buffer)
+                         cl::buffer& dynamic_config, cl::command_queue& cqueue, dynamic_feature_config& dfg, render_settings& sett, cl::context& context)
     {
         if(!(should_recompile || current_idx == -1 || should_soft_recompile))
             return false;
@@ -63,7 +63,7 @@ struct metric_manager
             if(vars.size() == 0)
                 vars.resize(1);
 
-            dynamic_config.write(cqueue, vars);
+            dynamic_config.write_async(cqueue, std::span<float>{vars});
         }
 
         current_idx = selected_idx;
@@ -165,9 +165,6 @@ struct metric_manager
             substituted_program_opt.emplace(context, "cl.cl");
             substituted_program_opt->build(context, substituted_argument_string);
         }
-
-        ///Is this necessary?
-        termination_buffer.set_to_zero(cqueue);
 
         return true;
     }
