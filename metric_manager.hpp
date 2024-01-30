@@ -63,7 +63,7 @@ struct metric_manager
             if(vars.size() == 0)
                 vars.resize(1);
 
-            dynamic_config.write_async(cqueue, std::span<float>{vars});
+            dynamic_config.write_async(cqueue, vars);
         }
 
         current_idx = selected_idx;

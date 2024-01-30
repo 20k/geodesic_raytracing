@@ -1810,12 +1810,9 @@ int main(int argc, char* argv[])
                 {
                     if(ImGui::BeginTabItem("General"))
                     {
-                        if(!menu.sett.no_gpu_reads)
+                        if(last_camera_pos.has_value())
                         {
-                            if(last_camera_pos.has_value())
-                            {
-                                DragFloatCol("Camera Position", last_camera_pos.value(), last_timelike_coordinate.value_or(-1));
-                            }
+                            DragFloatCol("Camera Position", last_camera_pos.value(), last_timelike_coordinate.value_or(-1));
                         }
 
                         if(ImGui::DragFloat("Camera Time", &set_camera_time, 0.5f))
@@ -1935,17 +1932,14 @@ int main(int argc, char* argv[])
                         {
                             ImGui::Separator();
 
-                            if(!menu.sett.no_gpu_reads)
+                            if(last_camera_pos.has_value())
                             {
-                                if(last_camera_pos.has_value())
-                                {
-                                    DragFloatCol("Geodesic Position", last_camera_pos.value(), last_timelike_coordinate.value_or(-1));
-                                }
+                                DragFloatCol("Geodesic Position", last_camera_pos.value(), last_timelike_coordinate.value_or(-1));
+                            }
 
-                                if(last_geodesic_velocity.has_value())
-                                {
-                                    ImGui::DragFloat4("Geodesic Velocity", &last_geodesic_velocity.value().s[0]);
-                                }
+                            if(last_geodesic_velocity.has_value())
+                            {
+                                ImGui::DragFloat4("Geodesic Velocity", &last_geodesic_velocity.value().s[0]);
                             }
 
                             ImGui::DragFloat("Proper Time", &current_geodesic_time, 0.1, 0.f, 0.f);
@@ -2234,7 +2228,8 @@ int main(int argc, char* argv[])
 
                 cl::event evt = mqueue.exec("handle_interpolating_geodesic", interpolate_args, {1}, {1}, {geodesic_event});
 
-                geodesic_q.start_read(clctx.ctx, async_queue, std::move(next_geodesic_velocity), {evt});
+                if(!menu.sett.no_gpu_reads)
+                    geodesic_q.start_read(clctx.ctx, async_queue, std::move(next_geodesic_velocity), {evt});
             }
 
             if(!camera_on_geodesic)
@@ -2271,24 +2266,27 @@ int main(int argc, char* argv[])
                 }
             }
 
+            if(!menu.sett.no_gpu_reads)
             {
-                cl::buffer next_generic_camera = camera_q.get_buffer(clctx.ctx);
-                cl::event copy_generic = cl::copy(mqueue, st.g_camera_pos_generic, next_generic_camera);
+                {
+                    cl::buffer next_generic_camera = camera_q.get_buffer(clctx.ctx);
+                    cl::event copy_generic = cl::copy(mqueue, st.g_camera_pos_generic, next_generic_camera);
 
-                camera_q.start_read(clctx.ctx, async_queue, std::move(next_generic_camera), {copy_generic});
-            }
+                    camera_q.start_read(clctx.ctx, async_queue, std::move(next_generic_camera), {copy_generic});
+                }
 
-            {
-                cl::buffer next_timelike_coordinate = timelike_q.get_buffer(clctx.ctx);
+                {
+                    cl::buffer next_timelike_coordinate = timelike_q.get_buffer(clctx.ctx);
 
-                cl::args args;
-                args.push_back(st.g_camera_pos_generic);
-                args.push_back(dynamic_config);
-                args.push_back(next_timelike_coordinate);
+                    cl::args args;
+                    args.push_back(st.g_camera_pos_generic);
+                    args.push_back(dynamic_config);
+                    args.push_back(next_timelike_coordinate);
 
-                cl::event evt = mqueue.exec("calculate_timelike_coordinate", args, {1}, {1});
+                    cl::event evt = mqueue.exec("calculate_timelike_coordinate", args, {1}, {1});
 
-                timelike_q.start_read(clctx.ctx, async_queue, std::move(next_timelike_coordinate), {evt});
+                    timelike_q.start_read(clctx.ctx, async_queue, std::move(next_timelike_coordinate), {evt});
+                }
             }
 
             if(dfg.get_feature<bool>("use_triangle_rendering"))
