@@ -170,9 +170,8 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
     else
     {
         count_in.write_async(cqueue, (const char*)&num_rays, sizeof(int));
-        count_out.set_to_zero(cqueue);
+        //count_out.set_to_zero(cqueue);
         count_finished.set_to_zero(cqueue);
-        intersections_count.set_to_zero(cqueue);
 
         if(dfg.get_feature<bool>("use_triangle_rendering"))
         {
@@ -189,6 +188,8 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in, cl::buffer& 
                 accel.cell_time_min.fill(cqueue, my_min);
                 accel.cell_time_max.fill(cqueue, my_max);
             }
+
+            intersections_count.set_to_zero(cqueue);
         }
 
         int mouse_x = ImGui::GetMousePos().x;

@@ -5554,7 +5554,7 @@ void do_generic_rays (__global const struct lightray* restrict generic_rays_in, 
         atomic_max(ray_time_max, (int)ceil(my_max));
     }
 
-    int out_id = atomic_inc(generic_count_out);
+    /*int out_id = atomic_inc(generic_count_out);
 
     struct lightray out_ray;
     out_ray.sx = sx;
@@ -5567,7 +5567,7 @@ void do_generic_rays (__global const struct lightray* restrict generic_rays_in, 
     out_ray.early_terminate = 0;
     out_ray.running_dlambda_dnew = running_dlambda_dnew;
 
-    generic_rays_out[out_id] = out_ray;
+    generic_rays_out[out_id] = out_ray;*/
 }
 
 __kernel
