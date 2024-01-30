@@ -2632,10 +2632,27 @@ int main(int argc, char* argv[])
             }
         }
 
-        if(glexec.peek() || unprocessed_frames >= 3)
+        if(menu.sett.max_frames_ahead == 0)
+            mqueue.block();
+
+        if(glexec.peek() || unprocessed_frames >= menu.sett.max_frames_ahead)
         {
-            if(auto opt = glexec.produce(true); opt.has_value())
+            ///so, if the number of unprocessed frames is large enough, consume *all* unprocessed frames
+            ///this is to account for draining the queue if menu.sett.max_frames_ahead changes
+            ///otherwise, we eat a single frame, as peek has come through
+            int frames_to_consume = 1;
+
+            if(unprocessed_frames >= menu.sett.max_frames_ahead && menu.sett.max_frames_ahead != 0)
             {
+                frames_to_consume = (unprocessed_frames - menu.sett.max_frames_ahead) + 1;
+            }
+
+            for(int i=0; i < frames_to_consume; i++)
+            {
+                auto opt = glexec.produce(true);
+
+                assert(opt.has_value());
+
                 unprocessed_frames--;
 
                 if(last_frame_opt.has_value())
