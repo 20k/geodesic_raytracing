@@ -173,8 +173,8 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in,
             cl_int my_min = INT_MAX;
             cl_int my_max = INT_MIN;
 
-            accel.ray_time_min.write(cqueue, std::vector<cl_int>{my_min});
-            accel.ray_time_max.write(cqueue, std::vector<cl_int>{my_max});
+            accel.ray_time_min.fill(cqueue, my_min);
+            accel.ray_time_max.fill(cqueue, my_max);
 
             if(accel.use_cell_based_culling)
             {
@@ -1859,7 +1859,7 @@ int main(int argc, char* argv[])
                                 if(vars.size() == 0)
                                     vars.resize(1);
 
-                                dynamic_config.write(mqueue, vars);
+                                dynamic_config.write_async(mqueue, std::span<float>{vars});
                                 should_soft_recompile = true;
                             }
                         }
