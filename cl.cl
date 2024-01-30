@@ -4896,14 +4896,16 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
                       int width, int height,
                       int mouse_x, int mouse_y)
 {
-    int id = get_global_id(0);
 
-    if(id >= *generic_count_in)
+    int sx = get_global_id(0);
+    int sy = get_global_id(1);
+
+    if(sx >= width || sy >= height)
         return;
 
-    int ray_num = *generic_count_in;
+    int id = sy * width + sx;
 
-    __global struct lightray* ray = &generic_rays_in[id];
+     __global struct lightray* ray = &generic_rays_in[id];
 
     if(ray->terminated == 2)
         return;
@@ -4919,9 +4921,6 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
     }
 
     float f_in_x = fabs(velocity.x);
-
-    int sx = id % width;
-    int sy = id / width;
 
     #ifdef IS_CONSTANT_THETA
     position.z = M_PIf/2;
@@ -5468,7 +5467,6 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
 
             generic_rays_in[id].position = position;
             generic_rays_in[id].velocity = velocity;
-            generic_rays_in[id].acceleration = 0;
             generic_rays_in[id].running_dlambda_dnew = running_dlambda_dnew;
             generic_rays_in[id].terminated = 1;
 
@@ -5537,21 +5535,6 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
         atomic_min(ray_time_min, (int)floor(my_min));
         atomic_max(ray_time_max, (int)ceil(my_max));
     }
-
-    /*int out_id = atomic_inc(generic_count_out);
-
-    struct lightray out_ray;
-    out_ray.sx = sx;
-    out_ray.sy = sy;
-    out_ray.position = position;
-    out_ray.velocity = velocity;
-    out_ray.acceleration = acceleration;
-    out_ray.initial_quat = ray->initial_quat;
-    out_ray.ku_uobsu = ray->ku_uobsu;
-    out_ray.early_terminate = 0;
-    out_ray.running_dlambda_dnew = running_dlambda_dnew;
-
-    generic_rays_out[out_id] = out_ray;*/
 }
 
 __kernel

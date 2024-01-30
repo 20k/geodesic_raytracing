@@ -230,7 +230,7 @@ void execute_kernel(cl::command_queue& cqueue, cl::buffer& rays_in,
         run_args.push_back(mouse_x);
         run_args.push_back(mouse_y);
 
-        cqueue.exec("do_generic_rays", run_args, {num_rays}, {256}, {evt});
+        cqueue.exec("do_generic_rays", run_args, {width, height}, {16, 16}, {evt});
 
         ///todo: no idea if this is correct
         accel.ray_time_min = ray_time_min;
