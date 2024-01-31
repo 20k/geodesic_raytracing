@@ -3,6 +3,7 @@
 	"adaptive_precision": false,
 	"singular": true,
 	"detect_singularities": false,
+    "singular_terminator": 1.05,
 	"inherit_settings": "polar_base",
 	"description": "An uncharged, non spinning black hole\nThis metric is specifically optimised for the rs=1 case"
 }
