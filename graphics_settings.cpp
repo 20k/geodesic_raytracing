@@ -121,13 +121,13 @@ cl::image load_mipped_image(sf::Image& img, cl::context& ctx, cl::command_queue&
     max_mips = std::min(max_mips, MIP_LEVELS);
 
     cl::image image_mipped(ctx);
-    image_mipped.alloc((vec3i){img.getSize().x, img.getSize().y, max_mips}, {CL_RGBA, CL_FLOAT}, cl::image_flags::ARRAY);
+    image_mipped.alloc((vec3i){img.getSize().x, img.getSize().y, max_mips}, {CL_RGBA, CL_UNORM_INT8}, cl::image_flags::ARRAY);
 
     ///and all of THIS is to work around a bug in AMDs drivers, where you cant write to a specific array level!
     int swidth = img.getSize().x;
     int sheight = img.getSize().y;
 
-    std::vector<vec4f> as_uniform;
+    std::vector<vec<4, cl_uchar>> as_uniform;
     as_uniform.reserve(max_mips * sheight * swidth);
 
     for(int i=0; i < max_mips; i++)
@@ -147,7 +147,11 @@ cl::image load_mipped_image(sf::Image& img, cl::context& ctx, cl::command_queue&
                 int lx = std::min(x, cwidth - 1);
                 int ly = std::min(y, cheight - 1);
 
-                as_uniform.push_back(mip[ly * cwidth + lx]);
+                vec4f in = mip[ly * cwidth + lx];
+
+                in = clamp(in, 0.f, 1.f);
+
+                as_uniform.push_back({in.x() * 255, in.y() * 255, in.z() * 255, in.w() * 255});
             }
         }
     }

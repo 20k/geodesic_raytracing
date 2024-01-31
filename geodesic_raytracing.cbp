@@ -55,6 +55,19 @@
 					<Add option="-s" />
 				</Linker>
 			</Target>
+			<Target title="SchwarzsFastDebug">
+				<Option output="bin/sfdb/geodesic_raytracing" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/sfdb/" />
+				<Option type="1" />
+				<Option compiler="gcc-msys2-mingw64" />
+				<Option parameters="-bench schwarzschild_fast" />
+				<Compiler>
+					<Add option="-O2" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+				</Linker>
+			</Target>
 		</Build>
 		<Compiler>
 			<Add option="-Wall" />
