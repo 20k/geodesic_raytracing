@@ -1072,6 +1072,9 @@ int main(int argc, char* argv[])
     dfg.add_feature<bool>("reparameterisation");
     dfg.set_feature("reparameterisation", false);
 
+    dfg.add_feature<float>("min_step");
+    dfg.set_feature("min_step", 0.000001f);
+
     //print("WLs %f %f %f\n", chromaticity::srgb_to_wavelength({1, 0, 0}), chromaticity::srgb_to_wavelength({0, 1, 0}), chromaticity::srgb_to_wavelength({0, 0, 1}));
 
     int last_supersample_mult = 2;
@@ -1881,6 +1884,10 @@ int main(int argc, char* argv[])
                         float max_acceleration_change = dfg.get_feature<float>("max_acceleration_change");
                         ImGui::InputFloat("Error Tolerance", &max_acceleration_change, 0.0000001f, 0.00001f, "%.8f");
                         dfg.set_feature("max_acceleration_change", max_acceleration_change);
+
+                        float min_step = dfg.get_feature<float>("min_step");
+                        ImGui::InputFloat("Minimum Step", &min_step, 0.0000001f, 0.0001f, "%.8f");
+                        dfg.set_feature("min_step", min_step);
 
                         float universe_size = dfg.get_feature<float>("universe_size");
                         ImGui::DragFloat("Universe Size", &universe_size, 1, 1, 0, "%.1f");

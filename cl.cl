@@ -3408,7 +3408,7 @@ float acceleration_to_precision(float4 acceleration, float max_acceleration, flo
     float err = max_acceleration;
 
     //#define MIN_STEP 0.00001f
-    #define MIN_STEP 0.000001f
+    //#define MIN_STEP 0.000001f
 
     float max_timestep = 100000;
 
@@ -3427,7 +3427,7 @@ float acceleration_to_precision(float4 acceleration, float max_acceleration, flo
     return diff;
 }
 
-int calculate_ds_error(float current_ds, float4 next_acceleration, float4 acceleration, float max_acceleration, float* next_ds_out)
+int calculate_ds_error(float current_ds, float4 next_acceleration, float4 acceleration, float max_acceleration, float* next_ds_out, dynamic_config_space const struct dynamic_feature_config* dfg)
 {
     float next_ds = 0;
     float diff = acceleration_to_precision(next_acceleration, max_acceleration, &next_ds);
@@ -3435,14 +3435,16 @@ int calculate_ds_error(float current_ds, float4 next_acceleration, float4 accele
     ///produces strictly worse results for kerr
     next_ds = 0.99f * current_ds * clamp(next_ds / current_ds, 0.3f, 2.f);
 
-    next_ds = max(next_ds, MIN_STEP);
+    float min_step = GET_FEATURE(min_step, dfg);
+
+    next_ds = max(next_ds, min_step);
 
     *next_ds_out = next_ds;
 
     float err = max_acceleration;
 
     #ifdef SINGULARITY_DETECTION
-    if(next_ds == MIN_STEP && (diff/I_HATE_COMPUTERS) > err * 10000)
+    if(next_ds == min_step && (diff/I_HATE_COMPUTERS) > err * 10000)
         return DS_RETURN;
     #endif // SINGULARITY_DETECTION
 
@@ -5496,7 +5498,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
 
         if(fabs(r_value) < new_max)
         {
-            int res = calculate_ds_error(ds, next_acceleration, acceleration, GET_FEATURE(max_acceleration_change, dfg), &next_ds);
+            int res = calculate_ds_error(ds, next_acceleration, acceleration, GET_FEATURE(max_acceleration_change, dfg), &next_ds, dfg);
 
             if(res == DS_RETURN)
                 return;
@@ -5648,7 +5650,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         #ifdef ADAPTIVE_PRECISION
         if(fabs(r_value) < new_max)
         {
-            int res = calculate_ds_error(ds, next_acceleration, acceleration, max_accel, &next_ds);
+            int res = calculate_ds_error(ds, next_acceleration, acceleration, max_accel, &next_ds, dfg);
 
             if(res == DS_RETURN)
             {
