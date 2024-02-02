@@ -3339,7 +3339,8 @@ void step_verlet(float4 position, float4 velocity, float4 acceleration, bool alw
     *position_out = next_position;
 
     *velocity_out = next_velocity * K;
-    ///I'm pretty sure this is wrong its a second order coordinate change
+    ///ok, this is a second order coordinate change
+    ///at each step we're making a linear coordinate transform, which means that d^2u/dx^2 is 0, and I think this is justifiable
     *acceleration_out = next_acceleration * K * K;
 }
 
