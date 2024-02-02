@@ -14,10 +14,6 @@ struct triangle
 #define TRI_PRECESSION
 #endif // FEATURE_precession
 
-#if (FEATURE_reparameterisation == 1)
-#define RAY_REPARAM
-#endif
-
 #define TRI_PRECESSION
 #ifdef TRI_PRECESSION
 struct computed_triangle
@@ -3334,9 +3330,8 @@ void step_verlet(float4 position, float4 velocity, float4 acceleration, bool alw
     ///= (dX/dNew) / K
     ///all of this is fairly obvious but its worth spelling out
 
-    #ifndef RAY_REPARAM
-    K = 1;
-    #endif
+    if(!GET_FEATURE(reparameterisation, dfg))
+        K = 1;
 
     if(dLambda_dNew)
         *dLambda_dNew = K;
@@ -3344,6 +3339,7 @@ void step_verlet(float4 position, float4 velocity, float4 acceleration, bool alw
     *position_out = next_position;
 
     *velocity_out = next_velocity * K;
+    ///I'm pretty sure this is wrong its a second order coordinate change
     *acceleration_out = next_acceleration * K * K;
 }
 
