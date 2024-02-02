@@ -1554,7 +1554,7 @@ int main(int argc, char* argv[])
                 if(path == "")
                     continue;
 
-                std::cout << "Added content " << path << std::endl;
+                printj("Added content ", path);
 
                 all_content.add_content_folder(path);
             }
