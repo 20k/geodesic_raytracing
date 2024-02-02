@@ -2,6 +2,7 @@
 	"name": "godel_cylindrical",
 	"adaptive_precision": true,
 	"max_acceleration_change": 0.000001,
+    "has_cylindrical_singularity": true,
 	"inherit_settings": "cylindrical_base",
 	"description": "Godel's metric, a spinning spacetime"
 }
