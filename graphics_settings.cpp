@@ -26,6 +26,7 @@ DEFINE_SERIALISE_FUNCTION(graphics_settings)
     DO_FSERIALISE(anisotropy);
     DO_FSERIALISE(no_gpu_reads);
     DO_FSERIALISE(max_frames_ahead);
+    DO_FSERIALISE(workgroup_size);
 }
 
 bool graphics_settings::display_video_settings()
@@ -64,6 +65,30 @@ bool graphics_settings::display_video_settings()
     if(ImGui::IsItemHovered())
     {
         ImGui::SetTooltip("Improves performance at the expense of input latency");
+    }
+
+    std::vector<std::array<int, 2>> sizes = {{4, 4}, {8, 8}, {16, 8}, {8, 16}, {16, 16}};
+
+    if(ImGui::BeginListBox("Work Group Sizes"))
+    {
+        for(auto& i : sizes)
+        {
+            bool selected = workgroup_size[0] == i[0] && workgroup_size[1] == i[1];
+
+            std::string str = std::to_string(i[0]) + "x" + std::to_string(i[1]);
+
+            if(ImGui::Selectable(str.c_str(), selected))
+            {
+                workgroup_size = i;
+            }
+        }
+
+        ImGui::EndListBox();
+    }
+
+    if(ImGui::IsItemHovered())
+    {
+        ImGui::SetTooltip("Size of a local workgroup when raytracing\n8x8 is best on amd, and 16x16 may be better on nvidia");
     }
 
     ImGui::NewLine();

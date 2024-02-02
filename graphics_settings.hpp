@@ -34,6 +34,8 @@ struct graphics_settings : serialisable, free_function
     bool no_gpu_reads = false;
     int max_frames_ahead = 3;
 
+    std::array<int, 2> workgroup_size = {8,8};
+
     ///Returns true if we need to refresh our opencl context
     bool display_video_settings();
     bool display_control_settings();
