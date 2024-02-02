@@ -4,7 +4,6 @@ add_requireconfs("*", {configs = {shared = false}, system=false})
 add_requires("zlib")
 add_requires("freetype")
 add_requires("openssl", "opengl", "glfw", "glew", "sfml")
-add_requires("boost", {})
 
 add_files("workshop/steam_ugc_manager.cpp")
 add_files("deps/imgui/backends/imgui_impl_glfw.cpp")
@@ -48,7 +47,8 @@ add_defines("IMGUI_IMPL_OPENGL_LOADER_GLEW",
 "NO_SERIALISE_RATELIMIT",
 "FAST_CL",
 "REDIRECT_STDOUT",
-"REMEMBER_SIZE")
+"REMEMBER_SIZE",
+"NO_OPENCL_SCREEN")
 
 add_packages("openssl", "opengl", "glfw", "glew", "freetype", "sfml")
 
