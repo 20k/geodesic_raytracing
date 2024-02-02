@@ -1,6 +1,6 @@
 function metric(t, r, phi, z)
 {    
-	$cfg.a.$default = 9999
+	$cfg.a.$default = 1000
     
     var a = $cfg.a
     
