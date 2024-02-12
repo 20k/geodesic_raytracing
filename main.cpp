@@ -1051,7 +1051,7 @@ int main(int argc, char* argv[])
 
     dynamic_feature_config dfg;
     dfg.add_feature<bool>("use_triangle_rendering");
-    dfg.set_feature("use_triangle_rendering", false);
+    dfg.set_feature("use_triangle_rendering", true);
 
     dfg.add_feature<bool>("redshift");
     dfg.set_feature("redshift", false);
@@ -1346,6 +1346,15 @@ int main(int argc, char* argv[])
     obj->pos = {-10, -5, -1, 0};
     obj->velocity = {-0.8f, 0.0f, 0};
     #endif // DEBUG_FAST_CUBE
+
+    #define TRI_STANDARD_CASE
+    #ifdef TRI_STANDARD_CASE
+    std::shared_ptr<triangle_rendering::object> obj = tris.make_new();
+
+    obj->tris = make_cube({0, 0, 0});
+    obj->pos = {-70, -5, -1, 0};
+    obj->velocity = {-0.2f, 0.2f, 0};
+    #endif // TRI_STANDARD_CASE
 
     physics phys(clctx.ctx);
     triangle_rendering::acceleration accel(clctx.ctx);
