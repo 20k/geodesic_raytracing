@@ -39,6 +39,10 @@ struct render_state
     cl::buffer accel_ray_time_min;
     cl::buffer accel_ray_time_max;
 
+    cl::buffer stored_rays;
+    cl::buffer stored_ray_counts;
+    cl_int max_stored = 128;
+
     int width = 0;
     int height = 0;
 
@@ -51,7 +55,8 @@ struct render_state
         tri_intersections(ctx), tri_intersections_count(ctx),
         termination_buffer(ctx),
         texture_coordinates(ctx),
-        accel_ray_time_min(ctx), accel_ray_time_max(ctx)
+        accel_ray_time_min(ctx), accel_ray_time_max(ctx),
+        stored_rays(ctx), stored_ray_counts(ctx)
     {
         g_camera_pos_cart.alloc(sizeof(cl_float4));
         g_camera_quat.alloc(sizeof(cl_float4));
@@ -87,6 +92,9 @@ struct render_state
         texture_coordinates.alloc(width * height * sizeof(float) * 2);
 
         tri_intersections.alloc(sizeof(cl_int) * width * height * 10);
+
+        stored_rays.alloc(sizeof(cl_float4) * width * height * max_stored);
+        stored_ray_counts.alloc(sizeof(cl_int) * width * height);
     }
 };
 

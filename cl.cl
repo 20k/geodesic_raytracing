@@ -4271,6 +4271,10 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
     int skip = 1;
 
+    int counted = 0;
+
+    int total_segments = 0;
+
     ///if I'm doing bresenhams, then ds_stepping makes no sense and I am insane
     ///so, for all_check what I want to do is bring back ds_stepping
     for(int cc=0; cc < count - skip; cc += skip)
@@ -4285,6 +4289,8 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
 
         if(!range_overlaps(lowest_time, maximum_time, native_current.x, native_next.x))
             continue;
+
+        counted++;
 
         float4 s_e0 = p_e0[cc * stride + mine.object_parent];
         float4 s_e1 = p_e1[cc * stride + mine.object_parent];
@@ -4361,7 +4367,7 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         }
         #endif
 
-        #define SIMPLE_VOXELISE
+        //#define SIMPLE_VOXELISE
         #ifdef SIMPLE_VOXELISE
 
         min_extents.x = max(min_extents.x, lowest_time);
@@ -4378,6 +4384,16 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
         {
             voxel_min.x = 0;
             voxel_max.x = width_num - 1;
+        }
+
+        if(id == 0)
+        {
+            //printf("Start pos %f %f %f %f next %f %f %f %f\n", native_current.x, native_current.y, native_current.z, native_current.w,
+                                                            //native_next.x, native_next.y, native_next.z, native_next.w);
+
+            int size = (voxel_max.x - voxel_min.x) * (voxel_max.y - voxel_min.y) * (voxel_max.z - voxel_min.z) * (voxel_max.w - voxel_min.w);
+
+            //printf("total size %i", size);
         }
 
         int genc = 0;
@@ -4407,18 +4423,28 @@ void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
                             *any_visible = 1;
 
                             genc++;
+
+                            total_segments++;
+
+                            if(id == 0)
+                            {
+                                //printf("Pos %i %i %i %i\n", x, y, z, w);
+                            }
                         }
                     }
                 }
             }
         }
 
-        if(genc != 0)
+        if(genc != 0 && id == 0)
         {
-            printf("Generated %i\n", genc);
+            //printf("Generated %i\n", genc);
         }
         #endif
     }
+
+    //if(id == 0)
+    //printf("Counted %i total %i\n", counted, total_segments);
 }
 
 ///so
@@ -4893,7 +4919,10 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
                       dynamic_config_space const struct dynamic_config* restrict cfg,
                       dynamic_config_space const struct dynamic_feature_config* restrict dfg,
                       int width, int height,
-                      int mouse_x, int mouse_y)
+                      int mouse_x, int mouse_y
+                      __global float4* ray_write,
+                      __global int* ray_write_counts,
+                      int max_write)
 {
 
     int sx = get_global_id(0);
@@ -5169,6 +5198,11 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
 
                     int tri_count = counts[voxel_id];
                     int base_offset = offsets[voxel_id];
+
+                    if(sx == mouse_x && sy == mouse_y)
+                    {
+                        printf("Step %f %f %f %f tris %i\n", setup.current_x, setup.current_y, setup.current_z, setup.current_w, tri_count);
+                    }
 
                     for(int t_off=0; t_off < tri_count; t_off++)
                     {

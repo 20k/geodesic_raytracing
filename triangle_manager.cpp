@@ -384,6 +384,7 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
 
     tris.acceleration_needs_rebuild = false;
 
+    #if 0
     memory_count.set_to_zero(cqueue);
 
     auto clear_buffer = [&](cl::buffer& buf)
@@ -552,4 +553,5 @@ void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager&
         cqueue.exec("generate_acceleration_data", gen, {tris.fill_point_count}, {256});
     }
     #endif // SMEARED
+    #endif
 }
