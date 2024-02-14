@@ -197,11 +197,11 @@ void execute_kernel(graphics_settings& sett,
         run_args.push_back(count_in);
         //run_args.push_back(visual_path);
         //run_args.push_back(visual_ray_counts);
-        run_args.push_back(manage.tris);
-        run_args.push_back(manage.tri_count);
-        run_args.push_back(intersections);
-        run_args.push_back(intersections_count);
-        run_args.push_back(accel.counts);
+        //run_args.push_back(manage.tris);
+        //run_args.push_back(manage.tri_count);
+        //run_args.push_back(intersections);
+        //run_args.push_back(intersections_count);
+        /*run_args.push_back(accel.counts);
         run_args.push_back(accel.offsets);
         run_args.push_back(accel.memory);
         run_args.push_back(accel.memory_count);
@@ -212,19 +212,19 @@ void execute_kernel(graphics_settings& sett,
         run_args.push_back(accel.any_visible);
         run_args.push_back(accel.offset_width);
         run_args.push_back(accel.time_width);
-        run_args.push_back(accel.offset_size.x());
+        run_args.push_back(accel.offset_size.x());*/
         //run_args.push_back(accel.cell_time_min);
         //run_args.push_back(accel.cell_time_max);
-        run_args.push_back(manage.objects);
-        run_args.push_back(ray_time_min);
-        run_args.push_back(ray_time_max);
+        //run_args.push_back(manage.objects);
+        //run_args.push_back(ray_time_min);
+        //run_args.push_back(ray_time_max);
 
-        run_args.push_back(phys.subsampled_paths);
-        run_args.push_back(phys.subsampled_velocities);
+        //run_args.push_back(phys.subsampled_paths);
+        //run_args.push_back(phys.subsampled_velocities);
 
         for(int i=0; i < 4; i++)
         {
-            run_args.push_back(phys.subsampled_inverted_tetrads[i]);
+            //run_args.push_back(phys.subsampled_inverted_tetrads[i]);
         }
 
         run_args.push_back(dynamic_config);
@@ -240,8 +240,8 @@ void execute_kernel(graphics_settings& sett,
         cqueue.exec("do_generic_rays", run_args, {width, height}, {sett.workgroup_size[0], sett.workgroup_size[1]}, {evt});
 
         ///todo: no idea if this is correct
-        accel.ray_time_min = ray_time_min;
-        accel.ray_time_max = ray_time_max;
+        //accel.ray_time_min = ray_time_min;
+        //accel.ray_time_max = ray_time_max;
     }
 }
 
@@ -2347,12 +2347,12 @@ int main(int argc, char* argv[])
                 cl_int prepass_width = width/16;
                 cl_int prepass_height = height/16;
 
-                if(metric_manage.current_metric->metric_cfg.use_prepass && tris.cpu_objects.size() > 0)
+                /*if(metric_manage.current_metric->metric_cfg.use_prepass)
                 {
                     st.termination_buffer.set_to_zero(mqueue);
-                }
+                }*/
 
-                if(metric_manage.current_metric->metric_cfg.use_prepass && tris.cpu_objects.size() == 0)
+                if(metric_manage.current_metric->metric_cfg.use_prepass)
                 {
                     cl::args clear_args;
                     clear_args.push_back(st.termination_buffer);

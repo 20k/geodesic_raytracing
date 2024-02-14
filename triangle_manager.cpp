@@ -377,6 +377,8 @@ void triangle_rendering::acceleration::check_allocated(cl::command_queue& cqueue
 
 void triangle_rendering::acceleration::build(cl::command_queue& cqueue, manager& tris, physics& phys, cl::buffer& dynamic_config)
 {
+    return;
+
     check_allocated(cqueue);
 
     //if(!tris.acceleration_needs_rebuild)
