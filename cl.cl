@@ -4225,7 +4225,7 @@ void subsample_tri_quantity(int count, __global const int* geodesic_counts, __gl
         next_count++;
     }
 
-    printf("Count %i real %i\n", next_count, cnt);
+    //printf("Count %i real %i\n", next_count, cnt);
 
     out_counts[id] = next_count;
     #endif
@@ -4919,7 +4919,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
                       dynamic_config_space const struct dynamic_config* restrict cfg,
                       dynamic_config_space const struct dynamic_feature_config* restrict dfg,
                       int width, int height,
-                      int mouse_x, int mouse_y
+                      int mouse_x, int mouse_y,
                       __global float4* ray_write,
                       __global int* ray_write_counts,
                       int max_write)
@@ -4942,11 +4942,13 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
     float4 velocity = ray->velocity;
     float4 acceleration = ray->acceleration;
 
+    #if 0
     if(GET_FEATURE(use_triangle_rendering, dfg))
     {
         atomic_min(ray_time_min, (int)floor(position.x));
         atomic_max(ray_time_max, (int)ceil(position.x));
     }
+    #endif
 
     float f_in_x = fabs(velocity.x);
 
@@ -4990,12 +4992,16 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
 
     int any_visible_tris = 0;
 
+    #if 0
     if(GET_FEATURE(use_triangle_rendering, dfg))
         any_visible_tris = *any_visible;
+    #endif
 
     float4 periods = get_coordinate_period(position, cfg);
 
     float running_dlambda_dnew = 1;
+
+    int which_ray_write = 0;
 
     //#pragma unroll
     for(int i=0; i < loop_limit; i++)
@@ -5054,11 +5060,13 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
         #ifndef UNCONDITIONALLY_NONSINGULAR
         if(fabs(velocity.x / running_dlambda_dnew) > 1000 + f_in_x && fabs(acceleration.x / running_dlambda_dnew) > 100)
         {
+            #if 0
             if(GET_FEATURE(use_triangle_rendering, dfg))
             {
                 atomic_min(ray_time_min, (int)floor(my_min));
                 atomic_max(ray_time_max, (int)ceil(my_max));
             }
+            #endif
 
             return;
         }
@@ -5069,6 +5077,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
             printf("Pos %f\n", position.x);
         }*/
 
+        #if 0
         if(GET_FEATURE(use_triangle_rendering, dfg) && (i % TRI_RAY_SKIP) == 0 && any_visible_tris > 0)
         {
             float4 native_position = position;
@@ -5489,14 +5498,19 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
                 #endif // VOX_SAMP
             }
         }
+        #endif
+
+
 
         if(should_terminate)
         {
+            #if 0
             if(GET_FEATURE(use_triangle_rendering, dfg))
             {
                 atomic_min(ray_time_min, (int)floor(my_min));
                 atomic_max(ray_time_max, (int)ceil(my_max));
             }
+            #endif
 
             generic_rays_in[id].position = position;
             generic_rays_in[id].velocity = velocity;
@@ -5538,7 +5552,10 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
                 return;
 
             if(res == DS_SKIP)
+            {
+                i--;
                 continue;
+            }
         }
 
         #endif // ADAPTIVE_PRECISION
@@ -5552,6 +5569,19 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
         rk4_generic_big(&position, &velocity, &ds);
         #endif // RK4_GENERIC
 
+        if(GET_FEATURE(use_triangle_rendering, dfg))
+        {
+            if((i % 4) == 0)
+            {
+                if(which_ray_write < max_write)
+                {
+                    ray_write[which_ray_write] = position;
+                    which_ray_write++;
+                    ray_write_counts[sy * width + sx] = which_ray_write;
+                }
+            }
+        }
+
         /*if(sx == 1920/2 && sy == 1080/2)
         {
             printf("Pos %f %f %f %f vel %f %f %f %f\n", position.x, position.y, position.z, position.w, velocity.x, velocity.y, velocity.z, velocity.w);
@@ -5563,11 +5593,13 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
         }
     }
 
+    #if 0
     if(GET_FEATURE(use_triangle_rendering, dfg))
     {
         atomic_min(ray_time_min, (int)floor(my_min));
         atomic_max(ray_time_max, (int)ceil(my_max));
     }
+    #endif
 }
 
 __kernel

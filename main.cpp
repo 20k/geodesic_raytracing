@@ -170,7 +170,7 @@ void execute_kernel(graphics_settings& sett,
 
         count_in.write_async(cqueue, (const char*)&num_rays, sizeof(int));
 
-        if(dfg.get_feature<bool>("use_triangle_rendering"))
+        /*if(dfg.get_feature<bool>("use_triangle_rendering"))
         {
             assert(accel.is_allocated);
 
@@ -187,7 +187,7 @@ void execute_kernel(graphics_settings& sett,
             }
 
             intersections_count.set_to_zero(cqueue);
-        }
+        }*/
 
         int mouse_x = ImGui::GetMousePos().x;
         int mouse_y = ImGui::GetMousePos().y;
