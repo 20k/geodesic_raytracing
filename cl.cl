@@ -5864,9 +5864,19 @@ void generate_clip_regions(global float4* ray_write,
 
         size_t block_width = get_num_groups(0);
 
+        //printf("bCx %i\n", block_width);
+
         chunked_mins[block_y * block_width + block_x] = clip_min;
         chunked_maxs[block_y * block_width + block_x] = clip_max;
     }
+}
+
+int get_chunk_size(int in, int width)
+{
+    if((in % width) == 0)
+        return in/width;
+
+    return (in/width) + 1;
 }
 
 __kernel
@@ -5965,8 +5975,10 @@ void generate_tri_lists(global struct triangle* tris,
     ///also, our coordinate system might be arbitrarily periodic (eg polar), and that needs to be dealt with correctly
     float4 coordinate_period = get_coordinate_period(cfg);
 
-    int chunk_dim_x = (width/chunk_x) + 1;
-    int chunk_dim_y = (height/chunk_y) + 1;
+    int chunk_dim_x = get_chunk_size(width, chunk_x);
+    int chunk_dim_y = get_chunk_size(height, chunk_y);
+
+    //printf("Cy %i\n", chunk_dim_y);
 
     for(int y=0; y < chunk_dim_y; y++)
     {
@@ -6039,7 +6051,7 @@ void render_chunked_tris(global struct triangle* tris, int tri_count,
     int chunk_idx = get_group_id(0);
     int chunk_idy = get_group_id(1);
 
-    int chunk_dim_x = (width/chunk_x) + 1;
+    int chunk_dim_x = get_chunk_size(width, chunk_x);
     int chunk_id = chunk_idy * chunk_dim_x + chunk_idx;
 
     ///every thread will be accessing the same tri, so we end up with a broadcast
@@ -6049,42 +6061,6 @@ void render_chunked_tris(global struct triangle* tris, int tri_count,
     //global float4* my_ray_segments = &ray_segments[ray_x * width + ray_x]
 
     int my_ray_segment_count = ray_segments_count[ray_id];
-
-    #if 0
-    for(int rs = 0; rs < my_ray_segment_count - 1; rs++)
-    {
-        float4 current_pos = ray_segments[rs * width * height + ray_id];
-        float4 next_pos = ray_segments[(rs+1) * width * height + ray_id];
-
-        for(int t=0; t < found_tris; t++)
-        {
-            int tri_id = tri_ids[t];
-
-            struct triangle tri = tris[tri_id];
-
-            /*float4 origin_1 = linear_object_positions[tidx];
-
-            __global const struct computed_triangle* ctri = &linear_mem[tidx];
-
-            float4 origin_2 = object_positions[ctri->next_geodesic_segment];
-
-            float ray_t = 0;
-
-            bool debug = sx == mouse_x && sy == mouse_y;
-
-            if(ray_intersects_toblerone(rt_real_pos, next_rt_real_pos, rt_velocity, ds, ctri, origin_1, origin_2,
-                                        inverse_e0s, inverse_e1s, inverse_e2s, inverse_e3s,
-                                        &ray_t, debug, periods))
-            {
-                if(ray_t < best_intersection)
-                {
-                    out.computed_parent = tidx;
-                    best_intersection = ray_t;
-                }
-            }*/
-        }
-    }
-    #endif
 
     /*if(found_tris > 0)
     {
