@@ -6063,7 +6063,9 @@ void generate_tri_lists(global struct computed* ctri,
 
             ///investigate memory ordering later
             ///this smells like wrong accesses
-            chunked_tri_list_out[cid * max_tris_per_chunk + my_id] = id;
+            //chunked_tri_list_out[cid * max_tris_per_chunk + my_id] = id;
+
+            chunked_tri_list_out[my_id * chunk_dim_x * chunk_dim_y + cid] = id;
         }
     }
 }
@@ -6102,10 +6104,11 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
     int chunk_idy = get_group_id(1);
 
     int chunk_dim_x = get_chunk_size(width, chunk_x);
+    int chunk_dim_y = get_chunk_size(height, chunk_y);
     int chunk_id = chunk_idy * chunk_dim_x + chunk_idx;
 
     ///every thread will be accessing the same tri, so we end up with a broadcast
-    __global int* tri_ids = &chunked_tri_list[chunk_id * max_tris_per_chunk];
+    //__global int* tri_ids = &chunked_tri_list[chunk_id * max_tris_per_chunk];
     int found_tris = min(max_tris_per_chunk, chunked_tri_list_count[chunk_id]);
 
     int my_ray_segment_count = ray_segments_count[ray_id];
@@ -6128,7 +6131,8 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
 
     for(int t=0; t < found_tris; t++)
     {
-        int tri_id = tri_ids[t];
+        //int tri_id = tri_ids[t];
+        int tri_id = chunked_tri_list[t * chunk_dim_x * chunk_dim_y + chunk_id];
         struct computed tri = ctri[tri_id];
 
         int stride = object_count;
@@ -6176,8 +6180,8 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
             if(ray_intersects_toblerone2(current_pos, next_pos, v0, v1, v2, min_extents, max_extents, native_current, native_next,
                                          s_ie0, s_ie1, s_ie2, s_ie3, n_ie0, n_ie1, n_ie2, n_ie3, periods, &ray_t, ray_x == 1353 && ray_y == 406))
             {
-                if(rs == last_hit_segment && ray_t >= last_ray_t)
-                    continue;
+                //if(rs == last_hit_segment && ray_t >= last_ray_t)
+                //    continue;
 
                 last_ray_t = ray_t;
 
