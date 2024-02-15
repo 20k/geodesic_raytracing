@@ -2493,8 +2493,8 @@ int main(int argc, char* argv[])
                     args.push_back(st.stored_rays);
                     args.push_back(st.stored_ray_counts);
                     args.push_back(st.max_stored);
-                    //args.push_back(st.stored_mins);
-                    //args.push_back(st.stored_maxs);
+                    args.push_back(st.stored_mins);
+                    args.push_back(st.stored_maxs);
                     args.push_back(st.width);
                     args.push_back(st.height);
                     args.push_back(st.chunked_mins);
@@ -2572,6 +2572,9 @@ int main(int argc, char* argv[])
 
                     for(int i=0; i < 4; i++)
                         args.push_back(phys.subsampled_inverted_tetrads[i]);
+
+                    args.push_back(st.stored_mins);
+                    args.push_back(st.stored_maxs);
 
                     float mx = ImGui::GetIO().MousePos.x;
                     float my = ImGui::GetIO().MousePos.y;

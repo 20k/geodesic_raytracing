@@ -122,7 +122,7 @@ struct render_state
         chunked_maxs.alloc(sizeof(cl_float4) * width * height);
 
         ///i need to do this properly, can't get away with the memory fudge so much
-        tri_list.alloc(sizeof(cl_int) * width * height * 100);
+        tri_list.alloc(sizeof(cl_int) * width * height * 50);
         tri_list_counts.alloc(sizeof(cl_int) * width * height);
     }
 };

@@ -5787,8 +5787,8 @@ __kernel
 void generate_clip_regions(global float4* ray_write,
                            global int* ray_write_counts,
                            int max_write,
-                           //global float4* mins_out,
-                           //global float4* maxs_out,
+                           global float4* mins_out,
+                           global float4* maxs_out,
                            int width, int height,
                            global float4* chunked_mins,
                            global float4* chunked_maxs)
@@ -5817,8 +5817,8 @@ void generate_clip_regions(global float4* ray_write,
             current_max = max(current_max, ray_write[i * width * height + id]);
         }
 
-        //mins_out[id] = current_min;
-        //maxs_out[id] = current_max;
+        mins_out[id] = current_min;
+        maxs_out[id] = current_max;
     }
 
     local float4 lmins[16*16];
@@ -6084,6 +6084,7 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
                          global float4* object_geodesics, global int* object_geodesic_counts,
                          global float4* p_e0, global float4* p_e1, global float4* p_e2, global float4* p_e3,
                          global const float4* restrict inverse_e0s, __global const float4* restrict inverse_e1s, __global const float4* restrict inverse_e2s, __global const float4* restrict inverse_e3s,
+                         global float4* fine_clip_min, global float4* fine_clip_max,
                          dynamic_config_space const struct dynamic_config* cfg,
                          float mouse_x,
                          float mouse_y
@@ -6115,6 +6116,9 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
         return;
     }*/
 
+    float4 ray_clip_min = fine_clip_min[ray_id];
+    float4 ray_clip_max = fine_clip_max[ray_id];
+
     float4 periods = get_coordinate_period(cfg);
 
     int last_hit_segment = my_ray_segment_count - 2;
@@ -6136,6 +6140,9 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
         float4 min_extents = tri.min_extents;
         float4 max_extents = tri.max_extents;
 
+        if(!range_overlaps_general4(ray_clip_min, ray_clip_max, min_extents, max_extents, periods))
+            continue;
+
         ///current inverse tetrads
         float4 s_ie0 = inverse_e0s[tri.geodesic_segment];
         float4 s_ie1 = inverse_e1s[tri.geodesic_segment];
@@ -6152,6 +6159,10 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
         float3 v1 = (float3)(tri.v1x, tri.v1y, tri.v1z);
         float3 v2 = (float3)(tri.v2x, tri.v2y, tri.v2z);
 
+        ///do finer culling here against specific ray extents
+        //if(!range_overlaps_general4(min_extents, max_extents, ))
+
+        ///...could i stuff you in local memory? or even an array?
         for(int rs = 0; rs <= last_hit_segment; rs++)
         {
             float4 current_pos = ray_segments[rs * width * height + ray_id];
