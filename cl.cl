@@ -5757,8 +5757,8 @@ void generate_tri_lists(global struct triangle* tris,
                         int obj_count,
                         global float4* object_geodesics, global int* object_geodesic_counts,
                         global float4* p_e0, global float4* p_e1, global float4* p_e2, global float4* p_e3,
-                        global int* chunked_tile_list_out,
-                        global int* chunked_tile_list_count,
+                        global int* chunked_tri_list_out,
+                        global int* chunked_tri_list_count,
                         int max_tris_per_chunk,
                         global float4* chunked_mins,
                         global float4* chunked_maxs,
@@ -5848,14 +5848,66 @@ void generate_tri_lists(global struct triangle* tris,
             if(!range_overlaps_general4(chunk_clip_min, chunk_clip_max, bounding_min, bounding_max, coordinate_period))
                 continue;
 
-            int my_id = atomic_inc(&chunked_tile_list_count[cid]);
+            int my_id = atomic_inc(&chunked_tri_list_count[cid]);
 
             if(my_id >= max_tris_per_chunk)
                 continue;
 
-            chunked_tile_list_out[cid * max_tris_per_chunk + my_id] = id;
+            ///investigate memory ordering later
+            chunked_tri_list_out[cid * max_tris_per_chunk + my_id] = id;
         }
     }
+}
+
+__kernel
+void render_chunked_tris(global struct triangle* tris, int tri_count,
+                         __write_only image2d_t screen,
+                         global int* chunked_tri_list,
+                         global int* chunked_tri_list_count,
+                         int width,
+                         int height,
+                         int chunk_x,
+                         int chunk_y,
+                         int max_tris_per_chunk,
+                         global float4* ray_segments,
+                         global int* ray_segments_count,
+                         )
+{
+    int ray_x = get_global_id(0);
+    int ray_y = get_global_id(1);
+
+    if(ray_x >= width || ray_y >= height)
+        return;
+
+    int ray_id = ray_y * width + ray_x;
+
+    int chunk_idx = ray_x / chunk_x;
+    int chunk_idy = ray_y / chunk_y;
+
+    int chunk_id = chunk_idy * chunk_x + chunk_idx;
+
+    ///every thread will be accessing the same tri, so we end up with a broadcast
+    __global int* tri_ids = &chunked_tri_list[chunk_id * max_tris_per_chunk];
+    int tri_count = min(max_tris_per_chunk, chunked_tri_list[chunk_id]);
+
+    //global float4* my_ray_segments = &ray_segments[ray_x * width + ray_x]
+
+    int my_ray_segment_count = ray_segments_count[ray_id];
+
+    for(int rs = 0; rs < my_ray_segment_count - 1; rs++)
+    {
+        float4 current_pos = ray_segments[rs * width * height + ray_id];
+        float4 next_pos = ray_segments[(rs+1) * width * height + ray_id];
+
+        for(int t=0; t < tri_count; t++)
+        {
+            int tri_id = tri_ids[t];
+
+            struct triangle tri = tris[tri_id];
+        }
+    }
+
+
 }
 
 __kernel
