@@ -5977,8 +5977,8 @@ void generate_tri_lists(global struct triangle* tris,
             if(all(chunk_clip_min == chunk_clip_max))
                 continue;
 
-            if(!range_overlaps_general4(chunk_clip_min, chunk_clip_max, bounding_min, bounding_max, coordinate_period))
-                continue;
+            //if(!range_overlaps_general4(chunk_clip_min, chunk_clip_max, bounding_min, bounding_max, coordinate_period))
+            //    continue;
 
             int my_id = atomic_inc(&chunked_tri_list_count[cid]);
 
@@ -6079,10 +6079,15 @@ void render_chunked_tris(global struct triangle* tris, int tri_count,
 
     float4 periods = get_coordinate_period(cfg);
 
-    for(int t=0; t < found_tris; t++)
+    /*for(int t=0; t < found_tris; t++)
     {
         int tri_id = tri_ids[t];
-        struct triangle tri = tris[tri_id];
+        struct triangle tri = tris[tri_id];*/
+
+    for(int t=0; t < tri_count; t++)
+    {
+        int tri_id = t;
+        struct triangle tri = tris[t];
 
         int skip = 1;
         int max_geodesic_segment = 2048;
