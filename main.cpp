@@ -28,6 +28,7 @@
 #include "dynamic_feature_config.hpp"
 #include "render_state.hpp"
 #include <thread>
+#include "common.cl"
 //#include "dual_complex.hpp"
 
 /**
@@ -926,9 +927,24 @@ struct gl_image_shared_queue
     }
 };
 
+void test_overlap()
+{
+    static_assert(periodic_range_overlaps(0, 2, 0, 1, 2));
+    static_assert(periodic_range_overlaps(0, 1, 0, 8, 2));
+
+    static_assert(periodic_range_overlaps(0, 1, 2, 3, 2));
+
+    static_assert(!periodic_range_overlaps(0, 1, 3.1, 3.9, 2));
+
+    static_assert(periodic_range_overlaps(0.1, 0.3, 3.1, 4.2, 2));
+    static_assert(periodic_range_overlaps(3.1, 4.2, 0.1, 0.3, 2));
+}
+
 ///i need the ability to have dynamic parameters
 int main(int argc, char* argv[])
 {
+    test_overlap();
+
     #ifdef REDIRECT_STDOUT
     *stdout = *fopen("debug.txt","w");
     #endif // REDIRECT_STDOUT
