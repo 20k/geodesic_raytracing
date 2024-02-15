@@ -5874,8 +5874,8 @@ void generate_tri_lists(global struct triangle* tris,
                         int max_tris_per_chunk,
                         global float4* chunked_mins,
                         global float4* chunked_maxs,
-                        int chunk_x,
-                        int chunk_y,
+                        int chunk_x, int chunk_y,
+                        int width, int height,
                         dynamic_config_space const struct dynamic_config* cfg)
 {
     size_t id = get_global_id(0);
@@ -5945,9 +5945,9 @@ void generate_tri_lists(global struct triangle* tris,
     ///also, our coordinate system might be arbitrarily periodic (eg polar), and that needs to be dealt with correctly
     float4 coordinate_period = get_coordinate_period(cfg);
 
-    for(int y=0; y < chunk_y; y++)
+    for(int y=0; y < (height/chunk_y) + 1; y++)
     {
-        for(int x=0; x < chunk_x; x++)
+        for(int x=0; x < (width/chunk_x) + 1; x++)
         {
             size_t cid = y * chunk_x + x;
 

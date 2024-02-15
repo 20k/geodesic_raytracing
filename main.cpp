@@ -2518,6 +2518,8 @@ int main(int argc, char* argv[])
                     args.push_back(st.chunked_maxs);
                     args.push_back(chunk_x);
                     args.push_back(chunk_y);
+                    args.push_back(st.width);
+                    args.push_back(st.height);
                     args.push_back(dynamic_config);
 
                     mqueue.exec("generate_tri_lists", args, {tris.tri_count}, {128});
