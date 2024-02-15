@@ -46,6 +46,9 @@ struct render_state
     cl::buffer stored_mins;
     cl::buffer stored_maxs;
 
+    cl::buffer chunked_mins;
+    cl::buffer chunked_maxs;
+
     int width = 0;
     int height = 0;
 
@@ -60,7 +63,8 @@ struct render_state
         texture_coordinates(ctx),
         accel_ray_time_min(ctx), accel_ray_time_max(ctx),
         stored_rays(ctx), stored_ray_counts(ctx),
-        stored_mins(ctx), stored_maxs(ctx)
+        stored_mins(ctx), stored_maxs(ctx),
+        chunked_mins(ctx), chunked_maxs(ctx)
     {
         g_camera_pos_cart.alloc(sizeof(cl_float4));
         g_camera_quat.alloc(sizeof(cl_float4));
@@ -102,6 +106,10 @@ struct render_state
 
         stored_mins.alloc(sizeof(cl_float4) * width * height);
         stored_maxs.alloc(sizeof(cl_float4) * width * height);
+
+        ///width, height / workgroup_size in reality
+        chunked_mins.alloc(sizeof(cl_float4) * width * height);
+        chunked_maxs.alloc(sizeof(cl_float4) * width * height);
     }
 };
 

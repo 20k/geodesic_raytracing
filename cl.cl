@@ -5613,29 +5613,92 @@ void generate_clip_regions(global float4* ray_write,
                            int max_write,
                            global float4* mins_out,
                            global float4* maxs_out,
-                           int width, int height)
+                           int width, int height,
+                           global float4* chunked_mins,
+                           global float4* chunked_maxs)
 {
-    size_t id = get_global_id(0);
+    size_t x = get_global_id(0);
+    size_t y = get_global_id(1);
 
-    if(id >= width * height)
+    if(x >= width || y >= height)
         return;
+
+    size_t id = x * y;
 
     int count = ray_write_counts[id];
 
-    if(count == 0)
-        return;
+    float4 current_min = (float4)(0,0,0,0);
+    float4 current_max = (float4)(0,0,0,0);
 
-    float4 current_min = ray_write[0 * width * height + id];
-    float4 current_max = ray_write[0 * width * height + id];
-
-    for(int i=1; i < count; i++)
+    if(count > 0)
     {
-        current_min = min(current_min, ray_write[i * width * height + id]);
-        current_max = max(current_max, ray_write[i * width * height + id]);
+        current_min = ray_write[0 * width * height + id];
+        current_max = ray_write[0 * width * height + id];
+
+        for(int i=1; i < count; i++)
+        {
+            current_min = min(current_min, ray_write[i * width * height + id]);
+            current_max = max(current_max, ray_write[i * width * height + id]);
+        }
+
+        mins_out[id] = current_min;
+        maxs_out[id] = current_max;
     }
 
-    mins_out[id] = current_min;
-    maxs_out[id] = current_max;
+    local float4 lmins[16*16];
+    local float4 lmaxs[16*16];
+    local int exists[16*16];
+
+    {
+        size_t lid = get_local_id(0) * get_local_id(1);
+
+        lmins[lid] = current_min;
+        lmaxs[lid] = current_max;
+        exists[lid] = count > 0;
+    }
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    if(get_local_id(0) == 0 && get_local_id(1) == 0)
+    {
+        float4 clip_min = (float4)(0,0,0,0);
+        float4 clip_max = (float4)(0,0,0,0);
+        int any_clip = 0;
+
+        size_t size_x = get_local_size(0);
+        size_t size_y = get_local_size(1);
+
+        for(size_t ly=0; ly < size_y; ly++)
+        {
+            for(size_t lx=0; lx < size_x; lx++)
+            {
+                size_t lid = ly * size_x + lx;
+
+                if(exists[lid] == 0)
+                    continue;
+
+                if(any_clip == 0)
+                {
+                    clip_min = lmins[lid];
+                    clip_max = lmaxs[lid];
+                    any_clip = 1;
+                }
+                else
+                {
+                    clip_min = min(clip_min, lmins[lid]);
+                    clip_max = max(clip_max, lmaxs[lid]);
+                }
+            }
+        }
+
+        size_t block_x = get_group_id(0);
+        size_t block_y = get_group_id(1);
+
+        size_t block_width = get_num_groups(0);
+
+        chunked_mins[block_y * block_width + block_x] = clip_min;
+        chunked_maxs[block_y * block_width + block_x] = clip_max;
+    }
 }
 
 __kernel

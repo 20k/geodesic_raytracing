@@ -2474,8 +2474,10 @@ int main(int argc, char* argv[])
                     args.push_back(st.stored_maxs);
                     args.push_back(st.width);
                     args.push_back(st.height);
+                    args.push_back(st.chunked_mins);
+                    args.push_back(st.chunked_maxs);
 
-                    mqueue.exec("generate_clip_regions", args, {st.width*st.height}, {128});
+                    mqueue.exec("generate_clip_regions", args, {st.width, st.height}, {menu.sett.workgroup_size[0], menu.sett.workgroup_size[1]});
                 }
 
 
