@@ -2521,6 +2521,34 @@ int main(int argc, char* argv[])
                     mqueue.exec("generate_tri_lists", args, {tris.tri_count}, {128});
                 }
 
+                {
+                    cl::args args;
+                    args.push_back(tris.tris);
+                    args.push_back(tris.tri_count);
+                    args.push_back(glis.rtex);
+                    args.push_back(st.tri_list);
+                    args.push_back(st.tri_list_counts);
+                    args.push_back(st.width);
+                    args.push_back(st.height);
+                    args.push_back(chunk_x);
+                    args.push_back(chunk_y);
+                    args.push_back(st.max_tris_per_chunk);
+                    args.push_back(st.stored_rays);
+                    args.push_back(st.stored_ray_counts);
+                    args.push_back(phys.subsampled_paths);
+                    args.push_back(phys.subsampled_counts);
+
+                    for(int i=0; i < 4; i++)
+                        args.push_back(phys.subsampled_parallel_transported_tetrads[i]);
+
+                    for(int i=0; i < 4; i++)
+                        args.push_back(phys.subsampled_inverted_tetrads[i]);
+
+                    args.push_back(dynamic_config);
+
+                    mqueue.exec("render_chunked_tris", args, {st.width, st.height}, {chunk_x, chunk_y});
+                }
+
                 /*cl::args intersect_args;
                 intersect_args.push_back(st.tri_intersections);
                 intersect_args.push_back(st.tri_intersections_count);
