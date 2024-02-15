@@ -6159,9 +6159,6 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
         float3 v1 = (float3)(tri.v1x, tri.v1y, tri.v1z);
         float3 v2 = (float3)(tri.v2x, tri.v2y, tri.v2z);
 
-        ///do finer culling here against specific ray extents
-        //if(!range_overlaps_general4(min_extents, max_extents, ))
-
         ///...could i stuff you in local memory? or even an array?
         for(int rs = 0; rs <= last_hit_segment; rs++)
         {
