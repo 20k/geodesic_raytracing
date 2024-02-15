@@ -5732,7 +5732,7 @@ void generate_clip_regions(global float4* ray_write,
     }
 }
 
-float range_overlaps_general(float s1, float s2, float e1, float e2, float period)
+bool range_overlaps_general(float s1, float s2, float e1, float e2, float period)
 {
     sort2(&s1, &s2);
     sort2(&e1, &e2);
@@ -5743,6 +5743,14 @@ float range_overlaps_general(float s1, float s2, float e1, float e2, float perio
         return periodic_range_overlaps(s1, s2, e1, e2, period);
 }
 
+bool range_overlaps_general4(float4 s1, float4 s2, float4 e1, float4 e2, float4 period)
+{
+    return range_overlaps_general(s1.x, s2.x, e1.x, e2.x, period.x) &&
+           range_overlaps_general(s1.y, s2.y, e1.y, e2.y, period.y) &&
+           range_overlaps_general(s1.z, s2.z, e1.z, e2.z, period.z) &&
+           range_overlaps_general(s1.w, s2.w, e1.w, e2.w, period.w);
+}
+
 __kernel
 void generate_tri_lists(global struct triangle* tris,
                         int tri_count,
@@ -5750,6 +5758,7 @@ void generate_tri_lists(global struct triangle* tris,
                         global float4* object_geodesics, global int* object_geodesic_counts,
                         global float4* p_e0, global float4* p_e1, global float4* p_e2, global float4* p_e3,
                         global int* chunked_tile_list_out,
+                        global int* chunked_tile_list_count,
                         int max_tris_per_chunk,
                         global float4* chunked_mins,
                         global float4* chunked_maxs,
@@ -5836,6 +5845,15 @@ void generate_tri_lists(global struct triangle* tris,
             if(all(chunk_clip_min == chunk_clip_max))
                 continue;
 
+            if(!range_overlaps_general4(chunk_clip_min, chunk_clip_max, bounding_min, bounding_max, coordinate_period))
+                continue;
+
+            int my_id = atomic_inc(&chunked_tile_list_count[cid]);
+
+            if(my_id >= max_tris_per_chunk)
+                continue;
+
+            chunked_tile_list_out[cid * max_tris_per_chunk + my_id] = id;
         }
     }
 }
