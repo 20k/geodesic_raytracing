@@ -6083,9 +6083,6 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
 
     int ray_id = ray_y * width + ray_x;
 
-    //int chunk_idx = ray_x / chunk_x;
-    //int chunk_idy = ray_y / chunk_y;
-
     int chunk_idx = get_group_id(0);
     int chunk_idy = get_group_id(1);
 
@@ -6096,13 +6093,11 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
     __global int* tri_ids = &chunked_tri_list[chunk_id * max_tris_per_chunk];
     int found_tris = min(max_tris_per_chunk, chunked_tri_list_count[chunk_id]);
 
-    //global float4* my_ray_segments = &ray_segments[ray_x * width + ray_x]
-
     int my_ray_segment_count = ray_segments_count[ray_id];
 
     /*if(found_tris > 0)
     {
-        write_imagef(screen, (int2)(ray_x, ray_y), (float4)(1, 0, 0, 1));
+        write_imagef(screen, (int2)(ray_x, ray_y), (float4)((float)found_tris / 100.f, 0, 0, 1));
         return;
     }*/
 
@@ -6112,9 +6107,6 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
     {
         int tri_id = tri_ids[t];
         struct computed tri = ctri[tri_id];
-
-        int skip = 1;
-        int max_geodesic_segment = 2048;
 
         int stride = object_count;
 
