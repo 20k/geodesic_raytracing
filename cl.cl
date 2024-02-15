@@ -5945,11 +5945,14 @@ void generate_tri_lists(global struct triangle* tris,
     ///also, our coordinate system might be arbitrarily periodic (eg polar), and that needs to be dealt with correctly
     float4 coordinate_period = get_coordinate_period(cfg);
 
-    for(int y=0; y < (height/chunk_y) + 1; y++)
+    int chunk_dim_x = (width/chunk_x) + 1;
+    int chunk_dim_y = (height/chunk_y) + 1;
+
+    for(int y=0; y < chunk_dim_y; y++)
     {
-        for(int x=0; x < (width/chunk_x) + 1; x++)
+        for(int x=0; x < chunk_dim_x; x++)
         {
-            size_t cid = y * chunk_x + x;
+            size_t cid = y * chunk_dim_x + x;
 
             float4 chunk_clip_min = chunked_mins[cid];
             float4 chunk_clip_max = chunked_maxs[cid];
@@ -6003,7 +6006,8 @@ void render_chunked_tris(global struct triangle* tris, int tri_count,
     int chunk_idx = get_group_id(0);
     int chunk_idy = get_group_id(1);
 
-    int chunk_id = chunk_idy * chunk_x + chunk_idx;
+    int chunk_dim_x = (width/chunk_x) + 1;
+    int chunk_id = chunk_idy * chunk_dim_x + chunk_idx;
 
     ///every thread will be accessing the same tri, so we end up with a broadcast
     __global int* tri_ids = &chunked_tri_list[chunk_id * max_tris_per_chunk];
