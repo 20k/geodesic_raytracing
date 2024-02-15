@@ -5890,8 +5890,6 @@ struct computed
     float4 max_extents;
 
     int geodesic_segment;
-
-    int next_geodesic_segment;
 };
 
 __kernel
@@ -5912,7 +5910,7 @@ void generate_computed_tris(global struct triangle* tris, int tri_count,
 
     int stride = object_count;
 
-    int skip = 8;
+    int skip = 1;
 
     for(int cc=0; cc < count - skip; cc++)
     {
@@ -5985,7 +5983,6 @@ void generate_computed_tris(global struct triangle* tris, int tri_count,
         ctri.v2z = tri.v2z;
 
         ctri.geodesic_segment = cc * object_count + tri.parent;
-        ctri.next_geodesic_segment = (cc + 1) * object_count + tri.parent;
         ctri.min_extents = min_extents;
         ctri.max_extents = max_extents;
 
@@ -6149,21 +6146,6 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
         {
             float4 current_pos = ray_segments[rs * width * height + ray_id];
             float4 next_pos = ray_segments[(rs+1) * width * height + ray_id];
-
-            /*struct computed_triangle ctri;
-            ctri.tv0 = (float4)(0.f, v0.x, v0.y, v0.z);
-            ctri.tv1 = (float4)(0.f, v1.x, v1.y, v1.z);
-            ctri.tv2 = (float4)(0.f, v2.x, v2.y, v2.z);
-
-            ctri.geodesic_segment = cc * stride + tri.parent;
-            ctri.next_geodesic_segment = (cc + skip) * stride + tri.parent;
-
-            ctri.min_extents = min_extents;
-            ctri.max_extents = max_extents;
-
-            if(ray_intersects_toblerone(current_pos, next_pos, (float4)(0,0,0,0), 0.f, &ctri, native_current, native_next,
-                                        inverse_e0s, inverse_e1s, inverse_e2s, inverse_e3s, 0, false, periods))*/
-
 
             if(ray_intersects_toblerone2(current_pos, next_pos, v0, v1, v2, min_extents, max_extents, native_current, native_next,
                                          s_ie0, s_ie1, s_ie2, s_ie3, n_ie0, n_ie1, n_ie2, n_ie3, periods, ray_x == 1030 && ray_y == 280))
