@@ -49,6 +49,10 @@ struct render_state
     cl::buffer chunked_mins;
     cl::buffer chunked_maxs;
 
+    cl::buffer tri_list;
+    cl::buffer tri_list_counts;
+    int max_tris_per_chunk = 80;
+
     int width = 0;
     int height = 0;
 
@@ -64,7 +68,8 @@ struct render_state
         accel_ray_time_min(ctx), accel_ray_time_max(ctx),
         stored_rays(ctx), stored_ray_counts(ctx),
         stored_mins(ctx), stored_maxs(ctx),
-        chunked_mins(ctx), chunked_maxs(ctx)
+        chunked_mins(ctx), chunked_maxs(ctx),
+        tri_list(ctx), tri_list_counts(ctx)
     {
         g_camera_pos_cart.alloc(sizeof(cl_float4));
         g_camera_quat.alloc(sizeof(cl_float4));
@@ -110,6 +115,10 @@ struct render_state
         ///width, height / workgroup_size in reality
         chunked_mins.alloc(sizeof(cl_float4) * width * height);
         chunked_maxs.alloc(sizeof(cl_float4) * width * height);
+
+        ///i need to do this properly, can't get away with the memory fudge so much
+        tri_list.alloc(sizeof(cl_int) * width * height * max_tris_per_chunk);
+        tri_list_counts.alloc(sizeof(cl_int) * width * height);
     }
 };
 

@@ -1308,13 +1308,13 @@ float3 cartesian_velocity_to_spherical_velocity_g(float3 v, float3 inv)
 }
 
 ///This function makes no sense. Why does it take an argument? Its literally unused
-float4 get_coordinate_period(float4 in, dynamic_config_space const struct dynamic_config* cfg)
+float4 get_coordinate_period(dynamic_config_space const struct dynamic_config* cfg)
 {
     #ifdef HAS_COORDINATE_PERIODICITY
-    float v1 = in.x;
-    float v2 = in.y;
-    float v3 = in.z;
-    float v4 = in.w;
+    float v1 = 0;
+    float v2 = 0;
+    float v3 = 0;
+    float v4 = 0;
 
     float o1 = COORDINATE_PERIODICITY1;
     float o2 = COORDINATE_PERIODICITY2;
@@ -1349,7 +1349,7 @@ float4 positive_fmod4(float4 a, float4 b)
 
 float4 handle_coordinate_periodicity(float4 in, dynamic_config_space const struct dynamic_config* cfg)
 {
-    float4 periods = get_coordinate_period(in, cfg);
+    float4 periods = get_coordinate_period(cfg);
 
     if(periods.x != 0)
         in.x = positive_fmod(in.x, periods.x);
@@ -4058,7 +4058,7 @@ void subsample_tri_quantity(int count, __global const int* geodesic_counts, __gl
         return;
     }
 
-    float4 periods = get_coordinate_period((float4)(0,0,0,0), cfg);
+    float4 periods = get_coordinate_period(cfg);
 
     //#define FIXED_SKIPPING
     #ifdef FIXED_SKIPPING
@@ -4999,7 +4999,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
         any_visible_tris = *any_visible;
     #endif
 
-    float4 periods = get_coordinate_period(position, cfg);
+    float4 periods = get_coordinate_period(cfg);
 
     float running_dlambda_dnew = 1;
 
@@ -5707,7 +5707,13 @@ void generate_tri_lists(global struct triangle* tris,
                         int obj_count,
                         global float4* object_geodesics, global int* object_geodesic_counts,
                         global float4* p_e0, global float4* p_e1, global float4* p_e2, global float4* p_e3,
-                        global struct computed_triangle* tile_list_out)
+                        global int* chunked_tile_list_out,
+                        int max_tris_per_chunk,
+                        global float4* chunked_mins,
+                        global float4* chunked_maxs,
+                        int chunk_x,
+                        int chunk_y,
+                        dynamic_config_space const struct dynamic_config* cfg)
 {
     size_t id = get_global_id(0);
 
@@ -5770,6 +5776,22 @@ void generate_tri_lists(global struct triangle* tris,
 
     ///we have a bounding box for this triangle, and a bounding box for a clip region of a chunk of the screen
     ///clip one against the other, and generate a renderable triangle
+    ///unfortunately, we have to iterate through every tile because we aren't in perspective projection land
+    ///rays and tiles can arbitrarily see anything
+    ///triangles aren't even visually perspective projected, and can be arbitrarily warped in screenspace nonlinearly
+    ///also, our coordinate system might be arbitrarily periodic (eg polar), and that needs to be dealt with correctly
+    float4 coordinate_period = get_coordinate_period(cfg);
+
+    for(int y=0; y < chunk_y; y++)
+    {
+        for(int x=0; x < chunk_x; x++)
+        {
+            size_t cid = y * chunk_x + x;
+
+            float4 chunk_clip_min = chunked_mins[cid];
+            float4 chunk_clip_max = chunked_maxs[cid];
+        }
+    }
 }
 
 __kernel
@@ -5820,7 +5842,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
     int stride_out = *generic_count_in;
     int bufc = 0;
 
-    float4 periods = get_coordinate_period(position, cfg);
+    float4 periods = get_coordinate_period(cfg);
     float4 last_pos_generic;
 
     float running_dlambda_dnew = 1;
