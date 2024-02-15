@@ -5803,8 +5803,8 @@ void take_ray_section(global float4* ray_write_in,
 
     int count = ray_write_counts_in[id];
 
-    int start = max(((count/segments) - 1) * offset, 0);
-    int finish = min(((count/segments) + 1) * (offset + 1), count);
+    int start = max((count/segments) * offset - 1, 0);
+    int finish = min((count/segments) * (offset + 1) + 1, count);
 
     if(offset == segments - 1)
         finish = count;
