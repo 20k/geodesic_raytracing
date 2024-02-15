@@ -4888,9 +4888,6 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
     if(new_x < ray_lower_t || new_x > ray_upper_t)
         return false;
 
-    if(debug)
-        printf("p2\n");
-
     if(new_x < tri_lower_t || new_x > tri_upper_t)
         return false;
 
@@ -6089,6 +6086,11 @@ void render_chunked_tris(global struct triangle* tris, int tri_count,
         write_imagef(screen, (int2)(ray_x, ray_y), (float4)(1, 0, 0, 1));
         return;
     }*/
+
+    if(ray_x == 1030 && ray_y == 280)
+    {
+        printf("Start\n");
+    }
 
     float4 periods = get_coordinate_period(cfg);
 
