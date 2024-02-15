@@ -2488,21 +2488,7 @@ int main(int argc, char* argv[])
 
                 int max_tris_per_chunk = st.tri_list.alloc_size / (sizeof(cl_int) * chunks);
 
-                {
-                    cl::args args;
-                    args.push_back(st.stored_rays);
-                    args.push_back(st.stored_ray_counts);
-                    args.push_back(st.max_stored);
-                    args.push_back(st.stored_mins);
-                    args.push_back(st.stored_maxs);
-                    args.push_back(st.width);
-                    args.push_back(st.height);
-                    args.push_back(st.chunked_mins);
-                    args.push_back(st.chunked_maxs);
-
-                    mqueue.exec("generate_clip_regions", args, {st.width, st.height}, {chunk_x, chunk_y});
-                }
-
+                ///completely standalone
                 {
                     st.computed_tri_count.set_to_zero(mqueue);
 
@@ -2520,6 +2506,21 @@ int main(int argc, char* argv[])
                     args.push_back(st.computed_tri_count);
 
                     mqueue.exec("generate_computed_tris", args, {tris.tri_count}, {128});
+                }
+
+                {
+                    cl::args args;
+                    args.push_back(st.stored_rays);
+                    args.push_back(st.stored_ray_counts);
+                    args.push_back(st.max_stored);
+                    args.push_back(st.stored_mins);
+                    args.push_back(st.stored_maxs);
+                    args.push_back(st.width);
+                    args.push_back(st.height);
+                    args.push_back(st.chunked_mins);
+                    args.push_back(st.chunked_maxs);
+
+                    mqueue.exec("generate_clip_regions", args, {st.width, st.height}, {chunk_x, chunk_y});
                 }
 
                 {

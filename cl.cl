@@ -6006,6 +6006,7 @@ void generate_computed_tris(global struct triangle* tris, int tri_count,
     }
 }
 
+///the performance overhead of this function is the unknown global work size
 __kernel
 void generate_tri_lists(global struct computed* ctri,
                         global int* ctri_count,
