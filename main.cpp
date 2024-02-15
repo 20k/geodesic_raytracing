@@ -2500,6 +2500,25 @@ int main(int argc, char* argv[])
                 }
 
                 {
+                    st.computed_tri_count.set_to_zero(mqueue);
+
+                    cl::args args;
+                    args.push_back(tris.tris);
+                    args.push_back(tris.tri_count);
+                    args.push_back(phys.object_count);
+                    args.push_back(phys.subsampled_paths);
+                    args.push_back(phys.subsampled_counts);
+
+                    for(int i=0; i < 4; i++)
+                        args.push_back(phys.subsampled_parallel_transported_tetrads[i]);
+
+                    args.push_back(st.computed_tris);
+                    args.push_back(st.computed_tri_count);
+
+                    mqueue.exec("generate_computed_tris", args, {tris.tri_count}, {128});
+                }
+
+                {
                     st.tri_list_counts.set_to_zero(mqueue);
 
                     cl::args args;

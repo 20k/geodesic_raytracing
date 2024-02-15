@@ -5879,6 +5879,122 @@ int get_chunk_size(int in, int width)
     return (in/width) + 1;
 }
 
+struct computed
+{
+    float v0x, v0y, v0z,
+          v1x, v1y, v1z,
+          v2x, v2y, v2z;
+
+    ///in coordinate space, in global coordinates, not tied to a geodesic
+    float4 min_extents;
+    float4 max_extents;
+
+    int geodesic_segment;
+
+    int next_geodesic_segment;
+};
+
+__kernel
+void generate_computed_tris(global struct triangle* tris, int tri_count,
+                            int object_count,
+                            global float4* object_geodesics, global int* object_geodesic_counts,
+                            global float4* p_e0, global float4* p_e1, global float4* p_e2, global float4* p_e3,
+                            global struct computed* ctris, global int* ctri_count)
+{
+    int tri_id = get_global_id(0);
+
+    if(tri_id >= tri_count)
+        return;
+
+    struct triangle tri = tris[tri_id];
+
+    int count = object_geodesic_counts[tri.parent];
+
+    int stride = object_count;
+
+    int skip = 8;
+
+    for(int cc=0; cc < count - skip; cc++)
+    {
+        float4 native_current = object_geodesics[cc * object_count + tri.parent];
+        float4 native_next = object_geodesics[(cc + skip) * object_count + tri.parent];
+
+        ///todo: precalculate me
+        float4 min_extents;
+        float4 max_extents;
+
+        {
+            ///current tetrads
+            float4 s_e0 = p_e0[cc * stride + tri.parent];
+            float4 s_e1 = p_e1[cc * stride + tri.parent];
+            float4 s_e2 = p_e2[cc * stride + tri.parent];
+            float4 s_e3 = p_e3[cc * stride + tri.parent];
+
+            ///next tetrads
+            float4 n_e0 = p_e0[(cc + skip) * stride + tri.parent];
+            float4 n_e1 = p_e1[(cc + skip) * stride + tri.parent];
+            float4 n_e2 = p_e2[(cc + skip) * stride + tri.parent];
+            float4 n_e3 = p_e3[(cc + skip) * stride + tri.parent];
+
+            ///triangle coordinates in local space
+            float4 vert_0 = (float4)(0, tri.v0x, tri.v0y, tri.v0z);
+            float4 vert_1 = (float4)(0, tri.v1x, tri.v1y, tri.v1z);
+            float4 vert_2 = (float4)(0, tri.v2x, tri.v2y, tri.v2z);
+
+            ///start triangle coordinates (as a vector) in tangent space
+            float4 s_coordinate_v0 = tetrad_to_coordinate_basis(vert_0, s_e0, s_e1, s_e2, s_e3);
+            float4 s_coordinate_v1 = tetrad_to_coordinate_basis(vert_1, s_e0, s_e1, s_e2, s_e3);
+            float4 s_coordinate_v2 = tetrad_to_coordinate_basis(vert_2, s_e0, s_e1, s_e2, s_e3);
+
+            ///end triangle coordinates (as a vector) in tangent space
+            float4 e_coordinate_v0 = tetrad_to_coordinate_basis(vert_0, n_e0, n_e1, n_e2, n_e3);
+            float4 e_coordinate_v1 = tetrad_to_coordinate_basis(vert_1, n_e0, n_e1, n_e2, n_e3);
+            float4 e_coordinate_v2 = tetrad_to_coordinate_basis(vert_2, n_e0, n_e1, n_e2, n_e3);
+
+            ///Approximate triangle coordinates in coordinate space
+            float4 sgv0 = s_coordinate_v0 + native_current;
+            float4 sgv1 = s_coordinate_v1 + native_current;
+            float4 sgv2 = s_coordinate_v2 + native_current;
+
+            ///Approximate triangle coordinates in coordinate space
+            float4 egv0 = e_coordinate_v0 + native_next;
+            float4 egv1 = e_coordinate_v1 + native_next;
+            float4 egv2 = e_coordinate_v2 + native_next;
+
+            float4 min1 = min(sgv0, min(sgv1, sgv2));
+            float4 min2 = min(egv0, min(egv1, egv2));
+
+            float4 max1 = max(sgv0, max(sgv1, sgv2));
+            float4 max2 = max(egv0, max(egv1, egv2));
+
+            min_extents = min(min1, min2);
+            max_extents = max(max1, max2);
+        }
+
+        struct computed ctri;
+        ctri.v0x = tri.v0x;
+        ctri.v1x = tri.v1x;
+        ctri.v2x = tri.v2x;
+
+        ctri.v0y = tri.v0y;
+        ctri.v1y = tri.v1y;
+        ctri.v2y = tri.v2y;
+
+        ctri.v0z = tri.v0z;
+        ctri.v1z = tri.v1z;
+        ctri.v2z = tri.v2z;
+
+        ctri.geodesic_segment = cc * object_count + tri.parent;
+        ctri.next_geodesic_segment = (cc + 1) * object_count + tri.parent;
+        ctri.min_extents = min_extents;
+        ctri.max_extents = max_extents;
+
+        int id = atomic_inc(ctri_count);
+
+        ctris[id] = ctri;
+    }
+}
+
 __kernel
 void generate_tri_lists(global struct triangle* tris,
                         int tri_count,

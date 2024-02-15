@@ -53,6 +53,9 @@ struct render_state
     cl::buffer tri_list_counts;
     int max_tris_per_chunk = 80;
 
+    cl::buffer computed_tris;
+    cl::buffer computed_tri_count;
+
     int width = 0;
     int height = 0;
 
@@ -69,7 +72,7 @@ struct render_state
         stored_rays(ctx), stored_ray_counts(ctx),
         stored_mins(ctx), stored_maxs(ctx),
         chunked_mins(ctx), chunked_maxs(ctx),
-        tri_list(ctx), tri_list_counts(ctx)
+        tri_list(ctx), tri_list_counts(ctx), computed_tris(ctx), computed_tri_count(ctx)
     {
         g_camera_pos_cart.alloc(sizeof(cl_float4));
         g_camera_quat.alloc(sizeof(cl_float4));
@@ -90,6 +93,9 @@ struct render_state
 
         accel_ray_time_min.alloc(sizeof(cl_int));
         accel_ray_time_max.alloc(sizeof(cl_int));
+
+        computed_tris.alloc(1024 * 1024 * 102);
+        computed_tri_count.alloc(sizeof(cl_int));
     }
 
     void realloc(uint32_t _width, uint32_t _height)
