@@ -6016,6 +6016,72 @@ void generate_tri_lists(global struct triangle* tris,
     }
 }
 
+#if 0
+__kernel
+void calculate_segment_extents(global struct triangle* tri,
+                               global float4* object_geodesics, global int* object_geodesic_counts, int object_count,
+                               global float4* segment_mins, global float4* segment_maxs,
+                               global float4* p_e0, global float4* p_e1, global float4* p_e2, global float4* p_e3
+                               )
+{
+    int object_id = get_global_id(0);
+
+    if(object_id >= object_count)
+        return;
+
+    int geodesic_count = object_geodesic_counts[object_id];
+
+    for(int cc=0; cc < geodesic_count - 1; cc++)
+    {
+        ///current tetrads
+        float4 s_e0 = p_e0[cc * stride + tri.parent];
+        float4 s_e1 = p_e1[cc * stride + tri.parent];
+        float4 s_e2 = p_e2[cc * stride + tri.parent];
+        float4 s_e3 = p_e3[cc * stride + tri.parent];
+
+        ///next tetrads
+        float4 n_e0 = p_e0[(cc + 1) * stride + tri.parent];
+        float4 n_e1 = p_e1[(cc + 1) * stride + tri.parent];
+        float4 n_e2 = p_e2[(cc + 1) * stride + tri.parent];
+        float4 n_e3 = p_e3[(cc + 1) * stride + tri.parent];
+
+        ///triangle coordinates in local space
+        float4 vert_0 = (float4)(0, tri.v0x, tri.v0y, tri.v0z);
+        float4 vert_1 = (float4)(0, tri.v1x, tri.v1y, tri.v1z);
+        float4 vert_2 = (float4)(0, tri.v2x, tri.v2y, tri.v2z);
+
+        ///start triangle coordinates (as a vector) in tangent space
+        float4 s_coordinate_v0 = tetrad_to_coordinate_basis(vert_0, s_e0, s_e1, s_e2, s_e3);
+        float4 s_coordinate_v1 = tetrad_to_coordinate_basis(vert_1, s_e0, s_e1, s_e2, s_e3);
+        float4 s_coordinate_v2 = tetrad_to_coordinate_basis(vert_2, s_e0, s_e1, s_e2, s_e3);
+
+        ///end triangle coordinates (as a vector) in tangent space
+        float4 e_coordinate_v0 = tetrad_to_coordinate_basis(vert_0, n_e0, n_e1, n_e2, n_e3);
+        float4 e_coordinate_v1 = tetrad_to_coordinate_basis(vert_1, n_e0, n_e1, n_e2, n_e3);
+        float4 e_coordinate_v2 = tetrad_to_coordinate_basis(vert_2, n_e0, n_e1, n_e2, n_e3);
+
+        ///Approximate triangle coordinates in coordinate space
+        float4 sgv0 = s_coordinate_v0 + native_current;
+        float4 sgv1 = s_coordinate_v1 + native_current;
+        float4 sgv2 = s_coordinate_v2 + native_current;
+
+        ///Approximate triangle coordinates in coordinate space
+        float4 egv0 = e_coordinate_v0 + native_next;
+        float4 egv1 = e_coordinate_v1 + native_next;
+        float4 egv2 = e_coordinate_v2 + native_next;
+
+        float4 min1 = min(sgv0, min(sgv1, sgv2));
+        float4 min2 = min(egv0, min(egv1, egv2));
+
+        float4 max1 = max(sgv0, max(sgv1, sgv2));
+        float4 max2 = max(egv0, max(egv1, egv2));
+
+        segment_mins[object_id * object_count + sid] = min(min1, min2);
+        segment_maxs[object_id * object_count + sid] = max(max1, max2);
+    }
+}
+#endif
+
 __kernel
 void render_chunked_tris(global struct triangle* tris, int tri_count,
                          int object_count,
