@@ -5702,6 +5702,77 @@ void generate_clip_regions(global float4* ray_write,
 }
 
 __kernel
+void generate_tri_lists(global struct triangle* tris,
+                        int tri_count,
+                        int obj_count,
+                        global float4* object_geodesics, global int* object_geodesic_counts,
+                        global float4* p_e0, global float4* p_e1, global float4* p_e2, global float4* p_e3,
+                        global struct computed_triangle* tile_list_out)
+{
+    size_t id = get_global_id(0);
+
+    if(id >= tri_count)
+        return;
+
+    struct triangle my_tri = tris[id];
+    int count = object_geodesic_counts[my_tri.parent];
+
+    int skip = 1;
+    int max_geodesic_segment = 2048;
+
+    if(count <= 1)
+        return;
+
+    float4 bounding_min;
+    float4 bounding_max;
+    int any_bounding = 0;
+
+    for(int cc=0; cc < count - skip && cc < max_geodesic_segment; cc += skip)
+    {
+        ///current position of triangle in coordinate space
+        float4 native_current = object_geodesics[cc * count + my_tri.parent];
+
+        ///tetrads
+        float4 s_e0 = p_e0[cc * count + my_tri.parent];
+        float4 s_e1 = p_e1[cc * count + my_tri.parent];
+        float4 s_e2 = p_e2[cc * count + my_tri.parent];
+        float4 s_e3 = p_e3[cc * count + my_tri.parent];
+
+        ///triangle coordinates in local space
+        float4 vert_0 = (float4)(0, my_tri.v0x, my_tri.v0y, my_tri.v0z);
+        float4 vert_1 = (float4)(0, my_tri.v1x, my_tri.v1y, my_tri.v1z);
+        float4 vert_2 = (float4)(0, my_tri.v2x, my_tri.v2y, my_tri.v2z);
+
+        ///triangle coordinates (as a vector) in tangent space
+        float4 s_coordinate_v0 = tetrad_to_coordinate_basis(vert_0, s_e0, s_e1, s_e2, s_e3);
+        float4 s_coordinate_v1 = tetrad_to_coordinate_basis(vert_1, s_e0, s_e1, s_e2, s_e3);
+        float4 s_coordinate_v2 = tetrad_to_coordinate_basis(vert_2, s_e0, s_e1, s_e2, s_e3);
+
+        ///Approximate triangle coordinates in coordinate space
+        float4 gv0 = s_coordinate_v0 + native_current;
+        float4 gv1 = s_coordinate_v1 + native_current;
+        float4 gv2 = s_coordinate_v2 + native_current;
+
+        float4 min_extents = min(gv0, min(gv1, gv2));
+        float4 max_extents = max(gv0, max(gv1, gv2));
+
+        if(any_bounding == 0)
+        {
+            bounding_min = min_extents;
+            bounding_max = max_extents;
+        }
+        else
+        {
+            bounding_min = min(bounding_min, min_extents);
+            bounding_max = max(bounding_max, max_extents);
+        }
+    }
+
+    ///we have a bounding box for this triangle, and a bounding box for a clip region of a chunk of the screen
+    ///clip one against the other, and generate a renderable triangle
+}
+
+__kernel
 void get_geodesic_path(__global struct lightray* generic_rays_in,
                        __global float4* positions_out,
                        __global float4* velocities_out,
