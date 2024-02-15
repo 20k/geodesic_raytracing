@@ -81,6 +81,25 @@ void sort2(float* v0, float* v1)
     *v1 = max(iv0, iv1);
 }
 
+bool range_overlaps_general(float s1, float s2, float e1, float e2, float period)
+{
+    sort2(&s1, &s2);
+    sort2(&e1, &e2);
+
+    if(period == 0)
+        return range_overlaps(s1, s2, e1, e2);
+    else
+        return periodic_range_overlaps(s1, s2, e1, e2, period);
+}
+
+bool range_overlaps_general4(float4 s1, float4 s2, float4 e1, float4 e2, float4 period)
+{
+    return range_overlaps_general(s1.x, s2.x, e1.x, e2.x, period.x) &&
+           range_overlaps_general(s1.y, s2.y, e1.y, e2.y, period.y) &&
+           range_overlaps_general(s1.z, s2.z, e1.z, e2.z, period.z) &&
+           range_overlaps_general(s1.w, s2.w, e1.w, e2.w, period.w);
+}
+
 float smooth_fmod(float a, float b)
 {
     return fmod(a, b);
@@ -4717,6 +4736,41 @@ float4 geodesic_to_coordinate_time(float4 velocity)
     return in_ct;
 }
 
+#if 0
+///this is a nice thought but i'm unconvinced
+bool ray_intersects_toblerone_2(float4 global_pos, float4 next_global_pos, float4 sv0, float4 sv1, float4 sv2, float4 ev0, float4 ev1, float4 ev2, float4 periods, float* t_out)
+{
+    float4 s_min = min(sv0, min(sv1, sv2));
+    float4 s_max = max(sv0, max(sv1, sv2));
+
+    float4 e_min = min(ev0, min(ev1, ev2));
+    float4 e_max = max(ev0, max(ev1, ev2));
+
+    float4 min_bound = min(s_min, e_min);
+    float4 max_bound = max(s_max, e_max);
+
+    float4 camera_min = min(global_pos, next_global_pos);
+    float4 camera_max = max(global_pos, next_global_pos);
+
+    if(!range_overlaps_general4(min_bound, max_bound, camera_min, camera_max, periods))
+        return false;
+
+    float3 plane_normal1 = normalize(cross(sv1.yzw - sv0.yzw, sv2.yzw - sv0.yzw));
+    float3 plane_normal2 = normalize(cross(ev1.yzw - ev0.yzw, ev2.yzw - ev0.yzw));
+
+    float new_t = 0;
+
+    for(int i=0; i < 4; i++)
+    {
+        float found_t = 0;
+
+        float3 normal =
+
+        bool success = ray_plane_intersection()
+    }
+}
+#endif
+
 bool intersects_at_fraction(float3 v0, float3 normal, float4 initial_origin, float4 initial_diff,
                             float4 ray_pos_1,
                             float4 ray_vel_1,
@@ -4757,6 +4811,84 @@ bool intersects_at_fraction(float3 v0, float3 normal, float4 initial_origin, flo
         *t_out = found_t;
 
     return success;
+
+}
+
+bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3 v0, float3 v1, float3 v2, float4 min_extents, float4 max_extents, float4 object_geodesic_origin, float4 next_object_geodesic_origin,
+                              float4 i_re0, float4 i_re1, float4 i_re2, float4 i_re3, ///inverse current geodesic segment tetrad
+                              float4 i_ne0, float4 i_ne1, float4 i_ne2, float4 i_ne3, ///inverse next geodesic segment tetrad
+                              float4 periods)
+{
+    float4 min_camera = min(global_pos, next_global_pos);
+    float4 max_camera = max(global_pos, next_global_pos);
+
+    if(!range_overlaps_general4(min_camera, max_camera, min_extents, max_extents, periods))
+        return false;
+
+    float ray_lower_t = next_global_pos.x;
+    float ray_upper_t = global_pos.x;
+
+    float tri_lower_t = object_geodesic_origin.x;
+    float tri_upper_t = next_object_geodesic_origin.x;
+
+    float3 plane_normal = normalize(cross(v1 - v0, v2 - v0));
+
+    float4 object_pos_1 = object_geodesic_origin;
+    //float4 object_pos_2 = periodic_diff(next_object_geodesic_origin, object_geodesic_origin, periods) + object_geodesic_origin;
+    float4 object_pos_2 = next_object_geodesic_origin;
+
+    float4 ray_origin = global_pos;
+    float4 ray_vel = next_global_pos - global_pos;
+
+    //float4 initial_diff = ray_origin - object_pos_1;
+    ///still don't think periodic diff is 100% correct
+    float4 initial_diff = periodic_diff(ray_origin, object_pos_1, periods);
+    float4 initial_origin = object_pos_1;
+
+    float4 last_pos;
+    float4 last_dir;
+    float last_dt = 0;
+
+    #define INTERSECTS_AT(in_frac) intersects_at_fraction(v0, plane_normal, initial_origin, initial_diff, ray_origin, ray_vel, object_pos_1, object_pos_2,\
+                                      i_re0, i_re1, i_re2, i_re3,\
+                                      i_ne0, i_ne1, i_ne2, i_ne3,\
+                                      periods, in_frac, &last_pos, &last_dir, &last_dt)
+
+    bool any = INTERSECTS_AT(1.f) || INTERSECTS_AT(0.f);
+
+    if(!any)
+        return false;
+
+    last_dt = fabs(last_dt);
+
+    float new_t = 0.f;
+
+    #pragma unroll
+    for(int i=0; i < 4; i++)
+    {
+        new_t = ray_origin.x + ray_vel.x * last_dt;
+
+        float frac = (new_t - tri_lower_t) / (tri_upper_t - tri_lower_t);
+
+        frac = clamp(frac, 0.f, 1.f);
+
+        if(!INTERSECTS_AT(frac))
+            return false;
+    }
+
+    float ray_t = 0;
+
+    bool intersected = ray_intersects_triangle(last_pos.yzw, last_dir.yzw, v0, v1, v2, &ray_t, 0, 0);
+
+    float new_x = ray_origin.x + ray_t * ray_vel.x;
+
+    if(new_x < ray_lower_t || new_x > ray_upper_t)
+        return false;
+
+    if(new_x < tri_lower_t || new_x > tri_upper_t)
+        return false;
+
+    return intersected;
 
 }
 
@@ -5732,25 +5864,6 @@ void generate_clip_regions(global float4* ray_write,
     }
 }
 
-bool range_overlaps_general(float s1, float s2, float e1, float e2, float period)
-{
-    sort2(&s1, &s2);
-    sort2(&e1, &e2);
-
-    if(period == 0)
-        return range_overlaps(s1, s2, e1, e2);
-    else
-        return periodic_range_overlaps(s1, s2, e1, e2, period);
-}
-
-bool range_overlaps_general4(float4 s1, float4 s2, float4 e1, float4 e2, float4 period)
-{
-    return range_overlaps_general(s1.x, s2.x, e1.x, e2.x, period.x) &&
-           range_overlaps_general(s1.y, s2.y, e1.y, e2.y, period.y) &&
-           range_overlaps_general(s1.z, s2.z, e1.z, e2.z, period.z) &&
-           range_overlaps_general(s1.w, s2.w, e1.w, e2.w, period.w);
-}
-
 __kernel
 void generate_tri_lists(global struct triangle* tris,
                         int tri_count,
@@ -5871,6 +5984,10 @@ void render_chunked_tris(global struct triangle* tris, int tri_count,
                          int max_tris_per_chunk,
                          global float4* ray_segments,
                          global int* ray_segments_count,
+                         global float4* object_geodesics, global int* object_geodesic_counts,
+                         global float4* p_e0, global float4* p_e1, global float4* p_e2, global float4* p_e3,
+                         global const float4* restrict inverse_e0s, __global const float4* restrict inverse_e1s, __global const float4* restrict inverse_e2s, __global const float4* restrict inverse_e3s,
+                         dynamic_config_space const struct dynamic_config* cfg
                          )
 {
     int ray_x = get_global_id(0);
@@ -5888,26 +6005,148 @@ void render_chunked_tris(global struct triangle* tris, int tri_count,
 
     ///every thread will be accessing the same tri, so we end up with a broadcast
     __global int* tri_ids = &chunked_tri_list[chunk_id * max_tris_per_chunk];
-    int tri_count = min(max_tris_per_chunk, chunked_tri_list[chunk_id]);
+    int found_tris = min(max_tris_per_chunk, chunked_tri_list[chunk_id]);
 
     //global float4* my_ray_segments = &ray_segments[ray_x * width + ray_x]
 
     int my_ray_segment_count = ray_segments_count[ray_id];
 
+    #if 0
     for(int rs = 0; rs < my_ray_segment_count - 1; rs++)
     {
         float4 current_pos = ray_segments[rs * width * height + ray_id];
         float4 next_pos = ray_segments[(rs+1) * width * height + ray_id];
 
-        for(int t=0; t < tri_count; t++)
+        for(int t=0; t < found_tris; t++)
         {
             int tri_id = tri_ids[t];
 
             struct triangle tri = tris[tri_id];
+
+            /*float4 origin_1 = linear_object_positions[tidx];
+
+            __global const struct computed_triangle* ctri = &linear_mem[tidx];
+
+            float4 origin_2 = object_positions[ctri->next_geodesic_segment];
+
+            float ray_t = 0;
+
+            bool debug = sx == mouse_x && sy == mouse_y;
+
+            if(ray_intersects_toblerone(rt_real_pos, next_rt_real_pos, rt_velocity, ds, ctri, origin_1, origin_2,
+                                        inverse_e0s, inverse_e1s, inverse_e2s, inverse_e3s,
+                                        &ray_t, debug, periods))
+            {
+                if(ray_t < best_intersection)
+                {
+                    out.computed_parent = tidx;
+                    best_intersection = ray_t;
+                }
+            }*/
         }
     }
+    #endif
 
+    float4 periods = get_coordinate_period(cfg);
 
+    for(int t=0; t < found_tris; t++)
+    {
+        int tri_id = tri_ids[t];
+        struct triangle tri = tris[tri_id];
+
+        int skip = 1;
+        int max_geodesic_segment = 2048;
+
+        int geodesic_count = object_geodesic_counts[tri.parent];
+
+        for(int cc=0; cc < geodesic_count - skip && cc < max_geodesic_segment; cc += skip)
+        {
+            ///current position of triangle in coordinate space
+            float4 native_current = object_geodesics[cc * geodesic_count + tri.parent];
+            float4 native_next = object_geodesics[(cc + skip) * geodesic_count + tri.parent];
+
+            ///todo: precalculate me
+            float4 min_extents;
+            float4 max_extents;
+
+            {
+                ///current tetrads
+                float4 s_e0 = p_e0[cc * geodesic_count + tri.parent];
+                float4 s_e1 = p_e1[cc * geodesic_count + tri.parent];
+                float4 s_e2 = p_e2[cc * geodesic_count + tri.parent];
+                float4 s_e3 = p_e3[cc * geodesic_count + tri.parent];
+
+                ///next tetrads
+                float4 n_e0 = p_e0[(cc + skip) * geodesic_count + tri.parent];
+                float4 n_e1 = p_e1[(cc + skip) * geodesic_count + tri.parent];
+                float4 n_e2 = p_e2[(cc + skip) * geodesic_count + tri.parent];
+                float4 n_e3 = p_e3[(cc + skip) * geodesic_count + tri.parent];
+
+                ///triangle coordinates in local space
+                float4 vert_0 = (float4)(0, tri.v0x, tri.v0y, tri.v0z);
+                float4 vert_1 = (float4)(0, tri.v1x, tri.v1y, tri.v1z);
+                float4 vert_2 = (float4)(0, tri.v2x, tri.v2y, tri.v2z);
+
+                ///start triangle coordinates (as a vector) in tangent space
+                float4 s_coordinate_v0 = tetrad_to_coordinate_basis(vert_0, s_e0, s_e1, s_e2, s_e3);
+                float4 s_coordinate_v1 = tetrad_to_coordinate_basis(vert_1, s_e0, s_e1, s_e2, s_e3);
+                float4 s_coordinate_v2 = tetrad_to_coordinate_basis(vert_2, s_e0, s_e1, s_e2, s_e3);
+
+                ///end triangle coordinates (as a vector) in tangent space
+                float4 e_coordinate_v0 = tetrad_to_coordinate_basis(vert_0, n_e0, n_e1, n_e2, n_e3);
+                float4 e_coordinate_v1 = tetrad_to_coordinate_basis(vert_1, n_e0, n_e1, n_e2, n_e3);
+                float4 e_coordinate_v2 = tetrad_to_coordinate_basis(vert_2, n_e0, n_e1, n_e2, n_e3);
+
+                ///Approximate triangle coordinates in coordinate space
+                float4 sgv0 = s_coordinate_v0 + native_current;
+                float4 sgv1 = s_coordinate_v1 + native_current;
+                float4 sgv2 = s_coordinate_v2 + native_current;
+
+                ///Approximate triangle coordinates in coordinate space
+                float4 egv0 = e_coordinate_v0 + native_next;
+                float4 egv1 = e_coordinate_v1 + native_next;
+                float4 egv2 = e_coordinate_v2 + native_next;
+
+                float4 min1 = min(sgv0, min(sgv1, sgv2));
+                float4 min2 = min(egv0, min(egv1, egv2));
+
+                float4 max1 = max(sgv0, max(sgv1, sgv2));
+                float4 max2 = max(egv0, max(egv1, egv2));
+
+                min_extents = min(min1, min2);
+                max_extents = max(max1, max2);
+            }
+
+            ///current inverse tetrads
+            float4 s_ie0 = inverse_e0s[cc * geodesic_count + tri.parent];
+            float4 s_ie1 = inverse_e1s[cc * geodesic_count + tri.parent];
+            float4 s_ie2 = inverse_e2s[cc * geodesic_count + tri.parent];
+            float4 s_ie3 = inverse_e3s[cc * geodesic_count + tri.parent];
+
+            ///next inverse tetrads
+            float4 n_ie0 = inverse_e0s[(cc + skip) * geodesic_count + tri.parent];
+            float4 n_ie1 = inverse_e1s[(cc + skip) * geodesic_count + tri.parent];
+            float4 n_ie2 = inverse_e2s[(cc + skip) * geodesic_count + tri.parent];
+            float4 n_ie3 = inverse_e3s[(cc + skip) * geodesic_count + tri.parent];
+
+            for(int rs = 0; rs < my_ray_segment_count - 1; rs++)
+            {
+                float4 current_pos = ray_segments[rs * width * height + ray_id];
+                float4 next_pos = ray_segments[(rs+1) * width * height + ray_id];
+
+                float3 v0 = (float3)(tri.v0x, tri.v0y, tri.v0z);
+                float3 v1 = (float3)(tri.v1x, tri.v1y, tri.v1z);
+                float3 v2 = (float3)(tri.v2x, tri.v2y, tri.v2z);
+
+                if(ray_intersects_toblerone2(current_pos, next_pos, v0, v1, v2, min_extents, max_extents, native_current, native_next,
+                                             s_ie0, s_ie1, s_ie2, s_ie3, n_ie0, n_ie1, n_ie2, n_ie3, periods))
+                {
+                    write_imagef(screen, (int2)(ray_x, ray_y), (float4)(1, 0, 0, 1));
+                    return;
+                }
+            }
+        }
+    }
 }
 
 __kernel
