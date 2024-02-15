@@ -5727,7 +5727,7 @@ void generate_tri_lists(global struct triangle* tris,
     float4 bounding_max;
     int any_bounding = 0;
 
-    for(int cc=0; cc < count - skip && cc < max_geodesic_segment; cc += skip)
+    for(int cc=0; cc < count && cc < max_geodesic_segment; cc += skip)
     {
         ///current position of triangle in coordinate space
         float4 native_current = object_geodesics[cc * count + my_tri.parent];
