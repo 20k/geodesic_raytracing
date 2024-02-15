@@ -5926,7 +5926,7 @@ void generate_computed_tris(global struct triangle* tris, int tri_count,
 
     int skip = COMPUTED_SKIP;
 
-    for(int cc=0; cc < count - skip; cc++)
+    for(int cc=0; cc < count - skip; cc+=skip)
     {
         float4 native_current = object_geodesics[cc * object_count + tri.parent];
         float4 native_next = object_geodesics[(cc + skip) * object_count + tri.parent];
