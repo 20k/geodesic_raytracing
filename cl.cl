@@ -5904,6 +5904,8 @@ struct computed
     int geodesic_segment;
 };
 
+#define COMPUTED_SKIP 1
+
 __kernel
 void generate_computed_tris(global struct triangle* tris, int tri_count,
                             int object_count,
@@ -5922,7 +5924,7 @@ void generate_computed_tris(global struct triangle* tris, int tri_count,
 
     int stride = object_count;
 
-    int skip = 1;
+    int skip = COMPUTED_SKIP;
 
     for(int cc=0; cc < count - skip; cc++)
     {
@@ -6129,7 +6131,7 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
 
         ///current position of triangle in coordinate space
         float4 native_current = object_geodesics[tri.geodesic_segment];
-        float4 native_next = object_geodesics[tri.geodesic_segment + stride];
+        float4 native_next = object_geodesics[tri.geodesic_segment + stride * COMPUTED_SKIP];
 
         float4 min_extents = tri.min_extents;
         float4 max_extents = tri.max_extents;
@@ -6141,10 +6143,10 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
         float4 s_ie3 = inverse_e3s[tri.geodesic_segment];
 
         ///next inverse tetrads
-        float4 n_ie0 = inverse_e0s[tri.geodesic_segment + stride];
-        float4 n_ie1 = inverse_e1s[tri.geodesic_segment + stride];
-        float4 n_ie2 = inverse_e2s[tri.geodesic_segment + stride];
-        float4 n_ie3 = inverse_e3s[tri.geodesic_segment + stride];
+        float4 n_ie0 = inverse_e0s[tri.geodesic_segment + stride * COMPUTED_SKIP];
+        float4 n_ie1 = inverse_e1s[tri.geodesic_segment + stride * COMPUTED_SKIP];
+        float4 n_ie2 = inverse_e2s[tri.geodesic_segment + stride * COMPUTED_SKIP];
+        float4 n_ie3 = inverse_e3s[tri.geodesic_segment + stride * COMPUTED_SKIP];
 
         float3 v0 = (float3)(tri.v0x, tri.v0y, tri.v0z);
         float3 v1 = (float3)(tri.v1x, tri.v1y, tri.v1z);
@@ -6166,11 +6168,6 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
             if(ray_intersects_toblerone2(current_pos, next_pos, v0, v1, v2, min_extents, max_extents, native_current, native_next,
                                          s_ie0, s_ie1, s_ie2, s_ie3, n_ie0, n_ie1, n_ie2, n_ie3, periods, &ray_t, ray_x == 1353 && ray_y == 406))
             {
-                if(ray_x == 1030 && ray_y == 280)
-                {
-                    printf("Isect %f %i\n", ray_t, rs);
-                }
-
                 if(rs == last_hit_segment && ray_t >= last_ray_t)
                     continue;
 
