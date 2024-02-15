@@ -5701,6 +5701,35 @@ void generate_clip_regions(global float4* ray_write,
     }
 }
 
+
+///ok. How do we know of the range [0, PI/2], and [16.2pi, 18.3pi] overlap?
+///or more generally, [15.1pi, 16.2pi] and [32pi, 34pi] overlap
+
+///step 1: if either range is > period, return true
+///step 2: find the min periodic boundary of both, eg if our period is 2 * PI, and we have the range [15.1, 16.2*pi], thats
+///14pi, for a range of [14pi, 16pi]
+///step 3: shear the range into two components, this gives us in the above example
+///two ranges, [15.1pi, 16] and [16, 16.2]. Transform the sheared range into the periodic range, ie
+///[16, 16.2] -> [14, 14.2]
+
+///we do this for both periodic coordinates, and end up with two ranges. Check if either of them overlap
+
+bool periodic_range_overlaps(float s1, float s2, float e1, float e2, float period)
+{
+    return false;
+}
+
+float range_overlaps_general(float s1, float s2, float e1, float e2, float period)
+{
+    sort2(&s1, &s2);
+    sort2(&e1, &e2);
+
+    if(period == 0)
+        return range_overlaps(s1, s2, e1, e2);
+    else
+        return periodic_range_overlaps(s1, s2, e1, e2);
+}
+
 __kernel
 void generate_tri_lists(global struct triangle* tris,
                         int tri_count,
@@ -5790,6 +5819,10 @@ void generate_tri_lists(global struct triangle* tris,
 
             float4 chunk_clip_min = chunked_mins[cid];
             float4 chunk_clip_max = chunked_maxs[cid];
+
+            if(all(chunk_clip_min == chunk_clip_max))
+                continue;
+
         }
     }
 }
