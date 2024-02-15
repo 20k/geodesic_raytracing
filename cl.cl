@@ -5783,6 +5783,22 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
     #endif
 }
 
+int2 get_bounds(int count, int offset, int segments)
+{
+    int div = count / segments;
+
+    int2 val;
+    val.x = max(div * offset - 1, 0);
+    val.y = min(div * (offset + 1) + 1, count);
+
+    if(offset == segments-1)
+        val.y = count;
+
+    return val;
+}
+
+#define SEGMENTS 1
+
 __kernel
 void generate_clip_regions(global float4* ray_write,
                            global int* ray_write_counts,
@@ -5809,14 +5825,11 @@ void generate_clip_regions(global float4* ray_write,
 
     if(count > 0)
     {
-        int quarter = count/4;
-
-        //current_min = ray_write[quarter * width * height + id];
-        //current_max = ray_write[quarter * width * height + id];
+        int2 bounds = get_bounds(count, offset, SEGMENTS);
 
         int has_any = 0;
 
-        for(int i=max(quarter * offset - 1, 0); i < quarter * (offset + 1); i++)
+        for(int i=bounds.x; i < bounds.y; i++)
         {
             if(has_any == 0)
             {
@@ -6176,10 +6189,10 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
         float3 v1 = (float3)(tri.v1x, tri.v1y, tri.v1z);
         float3 v2 = (float3)(tri.v2x, tri.v2y, tri.v2z);
 
-        int quarter = my_ray_segment_count/4;
+        int2 bounds = get_bounds(my_ray_segment_count, offset, SEGMENTS);
 
         ///...could i stuff you in local memory? or even an array?
-        for(int rs = max(quarter * offset - 1, 0); rs < quarter * (offset + 1) - 1; rs++)
+        for(int rs = bounds.x; rs < bounds.y - 1; rs++)
         {
             if(rs > last_hit_segment)
                 break;
