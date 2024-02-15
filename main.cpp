@@ -2500,6 +2500,8 @@ int main(int argc, char* argv[])
                 }
 
                 {
+                    st.tri_list_counts.set_to_zero(mqueue);
+
                     cl::args args;
                     args.push_back(tris.tris);
                     args.push_back(tris.tri_count);
@@ -2546,7 +2548,7 @@ int main(int argc, char* argv[])
 
                     args.push_back(dynamic_config);
 
-                    mqueue.exec("render_chunked_tris", args, {st.width, st.height}, {chunk_x, chunk_y});
+                    produce_event = mqueue.exec("render_chunked_tris", args, {st.width, st.height}, {chunk_x, chunk_y});
                 }
 
                 /*cl::args intersect_args;

@@ -5997,14 +5997,17 @@ void render_chunked_tris(global struct triangle* tris, int tri_count,
 
     int ray_id = ray_y * width + ray_x;
 
-    int chunk_idx = ray_x / chunk_x;
-    int chunk_idy = ray_y / chunk_y;
+    //int chunk_idx = ray_x / chunk_x;
+    //int chunk_idy = ray_y / chunk_y;
+
+    int chunk_idx = get_group_id(0);
+    int chunk_idy = get_group_id(1);
 
     int chunk_id = chunk_idy * chunk_x + chunk_idx;
 
     ///every thread will be accessing the same tri, so we end up with a broadcast
     __global int* tri_ids = &chunked_tri_list[chunk_id * max_tris_per_chunk];
-    int found_tris = min(max_tris_per_chunk, chunked_tri_list[chunk_id]);
+    int found_tris = min(max_tris_per_chunk, chunked_tri_list_count[chunk_id]);
 
     //global float4* my_ray_segments = &ray_segments[ray_x * width + ray_x]
 
@@ -6046,6 +6049,12 @@ void render_chunked_tris(global struct triangle* tris, int tri_count,
     }
     #endif
 
+    if(found_tris > 0)
+    {
+        write_imagef(screen, (int2)(ray_x, ray_y), (float4)(1, 0, 0, 1));
+        return;
+    }
+
     float4 periods = get_coordinate_period(cfg);
 
     for(int t=0; t < found_tris; t++)
@@ -6074,6 +6083,11 @@ void render_chunked_tris(global struct triangle* tris, int tri_count,
                 float4 s_e1 = p_e1[cc * geodesic_count + tri.parent];
                 float4 s_e2 = p_e2[cc * geodesic_count + tri.parent];
                 float4 s_e3 = p_e3[cc * geodesic_count + tri.parent];
+
+                /*if(ray_x == 128 && ray_y == 128)
+                {
+                    printf("Tet? %f %f %f %f\n", s_e0.x, s_e0.y, s_e0.z, s_e0.w);
+                }*/
 
                 ///next tetrads
                 float4 n_e0 = p_e0[(cc + skip) * geodesic_count + tri.parent];
@@ -6128,17 +6142,23 @@ void render_chunked_tris(global struct triangle* tris, int tri_count,
             float4 n_ie2 = inverse_e2s[(cc + skip) * geodesic_count + tri.parent];
             float4 n_ie3 = inverse_e3s[(cc + skip) * geodesic_count + tri.parent];
 
+            float3 v0 = (float3)(tri.v0x, tri.v0y, tri.v0z);
+            float3 v1 = (float3)(tri.v1x, tri.v1y, tri.v1z);
+            float3 v2 = (float3)(tri.v2x, tri.v2y, tri.v2z);
+
             for(int rs = 0; rs < my_ray_segment_count - 1; rs++)
             {
                 float4 current_pos = ray_segments[rs * width * height + ray_id];
                 float4 next_pos = ray_segments[(rs+1) * width * height + ray_id];
 
-                float3 v0 = (float3)(tri.v0x, tri.v0y, tri.v0z);
-                float3 v1 = (float3)(tri.v1x, tri.v1y, tri.v1z);
-                float3 v2 = (float3)(tri.v2x, tri.v2y, tri.v2z);
+                /*if(ray_x == 128 && ray_y == 128)
+                {
+                    printf("Tet %f %f %f %f\n", s_ie0.x, s_ie0.y, s_ie0.z, s_ie0.w);
+                    //printf("Hi %i %f %f %f %f\n", rs, current_pos.x, current_pos.y, current_pos.z, current_pos.w);
+                }*/
 
-                if(ray_intersects_toblerone2(current_pos, next_pos, v0, v1, v2, min_extents, max_extents, native_current, native_next,
-                                             s_ie0, s_ie1, s_ie2, s_ie3, n_ie0, n_ie1, n_ie2, n_ie3, periods))
+                //if(ray_intersects_toblerone2(current_pos, next_pos, v0, v1, v2, min_extents, max_extents, native_current, native_next,
+                //                             s_ie0, s_ie1, s_ie2, s_ie3, n_ie0, n_ie1, n_ie2, n_ie3, periods))
                 {
                     write_imagef(screen, (int2)(ray_x, ray_y), (float4)(1, 0, 0, 1));
                     return;
