@@ -5729,22 +5729,21 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
 
             if(i == 0)
             {
-                //last_real_pos = native_position;
+                last_real_pos = native_position;
             }
 
             float4 real_pos = native_position;
 
-            //float4 real_pos = last_real_pos;
             ///I think this periodic diff is only necessary in constant theta metrics?
-            //float4 next_real_pos = periodic_diff(native_position, last_real_pos, periods) + last_real_pos;
+            float4 next_real_pos = periodic_diff(native_position, last_real_pos, periods) + last_real_pos;
 
-            //last_real_pos = native_position;
+            last_real_pos = native_position;
 
             if((i % 4) == 0)
             {
                 if(which_ray_write < max_write)
                 {
-                    ray_write[which_ray_write * width * height + id] = real_pos;
+                    ray_write[which_ray_write * width * height + id] = next_real_pos;
 
                     which_ray_write++;
                     ray_write_counts[sy * width + sx] = which_ray_write;
@@ -6092,6 +6091,11 @@ void render_chunked_tris(global struct triangle* tris, int tri_count,
         int tri_id = tri_ids[t];
         struct triangle tri = tris[tri_id];
 
+    /*for(int t=0; t < tri_count; t++)
+    {
+        int tri_id = tri_ids[t];
+        struct triangle tri = tris[tri_id];*/
+
         int skip = 1;
         int max_geodesic_segment = 2048;
 
@@ -6177,10 +6181,7 @@ void render_chunked_tris(global struct triangle* tris, int tri_count,
                 float4 current_pos = ray_segments[rs * width * height + ray_id];
                 float4 next_pos = ray_segments[(rs+1) * width * height + ray_id];
 
-
-                float4 smooth_next_pos = periodic_diff(next_pos, current_pos, periods) + current_pos;
-
-                if(ray_intersects_toblerone2(current_pos, smooth_next_pos, v0, v1, v2, min_extents, max_extents, native_current, native_next,
+                if(ray_intersects_toblerone2(current_pos, next_pos, v0, v1, v2, min_extents, max_extents, native_current, native_next,
                                              s_ie0, s_ie1, s_ie2, s_ie3, n_ie0, n_ie1, n_ie2, n_ie3, periods, ray_x == 1030 && ray_y == 280))
                 {
                     write_imagef(screen, (int2)(ray_x, ray_y), (float4)(1, 0, 0, 1));
