@@ -41,6 +41,8 @@ struct render_state
 
     cl::buffer stored_rays;
     cl::buffer stored_ray_counts;
+    cl::buffer stored_rays_section;
+    cl::buffer stored_ray_section_counts;
     cl_int max_stored = 90;
 
     cl::buffer stored_mins;
@@ -69,6 +71,7 @@ struct render_state
         texture_coordinates(ctx),
         accel_ray_time_min(ctx), accel_ray_time_max(ctx),
         stored_rays(ctx), stored_ray_counts(ctx),
+        stored_rays_section(ctx), stored_ray_section_counts(ctx),
         stored_mins(ctx), stored_maxs(ctx),
         chunked_mins(ctx), chunked_maxs(ctx),
         tri_list(ctx), tri_list_counts(ctx), computed_tris(ctx), computed_tri_count(ctx)
@@ -113,6 +116,9 @@ struct render_state
 
         stored_rays.alloc(sizeof(cl_float4) * width * height * max_stored);
         stored_ray_counts.alloc(sizeof(cl_int) * width * height);
+
+        stored_rays_section.alloc(sizeof(cl_float4) * width * height * max_stored);
+        stored_ray_section_counts.alloc(sizeof(cl_int) * width * height);
 
         stored_mins.alloc(sizeof(cl_float4) * width * height);
         stored_maxs.alloc(sizeof(cl_float4) * width * height);

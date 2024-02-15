@@ -5784,6 +5784,45 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
 }
 
 __kernel
+void take_ray_section(global float4* ray_write_in,
+                      global int* ray_write_counts_in,
+                      global float4* ray_write_out,
+                      global int* ray_write_counts_out,
+                      int width, int height,
+                      int offset)
+{
+    int idx = get_global_id(0);
+    int idy = get_global_id(1);
+
+    if(idx >= width || idy >= height)
+        return;
+
+    int id = idy * width + idx;
+
+    int segments = 4;
+
+    int count = ray_write_counts_in[id];
+
+    int start = max(((count/segments) - 1) * offset, 0);
+    int finish = min(((count/segments) + 1) * (offset + 1), count);
+
+    if(offset == segments - 1)
+        finish = count;
+
+    //printf("Val %i %i\n", idx, idy);
+
+    //start = 0;
+    //finish = count;
+
+    for(int i=start; i < finish; i++)
+    {
+        ray_write_out[(i - start) * width * height + id] = ray_write_in[i * width * height + id];
+    }
+
+    ray_write_counts_out[id] = finish - start;
+}
+
+__kernel
 void generate_clip_regions(global float4* ray_write,
                            global int* ray_write_counts,
                            int max_write,
