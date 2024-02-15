@@ -3,6 +3,7 @@
 #include "common.cl"
 
 #define M_PIf ((float)M_PI)
+#define E4(n) n.x, n.y, n.z, n.w
 
 struct triangle
 {
@@ -4888,6 +4889,11 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
     if(new_x < tri_lower_t || new_x > tri_upper_t)
         return false;
 
+    /*if(debug)
+    {
+        printf("Hello %f pos1 %f %f %f %f pos2 %f %f %f %f geo1 %f %f %f %f geo2 %f %f %f %f\n", ray_t, E4(global_pos), E4(next_global_pos), E4(object_geodesic_origin), E4(next_object_geodesic_origin));
+    }*/
+
     return intersected;
 
 }
@@ -5697,7 +5703,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
         rk4_generic_big(&position, &velocity, &ds);
         #endif // RK4_GENERIC
 
-        if(GET_FEATURE(use_triangle_rendering, dfg))
+        if(GET_FEATURE(use_triangle_rendering, dfg) && ((i % 4) == 0))
         {
             float4 native_position = position;
 
@@ -5734,21 +5740,25 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
 
             float4 real_pos = native_position;
 
+            float4 pdiff = periodic_diff(native_position, last_real_pos, periods);
+
             ///I think this periodic diff is only necessary in constant theta metrics?
-            float4 next_real_pos = periodic_diff(native_position, last_real_pos, periods) + last_real_pos;
+            float4 next_real_pos = pdiff + last_real_pos;
 
-            last_real_pos = native_position;
-
-            if((i % 4) == 0)
+            /*if(sx == 1353 && sy == 406)
             {
-                if(which_ray_write < max_write)
-                {
-                    ray_write[which_ray_write * width * height + id] = next_real_pos;
+                printf("Pos %f %f %f %f diff %f %f %f %f\n", next_real_pos.x, next_real_pos.y, next_real_pos.z, next_real_pos.w, E4(pdiff));
+            }*/
 
-                    which_ray_write++;
-                    ray_write_counts[sy * width + sx] = which_ray_write;
-                }
+            if(which_ray_write < max_write)
+            {
+                ray_write[which_ray_write * width * height + id] = next_real_pos;
+
+                which_ray_write++;
+                ray_write_counts[sy * width + sx] = which_ray_write;
             }
+
+            last_real_pos = next_real_pos;
         }
 
         /*if(sx == 1920/2 && sy == 1080/2)
@@ -6140,10 +6150,9 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
             float4 next_pos = ray_segments[(rs+1) * width * height + ray_id];
 
             if(ray_intersects_toblerone2(current_pos, next_pos, v0, v1, v2, min_extents, max_extents, native_current, native_next,
-                                         s_ie0, s_ie1, s_ie2, s_ie3, n_ie0, n_ie1, n_ie2, n_ie3, periods, ray_x == 1030 && ray_y == 280))
+                                         s_ie0, s_ie1, s_ie2, s_ie3, n_ie0, n_ie1, n_ie2, n_ie3, periods, ray_x == 1353 && ray_y == 406))
             {
                 //float3 ncol = fabs(triangle_normal(v0, v1, v2));
-
                 write_imagef(screen, (int2)(ray_x, ray_y), (float4)(1, 0, 0, 1));
                 //write_imagef(screen, (int2)(ray_x, ray_y), (float4)(ncol.x, ncol.y, ncol.z, 1));
                 return;
