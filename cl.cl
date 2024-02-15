@@ -5996,8 +5996,8 @@ void generate_computed_tris(global struct triangle* tris, int tri_count,
 }
 
 __kernel
-void generate_tri_lists(global struct triangle* tris,
-                        int tri_count,
+void generate_tri_lists(global struct computed* ctri,
+                        global int* ctri_count,
                         int object_count,
                         global float4* object_geodesics, global int* object_geodesic_counts,
                         global float4* p_e0, global float4* p_e1, global float4* p_e2, global float4* p_e3,
@@ -6012,76 +6012,10 @@ void generate_tri_lists(global struct triangle* tris,
 {
     size_t id = get_global_id(0);
 
-    if(id >= tri_count)
+    if(id >= *ctri_count)
         return;
 
-    struct triangle my_tri = tris[id];
-    int count = object_geodesic_counts[my_tri.parent];
-
-    int skip = 1;
-    int max_geodesic_segment = 2048;
-
-    if(count <= 1)
-        return;
-
-    float4 bounding_min;
-    float4 bounding_max;
-    int any_bounding = 0;
-
-    int stride = object_count;
-
-    for(int cc=0; cc < count && cc < max_geodesic_segment; cc += skip)
-    {
-        ///current position of triangle in coordinate space
-        float4 native_current = object_geodesics[cc * stride + my_tri.parent];
-
-        ///tetrads
-        float4 s_e0 = p_e0[cc * stride + my_tri.parent];
-        float4 s_e1 = p_e1[cc * stride + my_tri.parent];
-        float4 s_e2 = p_e2[cc * stride + my_tri.parent];
-        float4 s_e3 = p_e3[cc * stride + my_tri.parent];
-
-        ///triangle coordinates in local space
-        float4 vert_0 = (float4)(0, my_tri.v0x, my_tri.v0y, my_tri.v0z);
-        float4 vert_1 = (float4)(0, my_tri.v1x, my_tri.v1y, my_tri.v1z);
-        float4 vert_2 = (float4)(0, my_tri.v2x, my_tri.v2y, my_tri.v2z);
-
-        ///triangle coordinates (as a vector) in tangent space
-        float4 s_coordinate_v0 = tetrad_to_coordinate_basis(vert_0, s_e0, s_e1, s_e2, s_e3);
-        float4 s_coordinate_v1 = tetrad_to_coordinate_basis(vert_1, s_e0, s_e1, s_e2, s_e3);
-        float4 s_coordinate_v2 = tetrad_to_coordinate_basis(vert_2, s_e0, s_e1, s_e2, s_e3);
-
-        ///Approximate triangle coordinates in coordinate space
-        float4 gv0 = s_coordinate_v0 + native_current;
-        float4 gv1 = s_coordinate_v1 + native_current;
-        float4 gv2 = s_coordinate_v2 + native_current;
-
-        float4 min_extents = min(gv0, min(gv1, gv2));
-        float4 max_extents = max(gv0, max(gv1, gv2));
-
-        if(any_bounding == 0)
-        {
-            bounding_min = min_extents;
-            bounding_max = max_extents;
-            any_bounding = 1;
-        }
-        else
-        {
-            bounding_min = min(bounding_min, min_extents);
-            bounding_max = max(bounding_max, max_extents);
-        }
-    }
-
-    ///256, 450
-
-    /*if(ray_x == 256 && ray_y == 450)
-    {
-        printf("Bound min %f %f %f %f max %f %f %f %f\n", bounding_min.x, bounding_min.y, bounding_min.z, bounding_min.w,
-                                      bounding_max.x, bounding_max.y, bounding_max.z, bounding_max.w);
-    }*/
-
-    //printf("Bound %f %f %f %f\n", bounding_min.x, bounding_min.y, bounding_min.z, bounding_min.w);
-    //printf("Bound %f %f %f %f\n", bounding_max.x, bounding_max.y, bounding_max.z, bounding_max.w);
+    struct computed my_tri = ctri[id];
 
     ///we have a bounding box for this triangle, and a bounding box for a clip region of a chunk of the screen
     ///clip one against the other, and generate a renderable triangle
@@ -6105,19 +6039,10 @@ void generate_tri_lists(global struct triangle* tris,
             float4 chunk_clip_min = chunked_mins[cid];
             float4 chunk_clip_max = chunked_maxs[cid];
 
-            /*if(x == 10 && y == 10)
-            {
-                printf("Chunkmin %f %f %f %f\n", chunk_clip_min.x, chunk_clip_min.y, chunk_clip_min.z, chunk_clip_min.w);
-                printf("Chunkmax %f %f %f %f\n", chunk_clip_max.x, chunk_clip_max.y, chunk_clip_max.z, chunk_clip_max.w);
-
-                printf("Boundmin %f %f %f %f\n", bounding_min.x, bounding_min.y, bounding_min.z, bounding_min.w);
-                printf("Boundman %f %f %f %f\n", bounding_max.x, bounding_max.y, bounding_max.z, bounding_max.w);
-            }*/
-
             if(all(chunk_clip_min == chunk_clip_max))
                 continue;
 
-            if(!range_overlaps_general4(chunk_clip_min, chunk_clip_max, bounding_min, bounding_max, coordinate_period))
+            if(!range_overlaps_general4(chunk_clip_min, chunk_clip_max, my_tri.min_extents, my_tri.max_extents, coordinate_period))
                 continue;
 
             int my_id = atomic_inc(&chunked_tri_list_count[cid]);
@@ -6132,74 +6057,8 @@ void generate_tri_lists(global struct triangle* tris,
     }
 }
 
-#if 0
 __kernel
-void calculate_segment_extents(global struct triangle* tri,
-                               global float4* object_geodesics, global int* object_geodesic_counts, int object_count,
-                               global float4* segment_mins, global float4* segment_maxs,
-                               global float4* p_e0, global float4* p_e1, global float4* p_e2, global float4* p_e3
-                               )
-{
-    int object_id = get_global_id(0);
-
-    if(object_id >= object_count)
-        return;
-
-    int geodesic_count = object_geodesic_counts[object_id];
-
-    for(int cc=0; cc < geodesic_count - 1; cc++)
-    {
-        ///current tetrads
-        float4 s_e0 = p_e0[cc * stride + tri.parent];
-        float4 s_e1 = p_e1[cc * stride + tri.parent];
-        float4 s_e2 = p_e2[cc * stride + tri.parent];
-        float4 s_e3 = p_e3[cc * stride + tri.parent];
-
-        ///next tetrads
-        float4 n_e0 = p_e0[(cc + 1) * stride + tri.parent];
-        float4 n_e1 = p_e1[(cc + 1) * stride + tri.parent];
-        float4 n_e2 = p_e2[(cc + 1) * stride + tri.parent];
-        float4 n_e3 = p_e3[(cc + 1) * stride + tri.parent];
-
-        ///triangle coordinates in local space
-        float4 vert_0 = (float4)(0, tri.v0x, tri.v0y, tri.v0z);
-        float4 vert_1 = (float4)(0, tri.v1x, tri.v1y, tri.v1z);
-        float4 vert_2 = (float4)(0, tri.v2x, tri.v2y, tri.v2z);
-
-        ///start triangle coordinates (as a vector) in tangent space
-        float4 s_coordinate_v0 = tetrad_to_coordinate_basis(vert_0, s_e0, s_e1, s_e2, s_e3);
-        float4 s_coordinate_v1 = tetrad_to_coordinate_basis(vert_1, s_e0, s_e1, s_e2, s_e3);
-        float4 s_coordinate_v2 = tetrad_to_coordinate_basis(vert_2, s_e0, s_e1, s_e2, s_e3);
-
-        ///end triangle coordinates (as a vector) in tangent space
-        float4 e_coordinate_v0 = tetrad_to_coordinate_basis(vert_0, n_e0, n_e1, n_e2, n_e3);
-        float4 e_coordinate_v1 = tetrad_to_coordinate_basis(vert_1, n_e0, n_e1, n_e2, n_e3);
-        float4 e_coordinate_v2 = tetrad_to_coordinate_basis(vert_2, n_e0, n_e1, n_e2, n_e3);
-
-        ///Approximate triangle coordinates in coordinate space
-        float4 sgv0 = s_coordinate_v0 + native_current;
-        float4 sgv1 = s_coordinate_v1 + native_current;
-        float4 sgv2 = s_coordinate_v2 + native_current;
-
-        ///Approximate triangle coordinates in coordinate space
-        float4 egv0 = e_coordinate_v0 + native_next;
-        float4 egv1 = e_coordinate_v1 + native_next;
-        float4 egv2 = e_coordinate_v2 + native_next;
-
-        float4 min1 = min(sgv0, min(sgv1, sgv2));
-        float4 min2 = min(egv0, min(egv1, egv2));
-
-        float4 max1 = max(sgv0, max(sgv1, sgv2));
-        float4 max2 = max(egv0, max(egv1, egv2));
-
-        segment_mins[object_id * object_count + sid] = min(min1, min2);
-        segment_maxs[object_id * object_count + sid] = max(max1, max2);
-    }
-}
-#endif
-
-__kernel
-void render_chunked_tris(global struct triangle* tris, int tri_count,
+void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
                          int object_count,
                          __write_only image2d_t screen,
                          global int* chunked_tri_list,
@@ -6255,121 +6114,65 @@ void render_chunked_tris(global struct triangle* tris, int tri_count,
     for(int t=0; t < found_tris; t++)
     {
         int tri_id = tri_ids[t];
-        struct triangle tri = tris[tri_id];
-
-    /*for(int t=0; t < tri_count; t++)
-    {
-        int tri_id = tri_ids[t];
-        struct triangle tri = tris[tri_id];*/
+        struct computed tri = ctri[tri_id];
 
         int skip = 1;
         int max_geodesic_segment = 2048;
 
-        int geodesic_count = object_geodesic_counts[tri.parent];
         int stride = object_count;
 
-        for(int cc=0; cc < geodesic_count - skip && cc < max_geodesic_segment; cc += skip)
+        ///current position of triangle in coordinate space
+        float4 native_current = object_geodesics[tri.geodesic_segment];
+        float4 native_next = object_geodesics[tri.geodesic_segment + stride];
+
+        ///todo: precalculate me
+        float4 min_extents = tri.min_extents;
+        float4 max_extents = tri.max_extents;
+
+        ///current inverse tetrads
+        float4 s_ie0 = inverse_e0s[tri.geodesic_segment];
+        float4 s_ie1 = inverse_e1s[tri.geodesic_segment];
+        float4 s_ie2 = inverse_e2s[tri.geodesic_segment];
+        float4 s_ie3 = inverse_e3s[tri.geodesic_segment];
+
+        ///next inverse tetrads
+        float4 n_ie0 = inverse_e0s[tri.geodesic_segment + stride];
+        float4 n_ie1 = inverse_e1s[tri.geodesic_segment + stride];
+        float4 n_ie2 = inverse_e2s[tri.geodesic_segment + stride];
+        float4 n_ie3 = inverse_e3s[tri.geodesic_segment + stride];
+
+        float3 v0 = (float3)(tri.v0x, tri.v0y, tri.v0z);
+        float3 v1 = (float3)(tri.v1x, tri.v1y, tri.v1z);
+        float3 v2 = (float3)(tri.v2x, tri.v2y, tri.v2z);
+
+        for(int rs = 0; rs < my_ray_segment_count - 1; rs++)
         {
-            ///current position of triangle in coordinate space
-            float4 native_current = object_geodesics[cc * stride + tri.parent];
-            float4 native_next = object_geodesics[(cc + skip) * stride + tri.parent];
+            float4 current_pos = ray_segments[rs * width * height + ray_id];
+            float4 next_pos = ray_segments[(rs+1) * width * height + ray_id];
 
-            ///todo: precalculate me
-            float4 min_extents;
-            float4 max_extents;
+            /*struct computed_triangle ctri;
+            ctri.tv0 = (float4)(0.f, v0.x, v0.y, v0.z);
+            ctri.tv1 = (float4)(0.f, v1.x, v1.y, v1.z);
+            ctri.tv2 = (float4)(0.f, v2.x, v2.y, v2.z);
 
+            ctri.geodesic_segment = cc * stride + tri.parent;
+            ctri.next_geodesic_segment = (cc + skip) * stride + tri.parent;
+
+            ctri.min_extents = min_extents;
+            ctri.max_extents = max_extents;
+
+            if(ray_intersects_toblerone(current_pos, next_pos, (float4)(0,0,0,0), 0.f, &ctri, native_current, native_next,
+                                        inverse_e0s, inverse_e1s, inverse_e2s, inverse_e3s, 0, false, periods))*/
+
+
+            if(ray_intersects_toblerone2(current_pos, next_pos, v0, v1, v2, min_extents, max_extents, native_current, native_next,
+                                         s_ie0, s_ie1, s_ie2, s_ie3, n_ie0, n_ie1, n_ie2, n_ie3, periods, ray_x == 1030 && ray_y == 280))
             {
-                ///current tetrads
-                float4 s_e0 = p_e0[cc * stride + tri.parent];
-                float4 s_e1 = p_e1[cc * stride + tri.parent];
-                float4 s_e2 = p_e2[cc * stride + tri.parent];
-                float4 s_e3 = p_e3[cc * stride + tri.parent];
+                //float3 ncol = fabs(triangle_normal(v0, v1, v2));
 
-                ///next tetrads
-                float4 n_e0 = p_e0[(cc + skip) * stride + tri.parent];
-                float4 n_e1 = p_e1[(cc + skip) * stride + tri.parent];
-                float4 n_e2 = p_e2[(cc + skip) * stride + tri.parent];
-                float4 n_e3 = p_e3[(cc + skip) * stride + tri.parent];
-
-                ///triangle coordinates in local space
-                float4 vert_0 = (float4)(0, tri.v0x, tri.v0y, tri.v0z);
-                float4 vert_1 = (float4)(0, tri.v1x, tri.v1y, tri.v1z);
-                float4 vert_2 = (float4)(0, tri.v2x, tri.v2y, tri.v2z);
-
-                ///start triangle coordinates (as a vector) in tangent space
-                float4 s_coordinate_v0 = tetrad_to_coordinate_basis(vert_0, s_e0, s_e1, s_e2, s_e3);
-                float4 s_coordinate_v1 = tetrad_to_coordinate_basis(vert_1, s_e0, s_e1, s_e2, s_e3);
-                float4 s_coordinate_v2 = tetrad_to_coordinate_basis(vert_2, s_e0, s_e1, s_e2, s_e3);
-
-                ///end triangle coordinates (as a vector) in tangent space
-                float4 e_coordinate_v0 = tetrad_to_coordinate_basis(vert_0, n_e0, n_e1, n_e2, n_e3);
-                float4 e_coordinate_v1 = tetrad_to_coordinate_basis(vert_1, n_e0, n_e1, n_e2, n_e3);
-                float4 e_coordinate_v2 = tetrad_to_coordinate_basis(vert_2, n_e0, n_e1, n_e2, n_e3);
-
-                ///Approximate triangle coordinates in coordinate space
-                float4 sgv0 = s_coordinate_v0 + native_current;
-                float4 sgv1 = s_coordinate_v1 + native_current;
-                float4 sgv2 = s_coordinate_v2 + native_current;
-
-                ///Approximate triangle coordinates in coordinate space
-                float4 egv0 = e_coordinate_v0 + native_next;
-                float4 egv1 = e_coordinate_v1 + native_next;
-                float4 egv2 = e_coordinate_v2 + native_next;
-
-                float4 min1 = min(sgv0, min(sgv1, sgv2));
-                float4 min2 = min(egv0, min(egv1, egv2));
-
-                float4 max1 = max(sgv0, max(sgv1, sgv2));
-                float4 max2 = max(egv0, max(egv1, egv2));
-
-                min_extents = min(min1, min2);
-                max_extents = max(max1, max2);
-            }
-
-            ///current inverse tetrads
-            float4 s_ie0 = inverse_e0s[cc * stride + tri.parent];
-            float4 s_ie1 = inverse_e1s[cc * stride + tri.parent];
-            float4 s_ie2 = inverse_e2s[cc * stride + tri.parent];
-            float4 s_ie3 = inverse_e3s[cc * stride + tri.parent];
-
-            ///next inverse tetrads
-            float4 n_ie0 = inverse_e0s[(cc + skip) * stride + tri.parent];
-            float4 n_ie1 = inverse_e1s[(cc + skip) * stride + tri.parent];
-            float4 n_ie2 = inverse_e2s[(cc + skip) * stride + tri.parent];
-            float4 n_ie3 = inverse_e3s[(cc + skip) * stride + tri.parent];
-
-            float3 v0 = (float3)(tri.v0x, tri.v0y, tri.v0z);
-            float3 v1 = (float3)(tri.v1x, tri.v1y, tri.v1z);
-            float3 v2 = (float3)(tri.v2x, tri.v2y, tri.v2z);
-
-            for(int rs = 0; rs < my_ray_segment_count - 1; rs++)
-            {
-                float4 current_pos = ray_segments[rs * width * height + ray_id];
-                float4 next_pos = ray_segments[(rs+1) * width * height + ray_id];
-
-                /*struct computed_triangle ctri;
-                ctri.tv0 = (float4)(0.f, v0.x, v0.y, v0.z);
-                ctri.tv1 = (float4)(0.f, v1.x, v1.y, v1.z);
-                ctri.tv2 = (float4)(0.f, v2.x, v2.y, v2.z);
-
-                ctri.geodesic_segment = cc * stride + tri.parent;
-                ctri.next_geodesic_segment = (cc + skip) * stride + tri.parent;
-
-                ctri.min_extents = min_extents;
-                ctri.max_extents = max_extents;
-
-                if(ray_intersects_toblerone(current_pos, next_pos, (float4)(0,0,0,0), 0.f, &ctri, native_current, native_next,
-                                            inverse_e0s, inverse_e1s, inverse_e2s, inverse_e3s, 0, false, periods))*/
-
-
-                if(ray_intersects_toblerone2(current_pos, next_pos, v0, v1, v2, min_extents, max_extents, native_current, native_next,
-                                             s_ie0, s_ie1, s_ie2, s_ie3, n_ie0, n_ie1, n_ie2, n_ie3, periods, ray_x == 1030 && ray_y == 280))
-                {
-                    float3 ncol = fabs(triangle_normal(v0, v1, v2));
-
-                    write_imagef(screen, (int2)(ray_x, ray_y), (float4)(ncol.x, ncol.y, ncol.z, 1));
-                    return;
-                }
+                write_imagef(screen, (int2)(ray_x, ray_y), (float4)(1, 0, 0, 1));
+                //write_imagef(screen, (int2)(ray_x, ray_y), (float4)(ncol.x, ncol.y, ncol.z, 1));
+                return;
             }
         }
     }

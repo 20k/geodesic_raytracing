@@ -2484,6 +2484,10 @@ int main(int argc, char* argv[])
                 int chunk_x = menu.sett.workgroup_size[0];
                 int chunk_y = menu.sett.workgroup_size[1];
 
+                int chunks = ((menu.sett.width / chunk_x) + 1) * ((menu.sett.height / chunk_y) + 1);
+
+                int max_tris_per_chunk = st.tri_list.alloc_size / (sizeof(cl_int) * chunks);
+
                 {
                     cl::args args;
                     args.push_back(st.stored_rays);
@@ -2522,8 +2526,8 @@ int main(int argc, char* argv[])
                     st.tri_list_counts.set_to_zero(mqueue);
 
                     cl::args args;
-                    args.push_back(tris.tris);
-                    args.push_back(tris.tri_count);
+                    args.push_back(st.computed_tris);
+                    args.push_back(st.computed_tri_count);
                     args.push_back(phys.object_count);
                     args.push_back(phys.subsampled_paths);
                     args.push_back(phys.subsampled_counts);
@@ -2533,7 +2537,7 @@ int main(int argc, char* argv[])
 
                     args.push_back(st.tri_list);
                     args.push_back(st.tri_list_counts);
-                    args.push_back(st.max_tris_per_chunk);
+                    args.push_back(max_tris_per_chunk);
                     args.push_back(st.chunked_mins);
                     args.push_back(st.chunked_maxs);
                     args.push_back(chunk_x);
@@ -2542,13 +2546,13 @@ int main(int argc, char* argv[])
                     args.push_back(st.height);
                     args.push_back(dynamic_config);
 
-                    mqueue.exec("generate_tri_lists", args, {tris.tri_count}, {128});
+                    mqueue.exec("generate_tri_lists", args, {1024 * 1024 * 1024}, {128});
                 }
 
                 {
                     cl::args args;
-                    args.push_back(tris.tris);
-                    args.push_back(tris.tri_count);
+                    args.push_back(st.computed_tris);
+                    args.push_back(st.computed_tri_count);
                     args.push_back(phys.object_count);
                     args.push_back(glis.rtex);
                     args.push_back(st.tri_list);
@@ -2557,7 +2561,7 @@ int main(int argc, char* argv[])
                     args.push_back(st.height);
                     args.push_back(chunk_x);
                     args.push_back(chunk_y);
-                    args.push_back(st.max_tris_per_chunk);
+                    args.push_back(max_tris_per_chunk);
                     args.push_back(st.stored_rays);
                     args.push_back(st.stored_ray_counts);
                     args.push_back(phys.subsampled_paths);

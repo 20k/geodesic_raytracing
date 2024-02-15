@@ -51,7 +51,6 @@ struct render_state
 
     cl::buffer tri_list;
     cl::buffer tri_list_counts;
-    int max_tris_per_chunk = 80;
 
     cl::buffer computed_tris;
     cl::buffer computed_tri_count;
@@ -123,7 +122,7 @@ struct render_state
         chunked_maxs.alloc(sizeof(cl_float4) * width * height);
 
         ///i need to do this properly, can't get away with the memory fudge so much
-        tri_list.alloc(sizeof(cl_int) * width * height * max_tris_per_chunk);
+        tri_list.alloc(sizeof(cl_int) * width * height * 100);
         tri_list_counts.alloc(sizeof(cl_int) * width * height);
     }
 };
