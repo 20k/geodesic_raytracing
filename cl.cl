@@ -6039,15 +6039,7 @@ void generate_tri_lists(global struct computed* ctri,
     int chunk_dim_x = get_chunk_size(width, chunk_x);
     int chunk_dim_y = get_chunk_size(height, chunk_y);
 
-    local int to_add;
-    local int root;
-
-    int lid = get_local_id(0);
-
-    if(lid == 0)
-        to_add = 0;
-
-    barrier(CLK_LOCAL_MEM_FENCE);
+    //printf("Cy %i\n", chunk_dim_y);
 
     for(int y=0; y < chunk_dim_y; y++)
     {
@@ -6058,36 +6050,7 @@ void generate_tri_lists(global struct computed* ctri,
             float4 chunk_clip_min = chunked_mins[cid];
             float4 chunk_clip_max = chunked_maxs[cid];
 
-            int local_id = -1;
-
-            if(!all(chunk_clip_min == chunk_clip_max) && range_overlaps_general4(chunk_clip_min, chunk_clip_max, my_tri.min_extents, my_tri.max_extents, coordinate_period))
-            {
-                local_id = atomic_inc(&to_add);
-            }
-
-            barrier(CLK_LOCAL_MEM_FENCE);
-
-            if(lid == 0)
-            {
-                root = atomic_add(&chunked_tri_list_count[cid], to_add);
-                to_add = 0;
-            }
-
-            barrier(CLK_LOCAL_MEM_FENCE);
-
-            if(local_id >= 0)
-            {
-                int my_id = root + local_id;
-
-                if(my_id >= max_tris_per_chunk)
-                    continue;
-
-                chunked_tri_list_out[cid * max_tris_per_chunk + my_id] = id;
-            }
-
-
-
-            /*if(all(chunk_clip_min == chunk_clip_max))
+            if(all(chunk_clip_min == chunk_clip_max))
                 continue;
 
             if(!range_overlaps_general4(chunk_clip_min, chunk_clip_max, my_tri.min_extents, my_tri.max_extents, coordinate_period))
@@ -6100,7 +6063,7 @@ void generate_tri_lists(global struct computed* ctri,
 
             ///investigate memory ordering later
             ///this smells like wrong accesses
-            chunked_tri_list_out[cid * max_tris_per_chunk + my_id] = id;*/
+            chunked_tri_list_out[cid * max_tris_per_chunk + my_id] = id;
         }
     }
 }
