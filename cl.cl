@@ -5791,8 +5791,7 @@ void generate_clip_regions(global float4* ray_write,
                            global float4* maxs_out,
                            int width, int height,
                            global float4* chunked_mins,
-                           global float4* chunked_maxs,
-                           int offset)
+                           global float4* chunked_maxs)
 {
     size_t x = get_global_id(0);
     size_t y = get_global_id(1);
@@ -5809,26 +5808,13 @@ void generate_clip_regions(global float4* ray_write,
 
     if(count > 0)
     {
-        int quarter = count/4;
+        current_min = ray_write[0 * width * height + id];
+        current_max = ray_write[0 * width * height + id];
 
-        //current_min = ray_write[quarter * width * height + id];
-        //current_max = ray_write[quarter * width * height + id];
-
-        int has_any = 0;
-
-        for(int i=max(quarter * offset - 1, 0); i < quarter * (offset + 1); i++)
+        for(int i=1; i < count; i++)
         {
-            if(has_any == 0)
-            {
-                current_min = ray_write[i * width * height + id];
-                current_max = ray_write[i * width * height + id];
-                has_any = 1;
-            }
-            else
-            {
-                current_min = min(current_min, ray_write[i * width * height + id]);
-                current_max = max(current_max, ray_write[i * width * height + id]);
-            }
+            current_min = min(current_min, ray_write[i * width * height + id]);
+            current_max = max(current_max, ray_write[i * width * height + id]);
         }
 
         mins_out[id] = current_min;
@@ -6102,8 +6088,7 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
                          global float4* fine_clip_min, global float4* fine_clip_max,
                          dynamic_config_space const struct dynamic_config* cfg,
                          float mouse_x,
-                         float mouse_y,
-                         int offset
+                         float mouse_y
                          )
 {
     int ray_x = get_global_id(0);
@@ -6137,9 +6122,8 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
 
     float4 periods = get_coordinate_period(cfg);
 
-    //int last_hit_segment = my_ray_segment_count - 2;
+    int last_hit_segment = my_ray_segment_count - 2;
     float last_ray_t = FLT_MAX;
-    int last_hit_segment = 99999;
 
     int last_tri_id = -1;
 
@@ -6176,14 +6160,9 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
         float3 v1 = (float3)(tri.v1x, tri.v1y, tri.v1z);
         float3 v2 = (float3)(tri.v2x, tri.v2y, tri.v2z);
 
-        int quarter = my_ray_segment_count/4;
-
         ///...could i stuff you in local memory? or even an array?
-        for(int rs = max(quarter * offset - 1, 0); rs < quarter * (offset + 1) - 1; rs++)
+        for(int rs = 0; rs <= last_hit_segment; rs++)
         {
-            if(rs > last_hit_segment)
-                break;
-
             float4 current_pos = ray_segments[rs * width * height + ray_id];
             float4 next_pos = ray_segments[(rs+1) * width * height + ray_id];
 
