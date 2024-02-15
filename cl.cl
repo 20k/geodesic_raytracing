@@ -4818,7 +4818,7 @@ bool intersects_at_fraction(float3 v0, float3 normal, float4 initial_origin, flo
 bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3 v0, float3 v1, float3 v2, float4 min_extents, float4 max_extents, float4 object_geodesic_origin, float4 next_object_geodesic_origin,
                               float4 i_re0, float4 i_re1, float4 i_re2, float4 i_re3, ///inverse current geodesic segment tetrad
                               float4 i_ne0, float4 i_ne1, float4 i_ne2, float4 i_ne3, ///inverse next geodesic segment tetrad
-                              float4 periods, bool debug)
+                              float4 periods, float* t_out, bool debug)
 {
     float4 min_camera = min(global_pos, next_global_pos);
     float4 max_camera = max(global_pos, next_global_pos);
@@ -4888,6 +4888,8 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
 
     if(new_x < tri_lower_t || new_x > tri_upper_t)
         return false;
+
+    *t_out = ray_t;
 
     /*if(debug)
     {
@@ -6113,6 +6115,11 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
 
     float4 periods = get_coordinate_period(cfg);
 
+    int last_hit_segment = my_ray_segment_count - 2;
+    float last_ray_t = FLT_MAX;
+
+    int last_tri_id = -1;
+
     for(int t=0; t < found_tris; t++)
     {
         int tri_id = tri_ids[t];
@@ -6124,7 +6131,6 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
         float4 native_current = object_geodesics[tri.geodesic_segment];
         float4 native_next = object_geodesics[tri.geodesic_segment + stride];
 
-        ///todo: precalculate me
         float4 min_extents = tri.min_extents;
         float4 max_extents = tri.max_extents;
 
@@ -6144,20 +6150,50 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
         float3 v1 = (float3)(tri.v1x, tri.v1y, tri.v1z);
         float3 v2 = (float3)(tri.v2x, tri.v2y, tri.v2z);
 
-        for(int rs = 0; rs < my_ray_segment_count - 1; rs++)
+        for(int rs = 0; rs <= last_hit_segment; rs++)
         {
             float4 current_pos = ray_segments[rs * width * height + ray_id];
             float4 next_pos = ray_segments[(rs+1) * width * height + ray_id];
 
+            float ray_t = FLT_MAX;
+
+            ///todo: sort by minimum ray intersection length? whats going on here
+            ///wait. do i want the last hit??
+            ///no its because i might hit multiple in this segment, rip
+            ///i'm doing this raywise, but traversing the entire ray, so early terminate is borked
+            ///this is very inefficient, go along the way and then check the tris
+            ///or maybe not actually, there's some good short circuiting i can do, and the tris need more memory fetche
             if(ray_intersects_toblerone2(current_pos, next_pos, v0, v1, v2, min_extents, max_extents, native_current, native_next,
-                                         s_ie0, s_ie1, s_ie2, s_ie3, n_ie0, n_ie1, n_ie2, n_ie3, periods, ray_x == 1353 && ray_y == 406))
+                                         s_ie0, s_ie1, s_ie2, s_ie3, n_ie0, n_ie1, n_ie2, n_ie3, periods, &ray_t, ray_x == 1353 && ray_y == 406))
             {
-                float3 ncol = fabs(triangle_normal(v0, v1, v2));
-                //write_imagef(screen, (int2)(ray_x, ray_y), (float4)(1, 0, 0, 1));
-                write_imagef(screen, (int2)(ray_x, ray_y), (float4)(ncol.x, ncol.y, ncol.z, 1));
-                return;
+                if(ray_x == 1030 && ray_y == 280)
+                {
+                    printf("Isect %f %i\n", ray_t, rs);
+                }
+
+                if(rs == last_hit_segment && ray_t >= last_ray_t)
+                    continue;
+
+                last_ray_t = ray_t;
+
+                last_tri_id = tri_id;
+                last_hit_segment = rs;
+                break;
             }
         }
+    }
+
+    ///1030, 280
+    if(last_tri_id >= 0)
+    {
+        struct computed tri = ctri[last_tri_id];
+
+        float3 v0 = (float3)(tri.v0x, tri.v0y, tri.v0z);
+        float3 v1 = (float3)(tri.v1x, tri.v1y, tri.v1z);
+        float3 v2 = (float3)(tri.v2x, tri.v2y, tri.v2z);
+
+        float3 ncol = fabs(triangle_normal(v0, v1, v2));
+        write_imagef(screen, (int2)(ray_x, ray_y), (float4)(ncol.x, ncol.y, ncol.z, 1));
     }
 }
 
