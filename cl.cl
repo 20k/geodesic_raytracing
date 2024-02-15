@@ -6152,9 +6152,9 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
             if(ray_intersects_toblerone2(current_pos, next_pos, v0, v1, v2, min_extents, max_extents, native_current, native_next,
                                          s_ie0, s_ie1, s_ie2, s_ie3, n_ie0, n_ie1, n_ie2, n_ie3, periods, ray_x == 1353 && ray_y == 406))
             {
-                //float3 ncol = fabs(triangle_normal(v0, v1, v2));
-                write_imagef(screen, (int2)(ray_x, ray_y), (float4)(1, 0, 0, 1));
-                //write_imagef(screen, (int2)(ray_x, ray_y), (float4)(ncol.x, ncol.y, ncol.z, 1));
+                float3 ncol = fabs(triangle_normal(v0, v1, v2));
+                //write_imagef(screen, (int2)(ray_x, ray_y), (float4)(1, 0, 0, 1));
+                write_imagef(screen, (int2)(ray_x, ray_y), (float4)(ncol.x, ncol.y, ncol.z, 1));
                 return;
             }
         }
