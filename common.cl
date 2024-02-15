@@ -34,17 +34,6 @@ float max(float v1, float v2)
 
 ///we have guaranteed a smooth coordinate system via a lot of effort, that means that the input coordinates are NOT periodic
 ///in a periodic coordinate system
-
-CONSTEXPR
-void sort2(float* v0, float* v1)
-{
-    float iv0 = *v0;
-    float iv1 = *v1;
-
-    *v0 = min(iv0, iv1);
-    *v1 = max(iv0, iv1);
-}
-
 CONSTEXPR
 bool range_overlaps(float s0, float s1, float e0, float e1)
 {

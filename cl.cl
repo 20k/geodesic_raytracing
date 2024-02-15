@@ -72,6 +72,15 @@ bool approx_equal(float v1, float v2, float tol)
 
 #define IS_DEGENERATE(x) (isnan(x) || !isfinite(x))
 
+void sort2(float* v0, float* v1)
+{
+    float iv0 = *v0;
+    float iv1 = *v1;
+
+    *v0 = min(iv0, iv1);
+    *v1 = max(iv0, iv1);
+}
+
 float smooth_fmod(float a, float b)
 {
     return fmod(a, b);
