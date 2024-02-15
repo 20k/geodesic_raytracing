@@ -4878,9 +4878,6 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
 
     float ray_t = 0;
 
-    if(debug)
-        printf("Pos %f %f %f\n", last_pos.y, last_pos.z, last_pos.w);
-
     bool intersected = ray_intersects_triangle(last_pos.yzw, last_dir.yzw, v0, v1, v2, &ray_t, 0, 0);
 
     float new_x = ray_origin.x + ray_t * ray_vel.x;
@@ -4890,9 +4887,6 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
 
     if(new_x < tri_lower_t || new_x > tri_upper_t)
         return false;
-
-    if(debug)
-        printf("P3 %f %i dir %f %f %f tri %f %f %f\n", ray_t, intersected, last_dir.y, last_dir.z, last_dir.w, v0.x, v0.y, v0.z);
 
     return intersected;
 
@@ -5988,8 +5982,8 @@ void generate_tri_lists(global struct triangle* tris,
             if(all(chunk_clip_min == chunk_clip_max))
                 continue;
 
-            //if(!range_overlaps_general4(chunk_clip_min, chunk_clip_max, bounding_min, bounding_max, coordinate_period))
-            //    continue;
+            if(!range_overlaps_general4(chunk_clip_min, chunk_clip_max, bounding_min, bounding_max, coordinate_period))
+                continue;
 
             int my_id = atomic_inc(&chunked_tri_list_count[cid]);
 
@@ -6091,22 +6085,12 @@ void render_chunked_tris(global struct triangle* tris, int tri_count,
         return;
     }*/
 
-    if(ray_x == 1030 && ray_y == 280)
-    {
-        printf("Start\n");
-    }
-
     float4 periods = get_coordinate_period(cfg);
 
-    /*for(int t=0; t < found_tris; t++)
+    for(int t=0; t < found_tris; t++)
     {
         int tri_id = tri_ids[t];
-        struct triangle tri = tris[tri_id];*/
-
-    for(int t=0; t < tri_count; t++)
-    {
-        int tri_id = t;
-        struct triangle tri = tris[t];
+        struct triangle tri = tris[tri_id];
 
         int skip = 1;
         int max_geodesic_segment = 2048;
@@ -6130,11 +6114,6 @@ void render_chunked_tris(global struct triangle* tris, int tri_count,
                 float4 s_e1 = p_e1[cc * stride + tri.parent];
                 float4 s_e2 = p_e2[cc * stride + tri.parent];
                 float4 s_e3 = p_e3[cc * stride + tri.parent];
-
-                /*if(ray_x == 128 && ray_y == 128)
-                {
-                    printf("Tet? %f %f %f %f\n", s_e0.x, s_e0.y, s_e0.z, s_e0.w);
-                }*/
 
                 ///next tetrads
                 float4 n_e0 = p_e0[(cc + skip) * stride + tri.parent];
@@ -6198,32 +6177,11 @@ void render_chunked_tris(global struct triangle* tris, int tri_count,
                 float4 current_pos = ray_segments[rs * width * height + ray_id];
                 float4 next_pos = ray_segments[(rs+1) * width * height + ray_id];
 
-                if(ray_x == 512 && ray_y == 512)
-                {
-                    //printf("Hi %f %f %f %f\n", current_pos.x, current_pos.y, current_pos.z, current_pos.w);
-
-                    //printf("Tet %f %f %f %f\n", s_ie0.x, s_ie0.y, s_ie0.z, s_ie0.w);
-                    //printf("Hi %i %f %f %f %f\n", rs, current_pos.x, current_pos.y, current_pos.z, current_pos.w);
-                }
-
-                /*struct computed_triangle ctri;
-                ctri.tv0 = (float4)(0.f, v0.x, v0.y, v0.z);
-                ctri.tv1 = (float4)(0.f, v1.x, v1.y, v1.z);
-                ctri.tv2 = (float4)(0.f, v2.x, v2.y, v2.z);
-
-                ctri.geodesic_segment = cc * geodesic_count + tri.parent;
-                ctri.next_geodesic_segment = (cc + skip) * geodesic_count + tri.parent;
-
-                ctri.min_extents = min_extents;
-                ctri.max_extents = max_extents;*/
 
                 float4 smooth_next_pos = periodic_diff(next_pos, current_pos, periods) + current_pos;
 
                 if(ray_intersects_toblerone2(current_pos, smooth_next_pos, v0, v1, v2, min_extents, max_extents, native_current, native_next,
                                              s_ie0, s_ie1, s_ie2, s_ie3, n_ie0, n_ie1, n_ie2, n_ie3, periods, ray_x == 1030 && ray_y == 280))
-
-                //if(ray_intersects_toblerone(current_pos, next_pos, (float4)(0,0,0,0), 0.f, &ctri, native_current, native_next,
-                //                            inverse_e0s, inverse_e1s, inverse_e2s, inverse_e3s, 0, false, periods))
                 {
                     write_imagef(screen, (int2)(ray_x, ray_y), (float4)(1, 0, 0, 1));
                     return;
