@@ -5786,7 +5786,7 @@ void generate_clip_regions(global float4* ray_write,
     if(x >= width || y >= height)
         return;
 
-    size_t id = x * y;
+    size_t id = y * width + x;
 
     int count = ray_write_counts[id];
 
@@ -5813,7 +5813,7 @@ void generate_clip_regions(global float4* ray_write,
     local int exists[16*16];
 
     {
-        size_t lid = get_local_id(0) * get_local_id(1);
+        size_t lid = get_local_id(1) * get_local_size(0) + get_local_id(0);
 
         lmins[lid] = current_min;
         lmaxs[lid] = current_max;
@@ -5853,9 +5853,13 @@ void generate_clip_regions(global float4* ray_write,
                 }
             }
         }
-
         size_t block_x = get_group_id(0);
         size_t block_y = get_group_id(1);
+
+        /*if(block_x == 10 && block_y == 10)
+        {
+            printf("%f %f %f %f doot\n", clip_min.x, clip_min.y, clip_min.z, clip_min.w);
+        }*/
 
         size_t block_width = get_num_groups(0);
 
@@ -5929,6 +5933,7 @@ void generate_tri_lists(global struct triangle* tris,
         {
             bounding_min = min_extents;
             bounding_max = max_extents;
+            any_bounding = 1;
         }
         else
         {
@@ -5936,6 +5941,9 @@ void generate_tri_lists(global struct triangle* tris,
             bounding_max = max(bounding_max, max_extents);
         }
     }
+
+    //printf("Bound %f %f %f %f\n", bounding_min.x, bounding_min.y, bounding_min.z, bounding_min.w);
+    //printf("Bound %f %f %f %f\n", bounding_max.x, bounding_max.y, bounding_max.z, bounding_max.w);
 
     ///we have a bounding box for this triangle, and a bounding box for a clip region of a chunk of the screen
     ///clip one against the other, and generate a renderable triangle
@@ -5957,6 +5965,15 @@ void generate_tri_lists(global struct triangle* tris,
             float4 chunk_clip_min = chunked_mins[cid];
             float4 chunk_clip_max = chunked_maxs[cid];
 
+            /*if(x == 10 && y == 10)
+            {
+                printf("Chunkmin %f %f %f %f\n", chunk_clip_min.x, chunk_clip_min.y, chunk_clip_min.z, chunk_clip_min.w);
+                printf("Chunkmax %f %f %f %f\n", chunk_clip_max.x, chunk_clip_max.y, chunk_clip_max.z, chunk_clip_max.w);
+
+                printf("Boundmin %f %f %f %f\n", bounding_min.x, bounding_min.y, bounding_min.z, bounding_min.w);
+                printf("Boundman %f %f %f %f\n", bounding_max.x, bounding_max.y, bounding_max.z, bounding_max.w);
+            }*/
+
             if(all(chunk_clip_min == chunk_clip_max))
                 continue;
 
@@ -5969,6 +5986,7 @@ void generate_tri_lists(global struct triangle* tris,
                 continue;
 
             ///investigate memory ordering later
+            ///this smells like wrong accesses
             chunked_tri_list_out[cid * max_tris_per_chunk + my_id] = id;
         }
     }
