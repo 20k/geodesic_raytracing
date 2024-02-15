@@ -4817,7 +4817,7 @@ bool intersects_at_fraction(float3 v0, float3 normal, float4 initial_origin, flo
 bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3 v0, float3 v1, float3 v2, float4 min_extents, float4 max_extents, float4 object_geodesic_origin, float4 next_object_geodesic_origin,
                               float4 i_re0, float4 i_re1, float4 i_re2, float4 i_re3, ///inverse current geodesic segment tetrad
                               float4 i_ne0, float4 i_ne1, float4 i_ne2, float4 i_ne3, ///inverse next geodesic segment tetrad
-                              float4 periods)
+                              float4 periods, bool debug)
 {
     float4 min_camera = min(global_pos, next_global_pos);
     float4 max_camera = max(global_pos, next_global_pos);
@@ -4878,6 +4878,9 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
 
     float ray_t = 0;
 
+    if(debug)
+        printf("Pos %f %f %f\n", last_pos.y, last_pos.z, last_pos.w);
+
     bool intersected = ray_intersects_triangle(last_pos.yzw, last_dir.yzw, v0, v1, v2, &ray_t, 0, 0);
 
     float new_x = ray_origin.x + ray_t * ray_vel.x;
@@ -4885,15 +4888,21 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
     if(new_x < ray_lower_t || new_x > ray_upper_t)
         return false;
 
+    if(debug)
+        printf("p2\n");
+
     if(new_x < tri_lower_t || new_x > tri_upper_t)
         return false;
+
+    if(debug)
+        printf("P3 %f %i dir %f %f %f tri %f %f %f\n", ray_t, intersected, last_dir.y, last_dir.z, last_dir.w, v0.x, v0.y, v0.z);
 
     return intersected;
 
 }
 
 ///dir is not normalised, should really use a pos2
-bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 ray_vel4, float ds, __global const struct computed_triangle* ctri, float4 object_geodesic_origin, float4 next_object_geodesic_origin,
+bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 ray_vel4, float ds, const struct computed_triangle* ctri, float4 object_geodesic_origin, float4 next_object_geodesic_origin,
                               __global const float4* restrict inverse_e0s, __global const float4* restrict inverse_e1s, __global const float4* restrict inverse_e2s, __global const float4* restrict inverse_e3s,
                               float* t_out, bool debug, float4 periods)
 {
@@ -5729,20 +5738,22 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
 
             if(i == 0)
             {
-                last_real_pos = native_position;
+                //last_real_pos = native_position;
             }
 
-            float4 real_pos = last_real_pos;
-            ///I think this periodic diff is only necessary in constant theta metrics?
-            float4 next_real_pos = periodic_diff(native_position, last_real_pos, periods) + last_real_pos;
+            float4 real_pos = native_position;
 
-            last_real_pos = native_position;
+            //float4 real_pos = last_real_pos;
+            ///I think this periodic diff is only necessary in constant theta metrics?
+            //float4 next_real_pos = periodic_diff(native_position, last_real_pos, periods) + last_real_pos;
+
+            //last_real_pos = native_position;
 
             if((i % 4) == 0)
             {
                 if(which_ray_write < max_write)
                 {
-                    ray_write[which_ray_write * width * height + id] = next_real_pos;
+                    ray_write[which_ray_write * width * height + id] = real_pos;
 
                     which_ray_write++;
                     ray_write_counts[sy * width + sx] = which_ray_write;
@@ -6007,7 +6018,9 @@ void render_chunked_tris(global struct triangle* tris, int tri_count,
                          global float4* object_geodesics, global int* object_geodesic_counts,
                          global float4* p_e0, global float4* p_e1, global float4* p_e2, global float4* p_e3,
                          global const float4* restrict inverse_e0s, __global const float4* restrict inverse_e1s, __global const float4* restrict inverse_e2s, __global const float4* restrict inverse_e3s,
-                         dynamic_config_space const struct dynamic_config* cfg
+                         dynamic_config_space const struct dynamic_config* cfg,
+                         float mouse_x,
+                         float mouse_y
                          )
 {
     int ray_x = get_global_id(0);
@@ -6178,14 +6191,32 @@ void render_chunked_tris(global struct triangle* tris, int tri_count,
                 float4 current_pos = ray_segments[rs * width * height + ray_id];
                 float4 next_pos = ray_segments[(rs+1) * width * height + ray_id];
 
-                /*if(ray_x == 128 && ray_y == 128)
+                if(ray_x == 512 && ray_y == 512)
                 {
-                    printf("Tet %f %f %f %f\n", s_ie0.x, s_ie0.y, s_ie0.z, s_ie0.w);
-                    //printf("Hi %i %f %f %f %f\n", rs, current_pos.x, current_pos.y, current_pos.z, current_pos.w);
-                }*/
+                    //printf("Hi %f %f %f %f\n", current_pos.x, current_pos.y, current_pos.z, current_pos.w);
 
-                if(ray_intersects_toblerone2(current_pos, next_pos, v0, v1, v2, min_extents, max_extents, native_current, native_next,
-                                             s_ie0, s_ie1, s_ie2, s_ie3, n_ie0, n_ie1, n_ie2, n_ie3, periods))
+                    //printf("Tet %f %f %f %f\n", s_ie0.x, s_ie0.y, s_ie0.z, s_ie0.w);
+                    //printf("Hi %i %f %f %f %f\n", rs, current_pos.x, current_pos.y, current_pos.z, current_pos.w);
+                }
+
+                /*struct computed_triangle ctri;
+                ctri.tv0 = (float4)(0.f, v0.x, v0.y, v0.z);
+                ctri.tv1 = (float4)(0.f, v1.x, v1.y, v1.z);
+                ctri.tv2 = (float4)(0.f, v2.x, v2.y, v2.z);
+
+                ctri.geodesic_segment = cc * geodesic_count + tri.parent;
+                ctri.next_geodesic_segment = (cc + skip) * geodesic_count + tri.parent;
+
+                ctri.min_extents = min_extents;
+                ctri.max_extents = max_extents;*/
+
+                float4 smooth_next_pos = periodic_diff(next_pos, current_pos, periods) + current_pos;
+
+                if(ray_intersects_toblerone2(current_pos, smooth_next_pos, v0, v1, v2, min_extents, max_extents, native_current, native_next,
+                                             s_ie0, s_ie1, s_ie2, s_ie3, n_ie0, n_ie1, n_ie2, n_ie3, periods, ray_x == 1030 && ray_y == 280))
+
+                //if(ray_intersects_toblerone(current_pos, next_pos, (float4)(0,0,0,0), 0.f, &ctri, native_current, native_next,
+                //                            inverse_e0s, inverse_e1s, inverse_e2s, inverse_e3s, 0, false, periods))
                 {
                     write_imagef(screen, (int2)(ray_x, ray_y), (float4)(1, 0, 0, 1));
                     return;

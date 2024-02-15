@@ -2548,18 +2548,23 @@ int main(int argc, char* argv[])
                     for(int i=0; i < 4; i++)
                         args.push_back(phys.subsampled_inverted_tetrads[i]);
 
+                    float mx = ImGui::GetIO().MousePos.x;
+                    float my = ImGui::GetIO().MousePos.y;
+
                     args.push_back(dynamic_config);
+                    args.push_back(mx);
+                    args.push_back(my);
 
                     produce_event = mqueue.exec("render_chunked_tris", args, {st.width, st.height}, {chunk_x, chunk_y});
                 }
 
-                /*cl::args intersect_args;
+                cl::args intersect_args;
                 intersect_args.push_back(st.tri_intersections);
                 intersect_args.push_back(st.tri_intersections_count);
                 intersect_args.push_back(accel.memory);
                 intersect_args.push_back(glis.rtex);
 
-                produce_event = mqueue.exec("render_intersections", intersect_args, {glis.rtex.size<2>().x() * glis.rtex.size<2>().y()}, {256});*/
+                produce_event = mqueue.exec("render_intersections", intersect_args, {glis.rtex.size<2>().x() * glis.rtex.size<2>().y()}, {256});
             }
 
             last_last_event = last_event;
