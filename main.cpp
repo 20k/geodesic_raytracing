@@ -2481,6 +2481,9 @@ int main(int argc, char* argv[])
 
             if(dfg.get_feature<bool>("use_triangle_rendering"))
             {
+                int chunk_x = menu.sett.workgroup_size[0];
+                int chunk_y = menu.sett.workgroup_size[1];
+
                 {
                     cl::args args;
                     args.push_back(st.stored_rays);
@@ -2493,17 +2496,38 @@ int main(int argc, char* argv[])
                     args.push_back(st.chunked_mins);
                     args.push_back(st.chunked_maxs);
 
-                    mqueue.exec("generate_clip_regions", args, {st.width, st.height}, {menu.sett.workgroup_size[0], menu.sett.workgroup_size[1]});
+                    mqueue.exec("generate_clip_regions", args, {st.width, st.height}, {chunk_x, chunk_y});
                 }
 
+                {
+                    cl::args args;
+                    args.push_back(tris.tris);
+                    args.push_back(tris.tri_count);
+                    args.push_back(phys.subsampled_paths);
+                    args.push_back(phys.subsampled_counts);
 
-                cl::args intersect_args;
+                    for(int i=0; i < 4; i++)
+                        args.push_back(phys.subsampled_parallel_transported_tetrads[i]);
+
+                    args.push_back(st.tri_list);
+                    args.push_back(st.tri_list_counts);
+                    args.push_back(st.max_tris_per_chunk);
+                    args.push_back(st.chunked_mins);
+                    args.push_back(st.chunked_maxs);
+                    args.push_back(chunk_x);
+                    args.push_back(chunk_y);
+                    args.push_back(dynamic_config);
+
+                    mqueue.exec("generate_tri_lists", args, {tris.tri_count}, {128});
+                }
+
+                /*cl::args intersect_args;
                 intersect_args.push_back(st.tri_intersections);
                 intersect_args.push_back(st.tri_intersections_count);
                 intersect_args.push_back(accel.memory);
                 intersect_args.push_back(glis.rtex);
 
-                produce_event = mqueue.exec("render_intersections", intersect_args, {glis.rtex.size<2>().x() * glis.rtex.size<2>().y()}, {256});
+                produce_event = mqueue.exec("render_intersections", intersect_args, {glis.rtex.size<2>().x() * glis.rtex.size<2>().y()}, {256});*/
             }
 
             last_last_event = last_event;

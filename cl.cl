@@ -5867,7 +5867,6 @@ void generate_clip_regions(global float4* ray_write,
 __kernel
 void generate_tri_lists(global struct triangle* tris,
                         int tri_count,
-                        int obj_count,
                         global float4* object_geodesics, global int* object_geodesic_counts,
                         global float4* p_e0, global float4* p_e1, global float4* p_e2, global float4* p_e3,
                         global int* chunked_tri_list_out,
