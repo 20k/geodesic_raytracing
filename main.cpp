@@ -2508,86 +2508,90 @@ int main(int argc, char* argv[])
                     mqueue.exec("generate_computed_tris", args, {tris.tri_count}, {128});
                 }
 
+                for(int kk=0; kk < 4; kk++)
                 {
-                    cl::args args;
-                    args.push_back(st.stored_rays);
-                    args.push_back(st.stored_ray_counts);
-                    args.push_back(st.max_stored);
-                    args.push_back(st.stored_mins);
-                    args.push_back(st.stored_maxs);
-                    args.push_back(st.width);
-                    args.push_back(st.height);
-                    args.push_back(st.chunked_mins);
-                    args.push_back(st.chunked_maxs);
+                    {
+                        cl::args args;
+                        args.push_back(st.stored_rays);
+                        args.push_back(st.stored_ray_counts);
+                        args.push_back(st.max_stored);
+                        args.push_back(st.stored_mins);
+                        args.push_back(st.stored_maxs);
+                        args.push_back(st.width);
+                        args.push_back(st.height);
+                        args.push_back(st.chunked_mins);
+                        args.push_back(st.chunked_maxs);
+                        args.push_back(kk);
 
-                    mqueue.exec("generate_clip_regions", args, {st.width, st.height}, {chunk_x, chunk_y});
+                        mqueue.exec("generate_clip_regions", args, {st.width, st.height}, {chunk_x, chunk_y});
+                    }
+
+                    {
+                        st.tri_list_counts.set_to_zero(mqueue);
+
+                        cl::args args;
+                        args.push_back(st.computed_tris);
+                        args.push_back(st.computed_tri_count);
+                        args.push_back(phys.object_count);
+                        args.push_back(phys.subsampled_paths);
+                        args.push_back(phys.subsampled_counts);
+
+                        for(int i=0; i < 4; i++)
+                            args.push_back(phys.subsampled_parallel_transported_tetrads[i]);
+
+                        args.push_back(st.tri_list);
+                        args.push_back(st.tri_list_counts);
+                        args.push_back(max_tris_per_chunk);
+                        args.push_back(st.chunked_mins);
+                        args.push_back(st.chunked_maxs);
+                        args.push_back(chunk_x);
+                        args.push_back(chunk_y);
+                        args.push_back(st.width);
+                        args.push_back(st.height);
+                        args.push_back(dynamic_config);
+
+                        ///we could actually work this out, because computed tris are only generated once in theory
+                        mqueue.exec("generate_tri_lists", args, {1024 * 1024 * 10}, {128});
+                    }
+
+                    {
+                        cl::args args;
+                        args.push_back(st.computed_tris);
+                        args.push_back(st.computed_tri_count);
+                        args.push_back(phys.object_count);
+                        args.push_back(glis.rtex);
+                        args.push_back(st.tri_list);
+                        args.push_back(st.tri_list_counts);
+                        args.push_back(st.width);
+                        args.push_back(st.height);
+                        args.push_back(chunk_x);
+                        args.push_back(chunk_y);
+                        args.push_back(max_tris_per_chunk);
+                        args.push_back(st.stored_rays);
+                        args.push_back(st.stored_ray_counts);
+                        args.push_back(phys.subsampled_paths);
+                        args.push_back(phys.subsampled_counts);
+
+                        for(int i=0; i < 4; i++)
+                            args.push_back(phys.subsampled_parallel_transported_tetrads[i]);
+
+                        for(int i=0; i < 4; i++)
+                            args.push_back(phys.subsampled_inverted_tetrads[i]);
+
+                        args.push_back(st.stored_mins);
+                        args.push_back(st.stored_maxs);
+
+                        float mx = ImGui::GetIO().MousePos.x;
+                        float my = ImGui::GetIO().MousePos.y;
+
+                        args.push_back(dynamic_config);
+                        args.push_back(mx);
+                        args.push_back(my);
+                        args.push_back(kk);
+
+                        produce_event = mqueue.exec("render_chunked_tris", args, {st.width, st.height}, {chunk_x, chunk_y});
+                    }
                 }
-
-                {
-                    st.tri_list_counts.set_to_zero(mqueue);
-
-                    cl::args args;
-                    args.push_back(st.computed_tris);
-                    args.push_back(st.computed_tri_count);
-                    args.push_back(phys.object_count);
-                    args.push_back(phys.subsampled_paths);
-                    args.push_back(phys.subsampled_counts);
-
-                    for(int i=0; i < 4; i++)
-                        args.push_back(phys.subsampled_parallel_transported_tetrads[i]);
-
-                    args.push_back(st.tri_list);
-                    args.push_back(st.tri_list_counts);
-                    args.push_back(max_tris_per_chunk);
-                    args.push_back(st.chunked_mins);
-                    args.push_back(st.chunked_maxs);
-                    args.push_back(chunk_x);
-                    args.push_back(chunk_y);
-                    args.push_back(st.width);
-                    args.push_back(st.height);
-                    args.push_back(dynamic_config);
-
-                    ///we could actually work this out, because computed tris are only generated once in theory
-                    mqueue.exec("generate_tri_lists", args, {1024 * 1024 * 10}, {128});
-                }
-
-                {
-                    cl::args args;
-                    args.push_back(st.computed_tris);
-                    args.push_back(st.computed_tri_count);
-                    args.push_back(phys.object_count);
-                    args.push_back(glis.rtex);
-                    args.push_back(st.tri_list);
-                    args.push_back(st.tri_list_counts);
-                    args.push_back(st.width);
-                    args.push_back(st.height);
-                    args.push_back(chunk_x);
-                    args.push_back(chunk_y);
-                    args.push_back(max_tris_per_chunk);
-                    args.push_back(st.stored_rays);
-                    args.push_back(st.stored_ray_counts);
-                    args.push_back(phys.subsampled_paths);
-                    args.push_back(phys.subsampled_counts);
-
-                    for(int i=0; i < 4; i++)
-                        args.push_back(phys.subsampled_parallel_transported_tetrads[i]);
-
-                    for(int i=0; i < 4; i++)
-                        args.push_back(phys.subsampled_inverted_tetrads[i]);
-
-                    args.push_back(st.stored_mins);
-                    args.push_back(st.stored_maxs);
-
-                    float mx = ImGui::GetIO().MousePos.x;
-                    float my = ImGui::GetIO().MousePos.y;
-
-                    args.push_back(dynamic_config);
-                    args.push_back(mx);
-                    args.push_back(my);
-
-                    produce_event = mqueue.exec("render_chunked_tris", args, {st.width, st.height}, {chunk_x, chunk_y});
-                }
-
                 /*cl::args intersect_args;
                 intersect_args.push_back(st.tri_intersections);
                 intersect_args.push_back(st.tri_intersections_count);
