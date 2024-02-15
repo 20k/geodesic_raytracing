@@ -2505,6 +2505,7 @@ int main(int argc, char* argv[])
                     cl::args args;
                     args.push_back(tris.tris);
                     args.push_back(tris.tri_count);
+                    args.push_back(phys.object_count);
                     args.push_back(phys.subsampled_paths);
                     args.push_back(phys.subsampled_counts);
 
@@ -2529,6 +2530,7 @@ int main(int argc, char* argv[])
                     cl::args args;
                     args.push_back(tris.tris);
                     args.push_back(tris.tri_count);
+                    args.push_back(phys.object_count);
                     args.push_back(glis.rtex);
                     args.push_back(st.tri_list);
                     args.push_back(st.tri_list_counts);

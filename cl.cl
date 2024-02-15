@@ -5879,6 +5879,7 @@ void generate_clip_regions(global float4* ray_write,
 __kernel
 void generate_tri_lists(global struct triangle* tris,
                         int tri_count,
+                        int object_count,
                         global float4* object_geodesics, global int* object_geodesic_counts,
                         global float4* p_e0, global float4* p_e1, global float4* p_e2, global float4* p_e3,
                         global int* chunked_tri_list_out,
@@ -5908,16 +5909,18 @@ void generate_tri_lists(global struct triangle* tris,
     float4 bounding_max;
     int any_bounding = 0;
 
+    int stride = object_count;
+
     for(int cc=0; cc < count && cc < max_geodesic_segment; cc += skip)
     {
         ///current position of triangle in coordinate space
-        float4 native_current = object_geodesics[cc * count + my_tri.parent];
+        float4 native_current = object_geodesics[cc * stride + my_tri.parent];
 
         ///tetrads
-        float4 s_e0 = p_e0[cc * count + my_tri.parent];
-        float4 s_e1 = p_e1[cc * count + my_tri.parent];
-        float4 s_e2 = p_e2[cc * count + my_tri.parent];
-        float4 s_e3 = p_e3[cc * count + my_tri.parent];
+        float4 s_e0 = p_e0[cc * stride + my_tri.parent];
+        float4 s_e1 = p_e1[cc * stride + my_tri.parent];
+        float4 s_e2 = p_e2[cc * stride + my_tri.parent];
+        float4 s_e3 = p_e3[cc * stride + my_tri.parent];
 
         ///triangle coordinates in local space
         float4 vert_0 = (float4)(0, my_tri.v0x, my_tri.v0y, my_tri.v0z);
@@ -6002,6 +6005,7 @@ void generate_tri_lists(global struct triangle* tris,
 
 __kernel
 void render_chunked_tris(global struct triangle* tris, int tri_count,
+                         int object_count,
                          __write_only image2d_t screen,
                          global int* chunked_tri_list,
                          global int* chunked_tri_list_count,
@@ -6108,12 +6112,13 @@ void render_chunked_tris(global struct triangle* tris, int tri_count,
         int max_geodesic_segment = 2048;
 
         int geodesic_count = object_geodesic_counts[tri.parent];
+        int stride = object_count;
 
         for(int cc=0; cc < geodesic_count - skip && cc < max_geodesic_segment; cc += skip)
         {
             ///current position of triangle in coordinate space
-            float4 native_current = object_geodesics[cc * geodesic_count + tri.parent];
-            float4 native_next = object_geodesics[(cc + skip) * geodesic_count + tri.parent];
+            float4 native_current = object_geodesics[cc * stride + tri.parent];
+            float4 native_next = object_geodesics[(cc + skip) * stride + tri.parent];
 
             ///todo: precalculate me
             float4 min_extents;
@@ -6121,10 +6126,10 @@ void render_chunked_tris(global struct triangle* tris, int tri_count,
 
             {
                 ///current tetrads
-                float4 s_e0 = p_e0[cc * geodesic_count + tri.parent];
-                float4 s_e1 = p_e1[cc * geodesic_count + tri.parent];
-                float4 s_e2 = p_e2[cc * geodesic_count + tri.parent];
-                float4 s_e3 = p_e3[cc * geodesic_count + tri.parent];
+                float4 s_e0 = p_e0[cc * stride + tri.parent];
+                float4 s_e1 = p_e1[cc * stride + tri.parent];
+                float4 s_e2 = p_e2[cc * stride + tri.parent];
+                float4 s_e3 = p_e3[cc * stride + tri.parent];
 
                 /*if(ray_x == 128 && ray_y == 128)
                 {
@@ -6132,10 +6137,10 @@ void render_chunked_tris(global struct triangle* tris, int tri_count,
                 }*/
 
                 ///next tetrads
-                float4 n_e0 = p_e0[(cc + skip) * geodesic_count + tri.parent];
-                float4 n_e1 = p_e1[(cc + skip) * geodesic_count + tri.parent];
-                float4 n_e2 = p_e2[(cc + skip) * geodesic_count + tri.parent];
-                float4 n_e3 = p_e3[(cc + skip) * geodesic_count + tri.parent];
+                float4 n_e0 = p_e0[(cc + skip) * stride + tri.parent];
+                float4 n_e1 = p_e1[(cc + skip) * stride + tri.parent];
+                float4 n_e2 = p_e2[(cc + skip) * stride + tri.parent];
+                float4 n_e3 = p_e3[(cc + skip) * stride + tri.parent];
 
                 ///triangle coordinates in local space
                 float4 vert_0 = (float4)(0, tri.v0x, tri.v0y, tri.v0z);
@@ -6173,16 +6178,16 @@ void render_chunked_tris(global struct triangle* tris, int tri_count,
             }
 
             ///current inverse tetrads
-            float4 s_ie0 = inverse_e0s[cc * geodesic_count + tri.parent];
-            float4 s_ie1 = inverse_e1s[cc * geodesic_count + tri.parent];
-            float4 s_ie2 = inverse_e2s[cc * geodesic_count + tri.parent];
-            float4 s_ie3 = inverse_e3s[cc * geodesic_count + tri.parent];
+            float4 s_ie0 = inverse_e0s[cc * stride + tri.parent];
+            float4 s_ie1 = inverse_e1s[cc * stride + tri.parent];
+            float4 s_ie2 = inverse_e2s[cc * stride + tri.parent];
+            float4 s_ie3 = inverse_e3s[cc * stride + tri.parent];
 
             ///next inverse tetrads
-            float4 n_ie0 = inverse_e0s[(cc + skip) * geodesic_count + tri.parent];
-            float4 n_ie1 = inverse_e1s[(cc + skip) * geodesic_count + tri.parent];
-            float4 n_ie2 = inverse_e2s[(cc + skip) * geodesic_count + tri.parent];
-            float4 n_ie3 = inverse_e3s[(cc + skip) * geodesic_count + tri.parent];
+            float4 n_ie0 = inverse_e0s[(cc + skip) * stride + tri.parent];
+            float4 n_ie1 = inverse_e1s[(cc + skip) * stride + tri.parent];
+            float4 n_ie2 = inverse_e2s[(cc + skip) * stride + tri.parent];
+            float4 n_ie3 = inverse_e3s[(cc + skip) * stride + tri.parent];
 
             float3 v0 = (float3)(tri.v0x, tri.v0y, tri.v0z);
             float3 v1 = (float3)(tri.v1x, tri.v1y, tri.v1z);
