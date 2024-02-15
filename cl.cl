@@ -5762,19 +5762,65 @@ bool periodic_range_overlaps(float s1, float s2, float e1, float e2, float perio
     if(e2 - e1 >= period)
         return true;
 
-    float min_start = min(s1, e1);
+    float period_start1 = floor(s1 / period) * period;
+    float period_start2 = floor(s2 / period) * period;
 
-    float period_start = floor(min_start / period) * period;
-    float period_end = period_start + period;
+    s1 -= period_start1;
+    s2 -= period_start1;
 
+    e1 -= period_start2;
+    e2 -= period_start2;
+
+    ///transform both into the same range, we now have eg
+    ///[1.1pi, 2.4pi] and [0.1pi, 0.3pi]. Deliberate example used
+
+    ///next up, split off the ends of both
+
+    bool has_end_1 = false;
+    float split_end1_s = 0;
+    float split_end1_e = 0;
+
+    bool has_end_2 = false;
+    float split_end2_s = 0;
+    float split_end2_e = 0;
+
+    if(s2 >= period)
+    {
+        has_end_1 = true;
+        split_end1_s = 0; ///the new split end starts at the period, and because we're periodic this is 0
+        split_end1_e = s2 - period;
+        s2 = period;
+    }
+
+    if(e2 >= period)
+    {
+        has_end_2 = true;
+        split_end2_s = 0;
+        split_end2_e = e2 - period;
+        e2 = period;
+    }
+
+    ///we now have possibly 2 pairs of ranges
+
+    if(range_overlaps(s1, s2, e1, e2))
+        return true;
+
+    if(has_end_1 && range_overlaps(split_end1_s, split_end1_e, e1, e2))
+        return true;
+
+    if(has_end_2 && range_overlaps(s1, s2, split_end2_s, split_end2_e))
+        return true;
+
+    if(has_end_1 && has_end_2 && range_overlaps(split_end1_s, split_end1_e, split_end2_s, split_end2_e))
+        return true;
 
     return false;
 }
 
 float range_overlaps_general(float s1, float s2, float e1, float e2, float period)
 {
-    //sort2(&s1, &s2);
-    //sort2(&e1, &e2);
+    sort2(&s1, &s2);
+    sort2(&e1, &e2);
 
     if(period == 0)
         return range_overlaps(s1, s2, e1, e2);
