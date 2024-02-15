@@ -5573,13 +5573,50 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
 
         if(GET_FEATURE(use_triangle_rendering, dfg))
         {
+            float4 native_position = position;
+
+            #if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC) || defined(DEBUG_CONSTANT_THETA)
+            {
+                float4 pos_spherical = generic_to_spherical(position, cfg);
+
+                float fsign = sign(pos_spherical.y);
+                pos_spherical.y = fabs(pos_spherical.y);
+
+                float3 pos_cart = polar_to_cartesian(pos_spherical.yzw);
+
+                float4 quat = ray_quat;
+
+                pos_cart = rot_quat_norm(pos_cart, quat);
+
+                float3 next_pos_spherical = cartesian_to_polar(pos_cart);
+
+                if(fsign < 0)
+                {
+                    next_pos_spherical.x = -next_pos_spherical.x;
+                }
+
+                float4 next_pos_generic = spherical_to_generic((float4)(pos_spherical.x, next_pos_spherical), cfg);
+
+                native_position = next_pos_generic;
+            }
+            #endif
+
+            if(i == 0)
+            {
+                last_real_pos = native_position;
+            }
+
+            float4 real_pos = last_real_pos;
+            ///I think this periodic diff is only necessary in constant theta metrics?
+            float4 next_real_pos = periodic_diff(native_position, last_real_pos, periods) + last_real_pos;
+
+            last_real_pos = native_position;
+
             if((i % 4) == 0)
             {
                 if(which_ray_write < max_write)
                 {
-                    //ray_write[(sy * width + sx) * max_write + which_ray_write] = position;
-
-                    ray_write[which_ray_write * width * height + id] = position;
+                    ray_write[which_ray_write * width * height + id] = next_real_pos;
 
                     which_ray_write++;
                     ray_write_counts[sy * width + sx] = which_ray_write;
@@ -5714,20 +5751,35 @@ void generate_clip_regions(global float4* ray_write,
 
 ///we do this for both periodic coordinates, and end up with two ranges. Check if either of them overlap
 
+///we have guaranteed a smooth coordinate system via a lot of effort, that means that the input coordinates are NOT periodic
+///in a periodic coordinate system
+
 bool periodic_range_overlaps(float s1, float s2, float e1, float e2, float period)
 {
+    if(s2 - s1 >= period)
+        return true;
+
+    if(e2 - e1 >= period)
+        return true;
+
+    float min_start = min(s1, e1);
+
+    float period_start = floor(min_start / period) * period;
+    float period_end = period_start + period;
+
+
     return false;
 }
 
 float range_overlaps_general(float s1, float s2, float e1, float e2, float period)
 {
-    sort2(&s1, &s2);
-    sort2(&e1, &e2);
+    //sort2(&s1, &s2);
+    //sort2(&e1, &e2);
 
     if(period == 0)
         return range_overlaps(s1, s2, e1, e2);
     else
-        return periodic_range_overlaps(s1, s2, e1, e2);
+        return periodic_range_overlaps(s1, s2, e1, e2, period);
 }
 
 __kernel
