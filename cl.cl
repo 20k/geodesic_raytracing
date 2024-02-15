@@ -5775,8 +5775,8 @@ __kernel
 void generate_clip_regions(global float4* ray_write,
                            global int* ray_write_counts,
                            int max_write,
-                           global float4* mins_out,
-                           global float4* maxs_out,
+                           //global float4* mins_out,
+                           //global float4* maxs_out,
                            int width, int height,
                            global float4* chunked_mins,
                            global float4* chunked_maxs)
@@ -5805,8 +5805,8 @@ void generate_clip_regions(global float4* ray_write,
             current_max = max(current_max, ray_write[i * width * height + id]);
         }
 
-        mins_out[id] = current_min;
-        maxs_out[id] = current_max;
+        //mins_out[id] = current_min;
+        //maxs_out[id] = current_max;
     }
 
     local float4 lmins[16*16];
@@ -5945,6 +5945,14 @@ void generate_tri_lists(global struct triangle* tris,
             bounding_max = max(bounding_max, max_extents);
         }
     }
+
+    ///256, 450
+
+    /*if(ray_x == 256 && ray_y == 450)
+    {
+        printf("Bound min %f %f %f %f max %f %f %f %f\n", bounding_min.x, bounding_min.y, bounding_min.z, bounding_min.w,
+                                      bounding_max.x, bounding_max.y, bounding_max.z, bounding_max.w);
+    }*/
 
     //printf("Bound %f %f %f %f\n", bounding_min.x, bounding_min.y, bounding_min.z, bounding_min.w);
     //printf("Bound %f %f %f %f\n", bounding_max.x, bounding_max.y, bounding_max.z, bounding_max.w);

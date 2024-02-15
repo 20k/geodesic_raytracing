@@ -2489,8 +2489,8 @@ int main(int argc, char* argv[])
                     args.push_back(st.stored_rays);
                     args.push_back(st.stored_ray_counts);
                     args.push_back(st.max_stored);
-                    args.push_back(st.stored_mins);
-                    args.push_back(st.stored_maxs);
+                    //args.push_back(st.stored_mins);
+                    //args.push_back(st.stored_maxs);
                     args.push_back(st.width);
                     args.push_back(st.height);
                     args.push_back(st.chunked_mins);
