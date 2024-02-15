@@ -2547,7 +2547,8 @@ int main(int argc, char* argv[])
                     args.push_back(st.height);
                     args.push_back(dynamic_config);
 
-                    mqueue.exec("generate_tri_lists", args, {1024 * 1024 * 1024}, {128});
+                    ///we could actually work this out, because computed tris are only generated once in theory
+                    mqueue.exec("generate_tri_lists", args, {1024 * 1024 * 10}, {128});
                 }
 
                 {
