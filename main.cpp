@@ -2465,6 +2465,20 @@ int main(int argc, char* argv[])
 
             if(dfg.get_feature<bool>("use_triangle_rendering"))
             {
+                {
+                    cl::args args;
+                    args.push_back(st.stored_rays);
+                    args.push_back(st.stored_ray_counts);
+                    args.push_back(st.max_stored);
+                    args.push_back(st.stored_mins);
+                    args.push_back(st.stored_maxs);
+                    args.push_back(st.width);
+                    args.push_back(st.height);
+
+                    mqueue.exec("generate_clip_regions", args, {st.width*st.height}, {128});
+                }
+
+
                 cl::args intersect_args;
                 intersect_args.push_back(st.tri_intersections);
                 intersect_args.push_back(st.tri_intersections_count);

@@ -4933,6 +4933,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
 
     int id = sy * width + sx;
 
+    ray_write_counts[id] = 0;
+
      __global struct lightray* ray = &generic_rays_in[id];
 
     if(ray->terminated == 2)
@@ -5575,7 +5577,10 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
             {
                 if(which_ray_write < max_write)
                 {
-                    ray_write[which_ray_write] = position;
+                    //ray_write[(sy * width + sx) * max_write + which_ray_write] = position;
+
+                    ray_write[which_ray_write * width * height + id] = position;
+
                     which_ray_write++;
                     ray_write_counts[sy * width + sx] = which_ray_write;
                 }
@@ -5600,6 +5605,37 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
         atomic_max(ray_time_max, (int)ceil(my_max));
     }
     #endif
+}
+
+__kernel
+void generate_clip_regions(global float4* ray_write,
+                           global int* ray_write_counts,
+                           int max_write,
+                           global float4* mins_out,
+                           global float4* maxs_out,
+                           int width, int height)
+{
+    size_t id = get_global_id(0);
+
+    if(id >= width * height)
+        return;
+
+    int count = ray_write_counts[id];
+
+    if(count == 0)
+        return;
+
+    float4 current_min = ray_write[0 * width * height + id];
+    float4 current_max = ray_write[0 * width * height + id];
+
+    for(int i=1; i < count; i++)
+    {
+        current_min = min(current_min, ray_write[i * width * height + id]);
+        current_max = max(current_max, ray_write[i * width * height + id]);
+    }
+
+    mins_out[id] = current_min;
+    maxs_out[id] = current_max;
 }
 
 __kernel
