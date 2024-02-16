@@ -20,6 +20,14 @@ float max(float v1, float v2)
 }
 #endif
 
+int get_chunk_size(int in, int width)
+{
+    if((in % width) == 0)
+        return in/width;
+
+    return (in/width) + 1;
+}
+
 ///ok. How do we know of the range [0, PI/2], and [16.2pi, 18.3pi] overlap?
 ///or more generally, [15.1pi, 16.2pi] and [32pi, 34pi] overlap
 

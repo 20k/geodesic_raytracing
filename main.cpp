@@ -2487,7 +2487,10 @@ int main(int argc, char* argv[])
                 //int chunk_x = 16;
                 //int chunk_y = 16;
 
-                int chunks = ((menu.sett.width / chunk_x) + 1) * ((menu.sett.height / chunk_y) + 1);
+                int chunk_x_num = get_chunk_size(menu.sett.width, chunk_x);
+                int chunk_y_num = get_chunk_size(menu.sett.height, chunk_y);
+
+                int chunks = chunk_x_num * chunk_y_num;
 
                 int max_tris_per_chunk = st.tri_list1.alloc_size / (sizeof(cl_int) * chunks);
 
@@ -2535,12 +2538,6 @@ int main(int argc, char* argv[])
                         cl::args args;
                         args.push_back(st.computed_tris);
                         args.push_back(st.computed_tri_count);
-                        args.push_back(phys.object_count);
-                        args.push_back(phys.subsampled_paths);
-                        args.push_back(phys.subsampled_counts);
-
-                        for(int i=0; i < 4; i++)
-                            args.push_back(phys.subsampled_parallel_transported_tetrads[i]);
 
                         args.push_back(st.tri_list1);
                         args.push_back(st.tri_list_counts1);
@@ -2554,7 +2551,8 @@ int main(int argc, char* argv[])
                         args.push_back(dynamic_config);
 
                         ///we could actually work this out, because computed tris are only generated once in theory
-                        mqueue.exec("generate_tri_lists", args, {1024 * 1024 * 10}, {128});
+                        mqueue.exec("generate_tri_lists2", args, {chunk_x_num, chunk_y_num}, {8, 8});
+                        //mqueue.exec("generate_tri_lists", args, {1024 * 1024 * 10}, {128});
                     }
 
                     {

@@ -5910,14 +5910,6 @@ void generate_clip_regions(global float4* ray_write,
     }
 }
 
-int get_chunk_size(int in, int width)
-{
-    if((in % width) == 0)
-        return in/width;
-
-    return (in/width) + 1;
-}
-
 struct computed
 {
     float v0x, v0y, v0z,
@@ -6036,9 +6028,6 @@ void generate_computed_tris(global struct triangle* tris, int tri_count,
 __kernel
 void generate_tri_lists(global struct computed* ctri,
                         global int* ctri_count,
-                        int object_count,
-                        global float4* object_geodesics, global int* object_geodesic_counts,
-                        global float4* p_e0, global float4* p_e1, global float4* p_e2, global float4* p_e3,
                         global int* chunked_tri_list_out,
                         global int* chunked_tri_list_count,
                         int max_tris_per_chunk,
@@ -6093,6 +6082,62 @@ void generate_tri_lists(global struct computed* ctri,
             chunked_tri_list_out[cid * max_tris_per_chunk + my_id] = id;
         }
     }
+}
+
+__kernel
+void generate_tri_lists2(global struct computed* ctri,
+                        global int* ctri_count,
+                        global int* chunked_tri_list_out,
+                        global int* chunked_tri_list_count,
+                        int max_tris_per_chunk,
+                        global float4* chunked_mins,
+                        global float4* chunked_maxs,
+                        int chunk_x, int chunk_y,
+                        int width, int height,
+                        dynamic_config_space const struct dynamic_config* cfg)
+{
+    size_t idx = get_global_id(0);
+    size_t idy = get_global_id(1);
+
+    int chunk_dim_x = get_chunk_size(width, chunk_x);
+    int chunk_dim_y = get_chunk_size(height, chunk_y);
+
+    if(idx >= chunk_dim_x || idy >= chunk_dim_y)
+        return;
+
+    float4 coordinate_period = get_coordinate_period(cfg);
+
+    size_t cid = idy * chunk_dim_x + idx;
+
+    float4 chunk_clip_min = chunked_mins[cid];
+    float4 chunk_clip_max = chunked_maxs[cid];
+
+    if(all(chunk_clip_min == chunk_clip_max))
+    {
+        chunked_tri_list_count[cid] = 0;
+        return;
+    }
+
+    int tris_num = *ctri_count;
+
+    int chunked_count = 0;
+
+    for(int i=0; i < tris_num; i++)
+    {
+        struct computed my_tri = ctri[i];
+
+        if(!range_overlaps_general4(chunk_clip_min, chunk_clip_max, my_tri.min_extents, my_tri.max_extents, coordinate_period))
+            continue;
+
+        int my_id = chunked_count++;
+
+        if(my_id >= max_tris_per_chunk)
+            break;
+
+        chunked_tri_list_out[cid * max_tris_per_chunk + my_id] = i;
+    }
+
+    chunked_tri_list_out[cid] = chunked_count;
 }
 
 __kernel
