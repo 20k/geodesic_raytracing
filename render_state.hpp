@@ -49,8 +49,11 @@ struct render_state
     cl::buffer chunked_mins;
     cl::buffer chunked_maxs;
 
-    cl::buffer tri_list;
-    cl::buffer tri_list_counts;
+    cl::buffer tri_list1;
+    cl::buffer tri_list_counts1;
+
+    cl::buffer tri_list2;
+    cl::buffer tri_list_counts2;
 
     cl::buffer computed_tris;
     cl::buffer computed_tri_count;
@@ -71,7 +74,9 @@ struct render_state
         stored_rays(ctx), stored_ray_counts(ctx),
         stored_mins(ctx), stored_maxs(ctx),
         chunked_mins(ctx), chunked_maxs(ctx),
-        tri_list(ctx), tri_list_counts(ctx), computed_tris(ctx), computed_tri_count(ctx)
+        tri_list1(ctx), tri_list_counts1(ctx),
+        tri_list2(ctx), tri_list_counts2(ctx),
+        computed_tris(ctx), computed_tri_count(ctx)
     {
         g_camera_pos_cart.alloc(sizeof(cl_float4));
         g_camera_quat.alloc(sizeof(cl_float4));
@@ -122,8 +127,12 @@ struct render_state
         chunked_maxs.alloc(sizeof(cl_float4) * width * height);
 
         ///i need to do this properly, can't get away with the memory fudge so much
-        tri_list.alloc(sizeof(cl_int) * width * height * 50);
-        tri_list_counts.alloc(sizeof(cl_int) * width * height);
+        tri_list1.alloc(sizeof(cl_int) * width * height * 50);
+        tri_list_counts1.alloc(sizeof(cl_int) * width * height);
+
+        ///i need to do this properly, can't get away with the memory fudge so much
+        tri_list2.alloc(sizeof(cl_int) * width * height * 50);
+        tri_list_counts2.alloc(sizeof(cl_int) * width * height);
     }
 };
 

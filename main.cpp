@@ -2484,9 +2484,12 @@ int main(int argc, char* argv[])
                 int chunk_x = menu.sett.workgroup_size[0];
                 int chunk_y = menu.sett.workgroup_size[1];
 
+                //int chunk_x = 16;
+                //int chunk_y = 16;
+
                 int chunks = ((menu.sett.width / chunk_x) + 1) * ((menu.sett.height / chunk_y) + 1);
 
-                int max_tris_per_chunk = st.tri_list.alloc_size / (sizeof(cl_int) * chunks);
+                int max_tris_per_chunk = st.tri_list1.alloc_size / (sizeof(cl_int) * chunks);
 
                 ///completely standalone
                 {
@@ -2527,7 +2530,7 @@ int main(int argc, char* argv[])
                     }
 
                     {
-                        st.tri_list_counts.set_to_zero(mqueue);
+                        st.tri_list_counts1.set_to_zero(mqueue);
 
                         cl::args args;
                         args.push_back(st.computed_tris);
@@ -2539,8 +2542,8 @@ int main(int argc, char* argv[])
                         for(int i=0; i < 4; i++)
                             args.push_back(phys.subsampled_parallel_transported_tetrads[i]);
 
-                        args.push_back(st.tri_list);
-                        args.push_back(st.tri_list_counts);
+                        args.push_back(st.tri_list1);
+                        args.push_back(st.tri_list_counts1);
                         args.push_back(max_tris_per_chunk);
                         args.push_back(st.chunked_mins);
                         args.push_back(st.chunked_maxs);
@@ -2560,8 +2563,8 @@ int main(int argc, char* argv[])
                         args.push_back(st.computed_tri_count);
                         args.push_back(phys.object_count);
                         args.push_back(glis.rtex);
-                        args.push_back(st.tri_list);
-                        args.push_back(st.tri_list_counts);
+                        args.push_back(st.tri_list1);
+                        args.push_back(st.tri_list_counts1);
                         args.push_back(st.width);
                         args.push_back(st.height);
                         args.push_back(chunk_x);
