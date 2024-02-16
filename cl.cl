@@ -6137,7 +6137,7 @@ void generate_tri_lists2(global struct computed* ctri,
         chunked_tri_list_out[cid * max_tris_per_chunk + my_id] = i;
     }
 
-    chunked_tri_list_out[cid] = chunked_count;
+    chunked_tri_list_count[cid] = chunked_count;
 }
 
 __kernel
