@@ -58,6 +58,8 @@ struct render_state
     cl::buffer computed_tris;
     cl::buffer computed_tri_count;
 
+    cl::buffer already_rendered;
+
     int width = 0;
     int height = 0;
 
@@ -76,7 +78,8 @@ struct render_state
         chunked_mins(ctx), chunked_maxs(ctx),
         tri_list1(ctx), tri_list_counts1(ctx),
         tri_list2(ctx), tri_list_counts2(ctx),
-        computed_tris(ctx), computed_tri_count(ctx)
+        computed_tris(ctx), computed_tri_count(ctx),
+        already_rendered(ctx)
     {
         g_camera_pos_cart.alloc(sizeof(cl_float4));
         g_camera_quat.alloc(sizeof(cl_float4));
@@ -133,6 +136,8 @@ struct render_state
         ///i need to do this properly, can't get away with the memory fudge so much
         tri_list2.alloc(sizeof(cl_int) * width * height * 50);
         tri_list_counts2.alloc(sizeof(cl_int) * width * height);
+
+        already_rendered.alloc(sizeof(cl_int) * width * height);
     }
 };
 

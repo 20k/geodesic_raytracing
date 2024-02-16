@@ -6157,6 +6157,7 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
                          global float4* p_e0, global float4* p_e1, global float4* p_e2, global float4* p_e3,
                          global const float4* restrict inverse_e0s, __global const float4* restrict inverse_e1s, __global const float4* restrict inverse_e2s, __global const float4* restrict inverse_e3s,
                          global float4* fine_clip_min, global float4* fine_clip_max,
+                         global int* already_rendered,
                          dynamic_config_space const struct dynamic_config* cfg,
                          float mouse_x,
                          float mouse_y,
@@ -6170,6 +6171,9 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
         return;
 
     int ray_id = ray_y * width + ray_x;
+
+    if(already_rendered[ray_id])
+        return;
 
     int chunk_idx = get_group_id(0);
     int chunk_idy = get_group_id(1);
@@ -6207,15 +6211,15 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
 
         int stride = object_count;
 
-        ///current position of triangle in coordinate space
-        float4 native_current = object_geodesics[tri.geodesic_segment];
-        float4 native_next = object_geodesics[tri.geodesic_segment + stride * COMPUTED_SKIP];
-
         float4 min_extents = tri.min_extents;
         float4 max_extents = tri.max_extents;
 
         if(!range_overlaps_general4(ray_clip_min, ray_clip_max, min_extents, max_extents, periods))
             continue;
+
+        ///current position of triangle in coordinate space
+        float4 native_current = object_geodesics[tri.geodesic_segment];
+        float4 native_next = object_geodesics[tri.geodesic_segment + stride * COMPUTED_SKIP];
 
         ///current inverse tetrads
         float4 s_ie0 = inverse_e0s[tri.geodesic_segment];
@@ -6278,6 +6282,8 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
 
         float3 ncol = fabs(triangle_normal(v0, v1, v2));
         write_imagef(screen, (int2)(ray_x, ray_y), (float4)(ncol.x, ncol.y, ncol.z, 1));
+
+        already_rendered[ray_id] = 1;
     }
 }
 

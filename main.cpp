@@ -2514,6 +2514,8 @@ int main(int argc, char* argv[])
                     mqueue.exec("generate_computed_tris", args, {tris.tri_count}, {128});
                 }
 
+                st.already_rendered.set_to_zero(mqueue);
+
                 for(int kk=0; kk < 4; kk++)
                 {
                     {
@@ -2581,6 +2583,7 @@ int main(int argc, char* argv[])
 
                         args.push_back(st.stored_mins);
                         args.push_back(st.stored_maxs);
+                        args.push_back(st.already_rendered);
 
                         float mx = ImGui::GetIO().MousePos.x;
                         float my = ImGui::GetIO().MousePos.y;
