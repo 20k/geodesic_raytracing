@@ -2529,7 +2529,7 @@ int main(int argc, char* argv[])
                         args.push_back(kk);
                         args.push_back(cl::local_memory(sizeof(cl_float4) * chunk_x * chunk_y));
                         args.push_back(cl::local_memory(sizeof(cl_float4) * chunk_x * chunk_y));
-                        args.push_back(cl::local_memory(sizeof(int) * chunk_x * chunk_y));
+                        args.push_back(cl::local_memory(sizeof(cl_char) * chunk_x * chunk_y));
 
                         mqueue.exec("generate_clip_regions", args, {st.width, st.height}, {chunk_x, chunk_y});
                     }

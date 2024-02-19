@@ -5811,7 +5811,7 @@ void generate_clip_regions(const global float4* restrict ray_write,
                            int offset,
                            local float4* restrict lmins,
                            local float4* restrict lmaxs,
-                           local int* restrict exists
+                           local char* restrict exists
                            )
 {
     size_t x = get_global_id(0);
