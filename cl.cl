@@ -5789,7 +5789,7 @@ int2 get_bounds(int count, int offset, int segments)
 
     int2 val;
     val.x = max(div * offset - 1, 0);
-    val.y = min(div * (offset + 1) + 1, count);
+    val.y = min(div * (offset + 1), count);
 
     if(offset == segments-1)
         val.y = count;
@@ -5831,16 +5831,18 @@ void generate_clip_regions(global float4* ray_write,
 
         for(int i=bounds.x; i < bounds.y; i++)
         {
+            float4 val = ray_write[i * width * height + id];
+
             if(has_any == 0)
             {
-                current_min = ray_write[i * width * height + id];
-                current_max = ray_write[i * width * height + id];
+                current_min = val;
+                current_max = val;
                 has_any = 1;
             }
             else
             {
-                current_min = min(current_min, ray_write[i * width * height + id]);
-                current_max = max(current_max, ray_write[i * width * height + id]);
+                current_min = min(current_min, val);
+                current_max = max(current_max, val);
             }
         }
 
@@ -5848,6 +5850,7 @@ void generate_clip_regions(global float4* ray_write,
         maxs_out[id] = current_max;
     }
 
+    #if 1
     local float4 lmins[16*16];
     local float4 lmaxs[16*16];
     local int exists[16*16];
@@ -5908,6 +5911,7 @@ void generate_clip_regions(global float4* ray_write,
         chunked_mins[block_y * block_width + block_x] = clip_min;
         chunked_maxs[block_y * block_width + block_x] = clip_max;
     }
+    #endif
 }
 
 struct computed

@@ -2484,9 +2484,6 @@ int main(int argc, char* argv[])
                 int chunk_x = menu.sett.workgroup_size[0];
                 int chunk_y = menu.sett.workgroup_size[1];
 
-                //int chunk_x = 16;
-                //int chunk_y = 16;
-
                 int chunk_x_num = get_chunk_size(menu.sett.width, chunk_x);
                 int chunk_y_num = get_chunk_size(menu.sett.height, chunk_y);
 
