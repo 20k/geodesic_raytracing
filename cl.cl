@@ -5788,8 +5788,8 @@ int2 get_bounds(int count, int offset, int segments)
     int div = count / segments;
 
     int2 val;
-    val.x = max(div * offset - 1, 0);
-    val.y = min(div * (offset + 1), count);
+    val.x = div * offset;
+    val.y = min(div * (offset + 1) + 1, count);
 
     if(offset == segments-1)
         val.y = count;
