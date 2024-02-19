@@ -5808,7 +5808,11 @@ void generate_clip_regions(const global float4* restrict ray_write,
                            int width, int height,
                            global float4* restrict chunked_mins,
                            global float4* restrict chunked_maxs,
-                           int offset)
+                           int offset,
+                           local float4* restrict lmins,
+                           local float4* restrict lmaxs,
+                           local int* restrict exists
+                           )
 {
     size_t x = get_global_id(0);
     size_t y = get_global_id(1);
@@ -5851,10 +5855,6 @@ void generate_clip_regions(const global float4* restrict ray_write,
     }
 
     #if 1
-    local float4 lmins[16*16];
-    local float4 lmaxs[16*16];
-    local int exists[16*16];
-
     {
         size_t lid = get_local_id(1) * get_local_size(0) + get_local_id(0);
 
