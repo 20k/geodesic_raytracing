@@ -5817,12 +5817,15 @@ void generate_clip_regions(const global float4* restrict ray_write,
     size_t x = get_global_id(0);
     size_t y = get_global_id(1);
 
-    if(x >= width || y >= height)
-        return;
+    size_t lid = get_local_id(1) * get_local_size(0) + get_local_id(0);
 
+    int count = 0;
     size_t id = y * width + x;
 
-    int count = ray_write_counts[id];
+    if(x < width && y < height)
+    {
+        count = ray_write_counts[id];
+    }
 
     float4 current_min = (float4)(0,0,0,0);
     float4 current_max = (float4)(0,0,0,0);
@@ -5850,18 +5853,17 @@ void generate_clip_regions(const global float4* restrict ray_write,
             }
         }
 
+        lmins[lid] = current_min;
+        lmaxs[lid] = current_max;
+    }
+
+    if(x < width && y < height)
+    {
         mins_out[id] = current_min;
         maxs_out[id] = current_max;
     }
 
-    #if 1
-    {
-        size_t lid = get_local_id(1) * get_local_size(0) + get_local_id(0);
-
-        lmins[lid] = current_min;
-        lmaxs[lid] = current_max;
-        exists[lid] = count > 0;
-    }
+    exists[lid] = count > 0;
 
     barrier(CLK_LOCAL_MEM_FENCE);
 
@@ -5899,19 +5901,11 @@ void generate_clip_regions(const global float4* restrict ray_write,
         size_t block_x = get_group_id(0);
         size_t block_y = get_group_id(1);
 
-        /*if(block_x == 10 && block_y == 10)
-        {
-            printf("%f %f %f %f doot\n", clip_min.x, clip_min.y, clip_min.z, clip_min.w);
-        }*/
-
         size_t block_width = get_num_groups(0);
-
-        //printf("bCx %i\n", block_width);
 
         chunked_mins[block_y * block_width + block_x] = clip_min;
         chunked_maxs[block_y * block_width + block_x] = clip_max;
     }
-    #endif
 }
 
 struct computed
