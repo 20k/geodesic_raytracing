@@ -5800,14 +5800,14 @@ int2 get_bounds(int count, int offset, int segments)
 #define SEGMENTS 4
 
 __kernel
-void generate_clip_regions(global float4* ray_write,
-                           global int* ray_write_counts,
+void generate_clip_regions(const global float4* restrict ray_write,
+                           const global int* restrict ray_write_counts,
                            int max_write,
-                           global float4* mins_out,
-                           global float4* maxs_out,
+                           global float4* restrict mins_out,
+                           global float4* restrict maxs_out,
                            int width, int height,
-                           global float4* chunked_mins,
-                           global float4* chunked_maxs,
+                           global float4* restrict chunked_mins,
+                           global float4* restrict chunked_maxs,
                            int offset)
 {
     size_t x = get_global_id(0);

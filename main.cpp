@@ -2532,8 +2532,6 @@ int main(int argc, char* argv[])
                     }
 
                     {
-                        st.tri_list_counts1.set_to_zero(mqueue);
-
                         cl::args args;
                         args.push_back(st.computed_tris);
                         args.push_back(st.computed_tri_count);
