@@ -4815,7 +4815,86 @@ bool intersects_at_fraction(float3 v0, float3 normal, float4 initial_origin, flo
 
 }
 
-bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3 v0, float3 v1, float3 v2, float4 min_extents, float4 max_extents, float4 object_geodesic_origin, float4 next_object_geodesic_origin,
+bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3 v0, float3 v1, float3 v2, float4 object_geodesic_origin, float4 next_object_geodesic_origin,
+                              float4 i_re0, float4 i_re1, float4 i_re2, float4 i_re3, ///inverse current geodesic segment tetrad
+                              float4 i_ne0, float4 i_ne1, float4 i_ne2, float4 i_ne3, ///inverse next geodesic segment tetrad
+                              float4 periods, float* t_out, bool debug)
+{
+    float ray_lower_t = next_global_pos.x;
+    float ray_upper_t = global_pos.x;
+
+    float tri_lower_t = object_geodesic_origin.x;
+    float tri_upper_t = next_object_geodesic_origin.x;
+
+    float3 plane_normal = normalize(cross(v1 - v0, v2 - v0));
+
+    float4 object_pos_1 = object_geodesic_origin;
+    //float4 object_pos_2 = periodic_diff(next_object_geodesic_origin, object_geodesic_origin, periods) + object_geodesic_origin;
+    float4 object_pos_2 = next_object_geodesic_origin;
+
+    float4 ray_origin = global_pos;
+    float4 ray_vel = next_global_pos - global_pos;
+
+    //float4 initial_diff = ray_origin - object_pos_1;
+    ///still don't think periodic diff is 100% correct
+    float4 initial_diff = periodic_diff(ray_origin, object_pos_1, periods);
+    float4 initial_origin = object_pos_1;
+
+    float4 last_pos;
+    float4 last_dir;
+    float last_dt = 0;
+
+    #define INTERSECTS_AT(in_frac) intersects_at_fraction(v0, plane_normal, initial_origin, initial_diff, ray_origin, ray_vel, object_pos_1, object_pos_2,\
+                                      i_re0, i_re1, i_re2, i_re3,\
+                                      i_ne0, i_ne1, i_ne2, i_ne3,\
+                                      periods, in_frac, &last_pos, &last_dir, &last_dt)
+
+    bool any = INTERSECTS_AT(1.f) || INTERSECTS_AT(0.f);
+
+    if(!any)
+        return false;
+
+    last_dt = fabs(last_dt);
+
+    float new_t = 0.f;
+
+    #pragma unroll
+    for(int i=0; i < 4; i++)
+    {
+        new_t = ray_origin.x + ray_vel.x * last_dt;
+
+        float frac = (new_t - tri_lower_t) / (tri_upper_t - tri_lower_t);
+
+        frac = clamp(frac, 0.f, 1.f);
+
+        if(!INTERSECTS_AT(frac))
+            return false;
+    }
+
+    float ray_t = 0;
+
+    bool intersected = ray_intersects_triangle(last_pos.yzw, last_dir.yzw, v0, v1, v2, &ray_t, 0, 0);
+
+    float new_x = ray_origin.x + ray_t * ray_vel.x;
+
+    if(new_x < ray_lower_t || new_x > ray_upper_t)
+        return false;
+
+    if(new_x < tri_lower_t || new_x > tri_upper_t)
+        return false;
+
+    *t_out = ray_t;
+
+    /*if(debug)
+    {
+        printf("Hello %f pos1 %f %f %f %f pos2 %f %f %f %f geo1 %f %f %f %f geo2 %f %f %f %f\n", ray_t, E4(global_pos), E4(next_global_pos), E4(object_geodesic_origin), E4(next_object_geodesic_origin));
+    }*/
+
+    return intersected;
+
+}
+
+bool ray_intersects_toblerone_old(float4 global_pos, float4 next_global_pos, float3 v0, float3 v1, float3 v2, float4 min_extents, float4 max_extents, float4 object_geodesic_origin, float4 next_object_geodesic_origin,
                               float4 i_re0, float4 i_re1, float4 i_re2, float4 i_re3, ///inverse current geodesic segment tetrad
                               float4 i_ne0, float4 i_ne1, float4 i_ne2, float4 i_ne3, ///inverse next geodesic segment tetrad
                               float4 periods, float* t_out, bool debug)
@@ -5980,6 +6059,11 @@ void generate_computed_tris(global struct triangle* tris, int tri_count,
             float4 e_coordinate_v1 = tetrad_to_coordinate_basis(vert_1, n_e0, n_e1, n_e2, n_e3);
             float4 e_coordinate_v2 = tetrad_to_coordinate_basis(vert_2, n_e0, n_e1, n_e2, n_e3);
 
+            //printf("t1 %f %f %f t2 %f %f %f\n", s_coordinate_v0.x, s_coordinate_v1.x, s_coordinate_v2.x,
+            //                                    e_coordinate_v0.x, e_coordinate_v1.x, e_coordinate_v2.x
+            //       );
+
+
             ///Approximate triangle coordinates in coordinate space
             float4 sgv0 = s_coordinate_v0 + native_current;
             float4 sgv1 = s_coordinate_v1 + native_current;
@@ -6246,6 +6330,12 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
             float4 current_pos = ray_segments[rs * width * height + ray_id];
             float4 next_pos = ray_segments[(rs+1) * width * height + ray_id];
 
+            float4 min_camera = min(current_pos, next_pos);
+            float4 max_camera = max(current_pos, next_pos);
+
+            if(!range_overlaps_general4(min_camera, max_camera, min_extents, max_extents, periods))
+                continue;
+
             float ray_t = FLT_MAX;
 
             ///todo: sort by minimum ray intersection length? whats going on here
@@ -6254,7 +6344,7 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
             ///i'm doing this raywise, but traversing the entire ray, so early terminate is borked
             ///this is very inefficient, go along the way and then check the tris
             ///or maybe not actually, there's some good short circuiting i can do, and the tris need more memory fetche
-            if(ray_intersects_toblerone2(current_pos, next_pos, v0, v1, v2, min_extents, max_extents, native_current, native_next,
+            if(ray_intersects_toblerone2(current_pos, next_pos, v0, v1, v2, native_current, native_next,
                                          s_ie0, s_ie1, s_ie2, s_ie3, n_ie0, n_ie1, n_ie2, n_ie3, periods, &ray_t, ray_x == 1353 && ray_y == 406))
             {
                 if(rs == last_hit_segment && ray_t >= last_ray_t)
