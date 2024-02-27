@@ -4856,12 +4856,10 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
 
     last_dt = fabs(last_dt);
 
-    float new_t = 0.f;
-
     #pragma unroll
     for(int i=0; i < 4; i++)
     {
-        new_t = ray_origin.x + ray_vel.x * last_dt;
+        float new_t = ray_origin.x + ray_vel.x * last_dt;
 
         float frac = (new_t - tri_lower_t) / (tri_upper_t - tri_lower_t);
 
