@@ -4773,12 +4773,10 @@ bool ray_intersects_toblerone_2(float4 global_pos, float4 next_global_pos, float
 #endif
 
 bool intersects_at_fraction(float3 v0, float3 normal, float4 initial_origin, float4 initial_diff,
-                            float4 ray_pos_1,
                             float4 ray_vel_1,
                             float4 object_geodesic_1, float4 object_geodesic_2,
                             float4 i_re0, float4 i_re1, float4 i_re2, float4 i_re3,
                             float4 i_ne0, float4 i_ne1, float4 i_ne2, float4 i_ne3,
-                            float4 periods,
                             float fraction,
                             float4* restrict pos_out, float4* restrict dir_out,
                             float* restrict t_out
@@ -4790,10 +4788,8 @@ bool intersects_at_fraction(float3 v0, float3 normal, float4 initial_origin, flo
     float4 i_e3 = mix(i_re3, i_ne3, fraction);
 
     float4 object_position = mix(object_geodesic_1, object_geodesic_2, fraction);
-    float4 ray_pos = ray_pos_1;
 
     float4 diff = initial_diff + initial_origin - object_position;
-    //float4 diff = periodic_diff(ray_pos, object_position, periods);
 
     float4 pos = coordinate_to_tetrad_basis(diff, i_e0, i_e1, i_e2, i_e3);
     float4 dir = coordinate_to_tetrad_basis(ray_vel_1, i_e0, i_e1, i_e2, i_e3);
@@ -4844,10 +4840,10 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
     float4 last_dir;
     float last_dt = 0;
 
-    #define INTERSECTS_AT(in_frac) intersects_at_fraction(v0, plane_normal, initial_origin, initial_diff, ray_origin, ray_vel, object_pos_1, object_pos_2,\
+    #define INTERSECTS_AT(in_frac) intersects_at_fraction(v0, plane_normal, initial_origin, initial_diff, ray_vel, object_pos_1, object_pos_2,\
                                       i_re0, i_re1, i_re2, i_re3,\
                                       i_ne0, i_ne1, i_ne2, i_ne3,\
-                                      periods, in_frac, &last_pos, &last_dir, &last_dt)
+                                      in_frac, &last_pos, &last_dir, &last_dt)
 
     #pragma unroll
     for(int i=0; i < 4; i++)
@@ -4883,215 +4879,6 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
 
     return intersected;
 
-}
-
-bool ray_intersects_toblerone_old(float4 global_pos, float4 next_global_pos, float3 v0, float3 v1, float3 v2, float4 min_extents, float4 max_extents, float4 object_geodesic_origin, float4 next_object_geodesic_origin,
-                              float4 i_re0, float4 i_re1, float4 i_re2, float4 i_re3, ///inverse current geodesic segment tetrad
-                              float4 i_ne0, float4 i_ne1, float4 i_ne2, float4 i_ne3, ///inverse next geodesic segment tetrad
-                              float4 periods, float* t_out, bool debug)
-{
-    float4 min_camera = min(global_pos, next_global_pos);
-    float4 max_camera = max(global_pos, next_global_pos);
-
-    if(!range_overlaps_general4(min_camera, max_camera, min_extents, max_extents, periods))
-        return false;
-
-    float ray_lower_t = next_global_pos.x;
-    float ray_upper_t = global_pos.x;
-
-    float tri_lower_t = object_geodesic_origin.x;
-    float tri_upper_t = next_object_geodesic_origin.x;
-
-    float3 plane_normal = normalize(cross(v1 - v0, v2 - v0));
-
-    float4 object_pos_1 = object_geodesic_origin;
-    //float4 object_pos_2 = periodic_diff(next_object_geodesic_origin, object_geodesic_origin, periods) + object_geodesic_origin;
-    float4 object_pos_2 = next_object_geodesic_origin;
-
-    float4 ray_origin = global_pos;
-    float4 ray_vel = next_global_pos - global_pos;
-
-    //float4 initial_diff = ray_origin - object_pos_1;
-    ///still don't think periodic diff is 100% correct
-    float4 initial_diff = periodic_diff(ray_origin, object_pos_1, periods);
-    float4 initial_origin = object_pos_1;
-
-    float4 last_pos;
-    float4 last_dir;
-    float last_dt = 0;
-
-    #define INTERSECTS_AT(in_frac) intersects_at_fraction(v0, plane_normal, initial_origin, initial_diff, ray_origin, ray_vel, object_pos_1, object_pos_2,\
-                                      i_re0, i_re1, i_re2, i_re3,\
-                                      i_ne0, i_ne1, i_ne2, i_ne3,\
-                                      periods, in_frac, &last_pos, &last_dir, &last_dt)
-
-    bool any = INTERSECTS_AT(1.f) || INTERSECTS_AT(0.f);
-
-    if(!any)
-        return false;
-
-    last_dt = fabs(last_dt);
-
-    float new_t = 0.f;
-
-    #pragma unroll
-    for(int i=0; i < 4; i++)
-    {
-        new_t = ray_origin.x + ray_vel.x * last_dt;
-
-        float frac = (new_t - tri_lower_t) / (tri_upper_t - tri_lower_t);
-
-        frac = clamp(frac, 0.f, 1.f);
-
-        if(!INTERSECTS_AT(frac))
-            return false;
-    }
-
-    float ray_t = 0;
-
-    bool intersected = ray_intersects_triangle(last_pos.yzw, last_dir.yzw, v0, v1, v2, &ray_t, 0, 0);
-
-    float new_x = ray_origin.x + ray_t * ray_vel.x;
-
-    if(new_x < ray_lower_t || new_x > ray_upper_t)
-        return false;
-
-    if(new_x < tri_lower_t || new_x > tri_upper_t)
-        return false;
-
-    *t_out = ray_t;
-
-    /*if(debug)
-    {
-        printf("Hello %f pos1 %f %f %f %f pos2 %f %f %f %f geo1 %f %f %f %f geo2 %f %f %f %f\n", ray_t, E4(global_pos), E4(next_global_pos), E4(object_geodesic_origin), E4(next_object_geodesic_origin));
-    }*/
-
-    return intersected;
-
-}
-
-///dir is not normalised, should really use a pos2
-bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 ray_vel4, float ds, const struct computed_triangle* ctri, float4 object_geodesic_origin, float4 next_object_geodesic_origin,
-                              __global const float4* restrict inverse_e0s, __global const float4* restrict inverse_e1s, __global const float4* restrict inverse_e2s, __global const float4* restrict inverse_e3s,
-                              float* t_out, bool debug, float4 periods)
-{
-    float4 min_extents = ctri->min_extents;
-    float4 max_extents = ctri->max_extents;
-
-    ///ideally we'd do this for periodic coordinates as well, the issue is that range_overlaps is tricky, because our span to check might be 6 PI which means it covers
-    ///the whole periodic range,, but as a distance that might be very shrot
-    #define CHECK_ESCAPE(v) if(periods.v == 0){if(!range_overlaps(global_pos.v, next_global_pos.v, min_extents.v, max_extents.v)){return false;}}
-
-    ///bounds for t (ie x) are more precise due to the lack of time components for tris in the local tetrad, which makes them equivalent
-    CHECK_ESCAPE(x);
-    CHECK_ESCAPE(y);
-    CHECK_ESCAPE(z);
-    CHECK_ESCAPE(w);
-
-    float4 i_ne0 = inverse_e0s[ctri->next_geodesic_segment];
-    float4 i_ne1 = inverse_e1s[ctri->next_geodesic_segment];
-    float4 i_ne2 = inverse_e2s[ctri->next_geodesic_segment];
-    float4 i_ne3 = inverse_e3s[ctri->next_geodesic_segment];
-
-    float4 i_re0 = inverse_e0s[ctri->geodesic_segment];
-    float4 i_re1 = inverse_e1s[ctri->geodesic_segment];
-    float4 i_re2 = inverse_e2s[ctri->geodesic_segment];
-    float4 i_re3 = inverse_e3s[ctri->geodesic_segment];
-
-    float ray_lower_t = next_global_pos.x;
-    float ray_upper_t = global_pos.x;
-
-    float tri_lower_t = object_geodesic_origin.x;
-    float tri_upper_t = next_object_geodesic_origin.x;
-
-    float3 v0 = ctri->tv0.yzw;
-    float3 v1 = ctri->tv1.yzw;
-    float3 v2 = ctri->tv2.yzw;
-    float3 plane_normal = normalize(cross(v1 - v0, v2 - v0));
-
-    float4 object_pos_1 = object_geodesic_origin;
-    //float4 object_pos_2 = periodic_diff(next_object_geodesic_origin, object_geodesic_origin, periods) + object_geodesic_origin;
-    float4 object_pos_2 = next_object_geodesic_origin;
-
-    float4 ray_origin = global_pos;
-    float4 ray_vel = next_global_pos - global_pos;
-
-    //float4 initial_diff = ray_origin - object_pos_1;
-    ///still don't think periodic diff is 100% correct
-    float4 initial_diff = periodic_diff(ray_origin, object_pos_1, periods);
-    float4 initial_origin = object_pos_1;
-
-    float4 last_pos;
-    float4 last_dir;
-    float last_dt = 0;
-
-    #define INTERSECTS_AT(in_frac) intersects_at_fraction(v0, plane_normal, initial_origin, initial_diff, ray_origin, ray_vel, object_pos_1, object_pos_2,\
-                                      i_re0, i_re1, i_re2, i_re3,\
-                                      i_ne0, i_ne1, i_ne2, i_ne3,\
-                                      periods, in_frac, &last_pos, &last_dir, &last_dt)
-
-    bool any = INTERSECTS_AT(1.f) || INTERSECTS_AT(0.f);
-
-    if(!any)
-        return false;
-
-    last_dt = fabs(last_dt);
-
-    float new_t = 0.f;
-
-    #pragma unroll
-    for(int i=0; i < 4; i++)
-    {
-        new_t = ray_origin.x + ray_vel.x * last_dt;
-
-        float frac = (new_t - tri_lower_t) / (tri_upper_t - tri_lower_t);
-
-        frac = clamp(frac, 0.f, 1.f);
-
-        if(!INTERSECTS_AT(frac))
-            return false;
-    }
-
-    float ray_t = 0;
-
-    bool intersected = ray_intersects_triangle(last_pos.yzw, last_dir.yzw, v0, v1, v2, &ray_t, 0, 0);
-
-    float new_x = ray_origin.x + ray_t * ray_vel.x;
-
-    if(new_x < ray_lower_t || new_x > ray_upper_t)
-        return false;
-
-    if(new_x < tri_lower_t || new_x > tri_upper_t)
-        return false;
-
-    //if(ray_t < 0 || ray_t > 1)
-    //    return false;
-
-    /*float local_tetrad_time = last_pos.x + ray_t * last_dir.x;
-
-    if(local_tetrad_time < 0)
-        return false;*/
-
-    //float tri_end_time = coordinate_to_tetrad_basis((float4)(t_tri_delta_time, 0,0,0), i_e0, i_e1, i_e2, i_e3).x;
-
-    //if(last_pos.x + ray_t * last_dir.x >= )
-
-    if(intersected && t_out)
-    {
-        /*if(debug)
-        {
-            printf("Ltt %f\n", local_tetrad_time);
-        }*/
-
-        /*if(debug)
-        {
-            printf("Hit pos obj %f %f %f f end %f %f %f %f\n", object_pos_1.x, object_pos_1.y, object_pos_1.z, object_pos_1.w)
-        }*/
-
-        *t_out = ray_t;
-    }
-
-    return intersected;
 }
 
 __kernel void pull_linear_object_positions(__global struct computed_triangle* linear_mem, __global int* linear_mem_size, __global float4* object_positions, __global float4* linear_object_positions)
