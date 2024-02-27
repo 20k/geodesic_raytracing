@@ -2049,6 +2049,18 @@ float4 coordinate_to_tetrad_basis(float4 vec_up, float4 e0_lo, float4 e1_lo, flo
     //return vec_up.x * e0_lo + vec_up.y * e1_lo + vec_up.z * e2_lo + vec_up.w * e3_lo;
 }
 
+///we ignore the timelike component
+float3 coordinate_to_tetrad_basis3(float4 vec_up, float4 e1_lo, float4 e2_lo, float4 e3_lo)
+{
+    float3 ret;
+
+    ret.x = dot(e1_lo, vec_up);
+    ret.y = dot(e2_lo, vec_up);
+    ret.z = dot(e3_lo, vec_up);
+
+    return ret;
+}
+
 ///so. The hi tetrads are the one we get out of gram schmidt
 ///so this is lower i, upper mu, against a vec with upper i
 float4 tetrad_to_coordinate_basis(float4 vec_up, float4 e0_hi, float4 e1_hi, float4 e2_hi, float4 e3_hi)
@@ -4775,14 +4787,13 @@ bool ray_intersects_toblerone_2(float4 global_pos, float4 next_global_pos, float
 bool intersects_at_fraction(float3 v0, float3 normal, float4 initial_origin, float4 initial_diff,
                             float4 ray_vel_1,
                             float4 object_geodesic_1, float4 object_geodesic_2,
-                            float4 i_re0, float4 i_re1, float4 i_re2, float4 i_re3,
-                            float4 i_ne0, float4 i_ne1, float4 i_ne2, float4 i_ne3,
+                            float4 i_re1, float4 i_re2, float4 i_re3,
+                            float4 i_ne1, float4 i_ne2, float4 i_ne3,
                             float fraction,
-                            float4* restrict pos_out, float4* restrict dir_out,
+                            float3* restrict pos_out, float3* restrict dir_out,
                             float* restrict t_out
                             )
 {
-    float4 i_e0 = mix(i_re0, i_ne0, fraction);
     float4 i_e1 = mix(i_re1, i_ne1, fraction);
     float4 i_e2 = mix(i_re2, i_ne2, fraction);
     float4 i_e3 = mix(i_re3, i_ne3, fraction);
@@ -4791,8 +4802,8 @@ bool intersects_at_fraction(float3 v0, float3 normal, float4 initial_origin, flo
 
     float4 diff = initial_diff + initial_origin - object_position;
 
-    float4 pos = coordinate_to_tetrad_basis(diff, i_e0, i_e1, i_e2, i_e3);
-    float4 dir = coordinate_to_tetrad_basis(ray_vel_1, i_e0, i_e1, i_e2, i_e3);
+    float3 pos = coordinate_to_tetrad_basis3(diff, i_e1, i_e2, i_e3);
+    float3 dir = coordinate_to_tetrad_basis3(ray_vel_1, i_e1, i_e2, i_e3);
 
     if(pos_out)
         *pos_out = pos;
@@ -4802,7 +4813,7 @@ bool intersects_at_fraction(float3 v0, float3 normal, float4 initial_origin, flo
 
     float found_t = 0;
 
-    bool success = ray_plane_intersection(v0, normal, pos.yzw, dir.yzw, &found_t);
+    bool success = ray_plane_intersection(v0, normal, pos, dir, &found_t);
 
     if(success && t_out)
         *t_out = found_t;
@@ -4812,8 +4823,8 @@ bool intersects_at_fraction(float3 v0, float3 normal, float4 initial_origin, flo
 }
 
 bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3 v0, float3 v1, float3 v2, float4 object_geodesic_origin, float4 next_object_geodesic_origin,
-                              float4 i_re0, float4 i_re1, float4 i_re2, float4 i_re3, ///inverse current geodesic segment tetrad
-                              float4 i_ne0, float4 i_ne1, float4 i_ne2, float4 i_ne3, ///inverse next geodesic segment tetrad
+                              float4 i_re1, float4 i_re2, float4 i_re3, ///inverse current geodesic segment tetrad
+                              float4 i_ne1, float4 i_ne2, float4 i_ne3, ///inverse next geodesic segment tetrad
                               float4 periods, float* t_out, bool debug)
 {
     float ray_lower_t = next_global_pos.x;
@@ -4836,13 +4847,13 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
     float4 initial_diff = periodic_diff(ray_origin, object_pos_1, periods);
     float4 initial_origin = object_pos_1;
 
-    float4 last_pos;
-    float4 last_dir;
+    float3 last_pos;
+    float3 last_dir;
     float last_dt = 0;
 
     #define INTERSECTS_AT(in_frac) intersects_at_fraction(v0, plane_normal, initial_origin, initial_diff, ray_vel, object_pos_1, object_pos_2,\
-                                      i_re0, i_re1, i_re2, i_re3,\
-                                      i_ne0, i_ne1, i_ne2, i_ne3,\
+                                      i_re1, i_re2, i_re3,\
+                                      i_ne1, i_ne2, i_ne3,\
                                       in_frac, &last_pos, &last_dir, &last_dt)
 
     #pragma unroll
@@ -4860,7 +4871,7 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
 
     float ray_t = 0;
 
-    bool intersected = ray_intersects_triangle(last_pos.yzw, last_dir.yzw, v0, v1, v2, &ray_t, 0, 0);
+    bool intersected = ray_intersects_triangle(last_pos, last_dir, v0, v1, v2, &ray_t, 0, 0);
 
     float new_x = ray_origin.x + ray_t * ray_vel.x;
 
@@ -4878,7 +4889,6 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
     }*/
 
     return intersected;
-
 }
 
 __kernel void pull_linear_object_positions(__global struct computed_triangle* linear_mem, __global int* linear_mem_size, __global float4* object_positions, __global float4* linear_object_positions)
@@ -6082,13 +6092,13 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
         float4 native_next = object_geodesics[tri.geodesic_segment + stride * COMPUTED_SKIP];
 
         ///current inverse tetrads
-        float4 s_ie0 = inverse_e0s[tri.geodesic_segment];
+        //float4 s_ie0 = inverse_e0s[tri.geodesic_segment];
         float4 s_ie1 = inverse_e1s[tri.geodesic_segment];
         float4 s_ie2 = inverse_e2s[tri.geodesic_segment];
         float4 s_ie3 = inverse_e3s[tri.geodesic_segment];
 
         ///next inverse tetrads
-        float4 n_ie0 = inverse_e0s[tri.geodesic_segment + stride * COMPUTED_SKIP];
+        //float4 n_ie0 = inverse_e0s[tri.geodesic_segment + stride * COMPUTED_SKIP];
         float4 n_ie1 = inverse_e1s[tri.geodesic_segment + stride * COMPUTED_SKIP];
         float4 n_ie2 = inverse_e2s[tri.geodesic_segment + stride * COMPUTED_SKIP];
         float4 n_ie3 = inverse_e3s[tri.geodesic_segment + stride * COMPUTED_SKIP];
@@ -6123,7 +6133,7 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
             ///this is very inefficient, go along the way and then check the tris
             ///or maybe not actually, there's some good short circuiting i can do, and the tris need more memory fetche
             if(ray_intersects_toblerone2(current_pos, next_pos, v0, v1, v2, native_current, native_next,
-                                         s_ie0, s_ie1, s_ie2, s_ie3, n_ie0, n_ie1, n_ie2, n_ie3, periods, &ray_t, ray_x == 1353 && ray_y == 406))
+                                         s_ie1, s_ie2, s_ie3, n_ie1, n_ie2, n_ie3, periods, &ray_t, ray_x == 1353 && ray_y == 406))
             {
                 if(rs == last_hit_segment && ray_t >= last_ray_t)
                     continue;
