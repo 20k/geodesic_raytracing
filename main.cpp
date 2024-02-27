@@ -1380,7 +1380,7 @@ int main(int argc, char* argv[])
     std::shared_ptr<triangle_rendering::object> obj = tris.make_new();
 
     obj->tris = make_cube({0, 0, 0});
-    obj->pos = {-70, -5, -1, 0};
+    obj->pos = {-60, -5, -1, 0};
     obj->velocity = {-0.2f, 0.2f, 0};
     #endif // TRI_STANDARD_CASE
 

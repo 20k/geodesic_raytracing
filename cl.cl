@@ -5993,6 +5993,7 @@ void generate_tri_lists2(global struct computed* ctri,
     {
         struct computed my_tri = ctri[i];
 
+        ///could improve memory layout
         if(!range_overlaps_general4(chunk_clip_min, chunk_clip_max, my_tri.min_extents, my_tri.max_extents, coordinate_period))
             continue;
 
@@ -6081,6 +6082,7 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
         float4 min_extents = tri.min_extents;
         float4 max_extents = tri.max_extents;
 
+        ///could improve the memroy layout to have min_extents and max_extents accessible
         if(!range_overlaps_general4(ray_clip_min, ray_clip_max, min_extents, max_extents, periods))
             continue;
 
