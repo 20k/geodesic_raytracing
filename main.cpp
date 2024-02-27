@@ -190,6 +190,12 @@ void execute_kernel(graphics_settings& sett,
             intersections_count.set_to_zero(cqueue);
         }*/
 
+        cl_int my_min = INT_MAX;
+        cl_int my_max = INT_MIN;
+
+        ray_time_min.fill(cqueue, my_min);
+        ray_time_max.fill(cqueue, my_max);
+
         int mouse_x = ImGui::GetMousePos().x;
         int mouse_y = ImGui::GetMousePos().y;
 
@@ -217,8 +223,8 @@ void execute_kernel(graphics_settings& sett,
         //run_args.push_back(accel.cell_time_min);
         //run_args.push_back(accel.cell_time_max);
         //run_args.push_back(manage.objects);
-        //run_args.push_back(ray_time_min);
-        //run_args.push_back(ray_time_max);
+        run_args.push_back(ray_time_min);
+        run_args.push_back(ray_time_max);
 
         //run_args.push_back(phys.subsampled_paths);
         //run_args.push_back(phys.subsampled_velocities);
@@ -2507,6 +2513,9 @@ int main(int argc, char* argv[])
 
                     args.push_back(st.computed_tris);
                     args.push_back(st.computed_tri_count);
+                    args.push_back(st.accel_ray_time_min);
+                    args.push_back(st.accel_ray_time_max);
+                    args.push_back(dynamic_config);
 
                     mqueue.exec("generate_computed_tris", args, {tris.tri_count}, {128});
                 }

@@ -4903,7 +4903,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
                       //float accel_width, float accel_time_width, int accel_width_num,
                       //__global int* restrict cell_time_min, __global int* restrict cell_time_max,
                       //__global const struct object* restrict objs,
-                      //__global int* restrict ray_time_min, __global int* restrict ray_time_max,
+                      __global int* restrict ray_time_min, __global int* restrict ray_time_max,
                       //__global const float4* restrict object_positions,
                       //__global const float4* restrict object_velocities,
                       //__global const float4* restrict inverse_e0s, __global const float4* restrict inverse_e1s, __global const float4* restrict inverse_e2s, __global const float4* restrict inverse_e3s,
@@ -4935,7 +4935,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
     float4 velocity = ray->velocity;
     float4 acceleration = ray->acceleration;
 
-    #if 0
+    #if 1
     if(GET_FEATURE(use_triangle_rendering, dfg))
     {
         atomic_min(ray_time_min, (int)floor(position.x));
@@ -5053,7 +5053,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
         #ifndef UNCONDITIONALLY_NONSINGULAR
         if(fabs(velocity.x / running_dlambda_dnew) > 1000 + f_in_x && fabs(acceleration.x / running_dlambda_dnew) > 100)
         {
-            #if 0
+            #if 1
             if(GET_FEATURE(use_triangle_rendering, dfg))
             {
                 atomic_min(ray_time_min, (int)floor(my_min));
@@ -5497,7 +5497,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
 
         if(should_terminate)
         {
-            #if 0
+            #if 1
             if(GET_FEATURE(use_triangle_rendering, dfg))
             {
                 atomic_min(ray_time_min, (int)floor(my_min));
@@ -5631,7 +5631,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
         }
     }
 
-    #if 0
+    #if 1
     if(GET_FEATURE(use_triangle_rendering, dfg))
     {
         atomic_min(ray_time_min, (int)floor(my_min));
@@ -5785,7 +5785,9 @@ void generate_computed_tris(global struct triangle* tris, int tri_count,
                             int object_count,
                             global float4* object_geodesics, global int* object_geodesic_counts,
                             global float4* p_e0, global float4* p_e1, global float4* p_e2, global float4* p_e3,
-                            global struct computed* ctris, global int* ctri_count)
+                            global struct computed* ctris, global int* ctri_count,
+                            global int* restrict ray_time_min, global int* restrict ray_time_max,
+                            dynamic_config_space const struct dynamic_config* cfg)
 {
     int tri_id = get_global_id(0);
 
@@ -5800,10 +5802,15 @@ void generate_computed_tris(global struct triangle* tris, int tri_count,
 
     int skip = COMPUTED_SKIP;
 
+    float4 coordinate_period = get_coordinate_period(cfg);
+
     for(int cc=0; cc < count - skip; cc+=skip)
     {
         float4 native_current = object_geodesics[cc * object_count + tri.parent];
         float4 native_next = object_geodesics[(cc + skip) * object_count + tri.parent];
+
+        if(!range_overlaps_general(native_current.x, native_next.x, *ray_time_min, *ray_time_max, coordinate_period.x))
+            continue;
 
         ///todo: precalculate me
         float4 min_extents;
