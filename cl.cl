@@ -4849,13 +4849,6 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
                                       i_ne0, i_ne1, i_ne2, i_ne3,\
                                       periods, in_frac, &last_pos, &last_dir, &last_dt)
 
-    bool any = INTERSECTS_AT(1.f) || INTERSECTS_AT(0.f);
-
-    if(!any)
-        return false;
-
-    last_dt = fabs(last_dt);
-
     #pragma unroll
     for(int i=0; i < 4; i++)
     {
