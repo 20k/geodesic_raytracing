@@ -18,6 +18,8 @@ struct lightray
 
 struct single_render_state
 {
+    cl::buffer stored_rays;
+
     cl::buffer tri_list_allocator;
     cl::buffer tri_list_offsets;
     cl::buffer tri_list1;
@@ -27,7 +29,10 @@ struct single_render_state
     cl::buffer computed_tri_count;
     int max_tris = 1024 * 1024 * 200;
 
+    cl_int max_stored = 90;
+
     single_render_state(cl::context& ctx, cl::command_queue& cqueue) :
+        stored_rays(ctx),
         tri_list_allocator(ctx), tri_list_offsets(ctx),
         tri_list1(ctx), tri_list_counts1(ctx),
         computed_tris(ctx), computed_tri_count(ctx)
@@ -42,6 +47,8 @@ struct single_render_state
         tri_list_offsets.alloc(sizeof(cl_ulong) * width * height);
         tri_list1.alloc(sizeof(cl_int) * max_tris);
         tri_list_counts1.alloc(sizeof(cl_int) * width * height);
+
+        stored_rays.alloc(sizeof(cl_float4) * width * height * max_stored);
     }
 };
 
@@ -68,9 +75,7 @@ struct render_state
     cl::buffer accel_ray_time_min;
     cl::buffer accel_ray_time_max;
 
-    cl::buffer stored_rays;
     cl::buffer stored_ray_counts;
-    cl_int max_stored = 90;
 
     cl::buffer stored_mins;
     cl::buffer stored_maxs;
@@ -93,7 +98,7 @@ struct render_state
         termination_buffer(ctx),
         texture_coordinates(ctx),
         accel_ray_time_min(ctx), accel_ray_time_max(ctx),
-        stored_rays(ctx), stored_ray_counts(ctx),
+        stored_ray_counts(ctx),
         stored_mins(ctx), stored_maxs(ctx),
         chunked_mins(ctx), chunked_maxs(ctx),
 
@@ -134,7 +139,6 @@ struct render_state
 
         tri_intersections.alloc(sizeof(cl_int) * width * height * 10);
 
-        stored_rays.alloc(sizeof(cl_float4) * width * height * max_stored);
         stored_ray_counts.alloc(sizeof(cl_int) * width * height);
 
         stored_mins.alloc(sizeof(cl_float4) * width * height);

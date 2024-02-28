@@ -151,6 +151,7 @@ void execute_kernel(graphics_settings& sett,
                     cl::buffer& dynamic_feature_config,
                     int width, int height,
                     render_state& st,
+                    single_render_state& single_state,
                     cl::event evt)
 {
     if(use_device_side_enqueue)
@@ -240,9 +241,9 @@ void execute_kernel(graphics_settings& sett,
         run_args.push_back(height);
         run_args.push_back(mouse_x);
         run_args.push_back(mouse_y);
-        run_args.push_back(st.stored_rays);
+        run_args.push_back(single_state.stored_rays);
         run_args.push_back(st.stored_ray_counts);
-        run_args.push_back(st.max_stored);
+        run_args.push_back(single_state.max_stored);
 
         cqueue.exec("do_generic_rays", run_args, {width, height}, {sett.workgroup_size[0], sett.workgroup_size[1]}, {evt});
 
@@ -2413,7 +2414,7 @@ int main(int argc, char* argv[])
 
                     int rays_num = calculate_ray_count(prepass_width, prepass_height);
 
-                    execute_kernel(menu.sett, mqueue, st.rays_in, st.rays_count_in, st.accel_ray_time_min, st.accel_ray_time_max, tris, st.tri_intersections, st.tri_intersections_count, accel, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer, st.width, st.height, st, last_event);
+                    execute_kernel(menu.sett, mqueue, st.rays_in, st.rays_count_in, st.accel_ray_time_min, st.accel_ray_time_max, tris, st.tri_intersections, st.tri_intersections_count, accel, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer, st.width, st.height, st, single_state, last_event);
 
                     cl::args singular_args;
                     singular_args.push_back(st.rays_in);
@@ -2448,7 +2449,7 @@ int main(int argc, char* argv[])
 
                 int rays_num = calculate_ray_count(width, height);
 
-                execute_kernel(menu.sett, mqueue, st.rays_in, st.rays_count_in, st.accel_ray_time_min, st.accel_ray_time_max, tris, st.tri_intersections, st.tri_intersections_count, accel, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer, st.width, st.height, st, last_event);
+                execute_kernel(menu.sett, mqueue, st.rays_in, st.rays_count_in, st.accel_ray_time_min, st.accel_ray_time_max, tris, st.tri_intersections, st.tri_intersections_count, accel, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer, st.width, st.height, st, single_state, last_event);
 
                 cl::args texture_args;
                 texture_args.push_back(st.rays_in);
@@ -2530,9 +2531,9 @@ int main(int argc, char* argv[])
                 {
                     {
                         cl::args args;
-                        args.push_back(st.stored_rays);
+                        args.push_back(single_state.stored_rays);
                         args.push_back(st.stored_ray_counts);
-                        args.push_back(st.max_stored);
+                        args.push_back(single_state.max_stored);
                         args.push_back(st.stored_mins);
                         args.push_back(st.stored_maxs);
                         args.push_back(st.width);
@@ -2585,7 +2586,7 @@ int main(int argc, char* argv[])
                         args.push_back(st.height);
                         args.push_back(chunk_x);
                         args.push_back(chunk_y);
-                        args.push_back(st.stored_rays);
+                        args.push_back(single_state.stored_rays);
                         args.push_back(st.stored_ray_counts);
                         args.push_back(phys.subsampled_paths);
                         args.push_back(phys.subsampled_counts);
