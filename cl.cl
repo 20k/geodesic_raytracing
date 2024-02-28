@@ -6105,9 +6105,6 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
         float4 current_pos = ray_segments[rs * width * height + ray_id];
         float4 next_pos = ray_segments[(rs+1) * width * height + ray_id];
 
-        float4 min_camera = min(current_pos, next_pos);
-        float4 max_camera = max(current_pos, next_pos);
-
         bool should_break = false;
 
         ///...could i stuff you in local memory? or even an array?
@@ -6126,7 +6123,7 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
             //if(!range_overlaps_general4(ray_clip_min, ray_clip_max, min_extents, max_extents, periods))
             //    continue;
 
-            if(!range_overlaps_general4(min_camera, max_camera, min_extents, max_extents, periods))
+            if(!range_overlaps_general4(current_pos, next_pos, min_extents, max_extents, periods))
                 continue;
 
             ///current position of triangle in coordinate space
