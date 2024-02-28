@@ -5960,6 +5960,7 @@ void generate_tri_lists2(global struct computed* ctri,
                         global int* chunked_tri_list_count,
                         global int* chunked_global_count,
                         global int* chunked_offsets,
+                        int max_tris,
                         global float4* chunked_mins,
                         global float4* chunked_maxs,
                         int chunk_x, int chunk_y,
@@ -6003,9 +6004,16 @@ void generate_tri_lists2(global struct computed* ctri,
         chunked_count++;
     }
 
-    chunked_tri_list_count[cid] = chunked_count;
-
     int root_offset = atomic_add(chunked_global_count, chunked_count);
+
+    if(root_offset + chunked_count > max_tris)
+    {
+        chunked_tri_list_count[cid] = 0;
+        chunked_offsets[cid] = 0;
+        return;
+    }
+
+    chunked_tri_list_count[cid] = chunked_count;
 
     int chunked_id = 0;
 

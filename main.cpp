@@ -1377,9 +1377,9 @@ int main(int argc, char* argv[])
 
     #define TRI_STANDARD_CASE
     #ifdef TRI_STANDARD_CASE
-    std::shared_ptr<triangle_rendering::object> obj = tris.make_new();
+    std::shared_ptr<triangle_rendering::object> obj = tris.make_new("./models/newell_teaset/teapot.obj");
 
-    obj->tris = make_cube({0, 0, 0});
+    //obj->tris = make_cube({0, 0, 0});
     obj->pos = {-60, -5, -1, 0};
     obj->velocity = {-0.2f, 0.2f, 0};
     #endif // TRI_STANDARD_CASE
@@ -2552,6 +2552,7 @@ int main(int argc, char* argv[])
                         args.push_back(st.tri_list_counts1);
                         args.push_back(st.tri_list_allocator);
                         args.push_back(st.tri_list_offsets);
+                        args.push_back(st.max_tris);
                         args.push_back(st.chunked_mins);
                         args.push_back(st.chunked_maxs);
                         args.push_back(chunk_x);

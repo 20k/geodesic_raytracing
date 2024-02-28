@@ -61,6 +61,7 @@ struct render_state
     cl::buffer computed_tri_count;
 
     cl::buffer already_rendered;
+    int max_tris = 1024 * 1024 * 200;
 
     int width = 0;
     int height = 0;
@@ -135,12 +136,8 @@ struct render_state
 
         tri_list_offsets.alloc(sizeof(cl_ulong) * width * height);
         ///i need to do this properly, can't get away with the memory fudge so much
-        tri_list1.alloc(sizeof(cl_int) * width * height * 50);
+        tri_list1.alloc(sizeof(cl_int) * max_tris);
         tri_list_counts1.alloc(sizeof(cl_int) * width * height);
-
-        ///i need to do this properly, can't get away with the memory fudge so much
-        tri_list2.alloc(sizeof(cl_int) * width * height * 50);
-        tri_list_counts2.alloc(sizeof(cl_int) * width * height);
 
         already_rendered.alloc(sizeof(cl_int) * width * height);
     }
