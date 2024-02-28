@@ -49,6 +49,8 @@ struct render_state
     cl::buffer chunked_mins;
     cl::buffer chunked_maxs;
 
+    cl::buffer tri_list_allocator;
+    cl::buffer tri_list_offsets;
     cl::buffer tri_list1;
     cl::buffer tri_list_counts1;
 
@@ -76,6 +78,7 @@ struct render_state
         stored_rays(ctx), stored_ray_counts(ctx),
         stored_mins(ctx), stored_maxs(ctx),
         chunked_mins(ctx), chunked_maxs(ctx),
+        tri_list_allocator(ctx), tri_list_offsets(ctx),
         tri_list1(ctx), tri_list_counts1(ctx),
         tri_list2(ctx), tri_list_counts2(ctx),
         computed_tris(ctx), computed_tri_count(ctx),
@@ -103,6 +106,7 @@ struct render_state
 
         computed_tris.alloc(1024 * 1024 * 102);
         computed_tri_count.alloc(sizeof(cl_int));
+        tri_list_allocator.alloc(sizeof(cl_ulong));
     }
 
     void realloc(uint32_t _width, uint32_t _height)
@@ -129,6 +133,7 @@ struct render_state
         chunked_mins.alloc(sizeof(cl_float4) * width * height);
         chunked_maxs.alloc(sizeof(cl_float4) * width * height);
 
+        tri_list_offsets.alloc(sizeof(cl_ulong) * width * height);
         ///i need to do this properly, can't get away with the memory fudge so much
         tri_list1.alloc(sizeof(cl_int) * width * height * 50);
         tri_list_counts1.alloc(sizeof(cl_int) * width * height);

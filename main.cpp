@@ -2495,8 +2495,6 @@ int main(int argc, char* argv[])
 
                 int chunks = chunk_x_num * chunk_y_num;
 
-                int max_tris_per_chunk = st.tri_list1.alloc_size / (sizeof(cl_int) * chunks);
-
                 ///completely standalone
                 {
                     st.computed_tri_count.set_to_zero(mqueue);
@@ -2544,13 +2542,16 @@ int main(int argc, char* argv[])
                     }
 
                     {
+                        st.tri_list_allocator.set_to_zero(mqueue);
+
                         cl::args args;
                         args.push_back(st.computed_tris);
                         args.push_back(st.computed_tri_count);
 
                         args.push_back(st.tri_list1);
                         args.push_back(st.tri_list_counts1);
-                        args.push_back(max_tris_per_chunk);
+                        args.push_back(st.tri_list_allocator);
+                        args.push_back(st.tri_list_offsets);
                         args.push_back(st.chunked_mins);
                         args.push_back(st.chunked_maxs);
                         args.push_back(chunk_x);
@@ -2572,11 +2573,11 @@ int main(int argc, char* argv[])
                         args.push_back(glis.rtex);
                         args.push_back(st.tri_list1);
                         args.push_back(st.tri_list_counts1);
+                        args.push_back(st.tri_list_offsets);
                         args.push_back(st.width);
                         args.push_back(st.height);
                         args.push_back(chunk_x);
                         args.push_back(chunk_y);
-                        args.push_back(max_tris_per_chunk);
                         args.push_back(st.stored_rays);
                         args.push_back(st.stored_ray_counts);
                         args.push_back(phys.subsampled_paths);

@@ -5892,6 +5892,7 @@ void generate_computed_tris(global struct triangle* tris, int tri_count,
     }
 }
 
+#if 0
 __kernel
 void generate_tri_lists(global struct computed* ctri,
                         global int* ctri_count,
@@ -5950,13 +5951,15 @@ void generate_tri_lists(global struct computed* ctri,
         }
     }
 }
+#endif
 
 __kernel
 void generate_tri_lists2(global struct computed* ctri,
                         global int* ctri_count,
                         global int* chunked_tri_list_out,
                         global int* chunked_tri_list_count,
-                        int max_tris_per_chunk,
+                        global int* chunked_global_count,
+                        global int* chunked_offsets,
                         global float4* chunked_mins,
                         global float4* chunked_maxs,
                         int chunk_x, int chunk_y,
@@ -5997,15 +6000,29 @@ void generate_tri_lists2(global struct computed* ctri,
         if(!range_overlaps_general4(chunk_clip_min, chunk_clip_max, my_tri.min_extents, my_tri.max_extents, coordinate_period))
             continue;
 
-        int my_id = chunked_count++;
-
-        if(my_id >= max_tris_per_chunk)
-            break;
-
-        chunked_tri_list_out[cid * max_tris_per_chunk + my_id] = i;
+        chunked_count++;
     }
 
     chunked_tri_list_count[cid] = chunked_count;
+
+    int root_offset = atomic_add(chunked_global_count, chunked_count);
+
+    int chunked_id = 0;
+
+    for(int i=0; i < tris_num; i++)
+    {
+        struct computed my_tri = ctri[i];
+
+        ///could improve memory layout
+        if(!range_overlaps_general4(chunk_clip_min, chunk_clip_max, my_tri.min_extents, my_tri.max_extents, coordinate_period))
+            continue;
+
+        int my_id = chunked_id++;
+
+        chunked_tri_list_out[root_offset + my_id] = i;
+    }
+
+    chunked_offsets[cid] = root_offset;
 }
 
 __kernel
@@ -6014,11 +6031,11 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
                          __write_only image2d_t screen,
                          global int* chunked_tri_list,
                          global int* chunked_tri_list_count,
+                         global int* chunked_offsets,
                          int width,
                          int height,
                          int chunk_x,
                          int chunk_y,
-                         int max_tris_per_chunk,
                          global float4* ray_segments,
                          global int* ray_segments_count,
                          global float4* object_geodesics, global int* object_geodesic_counts,
@@ -6049,9 +6066,7 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
     int chunk_dim_x = get_chunk_size(width, chunk_x);
     int chunk_id = chunk_idy * chunk_dim_x + chunk_idx;
 
-    ///every thread will be accessing the same tri, so we end up with a broadcast
-    __global int* tri_ids = &chunked_tri_list[chunk_id * max_tris_per_chunk];
-    int found_tris = min(max_tris_per_chunk, chunked_tri_list_count[chunk_id]);
+    int found_tris = chunked_tri_list_count[chunk_id];
 
     int my_ray_segment_count = ray_segments_count[ray_id];
 
@@ -6060,6 +6075,8 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
         write_imagef(screen, (int2)(ray_x, ray_y), (float4)((float)found_tris / 100.f, 0, 0, 1));
         return;
     }*/
+
+    int root_offset = chunked_offsets[chunk_id];
 
     float4 ray_clip_min = fine_clip_min[ray_id];
     float4 ray_clip_max = fine_clip_max[ray_id];
@@ -6074,7 +6091,8 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
 
     for(int t=0; t < found_tris; t++)
     {
-        int tri_id = tri_ids[t];
+        int tri_id = chunked_tri_list[root_offset + t];
+
         struct computed tri = ctri[tri_id];
 
         int stride = object_count;
