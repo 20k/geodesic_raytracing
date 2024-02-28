@@ -6079,6 +6079,9 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
 
     int found_tris = chunked_tri_list_count[chunk_id];
 
+    if(found_tris == 0)
+        return;
+
     int my_ray_segment_count = ray_segments_count[ray_id];
 
     int2 bounds = get_bounds(my_ray_segment_count, offset, SEGMENTS);
