@@ -1377,11 +1377,12 @@ int main(int argc, char* argv[])
 
     #define TRI_STANDARD_CASE
     #ifdef TRI_STANDARD_CASE
-    std::shared_ptr<triangle_rendering::object> obj = tris.make_new();
+    std::shared_ptr<triangle_rendering::object> obj = tris.make_new("./models/newell_teaset/teapot.obj");
 
-    obj->tris = make_cube({0, 0, 0});
+    //obj->tris = make_cube({0, 0, 0});
     obj->pos = {-60, -5, -1, 0};
     obj->velocity = {-0.2f, 0.2f, 0};
+    obj->scale = 0.1f;
     #endif // TRI_STANDARD_CASE
 
     physics phys(clctx.ctx);
@@ -1408,6 +1409,9 @@ int main(int argc, char* argv[])
         states.emplace_back(clctx.ctx, clctx.cqueue);
         states[i].realloc(start_width, start_height);
     }
+
+    single_render_state single_state(clctx.ctx, clctx.cqueue);
+    single_state.realloc(start_width, start_height);
 
     bool reset_camera = true;
     bool once = false;
@@ -1808,6 +1812,8 @@ int main(int argc, char* argv[])
 
                 for(auto& i : states)
                     i.realloc(width, height);
+
+                single_state.realloc(width, height);
 
                 last_supersample = menu.sett.supersample;
                 last_supersample_mult = menu.sett.supersample_factor;
@@ -2497,7 +2503,7 @@ int main(int argc, char* argv[])
 
                 ///completely standalone
                 {
-                    st.computed_tri_count.set_to_zero(mqueue);
+                    single_state.computed_tri_count.set_to_zero(mqueue);
 
                     cl::args args;
                     args.push_back(tris.tris);
@@ -2509,8 +2515,8 @@ int main(int argc, char* argv[])
                     for(int i=0; i < 4; i++)
                         args.push_back(phys.subsampled_parallel_transported_tetrads[i]);
 
-                    args.push_back(st.computed_tris);
-                    args.push_back(st.computed_tri_count);
+                    args.push_back(single_state.computed_tris);
+                    args.push_back(single_state.computed_tri_count);
                     args.push_back(st.accel_ray_time_min);
                     args.push_back(st.accel_ray_time_max);
                     args.push_back(dynamic_config);
@@ -2542,17 +2548,17 @@ int main(int argc, char* argv[])
                     }
 
                     {
-                        st.tri_list_allocator.set_to_zero(mqueue);
+                        single_state.tri_list_allocator.set_to_zero(mqueue);
 
                         cl::args args;
-                        args.push_back(st.computed_tris);
-                        args.push_back(st.computed_tri_count);
+                        args.push_back(single_state.computed_tris);
+                        args.push_back(single_state.computed_tri_count);
 
-                        args.push_back(st.tri_list1);
-                        args.push_back(st.tri_list_counts1);
-                        args.push_back(st.tri_list_allocator);
-                        args.push_back(st.tri_list_offsets);
-                        args.push_back(st.max_tris);
+                        args.push_back(single_state.tri_list1);
+                        args.push_back(single_state.tri_list_counts1);
+                        args.push_back(single_state.tri_list_allocator);
+                        args.push_back(single_state.tri_list_offsets);
+                        args.push_back(single_state.max_tris);
                         args.push_back(st.chunked_mins);
                         args.push_back(st.chunked_maxs);
                         args.push_back(chunk_x);
@@ -2568,13 +2574,13 @@ int main(int argc, char* argv[])
 
                     {
                         cl::args args;
-                        args.push_back(st.computed_tris);
-                        args.push_back(st.computed_tri_count);
+                        args.push_back(single_state.computed_tris);
+                        args.push_back(single_state.computed_tri_count);
                         args.push_back(phys.object_count);
                         args.push_back(glis.rtex);
-                        args.push_back(st.tri_list1);
-                        args.push_back(st.tri_list_counts1);
-                        args.push_back(st.tri_list_offsets);
+                        args.push_back(single_state.tri_list1);
+                        args.push_back(single_state.tri_list_counts1);
+                        args.push_back(single_state.tri_list_offsets);
                         args.push_back(st.width);
                         args.push_back(st.height);
                         args.push_back(chunk_x);

@@ -16,6 +16,35 @@ struct lightray
     cl_int terminated;
 };
 
+struct single_render_state
+{
+    cl::buffer tri_list_allocator;
+    cl::buffer tri_list_offsets;
+    cl::buffer tri_list1;
+    cl::buffer tri_list_counts1;
+
+    cl::buffer computed_tris;
+    cl::buffer computed_tri_count;
+    int max_tris = 1024 * 1024 * 200;
+
+    single_render_state(cl::context& ctx, cl::command_queue& cqueue) :
+        tri_list_allocator(ctx), tri_list_offsets(ctx),
+        tri_list1(ctx), tri_list_counts1(ctx),
+        computed_tris(ctx), computed_tri_count(ctx)
+    {
+        computed_tris.alloc(1024 * 1024 * 800);
+        computed_tri_count.alloc(sizeof(cl_int));
+        tri_list_allocator.alloc(sizeof(cl_ulong));
+    }
+
+    void realloc(uint32_t width, uint32_t height)
+    {
+        tri_list_offsets.alloc(sizeof(cl_ulong) * width * height);
+        tri_list1.alloc(sizeof(cl_int) * max_tris);
+        tri_list_counts1.alloc(sizeof(cl_int) * width * height);
+    }
+};
+
 struct render_state
 {
     cl::buffer g_camera_pos_cart;
@@ -49,16 +78,7 @@ struct render_state
     cl::buffer chunked_mins;
     cl::buffer chunked_maxs;
 
-    cl::buffer tri_list_allocator;
-    cl::buffer tri_list_offsets;
-    cl::buffer tri_list1;
-    cl::buffer tri_list_counts1;
-
-    cl::buffer computed_tris;
-    cl::buffer computed_tri_count;
-
     cl::buffer already_rendered;
-    int max_tris = 1024 * 1024 * 200;
 
     int width = 0;
     int height = 0;
@@ -76,9 +96,7 @@ struct render_state
         stored_rays(ctx), stored_ray_counts(ctx),
         stored_mins(ctx), stored_maxs(ctx),
         chunked_mins(ctx), chunked_maxs(ctx),
-        tri_list_allocator(ctx), tri_list_offsets(ctx),
-        tri_list1(ctx), tri_list_counts1(ctx),
-        computed_tris(ctx), computed_tri_count(ctx),
+
         already_rendered(ctx)
     {
         g_camera_pos_cart.alloc(sizeof(cl_float4));
@@ -100,10 +118,6 @@ struct render_state
 
         accel_ray_time_min.alloc(sizeof(cl_int));
         accel_ray_time_max.alloc(sizeof(cl_int));
-
-        computed_tris.alloc(1024 * 1024 * 102);
-        computed_tri_count.alloc(sizeof(cl_int));
-        tri_list_allocator.alloc(sizeof(cl_ulong));
     }
 
     void realloc(uint32_t _width, uint32_t _height)
@@ -129,10 +143,6 @@ struct render_state
         ///width, height / workgroup_size in reality
         chunked_mins.alloc(sizeof(cl_float4) * width * height);
         chunked_maxs.alloc(sizeof(cl_float4) * width * height);
-
-        tri_list_offsets.alloc(sizeof(cl_ulong) * width * height);
-        tri_list1.alloc(sizeof(cl_int) * max_tris);
-        tri_list_counts1.alloc(sizeof(cl_int) * width * height);
 
         already_rendered.alloc(sizeof(cl_int) * width * height);
     }
