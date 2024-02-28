@@ -6091,8 +6091,8 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
 
     int root_offset = chunked_offsets[chunk_id];
 
-    float4 ray_clip_min = fine_clip_min[ray_id];
-    float4 ray_clip_max = fine_clip_max[ray_id];
+    //float4 ray_clip_min = fine_clip_min[ray_id];
+    //float4 ray_clip_max = fine_clip_max[ray_id];
 
     float4 periods = get_coordinate_period(cfg);
 
@@ -6104,8 +6104,6 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
     {
         float4 current_pos = ray_segments[rs * width * height + ray_id];
         float4 next_pos = ray_segments[(rs+1) * width * height + ray_id];
-
-        bool should_break = false;
 
         ///...could i stuff you in local memory? or even an array?
         for(int t=0; t < found_tris; t++)
@@ -6157,17 +6155,16 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
             if(ray_intersects_toblerone2(current_pos, next_pos, v0, v1, v2, native_current, native_next,
                                          s_ie0, s_ie1, s_ie2, s_ie3, n_ie0, n_ie1, n_ie2, n_ie3, periods, &ray_t, ray_x == 1353 && ray_y == 406))
             {
-                if(should_break && ray_t >= last_ray_t)
+                if(last_ray_t != FLT_MAX && ray_t >= last_ray_t)
                     continue;
 
                 last_ray_t = ray_t;
 
                 last_tri_id = tri_id;
-                should_break = true;
             }
         }
 
-        if(should_break)
+        if(last_ray_t != FLT_MAX)
             break;
     }
 
