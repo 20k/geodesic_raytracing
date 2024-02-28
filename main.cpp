@@ -1039,12 +1039,6 @@ int main(int argc, char* argv[])
 
     assert(win.clctx);
 
-    #ifdef UNSTRUCTURED
-    std::array<cl::command_queue, 3> cqueues{clctx.ctx, clctx.ctx, clctx.ctx};
-    #else
-    cl::command_queue mqueue(win.clctx->ctx, 1<<9);
-    #endif
-
     //std::cout << "extensions " << cl::get_extensions(win.clctx->ctx) << std::endl;
 
     ImFontAtlas* atlas = ImGui::GetIO().Fonts;
@@ -1279,8 +1273,6 @@ int main(int argc, char* argv[])
 
     triangle_rendering::manager tris(clctx.ctx);
 
-    print("Post tris\n");
-
     /*for(int z=-5; z <= 5; z++)
     {
         for(int y=-5; y <= 5; y++)
@@ -1385,16 +1377,11 @@ int main(int argc, char* argv[])
 
     #define TRI_STANDARD_CASE
     #ifdef TRI_STANDARD_CASE
-    print("Pre load\n");
     std::shared_ptr<triangle_rendering::object> obj = tris.make_new("./models/newell_teaset/teapot.obj");
-    print("Pre load2\n");
 
     //obj->tris = make_cube({0, 0, 0});
-    obj->scale = 0.1f;
     obj->pos = {-60, -5, -1, 0};
     obj->velocity = {-0.2f, 0.2f, 0};
-
-    print("Post load\n");
     #endif // TRI_STANDARD_CASE
 
     physics phys(clctx.ctx);
@@ -1406,9 +1393,13 @@ int main(int argc, char* argv[])
         phys.setup(clctx.cqueue, tris);
     }
 
-    print("Pre main2\n");
+    print("Pre main\n");
 
-    printf("Hithere\n");
+    #ifdef UNSTRUCTURED
+    std::array<cl::command_queue, 3> cqueues{clctx.ctx, clctx.ctx, clctx.ctx};
+    #else
+    cl::command_queue mqueue(clctx.ctx, 1<<9);
+    #endif
 
     std::vector<render_state> states;
 
@@ -1417,8 +1408,6 @@ int main(int argc, char* argv[])
         states.emplace_back(clctx.ctx, clctx.cqueue);
         states[i].realloc(start_width, start_height);
     }
-
-    printf("Hithere2\n");
 
     bool reset_camera = true;
     bool once = false;
@@ -1432,8 +1421,6 @@ int main(int argc, char* argv[])
         file::write_atomic("./settings.json", serialise(menu.sett, serialise_mode::DISK).dump(), file::mode::BINARY);
     };
 
-    printf("P2\n");
-
     clctx.cqueue.block();
 
     camera cam;
@@ -1446,8 +1433,6 @@ int main(int argc, char* argv[])
 
     cl::event last_event;
     cl::event last_last_event;
-
-    printf("P3\n");
 
     int which_state = 0;
 
@@ -1534,8 +1519,6 @@ int main(int argc, char* argv[])
             }
         }
     });
-
-    printf("P4\n");
 
     #define START_CLOSED
     #ifdef START_CLOSED
