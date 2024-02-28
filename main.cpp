@@ -1377,9 +1377,9 @@ int main(int argc, char* argv[])
 
     #define TRI_STANDARD_CASE
     #ifdef TRI_STANDARD_CASE
-    std::shared_ptr<triangle_rendering::object> obj = tris.make_new("./models/newell_teaset/teapot.obj");
+    std::shared_ptr<triangle_rendering::object> obj = tris.make_new();
 
-    //obj->tris = make_cube({0, 0, 0});
+    obj->tris = make_cube({0, 0, 0});
     obj->pos = {-60, -5, -1, 0};
     obj->velocity = {-0.2f, 0.2f, 0};
     #endif // TRI_STANDARD_CASE

@@ -6004,11 +6004,12 @@ void generate_tri_lists2(global struct computed* ctri,
         chunked_count++;
     }
 
-    int root_offset = atomic_add(chunked_global_count, chunked_count);
+    int root_offset = 0;
 
-    //printf("%i root\n", root_offset);
+    if(chunked_count > 0)
+        root_offset = atomic_add(chunked_global_count, chunked_count);
 
-    if(root_offset + chunked_count > max_tris)
+    if(root_offset + chunked_count > max_tris || chunked_count == 0)
     {
         chunked_tri_list_count[cid] = 0;
         chunked_offsets[cid] = 0;
