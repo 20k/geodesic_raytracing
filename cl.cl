@@ -5767,13 +5767,13 @@ void generate_clip_regions(const global float4* restrict ray_write,
 
 struct computed
 {
-    float v0x, v0y, v0z,
-          v1x, v1y, v1z,
-          v2x, v2y, v2z;
-
     ///in coordinate space, in global coordinates, not tied to a geodesic
     float4 min_extents;
     float4 max_extents;
+
+    float v0x, v0y, v0z,
+          v1x, v1y, v1z,
+          v2x, v2y, v2z;
 
     int geodesic_segment;
 };
