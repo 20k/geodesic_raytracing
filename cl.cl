@@ -6081,6 +6081,8 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
 
     int my_ray_segment_count = ray_segments_count[ray_id];
 
+    int2 bounds = get_bounds(my_ray_segment_count, offset, SEGMENTS);
+
     /*if(found_tris > 0)
     {
         write_imagef(screen, (int2)(ray_x, ray_y), (float4)((float)found_tris / 100.f, 0, 0, 1));
@@ -6094,63 +6096,58 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
 
     float4 periods = get_coordinate_period(cfg);
 
-    //int last_hit_segment = my_ray_segment_count - 2;
     float last_ray_t = FLT_MAX;
-    int last_hit_segment = 99999;
 
     int last_tri_id = -1;
 
-    for(int t=0; t < found_tris; t++)
+    for(int rs = bounds.x; rs < bounds.y - 1; rs++)
     {
-        int tri_id = chunked_tri_list[root_offset + t];
+        float4 current_pos = ray_segments[rs * width * height + ray_id];
+        float4 next_pos = ray_segments[(rs+1) * width * height + ray_id];
 
-        struct computed tri = ctri[tri_id];
+        float4 min_camera = min(current_pos, next_pos);
+        float4 max_camera = max(current_pos, next_pos);
 
-        int stride = object_count;
-
-        float4 min_extents = tri.min_extents;
-        float4 max_extents = tri.max_extents;
-
-        ///could improve the memroy layout to have min_extents and max_extents accessible
-        if(!range_overlaps_general4(ray_clip_min, ray_clip_max, min_extents, max_extents, periods))
-            continue;
-
-        ///current position of triangle in coordinate space
-        float4 native_current = object_geodesics[tri.geodesic_segment];
-        float4 native_next = object_geodesics[tri.geodesic_segment + stride * COMPUTED_SKIP];
-
-        ///current inverse tetrads
-        float4 s_ie0 = inverse_e0s[tri.geodesic_segment];
-        float4 s_ie1 = inverse_e1s[tri.geodesic_segment];
-        float4 s_ie2 = inverse_e2s[tri.geodesic_segment];
-        float4 s_ie3 = inverse_e3s[tri.geodesic_segment];
-
-        ///next inverse tetrads
-        float4 n_ie0 = inverse_e0s[tri.geodesic_segment + stride * COMPUTED_SKIP];
-        float4 n_ie1 = inverse_e1s[tri.geodesic_segment + stride * COMPUTED_SKIP];
-        float4 n_ie2 = inverse_e2s[tri.geodesic_segment + stride * COMPUTED_SKIP];
-        float4 n_ie3 = inverse_e3s[tri.geodesic_segment + stride * COMPUTED_SKIP];
-
-        float3 v0 = (float3)(tri.v0x, tri.v0y, tri.v0z);
-        float3 v1 = (float3)(tri.v1x, tri.v1y, tri.v1z);
-        float3 v2 = (float3)(tri.v2x, tri.v2y, tri.v2z);
-
-        int2 bounds = get_bounds(my_ray_segment_count, offset, SEGMENTS);
+        bool should_break = false;
 
         ///...could i stuff you in local memory? or even an array?
-        for(int rs = bounds.x; rs < bounds.y - 1; rs++)
+        for(int t=0; t < found_tris; t++)
         {
-            if(rs > last_hit_segment)
-                break;
+            int tri_id = chunked_tri_list[root_offset + t];
 
-            float4 current_pos = ray_segments[rs * width * height + ray_id];
-            float4 next_pos = ray_segments[(rs+1) * width * height + ray_id];
+            struct computed tri = ctri[tri_id];
 
-            float4 min_camera = min(current_pos, next_pos);
-            float4 max_camera = max(current_pos, next_pos);
+            int stride = object_count;
+
+            float4 min_extents = tri.min_extents;
+            float4 max_extents = tri.max_extents;
+
+            ///could improve the memroy layout to have min_extents and max_extents accessible
+            //if(!range_overlaps_general4(ray_clip_min, ray_clip_max, min_extents, max_extents, periods))
+            //    continue;
 
             if(!range_overlaps_general4(min_camera, max_camera, min_extents, max_extents, periods))
                 continue;
+
+            ///current position of triangle in coordinate space
+            float4 native_current = object_geodesics[tri.geodesic_segment];
+            float4 native_next = object_geodesics[tri.geodesic_segment + stride * COMPUTED_SKIP];
+
+            ///current inverse tetrads
+            float4 s_ie0 = inverse_e0s[tri.geodesic_segment];
+            float4 s_ie1 = inverse_e1s[tri.geodesic_segment];
+            float4 s_ie2 = inverse_e2s[tri.geodesic_segment];
+            float4 s_ie3 = inverse_e3s[tri.geodesic_segment];
+
+            ///next inverse tetrads
+            float4 n_ie0 = inverse_e0s[tri.geodesic_segment + stride * COMPUTED_SKIP];
+            float4 n_ie1 = inverse_e1s[tri.geodesic_segment + stride * COMPUTED_SKIP];
+            float4 n_ie2 = inverse_e2s[tri.geodesic_segment + stride * COMPUTED_SKIP];
+            float4 n_ie3 = inverse_e3s[tri.geodesic_segment + stride * COMPUTED_SKIP];
+
+            float3 v0 = (float3)(tri.v0x, tri.v0y, tri.v0z);
+            float3 v1 = (float3)(tri.v1x, tri.v1y, tri.v1z);
+            float3 v2 = (float3)(tri.v2x, tri.v2y, tri.v2z);
 
             float ray_t = FLT_MAX;
 
@@ -6163,16 +6160,18 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
             if(ray_intersects_toblerone2(current_pos, next_pos, v0, v1, v2, native_current, native_next,
                                          s_ie0, s_ie1, s_ie2, s_ie3, n_ie0, n_ie1, n_ie2, n_ie3, periods, &ray_t, ray_x == 1353 && ray_y == 406))
             {
-                if(rs == last_hit_segment && ray_t >= last_ray_t)
+                if(should_break && ray_t >= last_ray_t)
                     continue;
 
                 last_ray_t = ray_t;
 
                 last_tri_id = tri_id;
-                last_hit_segment = rs;
-                break;
+                should_break = true;
             }
         }
+
+        if(should_break)
+            break;
     }
 
     ///1030, 280
