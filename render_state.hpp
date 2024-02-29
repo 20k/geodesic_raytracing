@@ -65,9 +65,6 @@ struct render_state
     cl::buffer rays_in;
     cl::buffer rays_count_in;
 
-    cl::buffer tri_intersections;
-    cl::buffer tri_intersections_count;
-
     cl::buffer termination_buffer;
 
     cl::buffer texture_coordinates;
@@ -94,7 +91,6 @@ struct render_state
         tetrad{ctx, ctx, ctx, ctx},
         rays_in(ctx),
         rays_count_in(ctx),
-        tri_intersections(ctx), tri_intersections_count(ctx),
         termination_buffer(ctx),
         texture_coordinates(ctx),
         accel_ray_time_min(ctx), accel_ray_time_max(ctx),
@@ -118,8 +114,6 @@ struct render_state
 
         rays_count_in.alloc(sizeof(cl_int));
 
-        //tri_intersections.alloc(sizeof());
-        tri_intersections_count.alloc(sizeof(cl_int));
 
         accel_ray_time_min.alloc(sizeof(cl_int));
         accel_ray_time_max.alloc(sizeof(cl_int));
@@ -136,8 +130,6 @@ struct render_state
 
         termination_buffer.alloc(width * height * sizeof(cl_int));
         texture_coordinates.alloc(width * height * sizeof(float) * 2);
-
-        tri_intersections.alloc(sizeof(cl_int) * width * height * 10);
 
         stored_ray_counts.alloc(sizeof(cl_int) * width * height);
 

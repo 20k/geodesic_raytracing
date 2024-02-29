@@ -141,7 +141,7 @@ void execute_kernel(graphics_settings& sett,
                     cl::buffer& count_in,
                     cl::buffer& ray_time_min, cl::buffer& ray_time_max,
                     //cl::buffer& visual_path, cl::buffer& visual_ray_counts,
-                    triangle_rendering::manager& manage, cl::buffer& intersections, cl::buffer& intersections_count,
+                    triangle_rendering::manager& manage,
                     triangle_rendering::acceleration& accel,
                     physics& phys,
                     int num_rays,
@@ -2414,7 +2414,7 @@ int main(int argc, char* argv[])
 
                     int rays_num = calculate_ray_count(prepass_width, prepass_height);
 
-                    execute_kernel(menu.sett, mqueue, st.rays_in, st.rays_count_in, st.accel_ray_time_min, st.accel_ray_time_max, tris, st.tri_intersections, st.tri_intersections_count, accel, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer, st.width, st.height, st, single_state, last_event);
+                    execute_kernel(menu.sett, mqueue, st.rays_in, st.rays_count_in, st.accel_ray_time_min, st.accel_ray_time_max, tris, accel, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer, st.width, st.height, st, single_state, last_event);
 
                     cl::args singular_args;
                     singular_args.push_back(st.rays_in);
@@ -2449,7 +2449,7 @@ int main(int argc, char* argv[])
 
                 int rays_num = calculate_ray_count(width, height);
 
-                execute_kernel(menu.sett, mqueue, st.rays_in, st.rays_count_in, st.accel_ray_time_min, st.accel_ray_time_max, tris, st.tri_intersections, st.tri_intersections_count, accel, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer, st.width, st.height, st, single_state, last_event);
+                execute_kernel(menu.sett, mqueue, st.rays_in, st.rays_count_in, st.accel_ray_time_min, st.accel_ray_time_max, tris, accel, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer, st.width, st.height, st, single_state, last_event);
 
                 cl::args texture_args;
                 texture_args.push_back(st.rays_in);
