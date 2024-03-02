@@ -79,13 +79,7 @@ namespace triangle_rendering
         cl::buffer objects_velocity;
         cl::buffer tris;
 
-
-        int fill_point_count = 0;
-        cl::buffer fill_points;
-
-        bool acceleration_needs_rebuild = false;
-
-        manager(cl::context& ctx) : objects(ctx), objects_velocity(ctx), tris(ctx), fill_points(ctx)
+        manager(cl::context& ctx) : objects(ctx), objects_velocity(ctx), tris(ctx)
         {
 
         }
@@ -94,46 +88,10 @@ namespace triangle_rendering
         ///split into dir and name
         std::shared_ptr<object> make_new(const std::string& model_name);
 
-        void build(cl::command_queue& cqueue, float acceleration_voxel_size);
+        void build(cl::command_queue& cqueue);
         void update_objects(cl::command_queue& cqueue);
         void force_update_objects(cl::command_queue& cqueue);
     };
-
-    struct acceleration
-    {
-        cl::buffer offsets;
-        cl::buffer counts;
-        cl::buffer memory;
-        cl::buffer start_times_memory;
-        cl::buffer delta_times_memory;
-        cl::buffer memory_count;
-        cl::buffer unculled_counts;
-        cl::buffer linear_object_positions;
-
-        cl::buffer ray_time_min;
-        cl::buffer ray_time_max;
-
-        bool use_cell_based_culling = false;
-        cl::buffer cell_time_min;
-        cl::buffer cell_time_max;
-
-        cl::buffer any_visible;
-
-        ///increasing offset_size makes the performance scaling essentially flat
-        ///but there's too high of a constant time. Two level raytracing is probably the answer
-        vec4i offset_size = {80, 80, 80, 80};
-        float offset_width = 160.f;
-        float time_width = 160.f;
-        int max_memory_size = 1024 * 1024 * 1024; ///1GB
-
-        acceleration(cl::context& ctx);
-
-        void check_allocated(cl::command_queue& cqueue);
-        void build(cl::command_queue& cqueue, manager& tris, physics& phys, cl::buffer& dynamic_config);
-
-        bool is_allocated = false;
-    };
 }
-
 
 #endif // TRIANGLE_MANAGER_HPP_INCLUDED

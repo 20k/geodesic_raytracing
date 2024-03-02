@@ -114,7 +114,6 @@ struct render_state
 
         rays_count_in.alloc(sizeof(cl_int));
 
-
         accel_ray_time_min.alloc(sizeof(cl_int));
         accel_ray_time_max.alloc(sizeof(cl_int));
     }
