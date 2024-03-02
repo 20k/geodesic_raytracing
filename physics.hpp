@@ -29,6 +29,8 @@ struct physics
     cl::buffer subsampled_counts;
     std::array<cl::buffer, 4> subsampled_parallel_transported_tetrads;
     std::array<cl::buffer, 4> subsampled_inverted_tetrads;
+    cl::buffer subsampled_segment_mins;
+    cl::buffer subsampled_segment_maxs;
 
 
     int object_count = 0;
@@ -38,7 +40,8 @@ struct physics
     physics(cl::context& ctx) : geodesic_paths(ctx), geodesic_velocities(ctx), geodesic_ds(ctx), positions(ctx), counts(ctx), basis_speeds(ctx),
                                 gpu_object_count(ctx),
                                 tetrads{ctx, ctx, ctx, ctx}, parallel_transported_tetrads{ctx, ctx, ctx, ctx}, inverted_tetrads{ctx, ctx, ctx, ctx}, generic_positions(ctx), timelike_vectors(ctx),
-                                subsampled_paths(ctx), subsampled_velocities(ctx), subsampled_ds(ctx), subsampled_counts(ctx), subsampled_parallel_transported_tetrads{ctx, ctx, ctx, ctx}, subsampled_inverted_tetrads{ctx, ctx, ctx, ctx}
+                                subsampled_paths(ctx), subsampled_velocities(ctx), subsampled_ds(ctx), subsampled_counts(ctx), subsampled_parallel_transported_tetrads{ctx, ctx, ctx, ctx}, subsampled_inverted_tetrads{ctx, ctx, ctx, ctx},
+                                subsampled_segment_mins(ctx), subsampled_segment_maxs(ctx)
     {
         gpu_object_count.alloc(sizeof(cl_int));
     }
@@ -71,6 +74,9 @@ struct physics
             subsampled_parallel_transported_tetrads[i].alloc(clamped_count * sizeof(cl_float4) * max_path_length);
             subsampled_inverted_tetrads[i].alloc(clamped_count * sizeof(cl_float4) * max_path_length);
         }
+
+        subsampled_segment_mins.alloc(clamped_count * sizeof(cl_float4) * max_path_length);
+        subsampled_segment_maxs.alloc(clamped_count * sizeof(cl_float4) * max_path_length);
 
         generic_positions.alloc(clamped_count * sizeof(cl_float4));
         timelike_vectors.alloc(clamped_count * 1024); ///approximate because don't want to import gpu lightray definition
@@ -249,6 +255,23 @@ struct physics
 
             cqueue.exec("subsample_tri_quantity", args, {object_count}, {256});
         }
+
+        #if 0
+        {
+            cl::args args;
+            args.push_back(subsampled_paths);
+            args.push_back(subsampled_counts);
+            args.push_back(object_count);
+            args.push_back(subsampled_segment_mins);
+            args.push_back(subsampled_segment_maxs);
+            args.push_back(subsampled_parallel_transported_tetrads[0]);
+            args.push_back(subsampled_parallel_transported_tetrads[1]);
+            args.push_back(subsampled_parallel_transported_tetrads[2]);
+            args.push_back(subsampled_parallel_transported_tetrads[3]);
+
+            cqueue.exec("calculate_segment_extents", args, {object_count}, {256});
+        }
+        #endif
 
         needs_trace = false;
     }

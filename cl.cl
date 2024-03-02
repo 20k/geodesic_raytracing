@@ -1,6 +1,9 @@
 #pragma OPENCL EXTENSION cl_khr_fp16 : enable
 
+#include "common.cl"
+
 #define M_PIf ((float)M_PI)
+#define E4(n) n.x, n.y, n.z, n.w
 
 struct triangle
 {
@@ -9,48 +12,6 @@ struct triangle
     float v1x, v1y, v1z;
     float v2x, v2y, v2z;
 };
-
-#if (FEATURE_precession == 1)
-#define TRI_PRECESSION
-#endif // FEATURE_precession
-
-#define TRI_PRECESSION
-#ifdef TRI_PRECESSION
-struct computed_triangle
-{
-    /*float4 v0, v1, v2;
-    float4 e0, e1, e2;
-    int geodesic_segment;*/
-
-    float4 tv0, tv1, tv2;
-    //float4 te0, te1, te2;
-
-    //float4 coordinate_v0, coordinate_v1, coordinate_v2;
-    //float4 coordinate_e0, coordinate_e1, coordinate_e2;
-
-    ///in coordinate space, in global coordinates, not tied to a geodesic
-    float4 min_extents;
-    float4 max_extents;
-
-    int geodesic_segment;
-
-    int next_geodesic_segment;
-};
-#else
-struct computed_triangle
-{
-    //float time;
-    float v0x, v0y, v0z;
-    half dv1x, dv1y, dv1z;
-    half dv2x, dv2y, dv2z;
-
-    //float dvt;
-    half dvx;
-    half dvy;
-    half dvz;
-};
-
-#endif // TRI_PRECESSION
 
 struct intersection
 {
@@ -69,6 +30,34 @@ bool approx_equal(float v1, float v2, float tol)
 }
 
 #define IS_DEGENERATE(x) (isnan(x) || !isfinite(x))
+
+void sort2(float* v0, float* v1)
+{
+    float iv0 = *v0;
+    float iv1 = *v1;
+
+    *v0 = min(iv0, iv1);
+    *v1 = max(iv0, iv1);
+}
+
+bool range_overlaps_general(float s1, float s2, float e1, float e2, float period)
+{
+    sort2(&s1, &s2);
+    sort2(&e1, &e2);
+
+    if(period == 0)
+        return range_overlaps(s1, s2, e1, e2);
+    else
+        return periodic_range_overlaps(s1, s2, e1, e2, period);
+}
+
+bool range_overlaps_general4(float4 s1, float4 s2, float4 e1, float4 e2, float4 period)
+{
+    return range_overlaps_general(s1.x, s2.x, e1.x, e2.x, period.x) &&
+           range_overlaps_general(s1.y, s2.y, e1.y, e2.y, period.y) &&
+           range_overlaps_general(s1.z, s2.z, e1.z, e2.z, period.z) &&
+           range_overlaps_general(s1.w, s2.w, e1.w, e2.w, period.w);
+}
 
 float smooth_fmod(float a, float b)
 {
@@ -1308,13 +1297,13 @@ float3 cartesian_velocity_to_spherical_velocity_g(float3 v, float3 inv)
 }
 
 ///This function makes no sense. Why does it take an argument? Its literally unused
-float4 get_coordinate_period(float4 in, dynamic_config_space const struct dynamic_config* cfg)
+float4 get_coordinate_period(dynamic_config_space const struct dynamic_config* cfg)
 {
     #ifdef HAS_COORDINATE_PERIODICITY
-    float v1 = in.x;
-    float v2 = in.y;
-    float v3 = in.z;
-    float v4 = in.w;
+    float v1 = 0;
+    float v2 = 0;
+    float v3 = 0;
+    float v4 = 0;
 
     float o1 = COORDINATE_PERIODICITY1;
     float o2 = COORDINATE_PERIODICITY2;
@@ -1349,7 +1338,7 @@ float4 positive_fmod4(float4 a, float4 b)
 
 float4 handle_coordinate_periodicity(float4 in, dynamic_config_space const struct dynamic_config* cfg)
 {
-    float4 periods = get_coordinate_period(in, cfg);
+    float4 periods = get_coordinate_period(cfg);
 
     if(periods.x != 0)
         in.x = positive_fmod(in.x, periods.x);
@@ -2117,30 +2106,6 @@ float4 parallel_transport_get_velocity(float4 X, float4 geodesic_position, float
 
     return (float4){vel[0], vel[1], vel[2], vel[3]};
 }
-
-#if 0
-__kernel
-void init_basis_speed(__global float4* camera_rot, float speed, __global float4* basis_speed_out)
-{
-    if(get_global_id(0) != 0)
-        return;
-
-    float3 base = {0, 0, 1};
-
-    float3 rotated = rot_quat(base, *camera_rot);
-
-    *basis_speed_out = (float4)(normalize(rotated) * speed, 0);
-}
-#endif
-
-/*__kernel
-void quat_to_basis(__global float4* camera_quat,
-                   __global float4* e0, __global float4* e1, __global float4* e2, __global float4* e3,
-                   __global float4* b0, __global float4* b1, __global float4* b2)
-{
-    if(get_global_id(0) != 0)
-
-}*/
 
 ///https://arxiv.org/pdf/0904.4184.pdf 1.4.18
 float4 get_timelike_vector(float3 cartesian_basis_speed, float time_direction,
@@ -3469,16 +3434,6 @@ bool ray_plane_intersection(float3 plane_origin, float3 plane_normal, float3 ray
     return true;
 }
 
-float3 ray_plane_intersection_point(float3 plane_origin, float3 plane_normal, float3 ray_origin, float3 ray_direction)
-{
-    float oT = 0;
-
-    ///look ok, I'm tired
-    ray_plane_intersection(plane_origin, plane_normal, ray_origin, ray_direction, &oT);
-
-    return ray_origin + ray_direction * oT;
-}
-
 bool ray_intersects_triangle(float3 origin, float3 direction, float3 v0, float3 v1, float3 v2, float* t_out, float* u_out, float* v_out)
 {
     float eps = 0.0000001;
@@ -3522,91 +3477,10 @@ bool ray_intersects_triangle(float3 origin, float3 direction, float3 v0, float3 
     return true;
 }
 
-struct sub_point
-{
-    float x, y, z;
-    int parent;
-    int object_parent;
-};
-
-#if 0
-__kernel
-void generate_acceleration_structure(__global struct triangle* tris, int tri_count, __global int* offset_map, __global int* offset_counts, __global int* pool, float width, int width_num)
-{
-    int id = get_global_id(0);
-
-    if(id >= tri_count)
-        return;
-
-    __global struct triangle* tri = &tris[id];
-
-    #define MIN3(x, y, z) min(min(x, y), z)
-    #define MAX3(x, y, z) max(max(x, y), z)
-
-    float3 minimum = (float3)(MIN3(tri->v0x, tri->v1x, tri->v2x), MIN3(tri->v0y, tri->v1y, tri->v2y), MIN3(tri->v0z, tri->v1z, tri->v2z));
-    float3 maximum = (float3)(MAX3(tri->v0x, tri->v1x, tri->v2x), MAX3(tri->v0y, tri->v1y, tri->v2y), MAX3(tri->v0z, tri->v1z, tri->v2z));
-
-    float voxel_cube_size = width / width_num;
-}
-#endif // 0
-
-float3 world_to_voxel(float3 world, float width, int width_num)
-{
-    float scale = width / width_num;
-
-    return world / scale;
-}
-
-float3 voxel_to_world(float3 world, float width, int width_num)
-{
-    float scale = width / width_num;
-
-    return world * scale;
-}
-
-float4 world_to_voxel4(float4 world, float width, float time_width, int width_num)
-{
-    float scale = width / width_num;
-    float time_scale = time_width / width_num;
-
-    float4 vscale = (float4)(time_scale, scale, scale, scale);
-
-    return world / vscale;
-}
-
-float4 voxel_to_world4(float4 voxel, float width, float time_width, int width_num)
-{
-    float scale = width / width_num;
-    float time_scale = time_width / width_num;
-
-    float4 vscale = (float4)(time_scale, scale, scale, scale);
-
-    return voxel * vscale;
-}
-
 int mod(int a, int b)
 {
     int r = a % b;
     return r < 0 ? r + b : r;
-}
-
-int3 loop_voxel(int3 in, int width_num)
-{
-    in.x = mod(in.x, width_num);
-    in.y = mod(in.y, width_num);
-    in.z = mod(in.z, width_num);
-
-    return in;
-}
-
-int4 loop_voxel4(int4 in, int width_num)
-{
-    in.x = mod(in.x, width_num);
-    in.y = mod(in.y, width_num);
-    in.z = mod(in.z, width_num);
-    in.w = mod(in.w, width_num);
-
-    return in;
 }
 
 __kernel void pull_to_geodesics(__global struct object* current_pos, __global float4* geodesic_out, int max_path_length, int object_count)
@@ -3617,315 +3491,6 @@ __kernel void pull_to_geodesics(__global struct object* current_pos, __global fl
         return;
 
     geodesic_out[0 * max_path_length + id] = current_pos[id].pos;
-}
-
-__kernel
-void clear_accel_counts(__global int* offset_counts, int size)
-{
-    int x = get_global_id(0);
-
-    if(x >= size)
-        return;
-
-    offset_counts[x] = 0;
-}
-
-__kernel
-void generate_acceleration_counts(__global struct sub_point* sp, int sp_count, __global struct object* objs, __global int* offset_counts, float width, int width_num)
-{
-    int id = get_global_id(0);
-
-    if(id >= sp_count)
-        return;
-
-    float voxel_cube_size = width / width_num;
-
-    struct sub_point mine = sp[id];
-
-    float3 pos = (float3)(mine.x, mine.y, mine.z) + objs[mine.object_parent].pos.yzw;
-    int w_id = mine.parent;
-
-    float3 grid_pos = floor(pos / voxel_cube_size);
-
-    int3 int_grid_pos = (int3)(grid_pos.x, grid_pos.y, grid_pos.z);
-
-    for(int z=-1; z <= 1; z++)
-    {
-        for(int y=-1; y <= 1; y++)
-        {
-            for(int x=-1; x <= 1; x++)
-            {
-                int3 off = (int3)(x, y, z);
-                int3 fin = int_grid_pos + off;
-
-                fin.x = mod(fin.x, width_num);
-                fin.y = mod(fin.y, width_num);
-                fin.z = mod(fin.z, width_num);
-
-                int oid = fin.z * width_num * width_num + fin.y * width_num + fin.x;
-
-                atomic_inc(&offset_counts[oid]);
-            }
-        }
-    }
-}
-
-struct step_setup
-{
-    float end_grid_pos_x;
-    float end_grid_pos_y;
-    float end_grid_pos_z;
-    float end_grid_pos_w;
-
-    float tMax_x;
-    float tMax_y;
-    float tMax_z;
-    float tMax_w;
-
-    float tDelta_x;
-    float tDelta_y;
-    float tDelta_z;
-    float tDelta_w;
-
-    float off_current_x;
-    float off_current_y;
-    float off_current_z;
-    float off_current_w;
-
-    float current_x;
-    float current_y;
-    float current_z;
-    float current_w;
-
-    //int4 current;
-    int idx;
-    bool should_end;
-};
-
-struct step_setup setup_step(float4 grid1, float4 grid2)
-{
-    float4 ray_dir = grid2 - grid1;
-
-    struct step_setup ret;
-
-    ret.end_grid_pos_x = floor(grid2.x);
-    ret.end_grid_pos_y = floor(grid2.y);
-    ret.end_grid_pos_z = floor(grid2.z);
-    ret.end_grid_pos_w = floor(grid2.w);
-
-    ret.current_x = floor(grid1.x);
-    ret.current_y = floor(grid1.y);
-    ret.current_z = floor(grid1.z);
-    ret.current_w = floor(grid1.w);
-
-    ret.off_current_x = grid1.x - floor(grid1.x);
-    ret.off_current_y = grid1.y - floor(grid1.y);
-    ret.off_current_z = grid1.z - floor(grid1.z);
-    ret.off_current_w = grid1.w - floor(grid1.w);
-
-    ///so, we're a ray, going at a speed of ray_dir.x
-    ///our position is grid1.x
-    ///here we're working in voxel coordinates, which means that there are
-    ///voxel boundaries at 0, 1, 2, 3, 4, 5
-    ///so, if I'm at 0.3, moving at a speed of 0.5 in the +x direction, we'll hit 1 in
-    ///(1 - 0.3) / 0.5f units of time == 1.4
-    ///so 0.3 + 0.5 * 1.4 == 1
-    ///if I'm a ray at 0.3, moving at a speed of -0.5 in the +x direction, we're looking to hit 0
-    ///in which case the calcultion becomes (0 - 0.3) / -0.5 == 0.6
-    ///which gives 0.3 + -0.5 * 0.6 == 0
-    ///therefore, if signstep < 0 we're looking to intersect with 0, and if signstep > 0 we're looking to intersect with 1
-    ///where I take the fractional part of the coordinate, ie fmod(pos, 1)
-    ///though careful!! we CAN have negative coordinates here, the looping is done elsewhere
-    ///this means need to positive_fmod
-
-    float4 signs = sign(ray_dir);
-
-    float4 tDelta;
-
-    #define GET_TDELTA(v) if(fabs(grid2.v - grid1.v) > 0.000001f){tDelta.v = signs.v / (grid2.v - grid1.v);} else {tDelta.v = 0;}
-
-    GET_TDELTA(x)
-    GET_TDELTA(y)
-    GET_TDELTA(z)
-    GET_TDELTA(w)
-
-    #define FRAC0(x) (x - floor(x))
-    #define FRAC1(x) (1 - x + floor(x))
-
-    float4 tMax;
-
-    #define DO_TMAX(v) if(signs.v > 0) {tMax.v = tDelta.v * FRAC1(grid1.v);} \
-                       else {tMax.v = tDelta.v * FRAC0(grid1.v); }
-
-    DO_TMAX(x)
-    DO_TMAX(y)
-    DO_TMAX(z)
-    DO_TMAX(w)
-
-    ret.tMax_x = tMax.x;
-    ret.tMax_y = tMax.y;
-    ret.tMax_z = tMax.z;
-    ret.tMax_w = tMax.w;
-
-    ret.tDelta_x = signs.x < 0 ? -tDelta.x : tDelta.x;
-    ret.tDelta_y = signs.y < 0 ? -tDelta.y : tDelta.y;
-    ret.tDelta_z = signs.z < 0 ? -tDelta.z : tDelta.z;
-    ret.tDelta_w = signs.w < 0 ? -tDelta.w : tDelta.w;
-    //ret.last_ray_t = 0;
-
-    ret.idx = 0;
-    ret.should_end = false;
-
-    return ret;
-};
-
-void do_step(struct step_setup* step)
-{
-    bool all_same = true;
-
-    if(floor(step->current_x) == floor(step->end_grid_pos_x) &&
-       floor(step->current_y) == floor(step->end_grid_pos_y) &&
-       floor(step->current_z) == floor(step->end_grid_pos_z) &&
-       floor(step->current_w) == floor(step->end_grid_pos_w))
-    {
-        step->idx++;
-        step->should_end = true;
-        return;
-    }
-
-    int which_min = -1;
-    float my_min = FLT_MAX;
-
-    if(step->tMax_x < my_min && floor(step->current_x) != floor(step->end_grid_pos_x))
-    {
-        which_min = 0;
-        my_min = step->tMax_x;
-    }
-    if(step->tMax_y < my_min && floor(step->current_y) != floor(step->end_grid_pos_y))
-    {
-        which_min = 1;
-        my_min = step->tMax_y;
-    }
-    if(step->tMax_z < my_min && floor(step->current_z) != floor(step->end_grid_pos_z))
-    {
-        which_min = 2;
-        my_min = step->tMax_z;
-    }
-    if(step->tMax_w < my_min && floor(step->current_w) != floor(step->end_grid_pos_w))
-    {
-        which_min = 3;
-        my_min = step->tMax_w;
-    }
-
-    if(which_min == 0)
-    {
-        step->tMax_x += fabs(step->tDelta_x);
-        step->current_x += sign(step->tDelta_x);
-    }
-
-    if(which_min == 1)
-    {
-        step->tMax_y += fabs(step->tDelta_y);
-        step->current_y += sign(step->tDelta_y);
-    }
-
-    if(which_min == 2)
-    {
-        step->tMax_z += fabs(step->tDelta_z);
-        step->current_z += sign(step->tDelta_z);
-    }
-
-    if(which_min == 3)
-    {
-        step->tMax_w += fabs(step->tDelta_w);
-        step->current_w += sign(step->tDelta_w);
-    }
-
-    if(which_min == -1)
-        step->should_end = true;
-
-    step->idx++;
-}
-
-///[0, > 1]
-float calculate_ray_t(struct step_setup* step)
-{
-    return min(min(fabs(step->tMax_x), fabs(step->tMax_y)), min(fabs(step->tMax_z), fabs(step->tMax_w)));
-}
-
-unsigned int index_generic(float4 in_voxel4, float width, float time_width, int width_num, dynamic_config_space const struct dynamic_config* cfg)
-{
-    float4 world4 = voxel_to_world4(in_voxel4, width, time_width, width_num);
-
-    world4 = handle_coordinate_periodicity(world4, cfg);
-
-    float4 voxel4 = world_to_voxel4(world4, width, time_width, width_num);
-
-    float4 ffloor = floor(voxel4);
-
-    int4 ifloor = convert_int4(ffloor);
-
-    ifloor = loop_voxel4(ifloor, width_num);
-
-    return ifloor.x * width_num * width_num * width_num + ifloor.w * width_num * width_num + ifloor.z * width_num + ifloor.y;
-}
-
-unsigned int index_acceleration(struct step_setup* step, float width, float time_width, int width_num, dynamic_config_space const struct dynamic_config* cfg)
-{
-    float4 step_pos = (float4)(step->current_x + step->off_current_x,
-                               step->current_y + step->off_current_y,
-                               step->current_z + step->off_current_z,
-                               step->current_w + step->off_current_w);
-
-    float4 world4 = voxel_to_world4(step_pos, width, time_width, width_num);
-
-    world4 = handle_coordinate_periodicity(world4, cfg);
-
-    float4 voxel4 = world_to_voxel4(world4, width, time_width, width_num);
-
-    float4 ffloor = floor(voxel4);
-
-    int4 ifloor = convert_int4(ffloor);
-
-    ifloor = loop_voxel4(ifloor, width_num);
-
-    return ifloor.x * width_num * width_num * width_num + ifloor.w * width_num * width_num + ifloor.z * width_num + ifloor.y;
-
-    //return ifloor.w * width_num * width_num * width_num + ifloor.z * width_num * width_num + ifloor.y * width_num + ifloor.x;
-}
-
-bool is_step_finished(struct step_setup* step)
-{
-    ///do I sometimes want to include the end point in smearing?
-    return step->should_end || step->idx > 600;
-}
-
-/*unsigned int index_acceleration(struct step_setup* setup, int width_num)
-{
-    int4 ifloor = setup->current;
-
-    ifloor = loop_voxel4(ifloor, width_num);
-
-    return ifloor.x * width_num * width_num * width_num + ifloor.w * width_num * width_num + ifloor.z * width_num + ifloor.y;
-
-    //return ifloor.w * width_num * width_num * width_num + ifloor.z * width_num * width_num + ifloor.y * width_num + ifloor.x;
-}*/
-
-void sort2(float* v0, float* v1)
-{
-    float iv0 = *v0;
-    float iv1 = *v1;
-
-    *v0 = min(iv0, iv1);
-    *v1 = max(iv0, iv1);
-
-}
-bool range_overlaps(float s0, float s1, float e0, float e1)
-{
-    sort2(&s0, &s1);
-    sort2(&e0, &e1);
-
-    return s0 <= e1 && e0 <= s1;
 }
 
 float fast_fmod(float a, float b)
@@ -4058,7 +3623,7 @@ void subsample_tri_quantity(int count, __global const int* geodesic_counts, __gl
         return;
     }
 
-    float4 periods = get_coordinate_period((float4)(0,0,0,0), cfg);
+    float4 periods = get_coordinate_period(cfg);
 
     //#define FIXED_SKIPPING
     #ifdef FIXED_SKIPPING
@@ -4225,303 +3790,10 @@ void subsample_tri_quantity(int count, __global const int* geodesic_counts, __gl
         next_count++;
     }
 
-    printf("Count %i real %i\n", next_count, cnt);
+    //printf("Count %i real %i\n", next_count, cnt);
 
     out_counts[id] = next_count;
     #endif
-}
-
-__kernel
-void generate_smeared_acceleration(__global struct sub_point* sp, int sp_count,
-                                          int obj_count,
-                                          __global struct triangle* reference_tris,
-                                          __global int* offset_map, __global int* offset_counts,
-                                          __global struct computed_triangle* mem_buffer, __global float* start_times_memory, __global float* delta_times_memory,
-                                          __global int* unculled_counts,
-                                          __global int* any_visible,
-                                          __global float4* object_geodesics, __global int* object_geodesic_counts,
-                                          __global float* object_geodesic_ds,
-                                          __global float4* p_e0, __global float4* p_e1, __global float4* p_e2, __global float4* p_e3,
-                                          float start_ds, float end_ds,
-                                          float width, float time_width, int width_num,
-                                          __global int* ray_time_min, __global int* ray_time_max,
-                                          __global int* old_cell_time_min, __global int* old_cell_time_max,
-                                          int should_store,
-                                          int generate_unculled_counts,
-                                          dynamic_config_space const struct dynamic_config* cfg)
-{
-    int id = get_global_id(0);
-
-    if(id >= sp_count)
-        return;
-
-    struct sub_point mine = sp[id];
-
-    ///number of geodesics == objs.size()
-    int stride = obj_count;
-
-    int count = object_geodesic_counts[mine.object_parent];
-
-    struct triangle my_tri = reference_tris[mine.parent];
-
-    float lowest_time = *ray_time_min - 1;
-    float maximum_time = *ray_time_max + 1;
-
-    //int skip = TRI_GEODESIC_SKIP;
-
-    int skip = 1;
-
-    ///if I'm doing bresenhams, then ds_stepping makes no sense and I am insane
-    ///so, for all_check what I want to do is bring back ds_stepping
-    for(int cc=0; cc < count - skip; cc += skip)
-    {
-        if(cc > 2048)
-            return;
-
-        int next_cc = cc + skip;
-
-        float4 native_current = object_geodesics[cc * stride + mine.object_parent];
-        float4 native_next = object_geodesics[next_cc * stride + mine.object_parent];
-
-        if(!range_overlaps(lowest_time, maximum_time, native_current.x, native_next.x))
-            continue;
-
-        float4 s_e0 = p_e0[cc * stride + mine.object_parent];
-        float4 s_e1 = p_e1[cc * stride + mine.object_parent];
-        float4 s_e2 = p_e2[cc * stride + mine.object_parent];
-        float4 s_e3 = p_e3[cc * stride + mine.object_parent];
-
-        float4 e_e0 = p_e0[next_cc * stride + mine.object_parent];
-        float4 e_e1 = p_e1[next_cc * stride + mine.object_parent];
-        float4 e_e2 = p_e2[next_cc * stride + mine.object_parent];
-        float4 e_e3 = p_e3[next_cc * stride + mine.object_parent];
-
-        float4 vert_0 = (float4)(0, my_tri.v0x, my_tri.v0y, my_tri.v0z);
-        float4 vert_1 = (float4)(0, my_tri.v1x, my_tri.v1y, my_tri.v1z);
-        float4 vert_2 = (float4)(0, my_tri.v2x, my_tri.v2y, my_tri.v2z);
-
-        float4 s_coordinate_v0 = tetrad_to_coordinate_basis(vert_0, s_e0, s_e1, s_e2, s_e3);
-        float4 s_coordinate_v1 = tetrad_to_coordinate_basis(vert_1, s_e0, s_e1, s_e2, s_e3);
-        float4 s_coordinate_v2 = tetrad_to_coordinate_basis(vert_2, s_e0, s_e1, s_e2, s_e3);
-
-        float4 e_coordinate_v0 = tetrad_to_coordinate_basis(vert_0, e_e0, e_e1, e_e2, e_e3);
-        float4 e_coordinate_v1 = tetrad_to_coordinate_basis(vert_1, e_e0, e_e1, e_e2, e_e3);
-        float4 e_coordinate_v2 = tetrad_to_coordinate_basis(vert_2, e_e0, e_e1, e_e2, e_e3);
-
-        struct computed_triangle local_tri;
-
-        local_tri.geodesic_segment = cc * stride + mine.object_parent;
-        local_tri.next_geodesic_segment = next_cc * stride + mine.object_parent;
-
-        float4 gv0 = s_coordinate_v0 + native_current;
-        float4 gv1 = s_coordinate_v1 + native_current;
-        float4 gv2 = s_coordinate_v2 + native_current;
-
-        float4 ge0 = e_coordinate_v0 + native_next;
-        float4 ge1 = e_coordinate_v1 + native_next;
-        float4 ge2 = e_coordinate_v2 + native_next;
-
-        float4 origin = native_current;
-
-        float4 e_lo[4];
-        get_tetrad_inverse(s_e0, s_e1, s_e2, s_e3, &e_lo[0], &e_lo[1], &e_lo[2], &e_lo[3]);
-
-        local_tri.tv0 = vert_0;
-        local_tri.tv1 = vert_1;
-        local_tri.tv2 = vert_2;
-
-        float4 min_extents_v = min(gv0, min(gv1, gv2));
-        float4 min_extents_e = min(ge0, min(ge1, ge2));
-
-        float4 max_extents_v = max(gv0, max(gv1, gv2));
-        float4 max_extents_e = max(ge0, max(ge1, ge2));
-
-        float4 min_geodesic_extents = min(native_current, native_next);
-        float4 max_geodesic_extents = max(native_current, native_next);
-
-        float4 min_extents = min(min(min_extents_v, min_extents_e), min_geodesic_extents);
-        float4 max_extents = max(max(max_extents_v, max_extents_e), max_geodesic_extents);
-
-        local_tri.min_extents = min_extents;
-        local_tri.max_extents = max_extents;
-
-        //#define ALL_CHECK
-        #ifdef ALL_CHECK
-        int lid = atomic_inc(&offset_counts[0]);
-
-        if(should_store)
-        {
-            int mem_start = offset_map[0];
-
-            mem_buffer[mem_start + lid] = local_tri;
-            //start_times_memory[mem_start + lid] = output_time;
-            //delta_times_memory[mem_start + lid] = delta_time;
-
-            *any_visible = 1;
-        }
-        #endif
-
-        #define SIMPLE_VOXELISE
-        #ifdef SIMPLE_VOXELISE
-
-        min_extents.x = max(min_extents.x, lowest_time);
-        max_extents.x = min(max_extents.x, maximum_time);
-
-        ///todo: need to not double pack voxels in the case that our tri overlaps the entire region
-        float4 voxel_min = world_to_voxel4(min_extents, width, time_width, width_num) - 1;
-        float4 voxel_max = world_to_voxel4(max_extents, width, time_width, width_num) + 1;
-
-        /*printf("Generate %f %f %f %f max %f %f %f %f", voxel_min.x, voxel_min.y, voxel_min.z, voxel_min.w,
-               voxel_max.x, voxel_max.y, voxel_max.z, voxel_max.w);*/
-
-        if(voxel_max.x - voxel_min.x > width_num)
-        {
-            voxel_min.x = 0;
-            voxel_max.x = width_num - 1;
-        }
-
-        int genc = 0;
-
-        for(int x = voxel_min.x; x <= ceil(voxel_max.x); x++)
-        {
-            for(int w = voxel_min.w; w <= ceil(voxel_max.w); w++)
-            {
-                for(int z = voxel_min.z; z <= ceil(voxel_max.z); z++)
-                {
-                    for(int y = voxel_min.y; y <= ceil(voxel_max.y); y++)
-                    {
-                        float4 voxel_coordinate = (float4)(x, y, z, w);
-
-                        unsigned int oid = index_generic(voxel_coordinate, width, time_width, width_num, cfg);
-
-                        int lid = atomic_inc(&offset_counts[oid]);
-
-                        if(should_store)
-                        {
-                            int mem_start = offset_map[oid];
-
-                            mem_buffer[mem_start + lid] = local_tri;
-                            //start_times_memory[mem_start + lid] = output_time;
-                            //delta_times_memory[mem_start + lid] = delta_time;
-
-                            *any_visible = 1;
-
-                            genc++;
-                        }
-                    }
-                }
-            }
-        }
-
-        if(genc != 0)
-        {
-            printf("Generated %i\n", genc);
-        }
-        #endif
-    }
-}
-
-///so
-///need a generate_smeared_acceleration_counts
-///will take in a start coordinate time, and an end coordinate time. End coordinate time can be camera coordinate time, as rays
-///go strictly backwards in time (?) (????)
-///then, step along the ray for a particular tri, calculating its interpolated position at constant steps along the coordinate time
-///at every step, dump it into the acceleration structure, which *could* be 3d but more likely will want to be 4d for perf
-///then in step_verlet, look up in the correct chunk by time, skip any tris with an incorrect time coordinate (ie loop), then
-///do a constant time approximation. This latter part may be very problematic, so could assume a constant velocity and interpolate in time
-
-///resets offset_counts
-__kernel
-void alloc_acceleration(__global int* offset_map, __global int* offset_counts, int max_count, __global int* mem_count, int max_memory_size)
-{
-    int idx = get_global_id(0);
-
-    if(idx >= max_count)
-        return;
-
-    int my_count = offset_counts[idx];
-
-    int offset = 0;
-
-    if(my_count > 0)
-        offset = atomic_add(mem_count, my_count);
-
-    if(offset + my_count > (max_memory_size / sizeof(struct computed_triangle)))
-    {
-        offset = (max_memory_size / sizeof(struct computed_triangle)) - my_count;
-
-        printf("Error in alloc acceleration\n");
-    }
-
-    offset_map[idx] = offset;
-}
-
-__kernel
-void generate_acceleration_data(__global struct sub_point* sp, int sp_count, __global struct object* objs, __global struct triangle* reference_tris, __global int* offset_map, __global int* offset_counts, __global struct triangle* mem_buffer, float width, int width_num)
-{
-    int id = get_global_id(0);
-
-    if(id >= sp_count)
-        return;
-
-    float voxel_cube_size = width / width_num;
-
-    struct sub_point mine = sp[id];
-
-    float3 pos = (float3)(mine.x, mine.y, mine.z) + objs[mine.object_parent].pos.yzw;
-    int w_id = mine.parent;
-
-    struct triangle my_tri = reference_tris[w_id];
-
-    struct object my_object = objs[my_tri.parent];
-
-    my_tri.v0x += my_object.pos.y;
-    my_tri.v0y += my_object.pos.z;
-    my_tri.v0z += my_object.pos.w;
-
-    my_tri.v1x += my_object.pos.y;
-    my_tri.v1y += my_object.pos.z;
-    my_tri.v1z += my_object.pos.w;
-
-    my_tri.v2x += my_object.pos.y;
-    my_tri.v2y += my_object.pos.z;
-    my_tri.v2z += my_object.pos.w;
-
-    float3 grid_pos = floor(pos / voxel_cube_size);
-
-    int3 int_grid_pos = (int3)(grid_pos.x, grid_pos.y, grid_pos.z);
-
-    for(int z=-1; z <= 1; z++)
-    {
-        for(int y=-1; y <= 1; y++)
-        {
-            for(int x=-1; x <= 1; x++)
-            {
-                int3 off = (int3)(x, y, z);
-                int3 fin = int_grid_pos + off;
-
-                fin.x = mod(fin.x, width_num);
-                fin.y = mod(fin.y, width_num);
-                fin.z = mod(fin.z, width_num);
-
-                int oid = fin.z * width_num * width_num + fin.y * width_num + fin.x;
-
-                int lid = atomic_inc(&offset_counts[oid]);
-
-                int mem_start = offset_map[oid];
-
-                mem_buffer[mem_start + lid] = my_tri;
-            }
-        }
-    }
-}
-
-void swap3f(float3* i1, float3* i2)
-{
-    float3 v = *i1;
-
-    *i1 = *i2;
-    *i2 = v;
 }
 
 ///todo: winding order
@@ -4533,177 +3805,11 @@ float3 triangle_normal(float3 v0, float3 v1, float3 v2)
     return normalize(cross(U, V));
 }
 
-float3 triangle_normal_U(float3 v0, float3 v1, float3 v2)
-{
-    float3 U = v1 - v0;
-    float3 V = v2 - v0;
-
-    return cross(U, V);
-}
-
-float3 triangle_normal_D(float3 v1_m_v0, float3 v2_m_v0)
-{
-    return cross(v1_m_v0, v2_m_v0);
-}
-
-bool ray_toblerone_could_intersect(float4 pos, float4 dir, float tri_start_t, float tri_end_t)
-{
-    float ray_start_t = pos.x;
-    float ray_end_t = pos.x + dir.x;
-
-    return range_overlaps(ray_start_t, ray_end_t, tri_start_t, tri_end_t);
-}
-
-///returns from point to line
-float3 point_to_line(float3 line_pos, float3 line_dir, float3 point)
-{
-    line_dir = normalize(line_dir);
-
-    float3 on_line = line_pos + dot(point - line_pos, line_dir) * line_dir;
-
-    return on_line - point;
-}
-
-///plane normal must be normalised
-float3 point_on_plane_3d(float3 plane_origin, float3 plane_normal, float3 point)
-{
-    float3 to_point = point - plane_origin;
-
-    return point - plane_normal * dot(to_point, plane_normal);
-}
-
-///plane normal must be normalized
-float3 vector_on_plane_3d(float3 plane_normal, float3 vect)
-{
-    return cross(plane_normal, cross(vect, plane_normal));
-}
-
-float2 project_plane_point_into_2d(float3 plane_origin, float3 point_on_plane, float3 up, float3 right)
-{
-    float3 rel = point_on_plane - plane_origin;
-
-    float r_component = dot(rel, right);
-    float u_component = dot(rel, up);
-
-    return (float2)(r_component, u_component);
-}
-
-float2 project_plane_vector_into_2d(float3 vec, float3 up, float3 right)
-{
-    float r_component = dot(vec, right);
-    float u_component = dot(vec, up);
-
-    return (float2)(r_component, u_component);
-}
-
-float wedge_2d(float2 v, float2 w)
-{
-    return v.x * w.y - v.y * w.x;
-}
-
-__kernel
-void interpolate_debug(__write_only image2d_t screen)
-{
-    int x = get_global_id(0);
-    int y = get_global_id(1);
-
-    if(x >= get_image_width(screen))
-        return;
-
-    if(y >= get_image_height(screen))
-        return;
-
-    float2 quad_0 = (float2)(10.f, 801.f);
-    float2 quad_1 = (float2)(800.f, 801.f);
-    float2 quad_2 = (float2)(50.f, 600.f);
-    float2 quad_3 = (float2)(650.f, 30.f);
-
-    float3 val_at_top = (float3)(1.f, 0.f, 0.f);
-    float3 val_at_bottom = (float3)(0.f, 0.f, 1.f);
-
-
-    {
-        float2 p_b0 = quad_0;
-        float2 p_b1 = quad_1;
-
-        float2 p_e0 = quad_2;
-        float2 p_e1 = quad_3;
-
-        ///https://www.reedbeta.com/blog/quadrilateral-interpolation-part-2/
-        {
-            float2 p = (float2)(x, y);
-
-            float2 p0 = p_b0;
-            float2 p1 = p_b1;
-            float2 p2 = p_e0;
-            float2 p3 = p_e1;
-
-            float2 q = p - p0;
-            float2 b1 = p1 - p0;
-            float2 b2 = p2 - p0;
-            float2 b3 = p0 - p1 - p2 + p3;
-
-            float A = wedge_2d(b2, b3);
-            float B = wedge_2d(b3, q) - wedge_2d(b1, b2);
-            float C = wedge_2d(b1, q);
-
-            float2 uv;
-
-            if(fabs(A) < 0.001)
-            {
-                // Linear form
-                uv.y = -C/B;
-            }
-            else
-            {
-                // Quadratic form. Take positive root for CCW winding with V-up
-                float discrim = B*B - 4*A*C;
-                uv.y = 0.5 * (-B + sqrt(discrim)) / A;
-            }
-
-            // Solve for u, using largest-magnitude component
-            float2 denom = b1 + uv.y * b3;
-
-            if(fabs(denom.x) > fabs(denom.y))
-            {
-                uv.x = (q.x - b2.x * uv.y) / denom.x;
-            }
-            else
-            {
-                uv.x = (q.y - b2.y * uv.y) / denom.y;
-            }
-
-            float3 val = mix(val_at_bottom, val_at_top, uv.y);
-
-            if(uv.x < 0 || uv.x > 1 || uv.y < 0 || uv.y > 1)
-                val = 0.f;
-
-            float3 srgb_val = srgb_to_lin(val);
-
-            write_imagef(screen, (int2)(x, y), (float4)(srgb_val, 1.f));
-        }
-    }
-}
-
-float4 geodesic_to_coordinate_time(float4 velocity)
-{
-    float u0 = velocity.x;
-
-    float4 in_ct = velocity / u0;
-
-    if(u0 < 0)
-        in_ct = -in_ct;
-
-    return in_ct;
-}
-
 bool intersects_at_fraction(float3 v0, float3 normal, float4 initial_origin, float4 initial_diff,
-                            float4 ray_pos_1,
                             float4 ray_vel_1,
                             float4 object_geodesic_1, float4 object_geodesic_2,
                             float4 i_re0, float4 i_re1, float4 i_re2, float4 i_re3,
                             float4 i_ne0, float4 i_ne1, float4 i_ne2, float4 i_ne3,
-                            float4 periods,
                             float fraction,
                             float4* restrict pos_out, float4* restrict dir_out,
                             float* restrict t_out
@@ -4715,10 +3821,8 @@ bool intersects_at_fraction(float3 v0, float3 normal, float4 initial_origin, flo
     float4 i_e3 = mix(i_re3, i_ne3, fraction);
 
     float4 object_position = mix(object_geodesic_1, object_geodesic_2, fraction);
-    float4 ray_pos = ray_pos_1;
 
     float4 diff = initial_diff + initial_origin - object_position;
-    //float4 diff = periodic_diff(ray_pos, object_position, periods);
 
     float4 pos = coordinate_to_tetrad_basis(diff, i_e0, i_e1, i_e2, i_e3);
     float4 dir = coordinate_to_tetrad_basis(ray_vel_1, i_e0, i_e1, i_e2, i_e3);
@@ -4740,43 +3844,17 @@ bool intersects_at_fraction(float3 v0, float3 normal, float4 initial_origin, flo
 
 }
 
-///dir is not normalised, should really use a pos2
-bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 ray_vel4, float ds, __global const struct computed_triangle* ctri, float4 object_geodesic_origin, float4 next_object_geodesic_origin,
-                              __global const float4* restrict inverse_e0s, __global const float4* restrict inverse_e1s, __global const float4* restrict inverse_e2s, __global const float4* restrict inverse_e3s,
-                              float* t_out, bool debug, float4 periods)
+bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3 v0, float3 v1, float3 v2, float4 object_geodesic_origin, float4 next_object_geodesic_origin,
+                              float4 i_re0, float4 i_re1, float4 i_re2, float4 i_re3, ///inverse current geodesic segment tetrad
+                              float4 i_ne0, float4 i_ne1, float4 i_ne2, float4 i_ne3, ///inverse next geodesic segment tetrad
+                              float4 periods, float* t_out, bool debug)
 {
-    float4 min_extents = ctri->min_extents;
-    float4 max_extents = ctri->max_extents;
-
-    ///ideally we'd do this for periodic coordinates as well, the issue is that range_overlaps is tricky, because our span to check might be 6 PI which means it covers
-    ///the whole periodic range,, but as a distance that might be very shrot
-    #define CHECK_ESCAPE(v) if(periods.v == 0){if(!range_overlaps(global_pos.v, next_global_pos.v, min_extents.v, max_extents.v)){return false;}}
-
-    ///bounds for t (ie x) are more precise due to the lack of time components for tris in the local tetrad, which makes them equivalent
-    CHECK_ESCAPE(x);
-    CHECK_ESCAPE(y);
-    CHECK_ESCAPE(z);
-    CHECK_ESCAPE(w);
-
-    float4 i_ne0 = inverse_e0s[ctri->next_geodesic_segment];
-    float4 i_ne1 = inverse_e1s[ctri->next_geodesic_segment];
-    float4 i_ne2 = inverse_e2s[ctri->next_geodesic_segment];
-    float4 i_ne3 = inverse_e3s[ctri->next_geodesic_segment];
-
-    float4 i_re0 = inverse_e0s[ctri->geodesic_segment];
-    float4 i_re1 = inverse_e1s[ctri->geodesic_segment];
-    float4 i_re2 = inverse_e2s[ctri->geodesic_segment];
-    float4 i_re3 = inverse_e3s[ctri->geodesic_segment];
-
     float ray_lower_t = next_global_pos.x;
     float ray_upper_t = global_pos.x;
 
     float tri_lower_t = object_geodesic_origin.x;
     float tri_upper_t = next_object_geodesic_origin.x;
 
-    float3 v0 = ctri->tv0.yzw;
-    float3 v1 = ctri->tv1.yzw;
-    float3 v2 = ctri->tv2.yzw;
     float3 plane_normal = normalize(cross(v1 - v0, v2 - v0));
 
     float4 object_pos_1 = object_geodesic_origin;
@@ -4795,24 +3873,15 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
     float4 last_dir;
     float last_dt = 0;
 
-    #define INTERSECTS_AT(in_frac) intersects_at_fraction(v0, plane_normal, initial_origin, initial_diff, ray_origin, ray_vel, object_pos_1, object_pos_2,\
+    #define INTERSECTS_AT(in_frac) intersects_at_fraction(v0, plane_normal, initial_origin, initial_diff, ray_vel, object_pos_1, object_pos_2,\
                                       i_re0, i_re1, i_re2, i_re3,\
                                       i_ne0, i_ne1, i_ne2, i_ne3,\
-                                      periods, in_frac, &last_pos, &last_dir, &last_dt)
-
-    bool any = INTERSECTS_AT(1.f) || INTERSECTS_AT(0.f);
-
-    if(!any)
-        return false;
-
-    last_dt = fabs(last_dt);
-
-    float new_t = 0.f;
+                                      in_frac, &last_pos, &last_dir, &last_dt)
 
     #pragma unroll
     for(int i=0; i < 4; i++)
     {
-        new_t = ray_origin.x + ray_vel.x * last_dt;
+        float new_t = ray_origin.x + ray_vel.x * last_dt;
 
         float frac = (new_t - tri_lower_t) / (tri_upper_t - tri_lower_t);
 
@@ -4834,66 +3903,28 @@ bool ray_intersects_toblerone(float4 global_pos, float4 next_global_pos, float4 
     if(new_x < tri_lower_t || new_x > tri_upper_t)
         return false;
 
-    //if(ray_t < 0 || ray_t > 1)
-    //    return false;
+    *t_out = ray_t;
 
-    /*float local_tetrad_time = last_pos.x + ray_t * last_dir.x;
-
-    if(local_tetrad_time < 0)
-        return false;*/
-
-    //float tri_end_time = coordinate_to_tetrad_basis((float4)(t_tri_delta_time, 0,0,0), i_e0, i_e1, i_e2, i_e3).x;
-
-    //if(last_pos.x + ray_t * last_dir.x >= )
-
-    if(intersected && t_out)
+    /*if(debug)
     {
-        /*if(debug)
-        {
-            printf("Ltt %f\n", local_tetrad_time);
-        }*/
-
-        /*if(debug)
-        {
-            printf("Hit pos obj %f %f %f f end %f %f %f %f\n", object_pos_1.x, object_pos_1.y, object_pos_1.z, object_pos_1.w)
-        }*/
-
-        *t_out = ray_t;
-    }
+        printf("Hello %f pos1 %f %f %f %f pos2 %f %f %f %f geo1 %f %f %f %f geo2 %f %f %f %f\n", ray_t, E4(global_pos), E4(next_global_pos), E4(object_geodesic_origin), E4(next_object_geodesic_origin));
+    }*/
 
     return intersected;
-}
 
-__kernel void pull_linear_object_positions(__global struct computed_triangle* linear_mem, __global int* linear_mem_size, __global float4* object_positions, __global float4* linear_object_positions)
-{
-    int id = get_global_id(0);
-
-    if(id >= *linear_mem_size)
-        return;
-
-    linear_object_positions[id] = object_positions[linear_mem[id].geodesic_segment];
 }
 
 __kernel
 void do_generic_rays (__global struct lightray* restrict generic_rays_in,
                       __global const int* restrict generic_count_in,
-                      //__global float4* path_out, __global int* counts_out,
-                      __global const struct triangle* restrict tris, int tri_count, __global struct intersection* restrict intersections_out, __global int* restrict intersection_count,
-                      __global const int* restrict counts, __global const int* restrict offsets, __global const struct computed_triangle* restrict linear_mem, __global const int* restrict linear_mem_size, __global const float* restrict linear_start_times, __global const float* restrict linear_delta_times,
-                      __global const float4* restrict linear_object_positions,
-                      __global const int* restrict unculled_counts,
-                      __constant const int* restrict any_visible,
-                      float accel_width, float accel_time_width, int accel_width_num,
-                      //__global int* restrict cell_time_min, __global int* restrict cell_time_max,
-                      __global const struct object* restrict objs,
                       __global int* restrict ray_time_min, __global int* restrict ray_time_max,
-                      __global const float4* restrict object_positions,
-                      __global const float4* restrict object_velocities,
-                      __global const float4* restrict inverse_e0s, __global const float4* restrict inverse_e1s, __global const float4* restrict inverse_e2s, __global const float4* restrict inverse_e3s,
                       dynamic_config_space const struct dynamic_config* restrict cfg,
                       dynamic_config_space const struct dynamic_feature_config* restrict dfg,
                       int width, int height,
-                      int mouse_x, int mouse_y)
+                      int mouse_x, int mouse_y,
+                      __global float4* ray_write,
+                      __global int* ray_write_counts,
+                      int max_write)
 {
 
     int sx = get_global_id(0);
@@ -4904,6 +3935,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
 
     int id = sy * width + sx;
 
+    ray_write_counts[id] = 0;
+
      __global struct lightray* ray = &generic_rays_in[id];
 
     if(ray->terminated == 2)
@@ -4913,11 +3946,13 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
     float4 velocity = ray->velocity;
     float4 acceleration = ray->acceleration;
 
+    #if 1
     if(GET_FEATURE(use_triangle_rendering, dfg))
     {
         atomic_min(ray_time_min, (int)floor(position.x));
         atomic_max(ray_time_max, (int)ceil(position.x));
     }
+    #endif
 
     float f_in_x = fabs(velocity.x);
 
@@ -4961,12 +3996,16 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
 
     int any_visible_tris = 0;
 
+    #if 0
     if(GET_FEATURE(use_triangle_rendering, dfg))
         any_visible_tris = *any_visible;
+    #endif
 
-    float4 periods = get_coordinate_period(position, cfg);
+    float4 periods = get_coordinate_period(cfg);
 
     float running_dlambda_dnew = 1;
+
+    int which_ray_write = 0;
 
     //#pragma unroll
     for(int i=0; i < loop_limit; i++)
@@ -5025,444 +4064,27 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
         #ifndef UNCONDITIONALLY_NONSINGULAR
         if(fabs(velocity.x / running_dlambda_dnew) > 1000 + f_in_x && fabs(acceleration.x / running_dlambda_dnew) > 100)
         {
+            #if 1
             if(GET_FEATURE(use_triangle_rendering, dfg))
             {
                 atomic_min(ray_time_min, (int)floor(my_min));
                 atomic_max(ray_time_max, (int)ceil(my_max));
             }
+            #endif
 
             return;
         }
         #endif // UNCONDITIONALLY_NONSINGULAR
 
-        /*if(sx == 800 && sy == 600)
-        {
-            printf("Pos %f\n", position.x);
-        }*/
-
-        if(GET_FEATURE(use_triangle_rendering, dfg) && (i % TRI_RAY_SKIP) == 0 && any_visible_tris > 0)
-        {
-            float4 native_position = position;
-            float4 native_velocity = velocity;
-
-            #if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC) || defined(DEBUG_CONSTANT_THETA)
-            {
-                float4 pos_spherical = generic_to_spherical(position, cfg);
-                float4 vel_spherical = generic_velocity_to_spherical_velocity(position, velocity, cfg);
-
-                float fsign = sign(pos_spherical.y);
-                pos_spherical.y = fabs(pos_spherical.y);
-
-                float3 pos_cart = polar_to_cartesian(pos_spherical.yzw);
-                float3 vel_cart = spherical_velocity_to_cartesian_velocity(pos_spherical.yzw, vel_spherical.yzw);
-
-                float4 quat = ray_quat;
-
-                pos_cart = rot_quat_norm(pos_cart, quat);
-                vel_cart = rot_quat_norm(vel_cart, quat);
-
-                float3 next_pos_spherical = cartesian_to_polar(pos_cart);
-                float3 next_vel_spherical = cartesian_velocity_to_polar_velocity(pos_cart, vel_cart);
-
-                if(fsign < 0)
-                {
-                    next_pos_spherical.x = -next_pos_spherical.x;
-                }
-
-                float4 next_pos_generic = spherical_to_generic((float4)(pos_spherical.x, next_pos_spherical), cfg);
-                float4 next_vel_generic = spherical_velocity_to_generic_velocity((float4)(pos_spherical.x, next_pos_spherical), (float4)(vel_spherical.x, next_vel_spherical), cfg);
-
-                native_position = next_pos_generic;
-                native_velocity = next_vel_generic;
-            }
-            #endif
-
-            if(i == 0)
-            {
-                last_real_pos = native_position;
-                last_real_velocity = native_velocity;
-            }
-
-            bool should_check = true;
-
-            float4 rt_real_pos = last_real_pos;
-            ///I think this periodic diff is only necessary in constant theta metrics?
-            float4 next_rt_real_pos = periodic_diff(native_position, last_real_pos, periods) + last_real_pos;
-            float4 rt_velocity = last_real_velocity;
-            //float4 rt_velocity = next_rt_real_pos - rt_real_pos;
-
-            //float4 rt_diff = next_rt_pos - rt_pos;
-
-            //if(dot(rt_diff, rt_diff) > 1)
-            //    should_check = true;
-
-            if(should_check || should_terminate)
-            {
-                last_real_pos = native_position;
-                last_real_velocity = native_velocity;
-
-                struct intersection out;
-                out.sx = sx;
-                out.sy = sy;
-
-                float best_intersection = FLT_MAX;
-
-                #ifdef ALL_CHECK
-                int lsize = *linear_mem_size;
-
-                for(int tidx=0; tidx < lsize; tidx++)
-                {
-                    float4 origin_1 = linear_object_positions[tidx];
-
-                    __global const struct computed_triangle* ctri = &linear_mem[tidx];
-
-                    float4 origin_2 = object_positions[ctri->next_geodesic_segment];
-
-                    float ray_t = 0;
-
-                    bool debug = sx == mouse_x && sy == mouse_y;
-
-                    if(ray_intersects_toblerone(rt_real_pos, next_rt_real_pos, rt_velocity, ds, ctri, origin_1, origin_2,
-                                                inverse_e0s, inverse_e1s, inverse_e2s, inverse_e3s,
-                                                &ray_t, debug, periods))
-                    {
-                        if(ray_t < best_intersection)
-                        {
-                            out.computed_parent = tidx;
-                            best_intersection = ray_t;
-                        }
-                    }
-                }
-
-                #endif
-
-                #ifdef SIMPLE_VOXELISE
-                struct step_setup setup;
-
-                {
-                    float4 current_pos = world_to_voxel4(rt_real_pos, accel_width, accel_time_width, accel_width_num);
-                    float4 next_pos = world_to_voxel4(next_rt_real_pos, accel_width, accel_time_width, accel_width_num);
-
-                    setup = setup_step(current_pos, next_pos);
-                }
-
-                while(!is_step_finished(&setup))
-                {
-                    unsigned int voxel_id = index_acceleration(&setup, accel_width, accel_time_width, accel_width_num, cfg);
-
-                    do_step(&setup);
-
-                    /*float start_ray_t = calculate_ray_t(&setup);
-
-                    do_step(&setup);
-
-                    float stop_ray_t = calculate_ray_t(&setup);
-
-                    start_ray_t = clamp(start_ray_t, 0.f, 1.f);
-                    stop_ray_t = clamp(stop_ray_t, 0.f, 1.f);
-
-                    float4 start_pos = (next_rt_real_pos - rt_real_pos) * start_ray_t + rt_real_pos;
-                    float4 end_pos = (next_rt_real_pos - rt_real_pos) * stop_ray_t + rt_real_pos;*/
-
-                    float4 start_pos = rt_real_pos;
-                    float4 end_pos = next_rt_real_pos;
-
-                    int tri_count = counts[voxel_id];
-                    int base_offset = offsets[voxel_id];
-
-                    for(int t_off=0; t_off < tri_count; t_off++)
-                    {
-                        int tri_id = t_off + base_offset;
-
-                        __global struct computed_triangle* ctri = &linear_mem[base_offset + t_off];
-
-                        float4 origin_1 = object_positions[ctri->geodesic_segment];
-                        float4 origin_2 = object_positions[ctri->next_geodesic_segment];
-
-                        float ray_t = 0;
-
-                        bool debug = sx == mouse_x && sy == mouse_y;
-
-                        if(ray_intersects_toblerone(start_pos, end_pos, rt_velocity, ds, ctri, origin_1, origin_2,
-                                                    inverse_e0s, inverse_e1s, inverse_e2s, inverse_e3s,
-                                                    &ray_t, debug, periods))
-                        {
-                            if(ray_t < best_intersection)
-                            {
-                                out.computed_parent = base_offset + t_off;
-                                best_intersection = ray_t;
-                            }
-                        }
-                    }
-                }
-
-                #endif // SIMPLE_VOXELISE
-
-                if(best_intersection != FLT_MAX)
-                {
-                    atomic_min(ray_time_min, (int)floor(my_min));
-                    atomic_max(ray_time_max, (int)ceil(my_max));
-
-                    int isect = atomic_inc(intersection_count);
-
-                    intersections_out[isect] = out;
-
-                    return;
-                }
-
-                #if 0
-
-                {
-                    struct step_setup setup;
-
-                    {
-                        float4 current_pos = world_to_voxel4(rt_real_pos, accel_width, accel_time_width, accel_width_num);
-                        float4 next_pos = world_to_voxel4(next_rt_real_pos, accel_width, accel_time_width, accel_width_num);
-
-                        setup = setup_step(current_pos, next_pos);
-                    }
-
-                    float best_intersection = FLT_MAX;
-
-                    ///saves about 2ms, but I'm concerned about validity
-                    #ifdef FIRST_BEST_INTERSECTION
-                    int hit_id = -1;
-                    #endif
-
-                    struct intersection out;
-                    out.sx = sx;
-                    out.sy = sy;
-
-                    while(!is_step_finished(&setup))
-                    {
-                        ///this is the point at which I need to enforce periodicity
-                        unsigned int voxel_id = index_acceleration(&setup, accel_width, accel_time_width, accel_width_num, cfg);
-
-                        #ifdef USE_FEEDBACK_CULLING
-                        float rmin = min(rt_pos.x, next_rt_pos.x);
-                        float rmax = max(rt_pos.x, next_rt_pos.x);
-
-                        int unculled = unculled_counts[voxel_id];
-
-                        if(unculled > 0)
-                        {
-                            atomic_min(&cell_time_min[voxel_id], (int)floor(rmin));
-                            atomic_max(&cell_time_max[voxel_id], (int)ceil(rmax));
-                        }
-                        #endif // USE_FEEDBACK_CULLING
-
-                        do_step(&setup);
-
-                        int tri_count = counts[voxel_id];
-                        int base_offset = offsets[voxel_id];
-
-                        #if 1
-                        for(int t_off=0; t_off < tri_count; t_off++)
-                        {
-                            #ifdef FIRST_BEST_INTERSECTION
-                            if(hit_id == t_off + base_offset)
-                                continue;
-                            #endif
-
-                            ///so, I now know for a fact that start time < end_time
-                            ///could sort this instead by end times, and then use end time as the quick check
-                            /*float start_time = linear_start_times[base_offset + t_off];
-
-                            #ifdef TIME_CULL
-                            if(rt_pos.x < start_time - 0.0001f && (next_rt_pos - rt_pos).x < 0)
-                                continue;
-                            #endif // TIME_CULL
-
-                            float end_time = start_time + linear_delta_times[base_offset + t_off];
-
-                            #ifdef TIME_CULL
-                            if(!ray_toblerone_could_intersect(rt_pos, next_rt_pos - rt_pos, start_time, end_time))
-                                continue;
-                            #endif // TIME_CULL*/
-
-                            //float start_time = 0.f;
-
-                            float start_time = linear_start_times[base_offset + t_off];
-                            float delta_time = linear_delta_times[base_offset + t_off];
-
-                            ///use dot current_pos tri centre pos (?) as distance metric
-                            /*float3 pdiff = parent_pos.yzw - rt_pos.yzw;
-
-                            if(dot(pdiff, pdiff) > 5)
-                                continue;*/
-
-                            __global struct computed_triangle* ctri = &linear_mem[base_offset + t_off];
-
-                            float4 origin = object_positions[ctri->geodesic_segment];
-
-                            ///here is where i need to enforce periodicity for rt_real_pos and origin
-                            float4 t_pos = periodic_diff(rt_real_pos, origin, periods);
-
-                            float len_sq = dot(t_pos, t_pos);
-
-                            bool could_hit = len_sq <= 5;
-
-                            if(could_hit)
-                            {
-                                float4 i_e0_0 = inverse_e0s[ctri->geodesic_segment];
-                                float4 i_e1_0 = inverse_e1s[ctri->geodesic_segment];
-                                float4 i_e2_0 = inverse_e2s[ctri->geodesic_segment];
-                                float4 i_e3_0 = inverse_e3s[ctri->geodesic_segment];
-
-                                float4 i_e0_1 = inverse_e0s[ctri->next_geodesic_segment];
-                                float4 i_e1_1 = inverse_e1s[ctri->next_geodesic_segment];
-                                float4 i_e2_1 = inverse_e2s[ctri->next_geodesic_segment];
-                                float4 i_e3_1 = inverse_e3s[ctri->next_geodesic_segment];
-
-                                float4 origin_1 = object_positions[ctri->next_geodesic_segment];
-
-                                float4 i_e0 = inverse_e0s[ctri->geodesic_segment];
-                                float4 i_e1 = inverse_e1s[ctri->geodesic_segment];
-                                float4 i_e2 = inverse_e2s[ctri->geodesic_segment];
-                                float4 i_e3 = inverse_e3s[ctri->geodesic_segment];
-                                float4 object_vel = object_velocities[ctri->geodesic_segment];
-
-                                float ray_t = 0;
-
-                                bool debug = sx == 800/2 && sy == 600/2;
-
-                                if(ray_intersects_toblerone(rt_real_pos, next_rt_real_pos, rt_velocity, ds, ctri, origin, object_vel, origin_1,
-                                                            i_e0, i_e1, i_e2, i_e3,
-                                                            i_e0_1, i_e1_1, i_e2_1, i_e3_1,
-                                                            start_time, delta_time, &ray_t, debug, periods))
-                                {
-                                    //if(debug)
-                                    //    printf("Seggy %i\n", ctri->geodesic_segment);
-
-                                    if(ray_t < best_intersection)
-                                    {
-                                        out.computed_parent = base_offset + t_off;
-                                        best_intersection = ray_t;
-
-                                        #ifdef FIRST_BEST_INTERSECTION
-                                        hit_id = base_offset + t_off;
-                                        #endif
-                                    }
-                                }
-                                /*if(debug)
-                                {
-                                    printf("Ray pos %f %f %f %f tri geodesic %f %f %f %f dist %f\n", rt_real_pos.x, rt_real_pos.y, rt_real_pos.z,rt_real_pos.w, origin.x, origin.y, origin.z, origin.w, sqrt(len_sq));
-                                }*/
-                            }
-
-                            //out.computed_parent = base_offset + t_off;
-                            //best_intersection = 0.f;
-
-                            #if 0
-                            #define OBSERVER_DEPENDENCE
-                            #ifdef OBSERVER_DEPENDENCE
-                            float tri_time = ctri->time;
-                            float next_tri_time = ctri->end_time;
-
-                            float interpolate_frac = (float)kk / max_len2;
-
-                            float ray_time = mix(rt_pos.x, next_rt_pos.x, interpolate_frac);
-
-                            //if(tri_time < ray_time + 0.5f && tri_time >= ray_time - 0.5f)
-
-                            if(ray_time >= tri_time && ray_time < next_tri_time)
-                            #endif // OBSERVER_DEPENDENCE
-                            {
-                                float time_elapsed = (ray_time - tri_time);
-
-                                float3 v0_pos = {ctri->v0x, ctri->v0y, ctri->v0z};
-                                float3 v1_pos = {ctri->v1x, ctri->v1y, ctri->v1z};
-                                float3 v2_pos = {ctri->v2x, ctri->v2y, ctri->v2z};
-
-                                //printf("Elapsed %f velocity %f %f %f\n", time_elapsed, ctri->velocity.y, ctri->velocity.z, ctri->velocity.w);
-
-                                /*v0_pos += ctri->velocity.yzw * time_elapsed;
-                                v1_pos += ctri->velocity.yzw * time_elapsed;
-                                v2_pos += ctri->velocity.yzw * time_elapsed;*/
-
-                                //v0_pos += parent_pos.yzw;
-                                //v1_pos += parent_pos.yzw;
-                                //v2_pos += parent_pos.yzw;
-
-                                float3 ray_pos = rt_pos.yzw;
-                                float3 ray_dir = next_rt_pos.yzw - rt_pos.yzw;
-
-                                ///ehhhh need to take closest
-                                if(ray_intersects_triangle(ray_pos, ray_dir, v0_pos, v1_pos, v2_pos, 0, 0, 0))
-                                {
-                                    struct intersection out;
-                                    out.sx = sx;
-                                    out.sy = sy;
-
-                                    int isect = atomic_inc(intersection_count);
-
-                                    intersections_out[isect] = out;
-                                    return;
-                                }
-                            }
-                            #endif // 0
-                        }
-
-
-                        #endif // 0
-
-                        /*struct intersection out;
-                        out.sx = sx;
-                        out.sy = sy;
-
-                        int isect = atomic_inc(intersection_count);
-
-                        intersections_out[isect] = out;
-                        return;*/
-                    }
-
-                    if(best_intersection != FLT_MAX)
-                    {
-                        atomic_min(ray_time_min, (int)floor(my_min));
-                        atomic_max(ray_time_max, (int)ceil(my_max));
-
-                        int isect = atomic_inc(intersection_count);
-
-                        intersections_out[isect] = out;
-
-                        return;
-                    }
-                }
-                #endif // 0
-
-                #ifdef VOX_SAMP
-                float3 floord = floor(world_to_voxel(rt_pos.yzw, accel_width, accel_width_num));
-
-                int3 ipos = (int3)(floord.x, floord.y, floord.z);
-
-                ipos = loop_voxel(ipos, accel_width_num);
-
-                int bidx = ipos.z * accel_width_num * accel_width_num + ipos.y * accel_width_num + ipos.x;
-
-                int cnt = counts[bidx];
-
-                if(cnt > 0)
-                {
-                    int isect = atomic_inc(intersection_count);
-
-                    struct intersection out;
-                    out.sx = sx;
-                    out.sy = sy;
-
-                    intersections_out[isect] = out;
-                    return;
-                }
-                #endif // VOX_SAMP
-            }
-        }
-
         if(should_terminate)
         {
+            #if 1
             if(GET_FEATURE(use_triangle_rendering, dfg))
             {
                 atomic_min(ray_time_min, (int)floor(my_min));
                 atomic_max(ray_time_max, (int)ceil(my_max));
             }
+            #endif
 
             generic_rays_in[id].position = position;
             generic_rays_in[id].velocity = velocity;
@@ -5504,7 +4126,10 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
                 return;
 
             if(res == DS_SKIP)
+            {
+                i--;
                 continue;
+            }
         }
 
         #endif // ADAPTIVE_PRECISION
@@ -5518,10 +4143,58 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
         rk4_generic_big(&position, &velocity, &ds);
         #endif // RK4_GENERIC
 
-        /*if(sx == 1920/2 && sy == 1080/2)
+        if(GET_FEATURE(use_triangle_rendering, dfg) && ((i % 4) == 0))
         {
-            printf("Pos %f %f %f %f vel %f %f %f %f\n", position.x, position.y, position.z, position.w, velocity.x, velocity.y, velocity.z, velocity.w);
-        }*/
+            float4 native_position = position;
+
+            #if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC) || defined(DEBUG_CONSTANT_THETA)
+            {
+                float4 pos_spherical = generic_to_spherical(position, cfg);
+
+                float fsign = sign(pos_spherical.y);
+                pos_spherical.y = fabs(pos_spherical.y);
+
+                float3 pos_cart = polar_to_cartesian(pos_spherical.yzw);
+
+                float4 quat = ray_quat;
+
+                pos_cart = rot_quat_norm(pos_cart, quat);
+
+                float3 next_pos_spherical = cartesian_to_polar(pos_cart);
+
+                if(fsign < 0)
+                {
+                    next_pos_spherical.x = -next_pos_spherical.x;
+                }
+
+                float4 next_pos_generic = spherical_to_generic((float4)(pos_spherical.x, next_pos_spherical), cfg);
+
+                native_position = next_pos_generic;
+            }
+            #endif
+
+            if(i == 0)
+            {
+                last_real_pos = native_position;
+            }
+
+            float4 real_pos = native_position;
+
+            float4 pdiff = periodic_diff(native_position, last_real_pos, periods);
+
+            ///I think this periodic diff is only necessary in constant theta metrics?
+            float4 next_real_pos = pdiff + last_real_pos;
+
+            if(which_ray_write < max_write)
+            {
+                ray_write[which_ray_write * width * height + id] = next_real_pos;
+
+                which_ray_write++;
+                ray_write_counts[sy * width + sx] = which_ray_write;
+            }
+
+            last_real_pos = next_real_pos;
+        }
 
         if(any(IS_DEGENERATE(position)) || any(IS_DEGENERATE(velocity)) || any(IS_DEGENERATE(acceleration)))
         {
@@ -5529,10 +4202,497 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
         }
     }
 
+    #if 1
     if(GET_FEATURE(use_triangle_rendering, dfg))
     {
         atomic_min(ray_time_min, (int)floor(my_min));
         atomic_max(ray_time_max, (int)ceil(my_max));
+    }
+    #endif
+}
+
+int2 get_bounds(int count, int offset, int segments)
+{
+    int div = count / segments;
+
+    int2 val;
+    val.x = div * offset;
+    val.y = min(div * (offset + 1) + 1, count);
+
+    if(offset == segments-1)
+        val.y = count;
+
+    return val;
+}
+
+#define SEGMENTS 4
+
+__kernel
+void generate_clip_regions(const global float4* restrict ray_write,
+                           const global int* restrict ray_write_counts,
+                           int max_write,
+                           global float4* restrict mins_out,
+                           global float4* restrict maxs_out,
+                           int width, int height,
+                           global float4* restrict chunked_mins,
+                           global float4* restrict chunked_maxs,
+                           int offset,
+                           local float4* restrict lmins,
+                           local float4* restrict lmaxs,
+                           local char* restrict exists
+                           )
+{
+    size_t x = get_global_id(0);
+    size_t y = get_global_id(1);
+
+    size_t lid = get_local_id(1) * get_local_size(0) + get_local_id(0);
+
+    int count = 0;
+    size_t id = y * width + x;
+
+    if(x < width && y < height)
+    {
+        count = ray_write_counts[id];
+    }
+
+    float4 current_min = (float4)(0,0,0,0);
+    float4 current_max = (float4)(0,0,0,0);
+
+    if(count > 0)
+    {
+        int2 bounds = get_bounds(count, offset, SEGMENTS);
+
+        int has_any = 0;
+
+        for(int i=bounds.x; i < bounds.y; i++)
+        {
+            float4 val = ray_write[i * width * height + id];
+
+            if(has_any == 0)
+            {
+                current_min = val;
+                current_max = val;
+                has_any = 1;
+            }
+            else
+            {
+                current_min = min(current_min, val);
+                current_max = max(current_max, val);
+            }
+        }
+
+        lmins[lid] = current_min;
+        lmaxs[lid] = current_max;
+    }
+
+    if(x < width && y < height)
+    {
+        mins_out[id] = current_min;
+        maxs_out[id] = current_max;
+    }
+
+    exists[lid] = count > 0;
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    if(get_local_id(0) == 0 && get_local_id(1) == 0)
+    {
+        float4 clip_min = (float4)(0,0,0,0);
+        float4 clip_max = (float4)(0,0,0,0);
+        int any_clip = 0;
+
+        size_t size_x = get_local_size(0);
+        size_t size_y = get_local_size(1);
+
+        for(size_t ly=0; ly < size_y; ly++)
+        {
+            for(size_t lx=0; lx < size_x; lx++)
+            {
+                size_t lid = ly * size_x + lx;
+
+                if(exists[lid] == 0)
+                    continue;
+
+                if(any_clip == 0)
+                {
+                    clip_min = lmins[lid];
+                    clip_max = lmaxs[lid];
+                    any_clip = 1;
+                }
+                else
+                {
+                    clip_min = min(clip_min, lmins[lid]);
+                    clip_max = max(clip_max, lmaxs[lid]);
+                }
+            }
+        }
+        size_t block_x = get_group_id(0);
+        size_t block_y = get_group_id(1);
+
+        size_t block_width = get_num_groups(0);
+
+        chunked_mins[block_y * block_width + block_x] = clip_min;
+        chunked_maxs[block_y * block_width + block_x] = clip_max;
+    }
+}
+
+struct computed
+{
+    ///in coordinate space, in global coordinates, not tied to a geodesic
+    float4 min_extents;
+    float4 max_extents;
+
+    float v0x, v0y, v0z,
+          v1x, v1y, v1z,
+          v2x, v2y, v2z;
+
+    int geodesic_segment;
+};
+
+#define COMPUTED_SKIP 1
+
+__kernel
+void generate_computed_tris(global struct triangle* tris, int tri_count,
+                            int object_count,
+                            global float4* object_geodesics, global int* object_geodesic_counts,
+                            global float4* p_e0, global float4* p_e1, global float4* p_e2, global float4* p_e3,
+                            global struct computed* ctris, global int* ctri_count,
+                            global int* restrict ray_time_min, global int* restrict ray_time_max,
+                            dynamic_config_space const struct dynamic_config* cfg)
+{
+    int tri_id = get_global_id(0);
+
+    if(tri_id >= tri_count)
+        return;
+
+    struct triangle tri = tris[tri_id];
+
+    int count = object_geodesic_counts[tri.parent];
+
+    int stride = object_count;
+
+    int skip = COMPUTED_SKIP;
+
+    float4 coordinate_period = get_coordinate_period(cfg);
+
+    for(int cc=0; cc < count - skip; cc+=skip)
+    {
+        float4 native_current = object_geodesics[cc * object_count + tri.parent];
+        float4 native_next = object_geodesics[(cc + skip) * object_count + tri.parent];
+
+        if(!range_overlaps_general(native_current.x, native_next.x, *ray_time_min, *ray_time_max, coordinate_period.x))
+            continue;
+
+        ///todo: precalculate me
+        float4 min_extents;
+        float4 max_extents;
+
+        {
+            ///current tetrads
+            float4 s_e0 = p_e0[cc * stride + tri.parent];
+            float4 s_e1 = p_e1[cc * stride + tri.parent];
+            float4 s_e2 = p_e2[cc * stride + tri.parent];
+            float4 s_e3 = p_e3[cc * stride + tri.parent];
+
+            ///next tetrads
+            float4 n_e0 = p_e0[(cc + skip) * stride + tri.parent];
+            float4 n_e1 = p_e1[(cc + skip) * stride + tri.parent];
+            float4 n_e2 = p_e2[(cc + skip) * stride + tri.parent];
+            float4 n_e3 = p_e3[(cc + skip) * stride + tri.parent];
+
+            ///triangle coordinates in local space
+            float4 vert_0 = (float4)(0, tri.v0x, tri.v0y, tri.v0z);
+            float4 vert_1 = (float4)(0, tri.v1x, tri.v1y, tri.v1z);
+            float4 vert_2 = (float4)(0, tri.v2x, tri.v2y, tri.v2z);
+
+            ///start triangle coordinates (as a vector) in tangent space
+            float4 s_coordinate_v0 = tetrad_to_coordinate_basis(vert_0, s_e0, s_e1, s_e2, s_e3);
+            float4 s_coordinate_v1 = tetrad_to_coordinate_basis(vert_1, s_e0, s_e1, s_e2, s_e3);
+            float4 s_coordinate_v2 = tetrad_to_coordinate_basis(vert_2, s_e0, s_e1, s_e2, s_e3);
+
+            ///end triangle coordinates (as a vector) in tangent space
+            float4 e_coordinate_v0 = tetrad_to_coordinate_basis(vert_0, n_e0, n_e1, n_e2, n_e3);
+            float4 e_coordinate_v1 = tetrad_to_coordinate_basis(vert_1, n_e0, n_e1, n_e2, n_e3);
+            float4 e_coordinate_v2 = tetrad_to_coordinate_basis(vert_2, n_e0, n_e1, n_e2, n_e3);
+
+            //printf("t1 %f %f %f t2 %f %f %f\n", s_coordinate_v0.x, s_coordinate_v1.x, s_coordinate_v2.x,
+            //                                    e_coordinate_v0.x, e_coordinate_v1.x, e_coordinate_v2.x
+            //       );
+
+
+            ///Approximate triangle coordinates in coordinate space
+            float4 sgv0 = s_coordinate_v0 + native_current;
+            float4 sgv1 = s_coordinate_v1 + native_current;
+            float4 sgv2 = s_coordinate_v2 + native_current;
+
+            ///Approximate triangle coordinates in coordinate space
+            float4 egv0 = e_coordinate_v0 + native_next;
+            float4 egv1 = e_coordinate_v1 + native_next;
+            float4 egv2 = e_coordinate_v2 + native_next;
+
+            float4 min1 = min(sgv0, min(sgv1, sgv2));
+            float4 min2 = min(egv0, min(egv1, egv2));
+
+            float4 max1 = max(sgv0, max(sgv1, sgv2));
+            float4 max2 = max(egv0, max(egv1, egv2));
+
+            min_extents = min(min1, min2);
+            max_extents = max(max1, max2);
+        }
+
+        struct computed ctri;
+        ctri.v0x = tri.v0x;
+        ctri.v1x = tri.v1x;
+        ctri.v2x = tri.v2x;
+
+        ctri.v0y = tri.v0y;
+        ctri.v1y = tri.v1y;
+        ctri.v2y = tri.v2y;
+
+        ctri.v0z = tri.v0z;
+        ctri.v1z = tri.v1z;
+        ctri.v2z = tri.v2z;
+
+        ctri.geodesic_segment = cc * object_count + tri.parent;
+        ctri.min_extents = min_extents;
+        ctri.max_extents = max_extents;
+
+        int id = atomic_inc(ctri_count);
+
+        ctris[id] = ctri;
+    }
+}
+__kernel
+void generate_tri_lists2(global struct computed* ctri,
+                        global int* ctri_count,
+                        global int* chunked_tri_list_out,
+                        global int* chunked_tri_list_count,
+                        global int* chunked_global_count,
+                        global int* chunked_offsets,
+                        int max_tris,
+                        global float4* chunked_mins,
+                        global float4* chunked_maxs,
+                        int chunk_x, int chunk_y,
+                        int width, int height,
+                        dynamic_config_space const struct dynamic_config* cfg)
+{
+    size_t idx = get_global_id(0);
+    size_t idy = get_global_id(1);
+
+    int chunk_dim_x = get_chunk_size(width, chunk_x);
+    int chunk_dim_y = get_chunk_size(height, chunk_y);
+
+    if(idx >= chunk_dim_x || idy >= chunk_dim_y)
+        return;
+
+    float4 coordinate_period = get_coordinate_period(cfg);
+
+    size_t cid = idy * chunk_dim_x + idx;
+
+    float4 chunk_clip_min = chunked_mins[cid];
+    float4 chunk_clip_max = chunked_maxs[cid];
+
+    if(all(chunk_clip_min == chunk_clip_max))
+    {
+        chunked_tri_list_count[cid] = 0;
+        return;
+    }
+
+    int tris_num = *ctri_count;
+
+    int chunked_count = 0;
+
+    for(int i=0; i < tris_num; i++)
+    {
+        struct computed my_tri = ctri[i];
+
+        ///could improve memory layout
+        if(!range_overlaps_general4(chunk_clip_min, chunk_clip_max, my_tri.min_extents, my_tri.max_extents, coordinate_period))
+            continue;
+
+        chunked_count++;
+    }
+
+    int root_offset = 0;
+
+    if(chunked_count > 0)
+        root_offset = atomic_add(chunked_global_count, chunked_count);
+
+    if(root_offset + chunked_count > max_tris || chunked_count == 0)
+    {
+        chunked_tri_list_count[cid] = 0;
+        chunked_offsets[cid] = 0;
+        return;
+    }
+
+    chunked_tri_list_count[cid] = chunked_count;
+
+    int chunked_id = 0;
+
+    for(int i=0; i < tris_num; i++)
+    {
+        struct computed my_tri = ctri[i];
+
+        ///could improve memory layout
+        if(!range_overlaps_general4(chunk_clip_min, chunk_clip_max, my_tri.min_extents, my_tri.max_extents, coordinate_period))
+            continue;
+
+        int my_id = chunked_id++;
+
+        chunked_tri_list_out[root_offset + my_id] = i;
+    }
+
+    chunked_offsets[cid] = root_offset;
+}
+
+__kernel
+void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
+                         int object_count,
+                         __write_only image2d_t screen,
+                         global int* chunked_tri_list,
+                         global int* chunked_tri_list_count,
+                         global int* chunked_offsets,
+                         int width,
+                         int height,
+                         int chunk_x,
+                         int chunk_y,
+                         global float4* ray_segments,
+                         global int* ray_segments_count,
+                         global float4* object_geodesics, global int* object_geodesic_counts,
+                         global float4* p_e0, global float4* p_e1, global float4* p_e2, global float4* p_e3,
+                         global const float4* restrict inverse_e0s, __global const float4* restrict inverse_e1s, __global const float4* restrict inverse_e2s, __global const float4* restrict inverse_e3s,
+                         global float4* fine_clip_min, global float4* fine_clip_max,
+                         global int* already_rendered,
+                         dynamic_config_space const struct dynamic_config* cfg,
+                         float mouse_x,
+                         float mouse_y,
+                         int offset
+                         )
+{
+    int ray_x = get_global_id(0);
+    int ray_y = get_global_id(1);
+
+    if(ray_x >= width || ray_y >= height)
+        return;
+
+    int ray_id = ray_y * width + ray_x;
+
+    if(already_rendered[ray_id])
+        return;
+
+    int chunk_idx = get_group_id(0);
+    int chunk_idy = get_group_id(1);
+
+    int chunk_dim_x = get_chunk_size(width, chunk_x);
+    int chunk_id = chunk_idy * chunk_dim_x + chunk_idx;
+
+    int found_tris = chunked_tri_list_count[chunk_id];
+
+    if(found_tris == 0)
+        return;
+
+    int my_ray_segment_count = ray_segments_count[ray_id];
+
+    int2 bounds = get_bounds(my_ray_segment_count, offset, SEGMENTS);
+
+    /*if(found_tris > 0)
+    {
+        write_imagef(screen, (int2)(ray_x, ray_y), (float4)((float)found_tris / 100.f, 0, 0, 1));
+        return;
+    }*/
+
+    int root_offset = chunked_offsets[chunk_id];
+
+    //float4 ray_clip_min = fine_clip_min[ray_id];
+    //float4 ray_clip_max = fine_clip_max[ray_id];
+
+    float4 periods = get_coordinate_period(cfg);
+
+    float last_ray_t = FLT_MAX;
+
+    int last_tri_id = -1;
+
+    for(int rs = bounds.x; rs < bounds.y - 1; rs++)
+    {
+        float4 current_pos = ray_segments[rs * width * height + ray_id];
+        float4 next_pos = ray_segments[(rs+1) * width * height + ray_id];
+
+        ///...could i stuff you in local memory? or even an array?
+        for(int t=0; t < found_tris; t++)
+        {
+            int tri_id = chunked_tri_list[root_offset + t];
+
+            struct computed tri = ctri[tri_id];
+
+            int stride = object_count;
+
+            float4 min_extents = tri.min_extents;
+            float4 max_extents = tri.max_extents;
+
+            ///could improve the memroy layout to have min_extents and max_extents accessible
+            //if(!range_overlaps_general4(ray_clip_min, ray_clip_max, min_extents, max_extents, periods))
+            //    continue;
+
+            if(!range_overlaps_general4(current_pos, next_pos, min_extents, max_extents, periods))
+                continue;
+
+            ///current position of triangle in coordinate space
+            float4 native_current = object_geodesics[tri.geodesic_segment];
+            float4 native_next = object_geodesics[tri.geodesic_segment + stride * COMPUTED_SKIP];
+
+            ///current inverse tetrads
+            float4 s_ie0 = inverse_e0s[tri.geodesic_segment];
+            float4 s_ie1 = inverse_e1s[tri.geodesic_segment];
+            float4 s_ie2 = inverse_e2s[tri.geodesic_segment];
+            float4 s_ie3 = inverse_e3s[tri.geodesic_segment];
+
+            ///next inverse tetrads
+            float4 n_ie0 = inverse_e0s[tri.geodesic_segment + stride * COMPUTED_SKIP];
+            float4 n_ie1 = inverse_e1s[tri.geodesic_segment + stride * COMPUTED_SKIP];
+            float4 n_ie2 = inverse_e2s[tri.geodesic_segment + stride * COMPUTED_SKIP];
+            float4 n_ie3 = inverse_e3s[tri.geodesic_segment + stride * COMPUTED_SKIP];
+
+            float3 v0 = (float3)(tri.v0x, tri.v0y, tri.v0z);
+            float3 v1 = (float3)(tri.v1x, tri.v1y, tri.v1z);
+            float3 v2 = (float3)(tri.v2x, tri.v2y, tri.v2z);
+
+            float ray_t = FLT_MAX;
+
+            ///todo: sort by minimum ray intersection length? whats going on here
+            ///wait. do i want the last hit??
+            ///no its because i might hit multiple in this segment, rip
+            ///i'm doing this raywise, but traversing the entire ray, so early terminate is borked
+            ///this is very inefficient, go along the way and then check the tris
+            ///or maybe not actually, there's some good short circuiting i can do, and the tris need more memory fetche
+            if(ray_intersects_toblerone2(current_pos, next_pos, v0, v1, v2, native_current, native_next,
+                                         s_ie0, s_ie1, s_ie2, s_ie3, n_ie0, n_ie1, n_ie2, n_ie3, periods, &ray_t, ray_x == 1353 && ray_y == 406))
+            {
+                if(last_ray_t != FLT_MAX && ray_t >= last_ray_t)
+                    continue;
+
+                last_ray_t = ray_t;
+
+                last_tri_id = tri_id;
+            }
+        }
+
+        if(last_ray_t != FLT_MAX)
+            break;
+    }
+
+    ///1030, 280
+    if(last_tri_id >= 0)
+    {
+        struct computed tri = ctri[last_tri_id];
+
+        float3 v0 = (float3)(tri.v0x, tri.v0y, tri.v0z);
+        float3 v1 = (float3)(tri.v1x, tri.v1y, tri.v1z);
+        float3 v2 = (float3)(tri.v2x, tri.v2y, tri.v2z);
+
+        float3 ncol = fabs(triangle_normal(v0, v1, v2));
+        write_imagef(screen, (int2)(ray_x, ray_y), (float4)(ncol.x, ncol.y, ncol.z, 1));
+
+        already_rendered[ray_id] = 1;
     }
 }
 
@@ -5584,7 +4744,7 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
     int stride_out = *generic_count_in;
     int bufc = 0;
 
-    float4 periods = get_coordinate_period(position, cfg);
+    float4 periods = get_coordinate_period(cfg);
     float4 last_pos_generic;
 
     float running_dlambda_dnew = 1;
@@ -6596,47 +5756,6 @@ void render_potential_intersections(__global struct potential_intersection* in, 
     }
 }
 #endif // 0
-
-__kernel
-void render_intersections(__global const struct intersection* in, __global const int* cnt, __global const struct computed_triangle* linear_mem, __write_only image2d_t screen)
-{
-    int id = get_global_id(0);
-
-    if(id >= *cnt)
-        return;
-
-    __global const struct intersection* mine = &in[id];
-    __global const struct computed_triangle* ctri = &linear_mem[mine->computed_parent];
-
-    #ifndef TRI_PRECESSION
-    float3 to_v1 = (float3)(ctri->dv1x, ctri->dv1y, ctri->dv1z);
-    float3 to_v2 = (float3)(ctri->dv2x, ctri->dv2y, ctri->dv2z);
-
-    float3 v0 = (float3)(ctri->v0x, ctri->v0y, ctri->v0z);
-    float3 v1 = v0 + to_v1;
-    float3 v2 = v0 + to_v2;
-
-    float3 t_diff = (float3)(ctri->dvx, ctri->dvy, ctri->dvz);
-
-    float3 e0 = v0 + t_diff;
-    float3 e1 = v1 + t_diff;
-    float3 e2 = v2 + t_diff;
-    #else
-    float3 v0 = ctri->tv0.yzw;
-    float3 v1 = ctri->tv1.yzw;
-    float3 v2 = ctri->tv2.yzw;
-    #endif
-
-    //float3 N = triangle_normal(iv0, iv1, iv2);
-
-    float3 N = triangle_normal(v0, v1, v2);
-
-    int2 pos = (int2)(mine->sx, mine->sy);
-
-    float3 N_as_col = fabs(N);
-
-    write_imagef(screen, pos, (float4)(N_as_col.xyz, 1));
-}
 
 ///todo: make flip global
 __kernel

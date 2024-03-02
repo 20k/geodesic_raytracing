@@ -28,6 +28,7 @@
 #include "dynamic_feature_config.hpp"
 #include "render_state.hpp"
 #include <thread>
+#include "common.cl"
 //#include "dual_complex.hpp"
 
 /**
@@ -140,8 +141,7 @@ void execute_kernel(graphics_settings& sett,
                     cl::buffer& count_in,
                     cl::buffer& ray_time_min, cl::buffer& ray_time_max,
                     //cl::buffer& visual_path, cl::buffer& visual_ray_counts,
-                    triangle_rendering::manager& manage, cl::buffer& intersections, cl::buffer& intersections_count,
-                    triangle_rendering::acceleration& accel,
+                    triangle_rendering::manager& manage,
                     physics& phys,
                     int num_rays,
                     bool use_device_side_enqueue,
@@ -149,6 +149,8 @@ void execute_kernel(graphics_settings& sett,
                     cl::buffer& dynamic_config,
                     cl::buffer& dynamic_feature_config,
                     int width, int height,
+                    render_state& st,
+                    single_render_state& single_state,
                     cl::event evt)
 {
     if(use_device_side_enqueue)
@@ -165,25 +167,17 @@ void execute_kernel(graphics_settings& sett,
     }
     else
     {
+        st.stored_ray_counts.set_to_zero(cqueue);
+
         count_in.write_async(cqueue, (const char*)&num_rays, sizeof(int));
 
         if(dfg.get_feature<bool>("use_triangle_rendering"))
         {
-            assert(accel.is_allocated);
-
             cl_int my_min = INT_MAX;
             cl_int my_max = INT_MIN;
 
-            accel.ray_time_min.fill(cqueue, my_min);
-            accel.ray_time_max.fill(cqueue, my_max);
-
-            if(accel.use_cell_based_culling)
-            {
-                accel.cell_time_min.fill(cqueue, my_min);
-                accel.cell_time_max.fill(cqueue, my_max);
-            }
-
-            intersections_count.set_to_zero(cqueue);
+            ray_time_min.fill(cqueue, my_min);
+            ray_time_max.fill(cqueue, my_max);
         }
 
         int mouse_x = ImGui::GetMousePos().x;
@@ -192,38 +186,8 @@ void execute_kernel(graphics_settings& sett,
         cl::args run_args;
         run_args.push_back(rays_in);
         run_args.push_back(count_in);
-        //run_args.push_back(visual_path);
-        //run_args.push_back(visual_ray_counts);
-        run_args.push_back(manage.tris);
-        run_args.push_back(manage.tri_count);
-        run_args.push_back(intersections);
-        run_args.push_back(intersections_count);
-        run_args.push_back(accel.counts);
-        run_args.push_back(accel.offsets);
-        run_args.push_back(accel.memory);
-        run_args.push_back(accel.memory_count);
-        run_args.push_back(accel.start_times_memory);
-        run_args.push_back(accel.delta_times_memory);
-        run_args.push_back(accel.linear_object_positions);
-        run_args.push_back(accel.unculled_counts);
-        run_args.push_back(accel.any_visible);
-        run_args.push_back(accel.offset_width);
-        run_args.push_back(accel.time_width);
-        run_args.push_back(accel.offset_size.x());
-        //run_args.push_back(accel.cell_time_min);
-        //run_args.push_back(accel.cell_time_max);
-        run_args.push_back(manage.objects);
         run_args.push_back(ray_time_min);
         run_args.push_back(ray_time_max);
-
-        run_args.push_back(phys.subsampled_paths);
-        run_args.push_back(phys.subsampled_velocities);
-
-        for(int i=0; i < 4; i++)
-        {
-            run_args.push_back(phys.subsampled_inverted_tetrads[i]);
-        }
-
         run_args.push_back(dynamic_config);
         run_args.push_back(dynamic_feature_config);
         run_args.push_back(width);
@@ -231,11 +195,15 @@ void execute_kernel(graphics_settings& sett,
         run_args.push_back(mouse_x);
         run_args.push_back(mouse_y);
 
-        cqueue.exec("do_generic_rays", run_args, {width, height}, {sett.workgroup_size[0], sett.workgroup_size[1]}, {evt});
+        if(dfg.get_feature<bool>("use_triangle_rendering"))
+            run_args.push_back(single_state.stored_rays);
+        else
+            run_args.push_back(nullptr);
 
-        ///todo: no idea if this is correct
-        accel.ray_time_min = ray_time_min;
-        accel.ray_time_max = ray_time_max;
+        run_args.push_back(st.stored_ray_counts);
+        run_args.push_back(single_state.max_stored);
+
+        cqueue.exec("do_generic_rays", run_args, {width, height}, {sett.workgroup_size[0], sett.workgroup_size[1]}, {evt});
     }
 }
 
@@ -920,9 +888,24 @@ struct gl_image_shared_queue
     }
 };
 
+void test_overlap()
+{
+    static_assert(periodic_range_overlaps(0, 2, 0, 1, 2));
+    static_assert(periodic_range_overlaps(0, 1, 0, 8, 2));
+
+    static_assert(periodic_range_overlaps(0, 1, 2, 3, 2));
+
+    static_assert(!periodic_range_overlaps(0, 1, 3.1, 3.9, 2));
+
+    static_assert(periodic_range_overlaps(0.1, 0.3, 3.1, 4.2, 2));
+    static_assert(periodic_range_overlaps(3.1, 4.2, 0.1, 0.3, 2));
+}
+
 ///i need the ability to have dynamic parameters
 int main(int argc, char* argv[])
 {
+    test_overlap();
+
     #ifdef REDIRECT_STDOUT
     *stdout = *fopen("debug.txt","w");
     #endif // REDIRECT_STDOUT
@@ -1051,7 +1034,7 @@ int main(int argc, char* argv[])
 
     dynamic_feature_config dfg;
     dfg.add_feature<bool>("use_triangle_rendering");
-    dfg.set_feature("use_triangle_rendering", true);
+    dfg.set_feature("use_triangle_rendering", false);
 
     dfg.add_feature<bool>("redshift");
     dfg.set_feature("redshift", false);
@@ -1064,10 +1047,6 @@ int main(int argc, char* argv[])
 
     dfg.add_feature<float>("max_precision_radius");
     dfg.set_feature("max_precision_radius", 10.f);
-
-    dfg.add_feature<bool>("precession");
-    dfg.set_feature("precession", true);
-    dfg.set_always_static("precession", true);
 
     dfg.add_feature<bool>("reparameterisation");
     dfg.set_feature("reparameterisation", false);
@@ -1347,21 +1326,21 @@ int main(int argc, char* argv[])
     obj->velocity = {-0.8f, 0.0f, 0};
     #endif // DEBUG_FAST_CUBE
 
-    #define TRI_STANDARD_CASE
+    //#define TRI_STANDARD_CASE
     #ifdef TRI_STANDARD_CASE
-    std::shared_ptr<triangle_rendering::object> obj = tris.make_new();
+    std::shared_ptr<triangle_rendering::object> obj = tris.make_new("./models/newell_teaset/smallteapot.obj");
 
-    obj->tris = make_cube({0, 0, 0});
-    obj->pos = {-70, -5, -1, 0};
+    //obj->tris = make_cube({0, 0, 0});
+    obj->pos = {-60, -5, -1, 0};
     obj->velocity = {-0.2f, 0.2f, 0};
+    obj->scale = 0.1f;
     #endif // TRI_STANDARD_CASE
 
     physics phys(clctx.ctx);
-    triangle_rendering::acceleration accel(clctx.ctx);
 
     if(dfg.get_feature<bool>("use_triangle_rendering"))
     {
-        tris.build(clctx.cqueue, accel.offset_width / accel.offset_size.x());
+        tris.build(clctx.cqueue);
         phys.setup(clctx.cqueue, tris);
     }
 
@@ -1380,6 +1359,8 @@ int main(int argc, char* argv[])
         states.emplace_back(clctx.ctx, clctx.cqueue);
         states[i].realloc(start_width, start_height);
     }
+
+    single_render_state single_state(clctx.ctx);
 
     bool reset_camera = true;
     bool once = false;
@@ -1491,6 +1472,11 @@ int main(int argc, char* argv[])
             }
         }
     });
+
+    #define START_CLOSED
+    #ifdef START_CLOSED
+    open_main_menu_trigger = false;
+    #endif
 
     int unprocessed_frames = 0;
 
@@ -1979,13 +1965,9 @@ int main(int argc, char* argv[])
                         ImGui::Checkbox("Use Triangle Rendering", &use_triangle_rendering);
                         dfg.set_feature("use_triangle_rendering", use_triangle_rendering);
 
-                        bool precession = dfg.get_feature<bool>("precession");
-                        ImGui::Checkbox("Use Precession (Slow)", &precession);
-                        dfg.set_feature("precession", precession);
-
                         if(dfg.is_dirty && use_triangle_rendering)
                         {
-                            tris.build(mqueue, accel.offset_width / accel.offset_size.x());
+                            tris.build(mqueue);
                             phys.setup(mqueue, tris);
                         }
 
@@ -2090,8 +2072,7 @@ int main(int argc, char* argv[])
 
                 obj->velocity = chuck_dir * object_chuck_speed;
 
-                accel.check_allocated(mqueue);
-                tris.build(mqueue, accel.offset_width / accel.offset_size.x());
+                tris.build(mqueue);
                 phys.setup(mqueue, tris);
 
                 should_chuck_object = false;
@@ -2306,29 +2287,25 @@ int main(int argc, char* argv[])
                 }
             }
 
-            if(dfg.get_feature<bool>("use_triangle_rendering"))
-            {
-                tris.update_objects(mqueue);
-
-                phys.trace(mqueue, tris, dynamic_config, dynamic_feature_buffer);
-
-                ///this is only good for the case when we're tracing constant t
-                //phys.push_object_positions(mqueue, tris, dynamic_config, set_camera_time);
-
-                accel.build(mqueue, tris, phys, dynamic_config);
-            }
-            else
-            {
-                tris = triangle_rendering::manager(clctx.ctx);
-                phys = physics(clctx.ctx);
-                accel = triangle_rendering::acceleration(clctx.ctx);
-            }
-
             cl::event produce_event;
 
             {
                 int width = glis.rtex.size<2>().x();
                 int height = glis.rtex.size<2>().y();
+
+                if(dfg.get_feature<bool>("use_triangle_rendering"))
+                {
+                    tris.update_objects(mqueue);
+
+                    phys.trace(mqueue, tris, dynamic_config, dynamic_feature_buffer);
+                    single_state.lazy_allocate(width, height);
+                }
+                else
+                {
+                    tris = triangle_rendering::manager(clctx.ctx);
+                    phys = physics(clctx.ctx);
+                    single_state.deallocate(clctx.ctx);
+                }
 
                 ///should invert geodesics is unused for the moment
                 int isnap = 0;
@@ -2336,12 +2313,12 @@ int main(int argc, char* argv[])
                 cl_int prepass_width = width/16;
                 cl_int prepass_height = height/16;
 
-                if(metric_manage.current_metric->metric_cfg.use_prepass && tris.cpu_objects.size() > 0)
+                /*if(metric_manage.current_metric->metric_cfg.use_prepass)
                 {
                     st.termination_buffer.set_to_zero(mqueue);
-                }
+                }*/
 
-                if(metric_manage.current_metric->metric_cfg.use_prepass && tris.cpu_objects.size() == 0)
+                if(metric_manage.current_metric->metric_cfg.use_prepass)
                 {
                     cl::args clear_args;
                     clear_args.push_back(st.termination_buffer);
@@ -2374,7 +2351,7 @@ int main(int argc, char* argv[])
 
                     int rays_num = calculate_ray_count(prepass_width, prepass_height);
 
-                    execute_kernel(menu.sett, mqueue, st.rays_in, st.rays_count_in, st.accel_ray_time_min, st.accel_ray_time_max, tris, st.tri_intersections, st.tri_intersections_count, accel, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer, st.width, st.height, last_event);
+                    execute_kernel(menu.sett, mqueue, st.rays_in, st.rays_count_in, st.accel_ray_time_min, st.accel_ray_time_max, tris, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer, st.width, st.height, st, single_state, last_event);
 
                     cl::args singular_args;
                     singular_args.push_back(st.rays_in);
@@ -2409,7 +2386,7 @@ int main(int argc, char* argv[])
 
                 int rays_num = calculate_ray_count(width, height);
 
-                execute_kernel(menu.sett, mqueue, st.rays_in, st.rays_count_in, st.accel_ray_time_min, st.accel_ray_time_max, tris, st.tri_intersections, st.tri_intersections_count, accel, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer, st.width, st.height, last_event);
+                execute_kernel(menu.sett, mqueue, st.rays_in, st.rays_count_in, st.accel_ray_time_min, st.accel_ray_time_max, tris, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer, st.width, st.height, st, single_state, last_event);
 
                 cl::args texture_args;
                 texture_args.push_back(st.rays_in);
@@ -2454,13 +2431,131 @@ int main(int argc, char* argv[])
 
             if(dfg.get_feature<bool>("use_triangle_rendering"))
             {
-                cl::args intersect_args;
+                int chunk_x = menu.sett.workgroup_size[0];
+                int chunk_y = menu.sett.workgroup_size[1];
+
+                int chunk_x_num = get_chunk_size(menu.sett.width, chunk_x);
+                int chunk_y_num = get_chunk_size(menu.sett.height, chunk_y);
+
+                int chunks = chunk_x_num * chunk_y_num;
+
+                ///completely standalone
+                {
+                    single_state.computed_tri_count.set_to_zero(mqueue);
+
+                    cl::args args;
+                    args.push_back(tris.tris);
+                    args.push_back(tris.tri_count);
+                    args.push_back(phys.object_count);
+                    args.push_back(phys.subsampled_paths);
+                    args.push_back(phys.subsampled_counts);
+
+                    for(int i=0; i < 4; i++)
+                        args.push_back(phys.subsampled_parallel_transported_tetrads[i]);
+
+                    args.push_back(single_state.computed_tris);
+                    args.push_back(single_state.computed_tri_count);
+                    args.push_back(st.accel_ray_time_min);
+                    args.push_back(st.accel_ray_time_max);
+                    args.push_back(dynamic_config);
+
+                    mqueue.exec("generate_computed_tris", args, {tris.tri_count}, {128});
+                }
+
+                st.already_rendered.set_to_zero(mqueue);
+
+                for(int kk=0; kk < 4; kk++)
+                {
+                    {
+                        cl::args args;
+                        args.push_back(single_state.stored_rays);
+                        args.push_back(st.stored_ray_counts);
+                        args.push_back(single_state.max_stored);
+                        args.push_back(st.stored_mins);
+                        args.push_back(st.stored_maxs);
+                        args.push_back(st.width);
+                        args.push_back(st.height);
+                        args.push_back(st.chunked_mins);
+                        args.push_back(st.chunked_maxs);
+                        args.push_back(kk);
+                        args.push_back(cl::local_memory(sizeof(cl_float4) * chunk_x * chunk_y));
+                        args.push_back(cl::local_memory(sizeof(cl_float4) * chunk_x * chunk_y));
+                        args.push_back(cl::local_memory(sizeof(cl_char) * chunk_x * chunk_y));
+
+                        mqueue.exec("generate_clip_regions", args, {st.width, st.height}, {chunk_x, chunk_y});
+                    }
+
+                    {
+                        single_state.tri_list_allocator.set_to_zero(mqueue);
+
+                        cl::args args;
+                        args.push_back(single_state.computed_tris);
+                        args.push_back(single_state.computed_tri_count);
+
+                        args.push_back(single_state.tri_list1);
+                        args.push_back(single_state.tri_list_counts1);
+                        args.push_back(single_state.tri_list_allocator);
+                        args.push_back(single_state.tri_list_offsets);
+                        args.push_back(single_state.max_tris);
+                        args.push_back(st.chunked_mins);
+                        args.push_back(st.chunked_maxs);
+                        args.push_back(chunk_x);
+                        args.push_back(chunk_y);
+                        args.push_back(st.width);
+                        args.push_back(st.height);
+                        args.push_back(dynamic_config);
+
+                        ///we could actually work this out, because computed tris are only generated once in theory
+                        mqueue.exec("generate_tri_lists2", args, {chunk_x_num, chunk_y_num}, {8, 8});
+                        //mqueue.exec("generate_tri_lists", args, {1024 * 1024 * 10}, {128});
+                    }
+
+                    {
+                        cl::args args;
+                        args.push_back(single_state.computed_tris);
+                        args.push_back(single_state.computed_tri_count);
+                        args.push_back(phys.object_count);
+                        args.push_back(glis.rtex);
+                        args.push_back(single_state.tri_list1);
+                        args.push_back(single_state.tri_list_counts1);
+                        args.push_back(single_state.tri_list_offsets);
+                        args.push_back(st.width);
+                        args.push_back(st.height);
+                        args.push_back(chunk_x);
+                        args.push_back(chunk_y);
+                        args.push_back(single_state.stored_rays);
+                        args.push_back(st.stored_ray_counts);
+                        args.push_back(phys.subsampled_paths);
+                        args.push_back(phys.subsampled_counts);
+
+                        for(int i=0; i < 4; i++)
+                            args.push_back(phys.subsampled_parallel_transported_tetrads[i]);
+
+                        for(int i=0; i < 4; i++)
+                            args.push_back(phys.subsampled_inverted_tetrads[i]);
+
+                        args.push_back(st.stored_mins);
+                        args.push_back(st.stored_maxs);
+                        args.push_back(st.already_rendered);
+
+                        float mx = ImGui::GetIO().MousePos.x;
+                        float my = ImGui::GetIO().MousePos.y;
+
+                        args.push_back(dynamic_config);
+                        args.push_back(mx);
+                        args.push_back(my);
+                        args.push_back(kk);
+
+                        produce_event = mqueue.exec("render_chunked_tris", args, {st.width, st.height}, {chunk_x, chunk_y});
+                    }
+                }
+                /*cl::args intersect_args;
                 intersect_args.push_back(st.tri_intersections);
                 intersect_args.push_back(st.tri_intersections_count);
                 intersect_args.push_back(accel.memory);
                 intersect_args.push_back(glis.rtex);
 
-                produce_event = mqueue.exec("render_intersections", intersect_args, {glis.rtex.size<2>().x() * glis.rtex.size<2>().y()}, {256});
+                produce_event = mqueue.exec("render_intersections", intersect_args, {glis.rtex.size<2>().x() * glis.rtex.size<2>().y()}, {256});*/
             }
 
             last_last_event = last_event;
