@@ -31,24 +31,46 @@ struct single_render_state
 
     cl_int max_stored = 90;
 
-    single_render_state(cl::context& ctx, cl::command_queue& cqueue) :
+    bool allocated = false;
+
+    uint32_t last_width = 0;
+    uint32_t last_height = 0;
+
+    single_render_state(cl::context& ctx) :
         stored_rays(ctx),
         tri_list_allocator(ctx), tri_list_offsets(ctx),
         tri_list1(ctx), tri_list_counts1(ctx),
         computed_tris(ctx), computed_tri_count(ctx)
     {
-        computed_tris.alloc(1024 * 1024 * 800);
-        computed_tri_count.alloc(sizeof(cl_int));
-        tri_list_allocator.alloc(sizeof(cl_ulong));
+
     }
 
-    void realloc(uint32_t width, uint32_t height)
+    void deallocate(cl::context& ctx)
     {
-        tri_list_offsets.alloc(sizeof(cl_ulong) * width * height);
-        tri_list1.alloc(sizeof(cl_int) * max_tris);
-        tri_list_counts1.alloc(sizeof(cl_int) * width * height);
+        *this = single_render_state(ctx);
+    }
 
-        stored_rays.alloc(sizeof(cl_float4) * width * height * max_stored);
+    void lazy_allocate(uint32_t width, uint32_t height)
+    {
+        if(allocated && last_width == width && last_height == height)
+            return;
+
+        if(!allocated || last_width != width || last_height != height)
+        {
+            computed_tris.alloc(1024 * 1024 * 800);
+            computed_tri_count.alloc(sizeof(cl_int));
+            tri_list_allocator.alloc(sizeof(cl_ulong));
+
+            tri_list_offsets.alloc(sizeof(cl_ulong) * width * height);
+            tri_list1.alloc(sizeof(cl_int) * max_tris);
+            tri_list_counts1.alloc(sizeof(cl_int) * width * height);
+
+            stored_rays.alloc(sizeof(cl_float4) * width * height * max_stored);
+
+            allocated = true;
+            last_width = width;
+            last_height = height;
+        }
     }
 };
 

@@ -1360,8 +1360,7 @@ int main(int argc, char* argv[])
         states[i].realloc(start_width, start_height);
     }
 
-    single_render_state single_state(clctx.ctx, clctx.cqueue);
-    single_state.realloc(start_width, start_height);
+    single_render_state single_state(clctx.ctx);
 
     bool reset_camera = true;
     bool once = false;
@@ -1762,8 +1761,6 @@ int main(int argc, char* argv[])
 
                 for(auto& i : states)
                     i.realloc(width, height);
-
-                single_state.realloc(width, height);
 
                 last_supersample = menu.sett.supersample;
                 last_supersample_mult = menu.sett.supersample_factor;
@@ -2290,23 +2287,25 @@ int main(int argc, char* argv[])
                 }
             }
 
-            if(dfg.get_feature<bool>("use_triangle_rendering"))
-            {
-                tris.update_objects(mqueue);
-
-                phys.trace(mqueue, tris, dynamic_config, dynamic_feature_buffer);
-            }
-            else
-            {
-                tris = triangle_rendering::manager(clctx.ctx);
-                phys = physics(clctx.ctx);
-            }
-
             cl::event produce_event;
 
             {
                 int width = glis.rtex.size<2>().x();
                 int height = glis.rtex.size<2>().y();
+
+                if(dfg.get_feature<bool>("use_triangle_rendering"))
+                {
+                    tris.update_objects(mqueue);
+
+                    phys.trace(mqueue, tris, dynamic_config, dynamic_feature_buffer);
+                    single_state.lazy_allocate(width, height);
+                }
+                else
+                {
+                    tris = triangle_rendering::manager(clctx.ctx);
+                    phys = physics(clctx.ctx);
+                    single_state.deallocate(clctx.ctx);
+                }
 
                 ///should invert geodesics is unused for the moment
                 int isnap = 0;
