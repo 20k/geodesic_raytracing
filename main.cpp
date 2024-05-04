@@ -740,7 +740,7 @@ template<typename T>
 struct async_executor
 {
     std::mutex mut;
-    std::vector<std::pair<T, cl::event>> yields;
+    std::vector<T> yields;
 
     int peek()
     {
@@ -749,11 +749,11 @@ struct async_executor
         return yields.size();
     }
 
-    void add(T&& in, cl::event evt)
+    void add(T&& in)
     {
         std::lock_guard guard(mut);
 
-        yields.push_back({std::move(in), evt});
+        yields.push_back(std::move(in));
     }
 
     std::optional<T> produce(bool at_least_one = false)
@@ -765,14 +765,9 @@ struct async_executor
             if(yields.size() == 0)
                 return std::nullopt;
 
-            if(yields.front().second.is_finished())
-            {
-                auto val = std::move(yields.front().first);
-                yields.erase(yields.begin());
-                return val;
-            }
-
-            return std::nullopt;
+            auto val = std::move(yields.front());
+            yields.erase(yields.begin());
+            return val;
         }
         else
         {
@@ -783,12 +778,9 @@ struct async_executor
                 if(yields.size() == 0)
                     continue;
 
-                if(yields.front().second.is_finished())
-                {
-                    auto val = std::move(yields.front().first);
-                    yields.erase(yields.begin());
-                    return val;
-                }
+                auto val = std::move(yields.front());
+                yields.erase(yields.begin());
+                return val;
             }
 
             return std::nullopt;
@@ -1425,7 +1417,7 @@ int main(int argc, char* argv[])
                 if(std::get<2>(unfinished.front()).is_finished())
                 {
                     std::get<1>(unfinished.front()).block();
-                    glexec.add(std::move(std::get<0>(unfinished.front())), cl::event());
+                    glexec.add(std::move(std::get<0>(unfinished.front())));
                     unfinished.erase(unfinished.begin());
                 }
             }
@@ -2667,7 +2659,7 @@ int main(int argc, char* argv[])
             if(!taking_screenshot)
             {
                 unprocessed_frames++;
-                glsq.add(std::move(glis), last_event);
+                glsq.add(std::move(glis));
             }
 
             if(taking_screenshot)
@@ -2740,7 +2732,7 @@ int main(int argc, char* argv[])
                     SteamAPI_ISteamScreenshots_WriteScreenshot(iss, as_rgb.data(), sizeof(vec<3, char>) * as_rgb.size(), high_width, high_height);
                 }
 
-                unacquired.add(std::move(glis), cl::event());
+                unacquired.add(std::move(glis));
             }
         }
 
@@ -2768,7 +2760,7 @@ int main(int argc, char* argv[])
                 unprocessed_frames--;
 
                 if(last_frame_opt.has_value())
-                    unacquired.add(std::move(last_frame_opt.value()), cl::event());
+                    unacquired.add(std::move(last_frame_opt.value()));
 
                 last_frame_opt = std::move(opt.value());
             }
