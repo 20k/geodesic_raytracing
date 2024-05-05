@@ -11,6 +11,20 @@
 
 namespace metrics
 {
+    template<typename T, typename U, size_t N, size_t... Is>
+    inline
+    auto array_apply(T&& func, const std::array<U, N>& arr, std::index_sequence<Is...>)
+    {
+        return func(arr[Is]...);
+    }
+
+    template<typename T, typename U, size_t N>
+    inline
+    auto array_apply(T&& func, const std::array<U, N>& arr)
+    {
+        return array_apply(std::forward<T>(func), arr, std::make_index_sequence<N>{});
+    }
+
     inline
     std::array<dual, 4> cartesian_to_polar_v(const dual& t, const dual& x, const dual& y, const dual& z)
     {
