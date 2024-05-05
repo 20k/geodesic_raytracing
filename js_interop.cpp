@@ -194,13 +194,13 @@ storage func(const storage& s1, const storage& s2, T&& functor)
     }
     else if(s1.which == 0 && s2.which == 1)
     {
-        storage s(functor(s1.d, s2.c));
+        storage s(functor(dual_complex(s1.d), s2.c));
 
         return s;
     }
     else if(s1.which == 1 && s2.which == 0)
     {
-        storage s(functor(s1.c, s2.d));
+        storage s(functor(s1.c, dual_complex(s2.d)));
 
         return s;
     }
