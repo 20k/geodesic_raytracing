@@ -4805,6 +4805,8 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
 
         step_verlet(position, velocity, acceleration, false, ds, &next_position, &next_velocity, &next_acceleration, &dLambda_dNew, cfg, dfg);
 
+        float old_dlambda = running_dlambda_dnew;
+
         running_dlambda_dnew *= dLambda_dNew;
 
         #ifdef ADAPTIVE_PRECISION
@@ -4830,12 +4832,12 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         #endif // UNCONDITIONALLY_NONSINGULAR
 
         float4 generic_position_out = position;
-        float4 generic_velocity_out = velocity;
+        float4 generic_velocity_out = velocity / old_dlambda;
 
         #if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC) || defined(DEBUG_CONSTANT_THETA)
         {
             float4 pos_spherical = generic_to_spherical(position, cfg);
-            float4 vel_spherical = generic_velocity_to_spherical_velocity(position, velocity, cfg);
+            float4 vel_spherical = generic_velocity_to_spherical_velocity(position, velocity / old_dlambda, cfg);
 
             float fsign = sign(pos_spherical.y);
             pos_spherical.y = fabs(pos_spherical.y);
@@ -4878,8 +4880,6 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
             break;
         }
 
-        //printf("Pos %f %f %f %f\n", next_position.x,next_position.y,next_position.z,next_position.w);
-
         position = next_position;
         velocity = next_velocity;
         acceleration = next_acceleration;
@@ -4887,11 +4887,12 @@ void get_geodesic_path(__global struct lightray* generic_rays_in,
         positions_out[bufc * stride_out + id] = generic_position_out;
 
         ///do I want to reparameterise?
+        ///yes, because we interpolate velocities
         if(velocities_out)
             velocities_out[bufc * stride_out + id] = generic_velocity_out;
 
         if(ds_out)
-            ds_out[bufc * stride_out + id] = ds;
+            ds_out[bufc * stride_out + id] = ds * old_dlambda;
 
         bufc++;
 
