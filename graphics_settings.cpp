@@ -27,6 +27,7 @@ DEFINE_SERIALISE_FUNCTION(graphics_settings)
     DO_FSERIALISE(no_gpu_reads);
     DO_FSERIALISE(max_frames_ahead);
     DO_FSERIALISE(workgroup_size);
+    DO_FSERIALISE(use_old_redshift);
 }
 
 bool graphics_settings::display_video_settings()
@@ -90,6 +91,8 @@ bool graphics_settings::display_video_settings()
     {
         ImGui::SetTooltip("Size of a local workgroup when raytracing\n8x8 is best on amd, and 16x16 may be better on nvidia");
     }
+
+    ImGui::Checkbox("Use Old Redshift", &use_old_redshift);
 
     ImGui::NewLine();
 

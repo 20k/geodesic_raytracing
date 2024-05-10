@@ -4943,7 +4943,7 @@ float energy_of(float3 v)
     return v.x*0.2125f + v.y*0.7154f + v.z*0.0721f;
 }
 
-float3 redshift(float3 v, float z)
+float3 redshift(float3 v, float z, dynamic_config_space struct dynamic_feature_config* dfg)
 {
     ///1 + z = gtt(recv) / gtt(src)
     ///1 + z = lnow / lthen
@@ -4969,14 +4969,17 @@ float3 redshift(float3 v, float z)
 
         float3 col = mix(v, radiant_energy * blue, interpolating_fraction);
 
-        float final_energy = energy_of(clamp(col, 0.f, 1.f));
-        float real_energy = energy_of(col);
+        if(!GET_FEATURE(use_old_redshift, dfg))
+        {
+            float final_energy = energy_of(clamp(col, 0.f, 1.f));
+            float real_energy = energy_of(col);
 
-        float remaining_energy = real_energy - final_energy;
+            float remaining_energy = real_energy - final_energy;
 
-        float energy_per_colour = 0.2125 + 0.7154;
+            float energy_per_colour = 0.2125 + 0.7154;
 
-        col.xy += remaining_energy * (red + green).xy;
+            col.xy += remaining_energy * (red + green).xy;
+        }
 
         result = col;
     }
@@ -5445,7 +5448,7 @@ void render(__global const struct lightray* finished_rays, __global const int* f
                 printf("ZShift %f\n", z_shift);
             }*/
 
-            lin_result = redshift(lin_result, z_shift);
+            lin_result = redshift(lin_result, z_shift, dfg);
 
             lin_result = clamp(lin_result, 0.f, 1.f);
         }

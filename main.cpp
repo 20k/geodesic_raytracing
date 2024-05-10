@@ -1046,6 +1046,9 @@ int main(int argc, char* argv[])
     dfg.add_feature<float>("min_step");
     dfg.set_feature("min_step", 0.000001f);
 
+    dfg.add_feature<bool>("use_old_redshift");
+    dfg.set_feature("use_old_redshift", false);
+
     //print("WLs %f %f %f\n", chromaticity::srgb_to_wavelength({1, 0, 0}), chromaticity::srgb_to_wavelength({0, 1, 0}), chromaticity::srgb_to_wavelength({0, 0, 1}));
 
     int last_supersample_mult = 2;
@@ -1525,6 +1528,8 @@ int main(int argc, char* argv[])
        }
 
         menu.dirty_settings = false;
+
+        dfg.set_feature("use_old_redshift", menu.sett.use_old_redshift);
 
         exec.poll();
 
