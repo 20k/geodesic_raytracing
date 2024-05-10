@@ -4183,10 +4183,7 @@ struct computed
     float4 min_extents;
     float4 max_extents;
 
-    float v0x, v0y, v0z,
-          v1x, v1y, v1z,
-          v2x, v2y, v2z;
-
+    int root_tri_id;
     int geodesic_segment;
 };
 
@@ -4282,18 +4279,7 @@ void generate_computed_tris(global struct triangle* tris, int tri_count,
         }
 
         struct computed ctri;
-        ctri.v0x = tri.v0x;
-        ctri.v1x = tri.v1x;
-        ctri.v2x = tri.v2x;
-
-        ctri.v0y = tri.v0y;
-        ctri.v1y = tri.v1y;
-        ctri.v2y = tri.v2y;
-
-        ctri.v0z = tri.v0z;
-        ctri.v1z = tri.v1z;
-        ctri.v2z = tri.v2z;
-
+        ctri.root_tri_id = tri_id;
         ctri.geodesic_segment = cc * object_count + tri.parent;
         ctri.min_extents = min_extents;
         ctri.max_extents = max_extents;
@@ -4387,7 +4373,8 @@ void generate_tri_lists2(global struct computed* ctri,
 }
 
 __kernel
-void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
+void render_chunked_tris(global const struct triangle* const tris,
+                         global struct computed* ctri, global int* ctri_count,
                          int object_count,
                          __write_only image2d_t screen,
                          global int* chunked_tri_list,
@@ -4464,6 +4451,7 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
             int tri_id = chunked_tri_list[root_offset + t];
 
             struct computed tri = ctri[tri_id];
+            struct triangle ttri = tris[tri.root_tri_id];
 
             int stride = object_count;
 
@@ -4493,9 +4481,9 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
             float4 n_ie2 = inverse_e2s[tri.geodesic_segment + stride * COMPUTED_SKIP];
             float4 n_ie3 = inverse_e3s[tri.geodesic_segment + stride * COMPUTED_SKIP];
 
-            float3 v0 = (float3)(tri.v0x, tri.v0y, tri.v0z);
-            float3 v1 = (float3)(tri.v1x, tri.v1y, tri.v1z);
-            float3 v2 = (float3)(tri.v2x, tri.v2y, tri.v2z);
+            float3 v0 = (float3)(ttri.v0x, ttri.v0y, ttri.v0z);
+            float3 v1 = (float3)(ttri.v1x, ttri.v1y, ttri.v1z);
+            float3 v2 = (float3)(ttri.v2x, ttri.v2y, ttri.v2z);
 
             float ray_t = FLT_MAX;
 
@@ -4524,7 +4512,8 @@ void render_chunked_tris(global struct computed* ctri, global int* ctri_count,
     ///1030, 280
     if(last_tri_id >= 0)
     {
-        struct computed tri = ctri[last_tri_id];
+        struct computed found_ctri = ctri[last_tri_id];
+        struct triangle tri = tris[found_ctri.root_tri_id];
 
         float3 v0 = (float3)(tri.v0x, tri.v0y, tri.v0z);
         float3 v1 = (float3)(tri.v1x, tri.v1y, tri.v1z);
