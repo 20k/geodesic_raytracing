@@ -4938,15 +4938,21 @@ float angle_between_vectors(float2 v1, float2 v2)
     return acos(clamp(dot(fast_normalize(v1), fast_normalize(v2)), -1.f, 1.f));
 }
 
+float energy_of(float3 v)
+{
+    return v.x*0.2125f + v.y*0.7154f + v.z*0.0721f;
+}
+
 float3 redshift(float3 v, float z)
 {
     ///1 + z = gtt(recv) / gtt(src)
     ///1 + z = lnow / lthen
     ///1 + z = wsrc / wobs
 
-    float radiant_energy = v.x*0.2125f + v.y*0.7154f + v.z*0.0721f;
+    float radiant_energy = energy_of(v);
 
     float3 red = (float3){1/0.2125f, 0.f, 0.f};
+    float3 green = (float3){0, 1/0.7154, 0.f};
     float3 blue = (float3){0.f, 0.f, 1/0.0721};
 
     float3 result;
@@ -4959,8 +4965,20 @@ float3 redshift(float3 v, float z)
     {
         float iv1pz = (1/(1 + z)) - 1;
 
-        //result = mix(v, radiant_energy * blue, fabs(z));
-        result = mix(v, radiant_energy * blue, tanh(iv1pz));
+        float interpolating_fraction = tanh(iv1pz);
+
+        float3 col = mix(v, radiant_energy * blue, interpolating_fraction);
+
+        float final_energy = energy_of(clamp(col, 0.f, 1.f));
+        float real_energy = energy_of(col);
+
+        float remaining_energy = real_energy - final_energy;
+
+        float energy_per_colour = 0.2125 + 0.7154;
+
+        col.xy += remaining_energy * (red + green).xy;
+
+        result = col;
     }
 
     result = clamp(result, 0.f, 1.f);
