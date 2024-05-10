@@ -3846,6 +3846,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
 
     int which_ray_write = 0;
 
+    int ray_skipping = GET_FEATURE(ray_skip, dfg);
+
     //#pragma unroll
     for(int i=0; i < loop_limit; i++)
     {
@@ -3982,7 +3984,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
         rk4_generic_big(&position, &velocity, &ds);
         #endif // RK4_GENERIC
 
-        if(GET_FEATURE(use_triangle_rendering, dfg) && ((i % 4) == 0))
+        if(GET_FEATURE(use_triangle_rendering, dfg) && ((i % ray_skipping) == 0))
         {
             float4 native_position = position;
 

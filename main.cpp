@@ -1049,6 +1049,9 @@ int main(int argc, char* argv[])
     dfg.add_feature<bool>("use_old_redshift");
     dfg.set_feature("use_old_redshift", false);
 
+    dfg.add_feature<float>("ray_skip");
+    dfg.set_feature("ray_skip", 4.f);
+
     //print("WLs %f %f %f\n", chromaticity::srgb_to_wavelength({1, 0, 0}), chromaticity::srgb_to_wavelength({0, 1, 0}), chromaticity::srgb_to_wavelength({0, 0, 1}));
 
     int last_supersample_mult = 2;
@@ -1961,6 +1964,13 @@ int main(int argc, char* argv[])
                         bool use_triangle_rendering = dfg.get_feature<bool>("use_triangle_rendering");
                         ImGui::Checkbox("Use Triangle Rendering", &use_triangle_rendering);
                         dfg.set_feature("use_triangle_rendering", use_triangle_rendering);
+
+                        ImGui::PushItemWidth(100);
+                        int ray_skip = dfg.get_feature<float>("ray_skip");
+                        ImGui::InputInt("Ray Skipping", &ray_skip, 1, 1);
+                        ray_skip = clamp(ray_skip, 1, 32);
+                        dfg.set_feature("ray_skip", (float)ray_skip);
+                        ImGui::PopItemWidth();
 
                         if(dfg.is_dirty && use_triangle_rendering)
                         {
