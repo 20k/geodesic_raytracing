@@ -2315,7 +2315,7 @@ int main(int argc, char* argv[])
                     st.termination_buffer.set_to_zero(mqueue);
                 }*/
 
-                if(metric_manage.current_metric->metric_cfg.use_prepass)
+                if(metric_manage.current_metric->metric_cfg.use_prepass && !dfg.get_feature<bool>("use_triangle_rendering"))
                 {
                     cl::args clear_args;
                     clear_args.push_back(st.termination_buffer);
