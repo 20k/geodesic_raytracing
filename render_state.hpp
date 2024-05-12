@@ -194,8 +194,6 @@ struct render_state
         chunked_maxs.alloc(sizeof(cl_float4) * width * height);
 
         already_rendered.alloc(sizeof(cl_int) * width * height);
-
-        render_data.alloc(sizeof())
     }
 };
 
