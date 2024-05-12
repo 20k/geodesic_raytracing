@@ -2325,8 +2325,10 @@ int main(int argc, char* argv[])
                     st.termination_buffer.set_to_zero(mqueue);
                 }*/
 
-                if(metric_manage.current_metric->metric_cfg.use_prepass && !dfg.get_feature<bool>("use_triangle_rendering") && false)
+                if(metric_manage.current_metric->metric_cfg.use_prepass && !dfg.get_feature<bool>("use_triangle_rendering"))
                 {
+                    cl_int i_am_prepass = 1;
+
                     cl::args clear_args;
                     clear_args.push_back(st.termination_buffer);
                     clear_args.push_back(prepass_width);
@@ -2355,6 +2357,7 @@ int main(int argc, char* argv[])
                     }
 
                     init_args_prepass.push_back(dynamic_config);
+                    init_args_prepass.push_back(i_am_prepass);
 
                     mqueue.exec("init_rays_generic", init_args_prepass, {prepass_width*prepass_height}, {256}, {camera_quat_event, last_last_event});
 
@@ -2371,6 +2374,8 @@ int main(int argc, char* argv[])
 
                     mqueue.exec("calculate_singularities", singular_args, {prepass_width*prepass_height}, {256});
                 }
+
+                cl_int i_am_prepass = 0;
 
                 cl::args init_args;
                 init_args.push_back(st.g_camera_pos_generic);
@@ -2390,6 +2395,7 @@ int main(int argc, char* argv[])
                 }
 
                 init_args.push_back(dynamic_config);
+                init_args.push_back(i_am_prepass);
 
                 mqueue.exec("init_rays_generic", init_args, {width*height}, {16*16}, {camera_quat_event, last_last_event});
 

@@ -2972,7 +2972,8 @@ void init_rays_generic(__global const float4* g_generic_camera_in, __global cons
                        int prepass_width, int prepass_height,
                        int flip_geodesic_direction,
                        __global const float4* e0, __global const float4* e1, __global const float4* e2, __global const float4* e3,
-                       dynamic_config_space const struct dynamic_config* cfg)
+                       dynamic_config_space const struct dynamic_config* cfg,
+                       int i_am_prepass)
 {
     int id = get_global_id(0);
 
@@ -3061,15 +3062,25 @@ void init_rays_generic(__global const float4* g_generic_camera_in, __global cons
 
     metric_rays[id] = ray;
     #else
-    if(id == 0)
-        *metric_ray_count = (height * width)/4;
+    if(i_am_prepass)
+    {
+        if(id == 0)
+            *metric_ray_count = height * width;
 
-    if((cx % 2) != 0 || (cy % 2) != 0)
-        return;
+        metric_rays[id] = ray;
+    }
+    else
+    {
+        if(id == 0)
+            *metric_ray_count = (height * width)/4;
 
-    //printf("%i %i %i %i\n", cx, cy, ray.sx, ray.sy);
+        if((cx % 2) != 0 || (cy % 2) != 0)
+            return;
 
-    metric_rays[(cy/2) * (width/2) + cx/2] = ray;
+        //printf("%i %i %i %i\n", cx, cy, ray.sx, ray.sy);
+
+        metric_rays[(cy/2) * (width/2) + cx/2] = ray;
+    }
     #endif // ADAPTIVE_SAMPLING
 }
 
