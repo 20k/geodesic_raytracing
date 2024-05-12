@@ -3054,7 +3054,7 @@ void init_rays_generic(__global const float4* g_generic_camera_in, __global cons
     }
     #endif // USE_PREPASS
 
-    #define ADAPTIVE_SAMPLING
+    //#define ADAPTIVE_SAMPLING
     #ifndef ADAPTIVE_SAMPLING
     if(id == 0)
         *metric_ray_count = height * width;

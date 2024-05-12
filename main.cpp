@@ -2397,6 +2397,7 @@ int main(int argc, char* argv[])
 
                 execute_kernel(menu.sett, mqueue, st.rays_in, st.rays_count_in, st.accel_ray_time_min, st.accel_ray_time_max, tris, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer, st.width, st.height, st, single_state, last_event);
 
+                if(false)
                 {
                     st.rays2_count_in.set_to_zero(mqueue);
                     st.rays3_count_in.set_to_zero(mqueue);
