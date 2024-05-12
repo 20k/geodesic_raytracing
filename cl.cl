@@ -5124,6 +5124,8 @@ void handle_adaptive_sampling(global const struct lightray* rays_in, global cons
 
             int2 ray_pos[3] = {{base_sx+1, base_sy}, {base_sx, base_sy+1}, {base_sx+1, base_sy+1}};
 
+            int root_id = atomic_add(unprocessed_rays_out_count, 3);
+
             for(int i=0; i < 3; i++)
             {
                 int cx = ray_pos[i].x;
@@ -5153,7 +5155,7 @@ void handle_adaptive_sampling(global const struct lightray* rays_in, global cons
 
                 struct lightray ray = geodesic_to_render_ray(cx, cy, lightray_spacetime_position, lightray_velocity, observer_velocity, cfg);
 
-                int out_id = atomic_inc(unprocessed_rays_out_count);
+                int out_id = root_id + i;
                 unprocessed_rays_out[out_id] = ray;
             }
         }
