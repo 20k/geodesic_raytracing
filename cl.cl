@@ -5111,21 +5111,11 @@ void handle_adaptive_sampling(global const struct lightray* rays_in, global cons
 
         float relative_angular_error = ((x_error.x + x_error.y + y_error.x + y_error.y)/4.f) / 2 * M_PI;
 
-        /*if(sx == width/4 && sy == height/4)
-        {
-            float3 v1 = (float3)(sin(upos.z) * cos(upos.w), sin(upos.z) * sin(upos.w), cos(upos.z));
-            float3 v2 = (float3)(sin(dpos.z) * cos(dpos.w), sin(dpos.z) * sin(dpos.w), cos(dpos.z));
-
-            printf("Error %f Found Vecs %f %f %f v2 %f %f %f upos %f\n", relative_angular_error, v1.x, v1.y, v1.z, v2.x, v2.y, v2.z, upos.z);
-
-            //printf("Error %f v1 %f %f v2 %f %f\n", relative_angular_error, upos.z, upos.w, dpos.z, dpos.w);
-        }*/
-
         float fov_angle_pi = FOV * 2 * M_PI/360.f;
 
         float rough_angular_change_per_pixel = fov_angle_pi / width;
 
-        if(relative_angular_error >= rough_angular_change_per_pixel * 16)
+        if(relative_angular_error >= rough_angular_change_per_pixel * 32)
         {
             ///output the other 3 rays
 
@@ -5169,16 +5159,6 @@ void handle_adaptive_sampling(global const struct lightray* rays_in, global cons
         }
         else
         {
-            /*struct lightray next_right = interpolate(centre, right);
-            struct lightray next_down = interpolate(centre, down);
-            struct lightray next_down_right = interpolate(centre, down_right);
-
-            int out_id = atomic_add(finished_rays_out_count, 4);
-            finished_rays_out[out_id] = next_right;
-            finished_rays_out[out_id+1] = next_down;
-            finished_rays_out[out_id+2] = next_down_right;
-            finished_rays_out[out_id+3] = centre;*/
-
             int lsx = my_ray.sx;
             int lsy = my_ray.sy;
 
