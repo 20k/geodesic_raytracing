@@ -4865,7 +4865,21 @@ float4 get_intersection_position(struct lightray ray, dynamic_config_space const
         #endif
     }
 
-    return position;
+	float3 npolar = position.yzw;
+
+    #if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC) || defined(DEBUG_CONSTANT_THETA)
+	{
+        float4 quat = ray.initial_quat;
+
+	    float3 cart_pos = polar_to_cartesian(position.yzw);
+
+	    cart_pos = rot_quat(cart_pos, quat);
+
+	    npolar = cartesian_to_polar(cart_pos);
+	}
+    #endif // GENERIC_CONSTANT_THETA
+
+    return (float4)(position.x, npolar.xyz);
 }
 
 struct render_data
@@ -4980,22 +4994,8 @@ void calculate_render_data(global const struct lightray* rays_in, global const i
 
     dat.z_shift = z_shift;
 
-	float3 npolar = position.yzw;
-
-    #if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC) || defined(DEBUG_CONSTANT_THETA)
-	{
-        float4 quat = ray->initial_quat;
-
-	    float3 cart_pos = polar_to_cartesian(position.yzw);
-
-	    cart_pos = rot_quat(cart_pos, quat);
-
-	    npolar = cartesian_to_polar(cart_pos);
-	}
-    #endif // GENERIC_CONSTANT_THETA
-
-    float thetaf = fmod(npolar.y, 2 * M_PIf);
-    float phif = npolar.z;
+    float thetaf = fmod(position.z, 2 * M_PIf);
+    float phif = position.w;
 
     if(thetaf >= M_PIf)
     {
@@ -5013,6 +5013,46 @@ void calculate_render_data(global const struct lightray* rays_in, global const i
     dat.tex_coord = (float2)(sxf, syf);
 
     rdata[id] = dat;
+}
+
+float angle_between_angles(float a1, float a2)
+{
+    float2 v1 = (float2)(cos(a1), sin(a1));
+    float2 v2 = (float2)(cos(a2), sin(a2));
+
+    v1 = normalize(v1);
+    v2 = normalize(v2);
+
+    return acos(clamp(dot(v1, v2), -1.f, 1.f));
+}
+
+float2 fix(float2 in)
+{
+    float thetaf = fmod(in.x, 2 * M_PIf);
+    float phif = in.y;
+
+    if(thetaf >= M_PIf)
+    {
+        phif += M_PIf;
+        thetaf -= M_PIf;
+    }
+
+    phif = fmod(phif, 2 * M_PIf);
+
+    return (float2)(thetaf, phif);
+}
+
+float2 angle_between_angles2(float2 a1, float2 a2)
+{
+    a1 = fix(a1);
+    a2 = fix(a2);
+
+    //return (float2)(angle_between_angles(a1.x, a2.x), angle_between_angles(a1.y, a2.y));
+
+    float3 v1 = (float3)(sin(a1.x) * cos(a1.y), sin(a1.x) * sin(a1.y), cos(a1.x));
+    float3 v2 = (float3)(sin(a2.x) * cos(a2.y), sin(a2.x) * sin(a2.y), cos(a2.x));
+
+    return acos(clamp(dot(v1, v2), -1.f, 1.f));
 }
 
 __kernel
@@ -5054,16 +5094,27 @@ void handle_adaptive_sampling(global const struct lightray* rays_in, global cons
         float4 upos = get_intersection_position(up, cfg, dfg);
         float4 dpos = get_intersection_position(down, cfg, dfg);
 
-        float2 x_error = fabs(circular_diff2(lpos.zw, rpos.zw));
-        float2 y_error = fabs(circular_diff2(dpos.zw, upos.zw));
+        ///circular diff2 isn't right here
+        float2 x_error = fabs(angle_between_angles2(lpos.zw, rpos.zw));
+        float2 y_error = fabs(angle_between_angles2(dpos.zw, upos.zw));
 
         float relative_angular_error = ((x_error.x + x_error.y + y_error.x + y_error.y)/4.f) / 2 * M_PI;
+
+        /*if(sx == width/4 && sy == height/4)
+        {
+            float3 v1 = (float3)(sin(upos.z) * cos(upos.w), sin(upos.z) * sin(upos.w), cos(upos.z));
+            float3 v2 = (float3)(sin(dpos.z) * cos(dpos.w), sin(dpos.z) * sin(dpos.w), cos(dpos.z));
+
+            printf("Error %f Found Vecs %f %f %f v2 %f %f %f upos %f\n", relative_angular_error, v1.x, v1.y, v1.z, v2.x, v2.y, v2.z, upos.z);
+
+            //printf("Error %f v1 %f %f v2 %f %f\n", relative_angular_error, upos.z, upos.w, dpos.z, dpos.w);
+        }*/
 
         float fov_angle_pi = FOV * 2 * M_PI/360.f;
 
         float rough_angular_change_per_pixel = fov_angle_pi / width;
 
-        if(relative_angular_error >= rough_angular_change_per_pixel * 4 && false)
+        if(relative_angular_error >= rough_angular_change_per_pixel * 16)
         {
             ///output the other 3 rays
 

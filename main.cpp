@@ -2427,7 +2427,7 @@ int main(int argc, char* argv[])
                                    dynamic_feature_buffer
                                    );
 
-                    mqueue.exec("handle_adaptive_sampling", args, {width, height}, {8, 8});
+                    mqueue.exec("handle_adaptive_sampling", args, {width/2, height/2}, {8, 8});
 
                     std::swap(st.rays2_in, st.rays_in);
                     std::swap(st.rays2_count_in, st.rays_count_in);
