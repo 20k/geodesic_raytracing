@@ -14,6 +14,8 @@ struct lightray
     cl_float ku_uobsu;
     cl_float running_dlambda_dnew;
     cl_int terminated;
+    int sx;
+    int sy;
 };
 
 struct single_render_state

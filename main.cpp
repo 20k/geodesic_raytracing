@@ -203,7 +203,7 @@ void execute_kernel(graphics_settings& sett,
         run_args.push_back(st.stored_ray_counts);
         run_args.push_back(single_state.max_stored);
 
-        cqueue.exec("do_generic_rays", run_args, {width, height}, {sett.workgroup_size[0], sett.workgroup_size[1]}, {evt});
+        cqueue.exec("do_generic_rays", run_args, {width*height}, {sett.workgroup_size[0]*sett.workgroup_size[1]}, {evt});
     }
 }
 
@@ -2334,6 +2334,8 @@ int main(int argc, char* argv[])
 
                     mqueue.exec("clear_termination_buffer", clear_args, {prepass_width*prepass_height}, {256});
 
+                    st.rays_count_in.set_to_zero(mqueue);
+
                     cl::args init_args_prepass;
 
                     init_args_prepass.push_back(st.g_camera_pos_generic);
@@ -2404,7 +2406,7 @@ int main(int argc, char* argv[])
                 texture_args.push_back(dynamic_config);
                 texture_args.push_back(dynamic_feature_buffer);
 
-                mqueue.exec("calculate_texture_coordinates", texture_args, {width, height}, {16, 16});
+                mqueue.exec("calculate_texture_coordinates", texture_args, {width*height}, {16*16});
 
                 cl::args render_args;
                 render_args.push_back(st.rays_in);
@@ -2421,7 +2423,7 @@ int main(int argc, char* argv[])
 
                 last_last_event.block();
 
-                produce_event = mqueue.exec("render", render_args, {width, height}, {16, 16});
+                produce_event = mqueue.exec("render", render_args, {width*height}, {16*16});
 
                 /*{
                     cl::args dbg;
@@ -2519,6 +2521,7 @@ int main(int argc, char* argv[])
 
                     {
                         cl::args args;
+                        args.push_back(tris.tris);
                         args.push_back(single_state.computed_tris);
                         args.push_back(single_state.computed_tri_count);
                         args.push_back(phys.object_count);

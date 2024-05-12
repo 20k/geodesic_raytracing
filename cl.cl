@@ -783,6 +783,8 @@ struct lightray
     float ku_uobsu;
     float running_dlambda_dnew;
     int terminated;
+    int sx;
+    int sy;
 };
 
 #ifdef GENERIC_METRIC
@@ -2880,6 +2882,9 @@ struct lightray geodesic_to_render_ray(int cx, int cy, float4 position, float4 v
         ray.ku_uobsu = final_val;
     }
 
+    ray.sx = cx;
+    ray.sy = cy;
+
     return ray;
 };
 
@@ -2950,6 +2955,8 @@ void init_inertial_ray(__global float4* g_generic_position_in, int ray_count,
     float4 position = g_generic_position_in[id];
 
     struct lightray trace = geodesic_to_trace_ray(position, velocity, cfg);
+    trace.sx = 0;
+    trace.sy = 0;
 
     metric_rays[id] = trace;
 
@@ -3047,10 +3054,22 @@ void init_rays_generic(__global const float4* g_generic_camera_in, __global cons
     }
     #endif // USE_PREPASS
 
+    //#define ADAPTIVE_SAMPLING
+    #ifndef ADAPTIVE_SAMPLING
     if(id == 0)
         *metric_ray_count = height * width;
 
     metric_rays[id] = ray;
+    #else
+    if(id == 0)
+        *metric_ray_count = (height * width)/4;
+
+    if((cx % 2) != 0 && (cy % 2) != 0)
+        return;
+
+    metric_rays[(cy/2) * (width/2) + cx/2] = ray;
+
+    #endif // ADAPTIVE_SAMPLING
 }
 
 float4 fix_light_velocity(float4 position, float4 velocity, bool always_lightlike, dynamic_config_space const struct dynamic_config* cfg)
@@ -3766,13 +3785,18 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
                       int max_write)
 {
 
-    int sx = get_global_id(0);
+    /*int sx = get_global_id(0);
     int sy = get_global_id(1);
 
     if(sx >= width || sy >= height)
         return;
 
-    int id = sy * width + sx;
+    int id = sy * width + sx;*/
+
+    int id = get_global_id(0);
+
+    if(id >= *generic_count_in)
+        return;
 
     ray_write_counts[id] = 0;
 
@@ -4031,7 +4055,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
                 ray_write[which_ray_write * width * height + id] = next_real_pos;
 
                 which_ray_write++;
-                ray_write_counts[sy * width + sx] = which_ray_write;
+                ray_write_counts[ray->sy * width + ray->sx] = which_ray_write;
             }
 
             last_real_pos = next_real_pos;
@@ -4815,25 +4839,10 @@ void calculate_singularities(__global const struct lightray* finished_rays, __gl
 
 #endif // GENERIC_METRIC
 
-__kernel
-void calculate_texture_coordinates(__global const struct lightray* finished_rays, __global const int* finished_count_in, __global float2* texture_coordinates, int width, int height,
-                                   dynamic_config_space const struct dynamic_config* cfg, dynamic_config_space const struct dynamic_feature_config* dfg)
+float4 get_intersection_position(struct lightray ray, dynamic_config_space const struct dynamic_config* cfg, dynamic_config_space const struct dynamic_feature_config* dfg)
 {
-    int sx = get_global_id(0);
-    int sy = get_global_id(1);
-
-    if(sx >= width || sy >= height)
-        return;
-
-     __global const struct lightray* ray = &finished_rays[sy * width + sx];
-
-    if(ray->terminated != 1)
-        return;
-
-    int pos = sy * width + sx;
-
-    float4 position = generic_to_spherical(ray->position, cfg);
-    float4 velocity = generic_velocity_to_spherical_velocity(ray->position, ray->velocity, cfg);
+    float4 position = generic_to_spherical(ray.position, cfg);
+    float4 velocity = generic_velocity_to_spherical_velocity(ray.position, ray.velocity, cfg);
 
     #ifdef IS_CONSTANT_THETA
     position.z = M_PIf/2;
@@ -4854,6 +4863,167 @@ void calculate_texture_coordinates(__global const struct lightray* finished_rays
         }
         #endif
     }
+
+    return position;
+}
+
+struct lightray interpolate(struct lightray ray1, struct lightray ray2)
+{
+    struct lightray out;
+    out.acceleration = (ray1.acceleration + ray2.acceleration)/2;
+    out.initial_quat = ray1.initial_quat;
+    out.ku_uobsu = (ray1.ku_uobsu + ray2.ku_uobsu)/2.f;
+    out.position = (ray1.position + ray2.position)/2.f;
+    out.velocity = (ray1.velocity + ray2.velocity)/2.f;
+    out.running_dlambda_dnew = (ray1.running_dlambda_dnew + ray2.running_dlambda_dnew)/2.f;
+    out.terminated = 1;
+    out.sx = (ray1.sx + ray2.sx)/2;
+    out.sy = (ray1.sy + ray2.sy)/2;
+    return out;
+};
+
+__kernel
+void handle_adaptive_sampling(global const struct lightray* rays_in, global const int* rays_in_count,
+                              global struct lightray* finished_rays_out, global int* finished_rays_out_count,
+                              global struct lightray* unprocessed_rays_out, global int* unprocessed_rays_out_count,
+                              global float4* g_generic_camera_in, global float4* g_camera_quat,
+                              __global const float4* e0, __global const float4* e1, __global const float4* e2, __global const float4* e3,
+                              int width, int height,
+                              dynamic_config_space const struct dynamic_config* cfg, dynamic_config_space const struct dynamic_feature_config* dfg)
+{
+    int sx = get_global_id(0);
+    int sy = get_global_id(1);
+
+    if(sx >= width/2 || sy >= height/2)
+        return;
+
+    struct lightray my_ray = rays_in[sy * (width/2) + sx];
+
+    if(sx != 0 && sx != (width/2)-1 && sy != 0 && sy != (height/2)-1)
+    {
+        int lx = sx-1;
+        int rx = sx+1;
+
+        int ly = sy-1;
+        int ry = sy+1;
+
+        #define GET_RAY(x, y) rays_in[y * (width/2) + x];
+
+        struct lightray centre = GET_RAY(sx, sy);
+        struct lightray left = GET_RAY(lx, sy);
+        struct lightray right = GET_RAY(rx, sy);
+        struct lightray up = GET_RAY(sx, ly);
+        struct lightray down = GET_RAY(sx, ry);
+        struct lightray down_right = GET_RAY(rx, ry);
+
+        float4 lpos = get_intersection_position(left, cfg, dfg);
+        float4 rpos = get_intersection_position(right, cfg, dfg);
+        float4 upos = get_intersection_position(up, cfg, dfg);
+        float4 dpos = get_intersection_position(down, cfg, dfg);
+
+        float2 x_error = fabs(circular_diff2(lpos.zw, rpos.zw));
+        float2 y_error = fabs(circular_diff2(dpos.zw, upos.zw));
+
+        float relative_angular_error = ((x_error.x + x_error.y + y_error.x + y_error.y)/4.f) / 2 * M_PI;
+
+        float fov_angle_pi = FOV * 2 * M_PI/360.f;
+
+        float rough_angular_change_per_pixel = fov_angle_pi / width;
+
+        if(relative_angular_error >= rough_angular_change_per_pixel * 4)
+        {
+            ///output the other 3 rays
+
+            int base_sx = sx * 2;
+            int base_sy = sy * 2;
+
+            int2 ray_pos[3] = {{base_sx+1, base_sy}, {base_sx, base_sy+1}, {base_sx+1, base_sy+1}};
+
+            for(int i=0; i < 3; i++)
+            {
+                int cx = ray_pos[i].x;
+                int cy = ray_pos[i].y;
+
+                float3 pixel_direction = calculate_pixel_direction(cx, cy, width, height, *g_camera_quat);
+
+                float4 at_metric = *g_generic_camera_in;
+
+                float4 bT = *e0;
+                float4 observer_velocity = *e0;
+
+                float4 le1 = *e1;
+                float4 le2 = *e2;
+                float4 le3 = *e3;
+
+                pixel_direction = normalize(pixel_direction);
+
+                float4 pixel_x = pixel_direction.x * le1;
+                float4 pixel_y = pixel_direction.y * le2;
+                float4 pixel_z = pixel_direction.z * le3;
+
+                float4 pixel_t = -bT;
+
+                float4 lightray_velocity = pixel_x + pixel_y + pixel_z + pixel_t;
+                float4 lightray_spacetime_position = at_metric;
+
+                struct lightray ray = geodesic_to_render_ray(cx, cy, lightray_spacetime_position, lightray_velocity, observer_velocity, cfg);
+
+                int out_id = atomic_inc(unprocessed_rays_out_count);
+                unprocessed_rays_out[out_id] = ray;
+            }
+        }
+        else
+        {
+            struct lightray next_right = interpolate(centre, right);
+            struct lightray next_down = interpolate(centre, down);
+            struct lightray next_down_right = interpolate(centre, down_right);
+
+            int out_id = atomic_add(finished_rays_out_count, 3);
+            finished_rays_out[out_id] = next_right;
+            finished_rays_out[out_id+1] = next_down;
+            finished_rays_out[out_id+2] = next_down_right;
+        }
+    }
+}
+
+__kernel
+void collate_rays(global struct lightray* accum_in, global int* accum_in_count,
+                  global struct lightray* to_add, global int* to_add_count)
+{
+    int id = get_global_id(0);
+
+    if(id >= *to_add_count)
+        return;
+
+    accum_in[atomic_inc(accum_in_count)] = to_add[id];
+}
+
+__kernel
+void calculate_texture_coordinates(__global const struct lightray* finished_rays, __global const int* finished_count_in, __global float2* texture_coordinates, int width, int height,
+                                   dynamic_config_space const struct dynamic_config* cfg, dynamic_config_space const struct dynamic_feature_config* dfg)
+{
+    /*int sx = get_global_id(0);
+    int sy = get_global_id(1);
+
+    if(sx >= width || sy >= height)
+        return;*/
+
+    int id = get_global_id(0);
+
+    if(id >= width*height)
+        return;
+
+     __global const struct lightray* ray = &finished_rays[id];
+
+    if(ray->terminated != 1)
+        return;
+
+    int sx = ray->sx;
+    int sy = ray->sy;
+
+    int pos = sy * width + sx;
+
+    float4 position = get_intersection_position(*ray, cfg, dfg);
 
     float r_value = position.y;
 
@@ -5024,13 +5194,15 @@ void render(__global const struct lightray* finished_rays, __global const int* f
             int width, int height, __global const float2* texture_coordinates, int maxProbes,
             dynamic_config_space const struct dynamic_config* cfg, dynamic_config_space const struct dynamic_feature_config* dfg)
 {
-    int sx = get_global_id(0);
-    int sy = get_global_id(1);
+    int id = get_global_id(0);
 
-    if(sx >= width || sy >= height)
+    if(id >= width*height)
         return;
 
-    __global const struct lightray* ray = &finished_rays[sy * width + sx];
+     __global const struct lightray* ray = &finished_rays[id];
+
+    int sx = ray->sx;
+    int sy = ray->sy;
 
     if(ray->terminated != 1)
     {
