@@ -169,7 +169,7 @@ void execute_kernel(graphics_settings& sett,
     {
         st.stored_ray_counts.set_to_zero(cqueue);
 
-        count_in.write_async(cqueue, (const char*)&num_rays, sizeof(int));
+        //count_in.write_async(cqueue, (const char*)&num_rays, sizeof(int));
 
         if(dfg.get_feature<bool>("use_triangle_rendering"))
         {
@@ -2325,7 +2325,7 @@ int main(int argc, char* argv[])
                     st.termination_buffer.set_to_zero(mqueue);
                 }*/
 
-                if(metric_manage.current_metric->metric_cfg.use_prepass && !dfg.get_feature<bool>("use_triangle_rendering"))
+                if(metric_manage.current_metric->metric_cfg.use_prepass && !dfg.get_feature<bool>("use_triangle_rendering") && false)
                 {
                     cl::args clear_args;
                     clear_args.push_back(st.termination_buffer);
@@ -2397,6 +2397,32 @@ int main(int argc, char* argv[])
 
                 execute_kernel(menu.sett, mqueue, st.rays_in, st.rays_count_in, st.accel_ray_time_min, st.accel_ray_time_max, tris, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer, st.width, st.height, st, single_state, last_event);
 
+                {
+                    st.rays2_count_in.set_to_zero(mqueue);
+                    st.rays3_count_in.set_to_zero(mqueue);
+
+                    cl::args args;
+                    args.push_back(st.rays_in, st.rays_count_in,
+                                   st.rays2_in, st.rays2_count_in,
+                                   st.rays3_in, st.rays3_count_in,
+                                   st.g_camera_pos_generic,
+                                   g_camera_quat,
+                                   st.tetrad[0],
+                                   st.tetrad[1],
+                                   st.tetrad[2],
+                                   st.tetrad[3],
+                                   width,
+                                   height,
+                                   dynamic_config,
+                                   dynamic_feature_buffer
+                                   );
+
+                    mqueue.exec("handle_adaptive_sampling", args, {width, height}, {8, 8});
+
+                    std::swap(st.rays2_in, st.rays_in);
+                    std::swap(st.rays2_count_in, st.rays_count_in);
+                }
+
                 cl::args texture_args;
                 texture_args.push_back(st.rays_in);
                 texture_args.push_back(st.rays_count_in);
@@ -2407,6 +2433,9 @@ int main(int argc, char* argv[])
                 texture_args.push_back(dynamic_feature_buffer);
 
                 mqueue.exec("calculate_texture_coordinates", texture_args, {width*height}, {16*16});
+
+                //glis.rtex.clear(mqueue);
+                //mqueue.block();
 
                 cl::args render_args;
                 render_args.push_back(st.rays_in);

@@ -3054,7 +3054,7 @@ void init_rays_generic(__global const float4* g_generic_camera_in, __global cons
     }
     #endif // USE_PREPASS
 
-    //#define ADAPTIVE_SAMPLING
+    #define ADAPTIVE_SAMPLING
     #ifndef ADAPTIVE_SAMPLING
     if(id == 0)
         *metric_ray_count = height * width;
@@ -3064,11 +3064,12 @@ void init_rays_generic(__global const float4* g_generic_camera_in, __global cons
     if(id == 0)
         *metric_ray_count = (height * width)/4;
 
-    if((cx % 2) != 0 && (cy % 2) != 0)
+    if((cx % 2) != 0 || (cy % 2) != 0)
         return;
 
-    metric_rays[(cy/2) * (width/2) + cx/2] = ray;
+    //printf("%i %i %i %i\n", cx, cy, ray.sx, ray.sy);
 
+    metric_rays[(cy/2) * (width/2) + cx/2] = ray;
     #endif // ADAPTIVE_SAMPLING
 }
 
@@ -4930,7 +4931,7 @@ void handle_adaptive_sampling(global const struct lightray* rays_in, global cons
 
         float rough_angular_change_per_pixel = fov_angle_pi / width;
 
-        if(relative_angular_error >= rough_angular_change_per_pixel * 4)
+        if(relative_angular_error >= rough_angular_change_per_pixel * 4 && false)
         {
             ///output the other 3 rays
 
@@ -4978,10 +4979,11 @@ void handle_adaptive_sampling(global const struct lightray* rays_in, global cons
             struct lightray next_down = interpolate(centre, down);
             struct lightray next_down_right = interpolate(centre, down_right);
 
-            int out_id = atomic_add(finished_rays_out_count, 3);
+            int out_id = atomic_add(finished_rays_out_count, 4);
             finished_rays_out[out_id] = next_right;
             finished_rays_out[out_id+1] = next_down;
             finished_rays_out[out_id+2] = next_down_right;
+            finished_rays_out[out_id+3] = centre;
         }
     }
 }
@@ -5010,7 +5012,7 @@ void calculate_texture_coordinates(__global const struct lightray* finished_rays
 
     int id = get_global_id(0);
 
-    if(id >= width*height)
+    if(id >= *finished_count_in)
         return;
 
      __global const struct lightray* ray = &finished_rays[id];
@@ -5196,7 +5198,7 @@ void render(__global const struct lightray* finished_rays, __global const int* f
 {
     int id = get_global_id(0);
 
-    if(id >= width*height)
+    if(id >= *finished_count_in)
         return;
 
      __global const struct lightray* ray = &finished_rays[id];
