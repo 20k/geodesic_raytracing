@@ -4878,7 +4878,7 @@ struct render_data
     int side;
 };
 
-struct lightray interpolate(struct lightray ray1, struct lightray ray2)
+/*struct lightray interpolate(struct lightray ray1, struct lightray ray2)
 {
     struct lightray out;
     out.acceleration = (ray1.acceleration + ray2.acceleration)/2;
@@ -4890,6 +4890,18 @@ struct lightray interpolate(struct lightray ray1, struct lightray ray2)
     out.terminated = ray1.terminated;
     out.sx = (ray1.sx + ray2.sx)/2;
     out.sy = (ray1.sy + ray2.sy)/2;
+    return out;
+};*/
+
+struct render_data interpolater(struct render_data ray1, struct render_data ray2)
+{
+    struct render_data out;
+    out.tex_coord = (ray1.tex_coord + ray2.tex_coord)/2.f;
+    out.z_shift = (ray1.z_shift + ray2.z_shift)/2.f;
+    out.terminated = ray1.terminated;
+    out.sx = (ray1.sx + ray2.sx)/2;
+    out.sy = (ray1.sy + ray2.sy)/2;
+    out.side = (ray1.side + ray2.side)/2;
     return out;
 };
 
@@ -5005,7 +5017,7 @@ void calculate_render_data(global const struct lightray* rays_in, global const i
 
 __kernel
 void handle_adaptive_sampling(global const struct lightray* rays_in, global const int* rays_in_count,
-                              global struct lightray* finished_rays_out, global int* finished_rays_out_count,
+                              global struct render_data* rdat, global int* rdata_count,
                               global struct lightray* unprocessed_rays_out, global int* unprocessed_rays_out_count,
                               global float4* g_generic_camera_in, global float4* g_camera_quat,
                               __global const float4* e0, __global const float4* e1, __global const float4* e2, __global const float4* e3,
@@ -5095,7 +5107,7 @@ void handle_adaptive_sampling(global const struct lightray* rays_in, global cons
         }
         else
         {
-            struct lightray next_right = interpolate(centre, right);
+            /*struct lightray next_right = interpolate(centre, right);
             struct lightray next_down = interpolate(centre, down);
             struct lightray next_down_right = interpolate(centre, down_right);
 
@@ -5103,7 +5115,22 @@ void handle_adaptive_sampling(global const struct lightray* rays_in, global cons
             finished_rays_out[out_id] = next_right;
             finished_rays_out[out_id+1] = next_down;
             finished_rays_out[out_id+2] = next_down_right;
-            finished_rays_out[out_id+3] = centre;
+            finished_rays_out[out_id+3] = centre;*/
+
+            int lsx = my_ray.sx;
+            int lsy = my_ray.sy;
+
+            struct render_data cdata = rdat[lsy * width + lsx];
+            struct render_data rdata = rdat[lsy * width + lsx + 2];
+            struct render_data ldata = rdat[lsy * width + lsx - 2];
+            struct render_data udata = rdat[(lsy - 2) * width + lsx];
+            struct render_data ddata = rdat[(lsy + 2) * width + lsx];
+            struct render_data drdata = rdat[(lsy + 2) * width + lsx + 2];
+
+            //rdat[lsy * width + lsx + 1] = interpolater(cdat, rdat);
+            rdat[lsy * width + lsx + 1] = interpolater(cdata, rdata);
+            rdat[(lsy + 1) * width + lsx] = interpolater(cdata, ddata);
+            rdat[(lsy + 1) * width + lsx + 1] = interpolater(cdata, drdata);
         }
     }
 }

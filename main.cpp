@@ -2397,6 +2397,15 @@ int main(int argc, char* argv[])
 
                 execute_kernel(menu.sett, mqueue, st.rays_in, st.rays_count_in, st.accel_ray_time_min, st.accel_ray_time_max, tris, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer, st.width, st.height, st, single_state, last_event);
 
+                st.render_data_count.set_to_zero(mqueue);
+
+                cl::args texture_args;
+                texture_args.push_back(st.rays_in, st.rays_count_in, st.render_data, st.render_data_count,
+                                       width, height,
+                                       dynamic_config, dynamic_feature_buffer);
+
+                mqueue.exec("calculate_render_data", texture_args, {width * height}, {16*16});
+
                 //if(false)
                 {
                     st.rays2_count_in.set_to_zero(mqueue);
@@ -2404,7 +2413,7 @@ int main(int argc, char* argv[])
 
                     cl::args args;
                     args.push_back(st.rays_in, st.rays_count_in,
-                                   st.rays2_in, st.rays2_count_in,
+                                   st.render_data, st.render_data_count,
                                    st.rays3_in, st.rays3_count_in,
                                    st.g_camera_pos_generic,
                                    g_camera_quat,
@@ -2435,14 +2444,6 @@ int main(int argc, char* argv[])
 
                 mqueue.exec("calculate_texture_coordinates", texture_args, {width*height}, {16*16});*/
 
-                st.render_data_count.set_to_zero(mqueue);
-
-                cl::args texture_args;
-                texture_args.push_back(st.rays_in, st.rays_count_in, st.render_data, st.render_data_count,
-                                       width, height,
-                                       dynamic_config, dynamic_feature_buffer);
-
-                mqueue.exec("calculate_render_data", texture_args, {width * height}, {16*16});
 
                 //glis.rtex.clear(mqueue);
                 //mqueue.block();
