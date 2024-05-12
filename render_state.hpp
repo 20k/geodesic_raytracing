@@ -25,6 +25,7 @@ struct render_data_struct
     cl_int sx;
     cl_int sy;
     cl_int terminated;
+    cl_int side;
 };
 
 struct single_render_state

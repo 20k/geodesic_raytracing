@@ -3054,7 +3054,7 @@ void init_rays_generic(__global const float4* g_generic_camera_in, __global cons
     }
     #endif // USE_PREPASS
 
-    //#define ADAPTIVE_SAMPLING
+    #define ADAPTIVE_SAMPLING
     #ifndef ADAPTIVE_SAMPLING
     if(id == 0)
         *metric_ray_count = height * width;
@@ -4875,6 +4875,7 @@ struct render_data
     int sx;
     int sy;
     int terminated;
+    int side;
 };
 
 struct lightray interpolate(struct lightray ray1, struct lightray ray2)
@@ -4891,6 +4892,116 @@ struct lightray interpolate(struct lightray ray1, struct lightray ray2)
     out.sy = (ray1.sy + ray2.sy)/2;
     return out;
 };
+
+__kernel
+void calculate_render_data(global const struct lightray* rays_in, global const int* rays_in_count,
+                           global struct render_data* rdata, global int* rdata_count,
+                           int width, int height,
+                           dynamic_config_space const struct dynamic_config* cfg, dynamic_config_space const struct dynamic_feature_config* dfg)
+{
+    int gid = get_global_id(0);
+
+    if(gid >= *rays_in_count)
+        return;
+
+    struct render_data dat;
+
+    __global const struct lightray* ray = &rays_in[gid];
+
+    dat.terminated = ray->terminated;
+    dat.sx = ray->sx;
+    dat.sy = ray->sy;
+    dat.z_shift = 0;
+    dat.tex_coord = (float2){0,0};
+    dat.side = 1;
+
+    if(gid == 0)
+        *rdata_count = width * height;
+
+    //int id = atomic_inc(rdata_count);
+
+    int id = dat.sy * width + dat.sx;
+
+    if(ray->terminated != 1)
+    {
+        rdata[id] = dat;
+        return;
+    }
+
+    int sx = ray->sx;
+    int sy = ray->sy;
+
+    float4 position = get_intersection_position(*ray, cfg, dfg);
+    float4 generic_velocity = ray->velocity / ray->running_dlambda_dnew;
+
+    dat.side = position.y < 0 ? 0 : 1;
+
+    float r_value = position.y;
+
+    #if !defined(TRAVERSABLE_EVENT_HORIZON) || (defined(NO_EVENT_HORIZON_CROSSING) && !defined(GENERIC_METRIC))
+    if(fabs(r_value) <= 1)
+    {
+        rdata[id] = dat;
+        return;
+    }
+    #endif
+
+    float4 generic_position = ray->position;
+
+    float4 fe0, fe1, fe2, fe3;
+    calculate_tetrads(generic_position, (float3)(0,0,0), &fe0, &fe1, &fe2, &fe3, cfg, 0);
+
+    #ifndef GENERIC_BIG_METRIC
+    float g_metric[4] = {0};
+    calculate_metric_generic(generic_position, g_metric, cfg);
+    #else
+    float g_metric[16] = {0};
+    calculate_metric_generic_big(generic_position, g_metric, cfg);
+    #endif
+
+    float4 obvs_low = lower_index_generic(fe0, g_metric);
+
+    ///[-1, +infinity]
+    float z_shift = (dot(generic_velocity, obvs_low) / ray->ku_uobsu) - 1;
+
+    z_shift = max(z_shift, -0.999f);
+
+    dat.z_shift = z_shift;
+
+	float3 npolar = position.yzw;
+
+    #if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC) || defined(DEBUG_CONSTANT_THETA)
+	{
+        float4 quat = ray->initial_quat;
+
+	    float3 cart_pos = polar_to_cartesian(position.yzw);
+
+	    cart_pos = rot_quat(cart_pos, quat);
+
+	    npolar = cartesian_to_polar(cart_pos);
+	}
+    #endif // GENERIC_CONSTANT_THETA
+
+    float thetaf = fmod(npolar.y, 2 * M_PIf);
+    float phif = npolar.z;
+
+    if(thetaf >= M_PIf)
+    {
+        phif += M_PIf;
+        thetaf -= M_PIf;
+    }
+
+    phif = fmod(phif, 2 * M_PIf);
+
+    float sxf = (phif) / (2 * M_PIf);
+    float syf = thetaf / M_PIf;
+
+    sxf += 0.5f;
+
+    dat.tex_coord = (float2)(sxf, syf);
+
+    rdata[id] = dat;
+}
 
 __kernel
 void handle_adaptive_sampling(global const struct lightray* rays_in, global const int* rays_in_count,
@@ -5009,80 +5120,6 @@ void collate_rays(global struct lightray* accum_in, global int* accum_in_count,
     accum_in[atomic_inc(accum_in_count)] = to_add[id];
 }
 
-__kernel
-void calculate_texture_coordinates(__global const struct lightray* finished_rays, __global const int* finished_count_in, __global float2* texture_coordinates, int width, int height,
-                                   dynamic_config_space const struct dynamic_config* cfg, dynamic_config_space const struct dynamic_feature_config* dfg)
-{
-    /*int sx = get_global_id(0);
-    int sy = get_global_id(1);
-
-    if(sx >= width || sy >= height)
-        return;*/
-
-    int id = get_global_id(0);
-
-    if(id >= *finished_count_in)
-        return;
-
-     __global const struct lightray* ray = &finished_rays[id];
-
-    if(ray->terminated != 1)
-        return;
-
-    int sx = ray->sx;
-    int sy = ray->sy;
-
-    int pos = sy * width + sx;
-
-    float4 position = get_intersection_position(*ray, cfg, dfg);
-
-    float r_value = position.y;
-
-    #if !defined(TRAVERSABLE_EVENT_HORIZON) || (defined(NO_EVENT_HORIZON_CROSSING) && !defined(GENERIC_METRIC))
-    if(fabs(r_value) <= 1)
-    {
-        return;
-    }
-    #endif
-
-	float3 npolar = position.yzw;
-
-    #if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC) || defined(DEBUG_CONSTANT_THETA)
-	{
-        float4 quat = ray->initial_quat;
-
-	    float3 cart_pos = polar_to_cartesian(position.yzw);
-
-	    cart_pos = rot_quat(cart_pos, quat);
-
-	    npolar = cartesian_to_polar(cart_pos);
-	}
-    #endif // GENERIC_CONSTANT_THETA
-
-    float thetaf = fmod(npolar.y, 2 * M_PIf);
-    float phif = npolar.z;
-
-    if(thetaf >= M_PIf)
-    {
-        phif += M_PIf;
-        thetaf -= M_PIf;
-    }
-
-    phif = fmod(phif, 2 * M_PIf);
-
-    float sxf = (phif) / (2 * M_PIf);
-    float syf = thetaf / M_PIf;
-
-    sxf += 0.5f;
-
-    /*if(sx == width/2 && sy == height/2)
-    {
-        printf("COORD %f %f\n", sxf, syf);
-    }*/
-
-    texture_coordinates[pos] = (float2)(sxf, syf);
-}
-
 float smallest(float f1, float f2)
 {
     if(fabs(f1) < fabs(f2))
@@ -5167,7 +5204,7 @@ float3 redshift(float3 v, float z, dynamic_config_space struct dynamic_feature_c
 ///amd doesn't correctly support shared opengl textures with mipmaps, and there's no anisotropic filtering i can see
 ///and nvidia don't support mipmapped textxures at all, or clCreateSampler
 ///what a mess!
-float4 read_mipmap(image2d_array_t mipmap1, image2d_array_t mipmap2, float position_y, float2 pos, float lod)
+float4 read_mipmap(image2d_array_t mipmap1, image2d_array_t mipmap2, int side, float2 pos, float lod)
 {
     lod = max(lod, 0.f);
 
@@ -5194,70 +5231,39 @@ float4 read_mipmap(image2d_array_t mipmap1, image2d_array_t mipmap2, float posit
     float4 v1 = mix(read_imagef(mipmap1, sam, full_lower_coord), read_imagef(mipmap1, sam, full_upper_coord), lower_weight);
     float4 v2 = mix(read_imagef(mipmap2, sam, full_lower_coord), read_imagef(mipmap2, sam, full_upper_coord), lower_weight);
 
-    return position_y >= 0 ? v1 : v2;
+    return side >= 0 ? v1 : v2;
 }
 
-#define MIPMAP_CONDITIONAL(x) ((position.y >= 0) ? x(mip_background) : x(mip_background2))
+#define MIPMAP_CONDITIONAL(x) ((side > 0) ? x(mip_background) : x(mip_background2))
 
 __kernel
-void render(__global const struct lightray* finished_rays, __global const int* finished_count_in, __write_only image2d_t out,
+void render(__global const struct render_data* rdata, __global const int* rdata_count, __write_only image2d_t out,
             __read_only image2d_array_t mip_background, __read_only image2d_array_t mip_background2,
-            int width, int height, __global const float2* texture_coordinates, int maxProbes,
+            int width, int height, int maxProbes,
             dynamic_config_space const struct dynamic_config* cfg, dynamic_config_space const struct dynamic_feature_config* dfg)
 {
     int id = get_global_id(0);
 
-    if(id >= *finished_count_in)
+    if(id >= *rdata_count)
         return;
 
-     __global const struct lightray* ray = &finished_rays[id];
+    struct render_data rdat = rdata[id];
 
-    int sx = ray->sx;
-    int sy = ray->sy;
+    int sx = rdat.sx;
+    int sy = rdat.sy;
 
-    if(ray->terminated != 1)
+    int side = rdat.side;
+
+    if(rdat.terminated != 1)
     {
         write_imagef(out, (int2)(sx, sy), (float4)(0,0,0,1));
         return;
     }
 
-    float4 position = generic_to_spherical(ray->position, cfg);
-    float4 velocity = generic_velocity_to_spherical_velocity(ray->position, ray->velocity, cfg);
+    float sxf = rdat.tex_coord.x;
+    float syf = rdat.tex_coord.y;
 
-    float4 generic_velocity = ray->velocity / ray->running_dlambda_dnew;
-
-    #ifdef IS_CONSTANT_THETA
-    position.z = M_PIf/2;
-    velocity.z = 0;
-    #endif // IS_CONSTANT_THETA
-
-    {
-        if(fabs(position.y) >= GET_FEATURE(universe_size, dfg))
-        {
-            position.yzw = fix_ray_position(position.yzw, velocity.yzw, GET_FEATURE(universe_size, dfg), true);
-        }
-
-        #if defined(SINGULAR) && defined(TRAVERSABLE_EVENT_HORIZON)
-        if(fabs(position.y) < SINGULAR_TERMINATOR)
-        {
-            position.yzw = fix_ray_position(position.yzw, velocity.yzw, SINGULAR_TERMINATOR, true);
-        }
-        #endif
-    }
-
-    float r_value = position.y;
-
-    #if !defined(TRAVERSABLE_EVENT_HORIZON) || (defined(NO_EVENT_HORIZON_CROSSING) && !defined(GENERIC_METRIC))
-    if(fabs(r_value) <= 2)
-    {
-        write_imagef(out, (int2){sx, sy}, (float4)(0, 0, 0, 1));
-        return;
-    }
-    #endif
-
-    float sxf = texture_coordinates[sy * width + sx].x;
-    float syf = texture_coordinates[sy * width + sx].y;
-
+    #if 0
     ///we actually do have an event horizon
     if(fabs(r_value) <= 1)
     //if(fabs(r_value) <= rs || r_value < 0)
@@ -5282,6 +5288,7 @@ void render(__global const struct lightray* finished_rays, __global const int* f
         write_imagef(out, (int2){sx, sy}, val);
         return;
     }
+    #endif
 
     #define MIPMAPPING
     #ifdef MIPMAPPING
@@ -5294,9 +5301,9 @@ void render(__global const struct lightray* finished_rays, __global const int* f
     if(sy == height-1)
         dy = -1;
 
-    float2 tl = texture_coordinates[sy * width + sx];
-    float2 tr = texture_coordinates[sy * width + sx + dx];
-    float2 bl = texture_coordinates[(sy + dy) * width + sx];
+    float2 tl = rdata[sy * width + sx].tex_coord;
+    float2 tr = rdata[sy * width + sx + dx].tex_coord;
+    float2 bl = rdata[(sy + dy) * width + sx].tex_coord;
 
     ///higher = sharper
     float bias_frac = 1.3;
@@ -5408,7 +5415,7 @@ void render(__global const struct lightray* finished_rays, __global const int* f
         if(iProbes < 1)
             levelofdetail = maxLod;
 
-        end_result = read_mipmap(mip_background, mip_background2, position.y, (float2){sxf, syf}, levelofdetail);
+        end_result = read_mipmap(mip_background, mip_background2, side, (float2){sxf, syf}, levelofdetail);
     }
     else
     {
@@ -5454,7 +5461,7 @@ void render(__global const struct lightray* finished_rays, __global const int* f
             float cu = centreu + (currentN / 2.f) * sU;
             float cv = centrev + (currentN / 2.f) * sV;
 
-            float4 fval = read_mipmap(mip_background, mip_background2, position.y, (float2){cu, cv}, levelofdetail);
+            float4 fval = read_mipmap(mip_background, mip_background2, side, (float2){cu, cv}, levelofdetail);
 
             totalWeight += relativeWeight * fval;
             accumulatedProbes += relativeWeight;
@@ -5470,30 +5477,12 @@ void render(__global const struct lightray* finished_rays, __global const int* f
     //float4 end_result = read_imagef(*background, sam, (float2){sxf, syf}, dx_vtc, dy_vtc);
 
     #else
-    float4 end_result = read_mipmap(mip_background, mip_background2, position.y, sam, (float2){sxf, syf}, 0);
+    float4 end_result = read_mipmap(mip_background, mip_background2, side, sam, (float2){sxf, syf}, 0);
     #endif // MIPMAPPING
 
     if(GET_FEATURE(redshift, dfg))
     {
-        float4 generic_position = ray->position;
-
-        float4 fe0, fe1, fe2, fe3;
-        calculate_tetrads(generic_position, (float3)(0,0,0), &fe0, &fe1, &fe2, &fe3, cfg, 0);
-
-        #ifndef GENERIC_BIG_METRIC
-        float g_metric[4] = {0};
-        calculate_metric_generic(generic_position, g_metric, cfg);
-        #else
-        float g_metric[16] = {0};
-        calculate_metric_generic_big(generic_position, g_metric, cfg);
-        #endif
-
-        float4 obvs_low = lower_index_generic(fe0, g_metric);
-
-        ///[-1, +infinity]
-        float z_shift = (dot(generic_velocity, obvs_low) / ray->ku_uobsu) - 1;
-
-        z_shift = max(z_shift, -0.999f);
+        float z_shift = rdat.z_shift;
 
         /*if(sx == width/2 && sy == height/2)
         {
@@ -5615,7 +5604,7 @@ void render(__global const struct lightray* finished_rays, __global const int* f
             printf("Shift %f vx %f obvsu %f\n", z_shift, velocity.x, -ray->ku_uobsu);
         }*/
 
-        if(fabs(r_value) > 2)
+        //if(fabs(r_value) > 2)
         {
             /*if(sx == width/2 && sy == height/2)
             {

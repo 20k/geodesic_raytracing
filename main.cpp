@@ -2397,7 +2397,7 @@ int main(int argc, char* argv[])
 
                 execute_kernel(menu.sett, mqueue, st.rays_in, st.rays_count_in, st.accel_ray_time_min, st.accel_ray_time_max, tris, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer, st.width, st.height, st, single_state, last_event);
 
-                if(false)
+                //if(false)
                 {
                     st.rays2_count_in.set_to_zero(mqueue);
                     st.rays3_count_in.set_to_zero(mqueue);
@@ -2424,7 +2424,7 @@ int main(int argc, char* argv[])
                     std::swap(st.rays2_count_in, st.rays_count_in);
                 }
 
-                cl::args texture_args;
+                /*cl::args texture_args;
                 texture_args.push_back(st.rays_in);
                 texture_args.push_back(st.rays_count_in);
                 texture_args.push_back(st.texture_coordinates);
@@ -2433,20 +2433,28 @@ int main(int argc, char* argv[])
                 texture_args.push_back(dynamic_config);
                 texture_args.push_back(dynamic_feature_buffer);
 
-                mqueue.exec("calculate_texture_coordinates", texture_args, {width*height}, {16*16});
+                mqueue.exec("calculate_texture_coordinates", texture_args, {width*height}, {16*16});*/
+
+                st.render_data_count.set_to_zero(mqueue);
+
+                cl::args texture_args;
+                texture_args.push_back(st.rays_in, st.rays_count_in, st.render_data, st.render_data_count,
+                                       width, height,
+                                       dynamic_config, dynamic_feature_buffer);
+
+                mqueue.exec("calculate_render_data", texture_args, {width * height}, {16*16});
 
                 //glis.rtex.clear(mqueue);
                 //mqueue.block();
 
                 cl::args render_args;
-                render_args.push_back(st.rays_in);
-                render_args.push_back(st.rays_count_in);
+                render_args.push_back(st.render_data);
+                render_args.push_back(st.render_data_count);
                 render_args.push_back(glis.rtex);
                 render_args.push_back(back_images.i1);
                 render_args.push_back(back_images.i2);
                 render_args.push_back(width);
                 render_args.push_back(height);
-                render_args.push_back(st.texture_coordinates);
                 render_args.push_back(menu.sett.anisotropy);
                 render_args.push_back(dynamic_config);
                 render_args.push_back(dynamic_feature_buffer);
