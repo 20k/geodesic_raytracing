@@ -2399,12 +2399,14 @@ int main(int argc, char* argv[])
 
                 st.render_data_count.set_to_zero(mqueue);
 
-                cl::args texture_args;
-                texture_args.push_back(st.rays_in, st.rays_count_in, st.render_data, st.render_data_count,
-                                       width, height,
-                                       dynamic_config, dynamic_feature_buffer);
+                {
+                    cl::args texture_args;
+                    texture_args.push_back(st.rays_in, st.rays_count_in, st.render_data, st.render_data_count,
+                                           width, height,
+                                           dynamic_config, dynamic_feature_buffer);
 
-                mqueue.exec("calculate_render_data", texture_args, {width * height}, {16*16});
+                    mqueue.exec("calculate_render_data", texture_args, {width * height}, {16*16});
+                }
 
                 //if(false)
                 {
@@ -2431,6 +2433,22 @@ int main(int argc, char* argv[])
 
                     std::swap(st.rays2_in, st.rays_in);
                     std::swap(st.rays2_count_in, st.rays_count_in);
+                }
+
+                {
+                    execute_kernel(menu.sett, mqueue, st.rays3_in, st.rays3_count_in, st.accel_ray_time_min, st.accel_ray_time_max, tris, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer, st.width, st.height, st, single_state, last_event);
+
+                    cl::args texture_args;
+                    texture_args.push_back(st.rays3_in, st.rays3_count_in, st.render_data, st.render_data_count,
+                                           width, height,
+                                           dynamic_config, dynamic_feature_buffer);
+
+                    mqueue.exec("calculate_render_data", texture_args, {width * height}, {16*16});
+
+                    cl::args coll;
+                    coll.push_back(st.rays_in, st.rays_count_in, st.rays3_in, st.rays3_count_in);
+
+                    mqueue.exec("collate_rays", coll, {width*height}, {16*16});
                 }
 
                 /*cl::args texture_args;
