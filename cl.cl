@@ -5115,7 +5115,7 @@ void handle_adaptive_sampling(global const struct lightray* rays_in, global cons
 
         float rough_angular_change_per_pixel = fov_angle_pi / width;
 
-        if(relative_angular_error >= rough_angular_change_per_pixel * 32)
+        if(relative_angular_error >= rough_angular_change_per_pixel * 64)
         {
             ///output the other 3 rays
 
