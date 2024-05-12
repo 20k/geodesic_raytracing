@@ -4868,6 +4868,15 @@ float4 get_intersection_position(struct lightray ray, dynamic_config_space const
     return position;
 }
 
+struct render_data
+{
+    float2 tex_coord;
+    float z_shift;
+    int sx;
+    int sy;
+    int terminated;
+};
+
 struct lightray interpolate(struct lightray ray1, struct lightray ray2)
 {
     struct lightray out;
@@ -4877,7 +4886,7 @@ struct lightray interpolate(struct lightray ray1, struct lightray ray2)
     out.position = (ray1.position + ray2.position)/2.f;
     out.velocity = (ray1.velocity + ray2.velocity)/2.f;
     out.running_dlambda_dnew = (ray1.running_dlambda_dnew + ray2.running_dlambda_dnew)/2.f;
-    out.terminated = 1;
+    out.terminated = ray1.terminated;
     out.sx = (ray1.sx + ray2.sx)/2;
     out.sy = (ray1.sy + ray2.sy)/2;
     return out;
