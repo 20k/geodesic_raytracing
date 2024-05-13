@@ -3786,15 +3786,6 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
                       __global int* ray_write_counts,
                       int max_write)
 {
-
-    /*int sx = get_global_id(0);
-    int sy = get_global_id(1);
-
-    if(sx >= width || sy >= height)
-        return;
-
-    int id = sy * width + sx;*/
-
     int id = get_global_id(0);
 
     if(id >= *generic_count_in)
@@ -4893,21 +4884,6 @@ struct render_data
     int side;
 };
 
-/*struct lightray interpolate(struct lightray ray1, struct lightray ray2)
-{
-    struct lightray out;
-    out.acceleration = (ray1.acceleration + ray2.acceleration)/2;
-    out.initial_quat = ray1.initial_quat;
-    out.ku_uobsu = (ray1.ku_uobsu + ray2.ku_uobsu)/2.f;
-    out.position = (ray1.position + ray2.position)/2.f;
-    out.velocity = (ray1.velocity + ray2.velocity)/2.f;
-    out.running_dlambda_dnew = (ray1.running_dlambda_dnew + ray2.running_dlambda_dnew)/2.f;
-    out.terminated = ray1.terminated;
-    out.sx = (ray1.sx + ray2.sx)/2;
-    out.sy = (ray1.sy + ray2.sy)/2;
-    return out;
-};*/
-
 float3 angle_to_vec(float2 a)
 {
     return polar_to_cartesian((float3)(1.f, a));
@@ -4943,7 +4919,7 @@ float2 tex_to_angle(float2 tex)
     return tex;
 }
 
-struct render_data interpolater(struct render_data ray1, struct render_data ray2)
+struct render_data interpolate_render_data(struct render_data ray1, struct render_data ray2)
 {
     float2 a1 = tex_to_angle(ray1.tex_coord);
     float2 a2 = tex_to_angle(ray2.tex_coord);
@@ -5169,32 +5145,11 @@ void handle_adaptive_sampling(global const struct lightray* rays_in, global cons
             struct render_data ddata = rdat[(lsy + 2) * width + lsx];
             struct render_data drdata = rdat[(lsy + 2) * width + lsx + 2];
 
-            //rdat[lsy * width + lsx + 1] = interpolater(cdat, rdat);
-            rdat[lsy * width + lsx + 1] = interpolater(cdata, rdata);
-            rdat[(lsy + 1) * width + lsx] = interpolater(cdata, ddata);
-            rdat[(lsy + 1) * width + lsx + 1] = interpolater(cdata, drdata);
+            rdat[lsy * width + lsx + 1] = interpolate_render_data(cdata, rdata);
+            rdat[(lsy + 1) * width + lsx] = interpolate_render_data(cdata, ddata);
+            rdat[(lsy + 1) * width + lsx + 1] = interpolate_render_data(cdata, drdata);
         }
     }
-}
-
-__kernel
-void collate_rays(global struct lightray* accum_in, global int* accum_in_count,
-                  global struct lightray* to_add, global int* to_add_count)
-{
-    int id = get_global_id(0);
-
-    if(id >= *to_add_count)
-        return;
-
-    accum_in[atomic_inc(accum_in_count)] = to_add[id];
-}
-
-float smallest(float f1, float f2)
-{
-    if(fabs(f1) < fabs(f2))
-        return f1;
-
-    return f2;
 }
 
 float3 linear_rgb_to_XYZ(float3 in)
