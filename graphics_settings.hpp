@@ -13,6 +13,8 @@ struct graphics_settings : serialisable, free_function
     int width = 1920;
     int height = 1080;
 
+    float field_of_view = 90.f;
+
     int screenshot_width = 1920;
     int screenshot_height = 1080;
 

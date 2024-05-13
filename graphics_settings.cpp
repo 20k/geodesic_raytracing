@@ -13,6 +13,7 @@ DEFINE_SERIALISE_FUNCTION(graphics_settings)
     DO_FSERIALISE(pos_y);
     DO_FSERIALISE(width);
     DO_FSERIALISE(height);
+    DO_FSERIALISE(field_of_view);
     DO_FSERIALISE(fullscreen);
     DO_FSERIALISE(supersample);
     DO_FSERIALISE(supersample_factor);
@@ -38,6 +39,10 @@ bool graphics_settings::display_video_settings()
 
     ImGui::InputInt("Width", &width);
     ImGui::InputInt("Height", &height);
+
+    ImGui::DragFloat("Field Of View (degrees)", &field_of_view, 1.f, 1.f, 179.f, "%.1f");
+
+    field_of_view = clamp(field_of_view, 1.f, 179.f);
 
     ImGui::Checkbox("Fullscreen", &fullscreen);
 

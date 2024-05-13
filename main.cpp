@@ -1055,6 +1055,9 @@ int main(int argc, char* argv[])
     dfg.add_feature<float>("adaptive_sampling_threshold");
     dfg.set_feature("adaptive_sampling_threshold", 64.f);
 
+    dfg.add_feature<float>("field_of_view");
+    dfg.set_feature("field_of_view", 90.f);;
+
     //print("WLs %f %f %f\n", chromaticity::srgb_to_wavelength({1, 0, 0}), chromaticity::srgb_to_wavelength({0, 1, 0}), chromaticity::srgb_to_wavelength({0, 0, 1}));
 
     int last_supersample_mult = 2;
@@ -1444,6 +1447,7 @@ int main(int argc, char* argv[])
         dfg.set_feature("use_old_redshift", menu.sett.use_old_redshift);
         dfg.set_feature("adaptive_sampling", menu.sett.use_adaptive_sampling);
         dfg.set_feature("adaptive_sampling_threshold", menu.sett.adaptive_sampling_threshold);
+        dfg.set_feature("field_of_view", menu.sett.field_of_view);
 
         exec.poll();
 

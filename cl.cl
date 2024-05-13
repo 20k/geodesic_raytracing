@@ -1944,11 +1944,11 @@ float4 get_theta_adjustment_quat(float3 pixel_direction, float4 polar_camera_in,
     return aa_to_quat(normalize(cross(plane_n, (float3)(0, 0, 1))), angle_to_flat * angle_sign);
 }
 
-float3 calculate_pixel_direction(int cx, int cy, float width, float height, float4 camera_quat)
+float3 calculate_pixel_direction(int cx, int cy, float width, float height, float4 camera_quat, dynamic_config_space const struct dynamic_feature_config* dfg)
 {
-    #define FOV 90
+    float fov = GET_FEATURE(field_of_view, dfg);
 
-    float fov_rad = (FOV / 360.f) * 2 * M_PIf;
+    float fov_rad = (fov / 360.f) * 2 * M_PIf;
 
     float nonphysical_plane_half_width = width/2;
     float nonphysical_f_stop = nonphysical_plane_half_width / tan(fov_rad/2);
@@ -2983,7 +2983,7 @@ void init_rays_generic(__global const float4* g_generic_camera_in, __global cons
     const int cx = id % width;
     const int cy = id / width;
 
-    float3 pixel_direction = calculate_pixel_direction(cx, cy, width, height, *g_camera_quat);
+    float3 pixel_direction = calculate_pixel_direction(cx, cy, width, height, *g_camera_quat, dfg);
 
     float4 at_metric = *g_generic_camera_in;
 
@@ -5082,7 +5082,9 @@ void handle_adaptive_sampling(global const struct lightray* rays_in, global cons
         ///I guess the error is quantified by the differences in derivatives, of our expected derivative, vs our actual derivative
         float relative_angular_error = ((x_error.x + x_error.y + y_error.x + y_error.y)/4.f) / 2 * M_PI;
 
-        float fov_angle_pi = FOV * 2 * M_PI/360.f;
+        float fov = GET_FEATURE(field_of_view, dfg);
+
+        float fov_angle_pi = fov * 2 * M_PI/360.f;
 
         float rough_angular_change_per_pixel = fov_angle_pi / width;
 
@@ -5107,7 +5109,7 @@ void handle_adaptive_sampling(global const struct lightray* rays_in, global cons
             int cx = ray_pos[i].x;
             int cy = ray_pos[i].y;
 
-            float3 pixel_direction = calculate_pixel_direction(cx, cy, width, height, *g_camera_quat);
+            float3 pixel_direction = calculate_pixel_direction(cx, cy, width, height, *g_camera_quat, dfg);
 
             float4 at_metric = *g_generic_camera_in;
 
