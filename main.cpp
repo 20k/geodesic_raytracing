@@ -1887,6 +1887,7 @@ int main(int argc, char* argv[])
                         ImGui::PopItemWidth();
 
                         ImGui::DragFloat("Object Scale", &object_scale, 0.01f, 0.01f, 100.f);
+                        ImGui::SliderFloat("Object Throw Speed", &object_chuck_speed, 0.f, 0.99999f);
 
                         for(int idx = 0; idx < (int)tris.cpu_objects.size(); idx++)
                         {
@@ -1924,12 +1925,10 @@ int main(int argc, char* argv[])
                             phys.needs_trace = true;
                         }
 
-                        if(ImGui::Button("Chuck Box"))
+                        if(ImGui::Button("Throw Box"))
                         {
                             should_chuck_object = true;
                         }
-
-                        ImGui::SliderFloat("Object Chuck Speed", &object_chuck_speed, 0.f, 0.99999f);
 
                         ImGui::EndTabItem();
                     }
