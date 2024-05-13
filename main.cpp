@@ -2708,12 +2708,6 @@ int main(int argc, char* argv[])
                 }
             }
 
-            if(!taking_screenshot)
-            {
-                unprocessed_frames++;
-                glsq.add(std::move(glis));
-            }
-
             if(taking_screenshot)
             {
                 glis.rtex.unacquire(mqueue);
@@ -2783,8 +2777,11 @@ int main(int argc, char* argv[])
 
                     SteamAPI_ISteamScreenshots_WriteScreenshot(iss, as_rgb.data(), sizeof(vec<3, char>) * as_rgb.size(), high_width, high_height);
                 }
+            }
 
-                unacquired.add(std::move(glis));
+            {
+                unprocessed_frames++;
+                glsq.add(std::move(glis));
             }
         }
 
