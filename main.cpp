@@ -150,8 +150,7 @@ void execute_kernel(graphics_settings& sett,
                     cl::buffer& dynamic_feature_config,
                     int width, int height,
                     render_state& st,
-                    single_render_state& single_state,
-                    cl::event evt)
+                    single_render_state& single_state)
 {
     if(use_device_side_enqueue)
     {
@@ -201,7 +200,7 @@ void execute_kernel(graphics_settings& sett,
         run_args.push_back(st.stored_ray_counts);
         run_args.push_back(single_state.max_stored);
 
-        cqueue.exec("do_generic_rays", run_args, {width*height}, {sett.workgroup_size[0]*sett.workgroup_size[1]}, {evt});
+        cqueue.exec("do_generic_rays", run_args, {width*height}, {sett.workgroup_size[0]*sett.workgroup_size[1]});
     }
 }
 
@@ -1356,7 +1355,7 @@ int main(int argc, char* argv[])
 
     std::vector<render_state> states;
 
-    for(int i=0; i < 3; i++)
+    for(int i=0; i < 2; i++)
     {
         states.emplace_back(clctx.ctx, clctx.cqueue);
         states[i].realloc(start_width, start_height);
@@ -1364,7 +1363,6 @@ int main(int argc, char* argv[])
 
     single_render_state single_state(clctx.ctx);
 
-    bool reset_camera = true;
     bool once = false;
 
     std::optional<cl_float4> last_camera_pos;
@@ -1381,106 +1379,13 @@ int main(int argc, char* argv[])
     camera cam;
 
     gl_image_shared_queue glisq;
-    async_executor<gl_image_shared> glexec;
-    async_executor<gl_image_shared> unacquired;
-
-    std::optional<gl_image_shared> last_frame_opt;
-
-    cl::event last_event;
-    cl::event last_last_event;
 
     int which_state = 0;
-
-    async_executor<gl_image_shared> glsq;
-
-    std::jthread acquire_thread([&](std::stop_token stoken)
-    {
-        std::vector<cl::command_queue> circ;
-
-        for(int i=0; i < 4; i++)
-            circ.emplace_back(clctx.ctx);
-
-        std::atomic_uint which_circ{0};
-
-        std::vector<std::tuple<gl_image_shared, cl::command_queue, cl::event>> unfinished;
-
-        while(1)
-        {
-            if(stoken.stop_requested())
-                return;
-
-            if(auto opt = glsq.produce(); opt.has_value())
-            {
-                auto& gl = opt.value();
-                auto cqueue = circ[which_circ % circ.size()];
-                which_circ++;
-
-                auto evt = gl.rtex.unacquire(cqueue);
-
-                cqueue.flush();
-
-                unfinished.push_back({std::move(gl), cqueue, evt});
-            }
-
-            if(unfinished.size() > 0)
-            {
-                if(std::get<2>(unfinished.front()).is_finished())
-                {
-                    std::get<1>(unfinished.front()).block();
-                    glexec.add(std::move(std::get<0>(unfinished.front())));
-                    unfinished.erase(unfinished.begin());
-                }
-            }
-        }
-    });
-
-    std::jthread release_thread([&](std::stop_token stoken)
-    {
-        std::vector<cl::command_queue> circ;
-
-        for(int i=0; i < 4; i++)
-            circ.emplace_back(clctx.ctx);
-
-        std::atomic_uint which_circ{0};
-
-        std::vector<std::tuple<gl_image_shared, cl::command_queue, cl::event>> unfinished;
-
-        while(1)
-        {
-            if(stoken.stop_requested())
-                return;
-
-            if(auto opt = unacquired.produce(); opt.has_value())
-            {
-                auto& gl = opt.value();
-                auto cqueue = circ[which_circ % circ.size()];
-                which_circ++;
-
-                auto evt = gl.rtex.acquire(cqueue);
-
-                cqueue.flush();
-
-                unfinished.push_back({std::move(gl), cqueue, evt});
-            }
-
-            if(unfinished.size() > 0)
-            {
-                if(std::get<2>(unfinished.front()).is_finished())
-                {
-                    std::get<1>(unfinished.front()).block();
-                    glisq.push_free(std::move(std::get<0>(unfinished.front())));
-                    unfinished.erase(unfinished.begin());
-                }
-            }
-        }
-    });
 
     #define START_CLOSED
     #ifdef START_CLOSED
     open_main_menu_trigger = false;
     #endif
-
-    int unprocessed_frames = 0;
 
     while(!win.should_close() && !menu.should_quit && fullscreen.open)
     {
@@ -2122,13 +2027,11 @@ int main(int argc, char* argv[])
 
                 if(input.is_key_down("camera_reset"))
                 {
-                    reset_camera = true;
                     set_camera_time = 0;
                 }
 
                 if(input.is_key_down("camera_centre"))
                 {
-                    reset_camera = true;
                     set_camera_time = 0;
                 }
 
@@ -2297,8 +2200,6 @@ int main(int argc, char* argv[])
                 }
             }
 
-            cl::event produce_event;
-
             {
                 int width = glis.rtex.size<2>().x();
                 int height = glis.rtex.size<2>().y();
@@ -2363,11 +2264,11 @@ int main(int argc, char* argv[])
                     init_args_prepass.push_back(dynamic_feature_buffer);
                     init_args_prepass.push_back(i_am_prepass);
 
-                    mqueue.exec("init_rays_generic", init_args_prepass, {prepass_width*prepass_height}, {256}, {camera_quat_event, last_last_event});
+                    mqueue.exec("init_rays_generic", init_args_prepass, {prepass_width*prepass_height}, {256}, {camera_quat_event});
 
                     int rays_num = calculate_ray_count(prepass_width, prepass_height);
 
-                    execute_kernel(menu.sett, mqueue, st.rays_in, st.rays_count_in, st.accel_ray_time_min, st.accel_ray_time_max, tris, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer, st.width, st.height, st, single_state, last_event);
+                    execute_kernel(menu.sett, mqueue, st.rays_in, st.rays_count_in, st.accel_ray_time_min, st.accel_ray_time_max, tris, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer, st.width, st.height, st, single_state);
 
                     cl::args singular_args;
                     singular_args.push_back(st.rays_in);
@@ -2402,11 +2303,11 @@ int main(int argc, char* argv[])
                 init_args.push_back(dynamic_feature_buffer);
                 init_args.push_back(i_am_prepass);
 
-                mqueue.exec("init_rays_generic", init_args, {width*height}, {16*16}, {camera_quat_event, last_last_event});
+                mqueue.exec("init_rays_generic", init_args, {width*height}, {16*16}, {camera_quat_event});
 
                 int rays_num = calculate_ray_count(width, height);
 
-                execute_kernel(menu.sett, mqueue, st.rays_in, st.rays_count_in, st.accel_ray_time_min, st.accel_ray_time_max, tris, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer, st.width, st.height, st, single_state, last_event);
+                execute_kernel(menu.sett, mqueue, st.rays_in, st.rays_count_in, st.accel_ray_time_min, st.accel_ray_time_max, tris, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer, st.width, st.height, st, single_state);
 
                 st.render_data_count.set_to_zero(mqueue);
 
@@ -2437,14 +2338,13 @@ int main(int argc, char* argv[])
                                        width,
                                        height,
                                        dynamic_config,
-                                       dynamic_feature_buffer
-                                       );
+                                       dynamic_feature_buffer);
 
                         mqueue.exec("handle_adaptive_sampling", args, {width/2, height/2}, {8, 8});
                     }
 
                     {
-                        execute_kernel(menu.sett, mqueue, st.rays_adaptive, st.rays_adaptive_count, st.accel_ray_time_min, st.accel_ray_time_max, tris, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer, st.width, st.height, st, single_state, last_event);
+                        execute_kernel(menu.sett, mqueue, st.rays_adaptive, st.rays_adaptive_count, st.accel_ray_time_min, st.accel_ray_time_max, tris, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer, st.width, st.height, st, single_state);
 
                         cl::args texture_args;
                         texture_args.push_back(st.rays_adaptive, st.rays_adaptive_count, st.render_data, st.render_data_count,
@@ -2467,9 +2367,7 @@ int main(int argc, char* argv[])
                 render_args.push_back(dynamic_config);
                 render_args.push_back(dynamic_feature_buffer);
 
-                last_last_event.block();
-
-                produce_event = mqueue.exec("render", render_args, {width*height}, {16*16});
+                mqueue.exec("render", render_args, {width*height}, {16*16});
             }
 
             if(dfg.get_feature<bool>("use_triangle_rendering"))
@@ -2590,7 +2488,7 @@ int main(int argc, char* argv[])
                         args.push_back(my);
                         args.push_back(kk);
 
-                        produce_event = mqueue.exec("render_chunked_tris", args, {st.width, st.height}, {chunk_x, chunk_y});
+                        mqueue.exec("render_chunked_tris", args, {st.width, st.height}, {chunk_x, chunk_y});
                     }
                 }
                 /*cl::args intersect_args;
@@ -2601,9 +2499,6 @@ int main(int argc, char* argv[])
 
                 produce_event = mqueue.exec("render_intersections", intersect_args, {glis.rtex.size<2>().x() * glis.rtex.size<2>().y()}, {256});*/
             }
-
-            last_last_event = last_event;
-            last_event = produce_event;
 
             /*{
                 cl::args tri_args;
@@ -2779,63 +2674,31 @@ int main(int argc, char* argv[])
                 }
             }
 
+            glis.rtex.unacquire(mqueue);
+
             {
-                unprocessed_frames++;
-                glsq.add(std::move(glis));
-            }
-        }
+                ImDrawList* lst = hide_ui ?
+                                  ImGui::GetForegroundDrawList(ImGui::GetMainViewport()) :
+                                  ImGui::GetBackgroundDrawList(ImGui::GetMainViewport());
 
-        if(menu.sett.max_frames_ahead == 0)
-            mqueue.block();
+                ImVec2 screen_pos = ImGui::GetMainViewport()->Pos;
 
-        if(glexec.peek() || unprocessed_frames >= menu.sett.max_frames_ahead)
-        {
-            ///so, if the number of unprocessed frames is large enough, consume *all* unprocessed frames
-            ///this is to account for draining the queue if menu.sett.max_frames_ahead changes
-            ///otherwise, we eat a single frame, as peek has come through
-            int frames_to_consume = 1;
+                ImVec2 tl = {0,0};
+                ImVec2 br = {win.get_window_size().x(),win.get_window_size().y()};
 
-            if(unprocessed_frames >= menu.sett.max_frames_ahead && menu.sett.max_frames_ahead != 0)
-            {
-                frames_to_consume = (unprocessed_frames - menu.sett.max_frames_ahead) + 1;
-            }
+                if(win.get_render_settings().viewports)
+                {
+                    tl.x += screen_pos.x;
+                    tl.y += screen_pos.y;
 
-            for(int i=0; i < frames_to_consume; i++)
-            {
-                auto opt = glexec.produce(true);
+                    br.x += screen_pos.x;
+                    br.y += screen_pos.y;
+                }
 
-                assert(opt.has_value());
-
-                unprocessed_frames--;
-
-                if(last_frame_opt.has_value())
-                    unacquired.add(std::move(last_frame_opt.value()));
-
-                last_frame_opt = std::move(opt.value());
-            }
-        }
-
-        if(last_frame_opt.has_value())
-        {
-            ImDrawList* lst = hide_ui ?
-                              ImGui::GetForegroundDrawList(ImGui::GetMainViewport()) :
-                              ImGui::GetBackgroundDrawList(ImGui::GetMainViewport());
-
-            ImVec2 screen_pos = ImGui::GetMainViewport()->Pos;
-
-            ImVec2 tl = {0,0};
-            ImVec2 br = {win.get_window_size().x(),win.get_window_size().y()};
-
-            if(win.get_render_settings().viewports)
-            {
-                tl.x += screen_pos.x;
-                tl.y += screen_pos.y;
-
-                br.x += screen_pos.x;
-                br.y += screen_pos.y;
+                lst->AddImage((void*)glis.tex.handle, tl, br, ImVec2(0, 0), ImVec2(1, 1));
             }
 
-            lst->AddImage((void*)last_frame_opt.value().tex.handle, tl, br, ImVec2(0, 0), ImVec2(1, 1));
+            glisq.push_free(std::move(glis));
         }
 
         ImGui::PopAllowKeyboardFocus();
@@ -2856,9 +2719,6 @@ int main(int argc, char* argv[])
 
         once = true;
     }
-
-    release_thread.request_stop();
-    acquire_thread.request_stop();
 
     //mqueue.block();
     clctx.cqueue.block();

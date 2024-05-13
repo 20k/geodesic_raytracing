@@ -32,7 +32,6 @@ struct graphics_settings : serialisable, free_function
     int anisotropy = 8;
 
     bool no_gpu_reads = false;
-    int max_frames_ahead = 3;
 
     bool use_old_redshift = false;
     bool use_adaptive_sampling = true;

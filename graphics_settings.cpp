@@ -25,7 +25,6 @@ DEFINE_SERIALISE_FUNCTION(graphics_settings)
     DO_FSERIALISE(use_steam_screenshots);
     DO_FSERIALISE(anisotropy);
     DO_FSERIALISE(no_gpu_reads);
-    DO_FSERIALISE(max_frames_ahead);
     DO_FSERIALISE(workgroup_size);
     DO_FSERIALISE(use_old_redshift);
     DO_FSERIALISE(use_adaptive_sampling);
@@ -59,15 +58,6 @@ bool graphics_settings::display_video_settings()
     if(ImGui::IsItemHovered())
     {
         ImGui::SetTooltip("May improve performance");
-    }
-
-    ImGui::InputInt("Max Frames Ahead", &max_frames_ahead, 1);
-
-    max_frames_ahead = clamp(max_frames_ahead, 0, 6);
-
-    if(ImGui::IsItemHovered())
-    {
-        ImGui::SetTooltip("Improves performance at the expense of input latency");
     }
 
     std::vector<std::array<int, 2>> sizes = {{4, 4}, {8, 8}, {16, 8}, {8, 16}, {16, 16}};
