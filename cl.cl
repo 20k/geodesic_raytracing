@@ -5048,6 +5048,8 @@ void handle_adaptive_sampling(global const struct lightray* rays_in, global cons
 
     struct lightray my_ray = rays_in[sy * (width/2) + sx];
 
+    bool should_sample = true;
+
     if(sx != 0 && sx != (width/2)-1 && sy != 0 && sy != (height/2)-1)
     {
         int lx = sx-1;
@@ -5084,71 +5086,70 @@ void handle_adaptive_sampling(global const struct lightray* rays_in, global cons
 
         float rough_angular_change_per_pixel = fov_angle_pi / width;
 
-        bool should_sample = relative_angular_error >= rough_angular_change_per_pixel * GET_FEATURE(adaptive_sampling_threshold, dfg);
+        should_sample = relative_angular_error >= rough_angular_change_per_pixel * GET_FEATURE(adaptive_sampling_threshold, dfg);
 
         if(centre.terminated != left.terminated || centre.terminated != right.terminated || centre.terminated != up.terminated || centre.terminated != down.terminated || centre.terminated != down_right.terminated)
             should_sample = true;
+    }
 
-        if(should_sample)
+    if(should_sample)
+    {
+        ///output the other 3 rays
+        int base_sx = sx * 2;
+        int base_sy = sy * 2;
+
+        int2 ray_pos[3] = {{base_sx+1, base_sy}, {base_sx, base_sy+1}, {base_sx+1, base_sy+1}};
+
+        int root_id = atomic_add(unprocessed_rays_out_count, 3);
+
+        for(int i=0; i < 3; i++)
         {
-            ///output the other 3 rays
+            int cx = ray_pos[i].x;
+            int cy = ray_pos[i].y;
 
-            int base_sx = sx * 2;
-            int base_sy = sy * 2;
+            float3 pixel_direction = calculate_pixel_direction(cx, cy, width, height, *g_camera_quat);
 
-            int2 ray_pos[3] = {{base_sx+1, base_sy}, {base_sx, base_sy+1}, {base_sx+1, base_sy+1}};
+            float4 at_metric = *g_generic_camera_in;
 
-            int root_id = atomic_add(unprocessed_rays_out_count, 3);
+            float4 bT = *e0;
+            float4 observer_velocity = *e0;
 
-            for(int i=0; i < 3; i++)
-            {
-                int cx = ray_pos[i].x;
-                int cy = ray_pos[i].y;
+            float4 le1 = *e1;
+            float4 le2 = *e2;
+            float4 le3 = *e3;
 
-                float3 pixel_direction = calculate_pixel_direction(cx, cy, width, height, *g_camera_quat);
+            pixel_direction = normalize(pixel_direction);
 
-                float4 at_metric = *g_generic_camera_in;
+            float4 pixel_x = pixel_direction.x * le1;
+            float4 pixel_y = pixel_direction.y * le2;
+            float4 pixel_z = pixel_direction.z * le3;
 
-                float4 bT = *e0;
-                float4 observer_velocity = *e0;
+            float4 pixel_t = -bT;
 
-                float4 le1 = *e1;
-                float4 le2 = *e2;
-                float4 le3 = *e3;
+            float4 lightray_velocity = pixel_x + pixel_y + pixel_z + pixel_t;
+            float4 lightray_spacetime_position = at_metric;
 
-                pixel_direction = normalize(pixel_direction);
+            struct lightray ray = geodesic_to_render_ray(cx, cy, lightray_spacetime_position, lightray_velocity, observer_velocity, cfg);
 
-                float4 pixel_x = pixel_direction.x * le1;
-                float4 pixel_y = pixel_direction.y * le2;
-                float4 pixel_z = pixel_direction.z * le3;
-
-                float4 pixel_t = -bT;
-
-                float4 lightray_velocity = pixel_x + pixel_y + pixel_z + pixel_t;
-                float4 lightray_spacetime_position = at_metric;
-
-                struct lightray ray = geodesic_to_render_ray(cx, cy, lightray_spacetime_position, lightray_velocity, observer_velocity, cfg);
-
-                int out_id = root_id + i;
-                unprocessed_rays_out[out_id] = ray;
-            }
+            int out_id = root_id + i;
+            unprocessed_rays_out[out_id] = ray;
         }
-        else
-        {
-            int lsx = my_ray.sx;
-            int lsy = my_ray.sy;
+    }
+    else
+    {
+        int lsx = my_ray.sx;
+        int lsy = my_ray.sy;
 
-            struct render_data cdata = rdat[lsy * width + lsx];
-            struct render_data rdata = rdat[lsy * width + lsx + 2];
-            struct render_data ldata = rdat[lsy * width + lsx - 2];
-            struct render_data udata = rdat[(lsy - 2) * width + lsx];
-            struct render_data ddata = rdat[(lsy + 2) * width + lsx];
-            struct render_data drdata = rdat[(lsy + 2) * width + lsx + 2];
+        struct render_data cdata = rdat[lsy * width + lsx];
+        struct render_data rdata = rdat[lsy * width + lsx + 2];
+        struct render_data ldata = rdat[lsy * width + lsx - 2];
+        struct render_data udata = rdat[(lsy - 2) * width + lsx];
+        struct render_data ddata = rdat[(lsy + 2) * width + lsx];
+        struct render_data drdata = rdat[(lsy + 2) * width + lsx + 2];
 
-            rdat[lsy * width + lsx + 1] = interpolate_render_data(cdata, rdata);
-            rdat[(lsy + 1) * width + lsx] = interpolate_render_data(cdata, ddata);
-            rdat[(lsy + 1) * width + lsx + 1] = interpolate_render_data(cdata, drdata);
-        }
+        rdat[lsy * width + lsx + 1] = interpolate_render_data(cdata, rdata);
+        rdat[(lsy + 1) * width + lsx] = interpolate_render_data(cdata, ddata);
+        rdat[(lsy + 1) * width + lsx + 1] = interpolate_render_data(cdata, drdata);
     }
 }
 
