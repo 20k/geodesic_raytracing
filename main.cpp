@@ -1379,6 +1379,8 @@ int main(int argc, char* argv[])
 
     clctx.cqueue.block();
 
+    float object_scale = 1.f;
+
     camera cam;
 
     gl_image_shared_queue glisq;
@@ -1884,6 +1886,8 @@ int main(int argc, char* argv[])
                         dfg.set_feature("ray_skip", (float)ray_skip);
                         ImGui::PopItemWidth();
 
+                        ImGui::DragFloat("Object Scale", &object_scale, 0.01f, 0.01f, 100.f);
+
                         for(int idx = 0; idx < (int)tris.cpu_objects.size(); idx++)
                         {
                             std::shared_ptr<triangle_rendering::object> obj = tris.cpu_objects[idx];
@@ -1982,6 +1986,7 @@ int main(int argc, char* argv[])
             {
                 std::shared_ptr<triangle_rendering::object> obj = tris.make_new();
 
+                obj->scale = object_scale;
                 obj->tris = make_cube({0, 0, 0});
                 obj->pos = cam.pos;
 
