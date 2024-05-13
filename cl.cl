@@ -4918,10 +4918,57 @@ struct render_data
     return out;
 };*/
 
+float3 angle_to_vec(float2 a)
+{
+    return polar_to_cartesian((float3)(1.f, a));
+}
+
+float2 angle_to_tex(float2 angle)
+{
+    float thetaf = fmod(angle.x, 2 * M_PIf);
+    float phif = angle.y;
+
+    if(thetaf >= M_PIf)
+    {
+        phif += M_PIf;
+        thetaf -= M_PIf;
+    }
+
+    phif = fmod(phif, 2 * M_PIf);
+
+    float sxf = (phif) / (2 * M_PIf);
+    float syf = thetaf / M_PIf;
+
+    sxf += 0.5f;
+
+    return (float2)(sxf, syf);
+}
+
+float2 tex_to_angle(float2 tex)
+{
+    tex.x -= 0.5f;
+    tex.x *= 2 * M_PIf;
+    tex.y *= M_PIf;
+
+    return tex;
+}
+
 struct render_data interpolater(struct render_data ray1, struct render_data ray2)
 {
+    float2 a1 = tex_to_angle(ray1.tex_coord);
+    float2 a2 = tex_to_angle(ray2.tex_coord);
+
+    float3 v1 = angle_to_vec(a1.yx);
+    float3 v2 = angle_to_vec(a2.yx);
+
+    float3 vc = (v1 + v2)/2.f;
+
+    float3 fangle = cartesian_to_polar(vc);
+
+    float2 tc = angle_to_tex(fangle.yz);
+
     struct render_data out;
-    out.tex_coord = (ray1.tex_coord + ray2.tex_coord)/2.f;
+    out.tex_coord = tc;
     out.z_shift = (ray1.z_shift + ray2.z_shift)/2.f;
     out.terminated = ray1.terminated;
     out.sx = (ray1.sx + ray2.sx)/2;
@@ -5005,63 +5052,15 @@ void calculate_render_data(global const struct lightray* rays_in, global const i
 
     dat.z_shift = z_shift;
 
-    float thetaf = fmod(position.z, 2 * M_PIf);
-    float phif = position.w;
-
-    if(thetaf >= M_PIf)
-    {
-        phif += M_PIf;
-        thetaf -= M_PIf;
-    }
-
-    phif = fmod(phif, 2 * M_PIf);
-
-    float sxf = (phif) / (2 * M_PIf);
-    float syf = thetaf / M_PIf;
-
-    sxf += 0.5f;
-
-    dat.tex_coord = (float2)(sxf, syf);
+    dat.tex_coord = angle_to_tex(position.zw);
 
     rdata[id] = dat;
 }
 
-float angle_between_angles(float a1, float a2)
-{
-    float2 v1 = (float2)(cos(a1), sin(a1));
-    float2 v2 = (float2)(cos(a2), sin(a2));
-
-    v1 = normalize(v1);
-    v2 = normalize(v2);
-
-    return acos(clamp(dot(v1, v2), -1.f, 1.f));
-}
-
-float2 fix(float2 in)
-{
-    float thetaf = fmod(in.x, 2 * M_PIf);
-    float phif = in.y;
-
-    if(thetaf >= M_PIf)
-    {
-        phif += M_PIf;
-        thetaf -= M_PIf;
-    }
-
-    phif = fmod(phif, 2 * M_PIf);
-
-    return (float2)(thetaf, phif);
-}
-
 float2 angle_between_angles2(float2 a1, float2 a2)
 {
-    a1 = fix(a1);
-    a2 = fix(a2);
-
-    //return (float2)(angle_between_angles(a1.x, a2.x), angle_between_angles(a1.y, a2.y));
-
-    float3 v1 = (float3)(sin(a1.x) * cos(a1.y), sin(a1.x) * sin(a1.y), cos(a1.x));
-    float3 v2 = (float3)(sin(a2.x) * cos(a2.y), sin(a2.x) * sin(a2.y), cos(a2.x));
+    float3 v1 = angle_to_vec(a1);
+    float3 v2 = angle_to_vec(a2);
 
     return acos(clamp(dot(v1, v2), -1.f, 1.f));
 }
