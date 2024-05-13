@@ -2972,7 +2972,7 @@ void init_rays_generic(__global const float4* g_generic_camera_in, __global cons
                        int prepass_width, int prepass_height,
                        int flip_geodesic_direction,
                        __global const float4* e0, __global const float4* e1, __global const float4* e2, __global const float4* e3,
-                       dynamic_config_space const struct dynamic_config* cfg,
+                       dynamic_config_space const struct dynamic_config* cfg, dynamic_config_space const struct dynamic_feature_config* dfg,
                        int i_am_prepass)
 {
     int id = get_global_id(0);
@@ -3055,14 +3055,7 @@ void init_rays_generic(__global const float4* g_generic_camera_in, __global cons
     }
     #endif // USE_PREPASS
 
-    #define ADAPTIVE_SAMPLING
-    #ifndef ADAPTIVE_SAMPLING
-    if(id == 0)
-        *metric_ray_count = height * width;
-
-    metric_rays[id] = ray;
-    #else
-    if(i_am_prepass)
+    if(i_am_prepass || !GET_FEATURE(adaptive_sampling, dfg))
     {
         if(id == 0)
             *metric_ray_count = height * width;
@@ -3077,11 +3070,8 @@ void init_rays_generic(__global const float4* g_generic_camera_in, __global cons
         if((cx % 2) != 0 || (cy % 2) != 0)
             return;
 
-        //printf("%i %i %i %i\n", cx, cy, ray.sx, ray.sy);
-
         metric_rays[(cy/2) * (width/2) + cx/2] = ray;
     }
-    #endif // ADAPTIVE_SAMPLING
 }
 
 float4 fix_light_velocity(float4 position, float4 velocity, bool always_lightlike, dynamic_config_space const struct dynamic_config* cfg)
@@ -5108,13 +5098,17 @@ void handle_adaptive_sampling(global const struct lightray* rays_in, global cons
         float2 x_error = fabs(angle_between_angles2(lpos.zw, rpos.zw));
         float2 y_error = fabs(angle_between_angles2(dpos.zw, upos.zw));
 
+        ///hmm. Perhaps a better error measure would be to work out how divergent our view would be if a regular ray hit the wall?
+        ///the thing is, if we have a constant shear applied to the camera view, i don't want to render the whole scene in great detail, that's unnecessary
+        ///what we're looking for is when the approximation that (lpos + rpos)/2 == centre is no longer true basically
+        ///I guess the error is quantified by the differences in derivatives, of our expected derivative, vs our actual derivative
         float relative_angular_error = ((x_error.x + x_error.y + y_error.x + y_error.y)/4.f) / 2 * M_PI;
 
         float fov_angle_pi = FOV * 2 * M_PI/360.f;
 
         float rough_angular_change_per_pixel = fov_angle_pi / width;
 
-        if(relative_angular_error >= rough_angular_change_per_pixel * 64)
+        if(relative_angular_error >= rough_angular_change_per_pixel * GET_FEATURE(adaptive_sampling_threshold, dfg))
         {
             ///output the other 3 rays
 
@@ -5222,7 +5216,7 @@ float energy_of(float3 v)
     return v.x*0.2125f + v.y*0.7154f + v.z*0.0721f;
 }
 
-float3 redshift(float3 v, float z, dynamic_config_space struct dynamic_feature_config* dfg)
+float3 redshift(float3 v, float z, dynamic_config_space const struct dynamic_feature_config* dfg)
 {
     ///1 + z = gtt(recv) / gtt(src)
     ///1 + z = lnow / lthen

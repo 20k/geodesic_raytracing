@@ -35,6 +35,8 @@ struct graphics_settings : serialisable, free_function
     int max_frames_ahead = 3;
 
     bool use_old_redshift = false;
+    bool use_adaptive_sampling = true;
+    float adaptive_sampling_threshold = 32.f;
 
     std::array<int, 2> workgroup_size = {8,8};
 

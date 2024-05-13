@@ -169,8 +169,6 @@ void execute_kernel(graphics_settings& sett,
     {
         st.stored_ray_counts.set_to_zero(cqueue);
 
-        //count_in.write_async(cqueue, (const char*)&num_rays, sizeof(int));
-
         if(dfg.get_feature<bool>("use_triangle_rendering"))
         {
             cl_int my_min = INT_MAX;
@@ -1052,6 +1050,12 @@ int main(int argc, char* argv[])
     dfg.add_feature<float>("ray_skip");
     dfg.set_feature("ray_skip", 4.f);
 
+    dfg.add_feature<bool>("adaptive_sampling");
+    dfg.set_feature("adaptive_sampling", true);
+
+    dfg.add_feature<float>("adaptive_sampling_threshold");
+    dfg.set_feature("adaptive_sampling_threshold", 64.f);
+
     //print("WLs %f %f %f\n", chromaticity::srgb_to_wavelength({1, 0, 0}), chromaticity::srgb_to_wavelength({0, 1, 0}), chromaticity::srgb_to_wavelength({0, 0, 1}));
 
     int last_supersample_mult = 2;
@@ -1533,6 +1537,8 @@ int main(int argc, char* argv[])
         menu.dirty_settings = false;
 
         dfg.set_feature("use_old_redshift", menu.sett.use_old_redshift);
+        dfg.set_feature("adaptive_sampling", menu.sett.use_adaptive_sampling);
+        dfg.set_feature("adaptive_sampling_threshold", menu.sett.adaptive_sampling_threshold);
 
         exec.poll();
 
@@ -1901,9 +1907,6 @@ int main(int argc, char* argv[])
                             ImGui::SetTooltip("Radius at which lightrays raise their precision checking unconditionally");
                         }
 
-                        if(dfg.is_dirty)
-                            should_soft_recompile = true;
-
                         ImGui::Unindent();
 
                         ImGui::EndTabItem();
@@ -1972,15 +1975,6 @@ int main(int argc, char* argv[])
                         dfg.set_feature("ray_skip", (float)ray_skip);
                         ImGui::PopItemWidth();
 
-                        if(dfg.is_dirty && use_triangle_rendering)
-                        {
-                            tris.build(mqueue);
-                            phys.setup(mqueue, tris);
-                        }
-
-                        if(dfg.is_dirty)
-                            should_soft_recompile = true;
-
                         for(int idx = 0; idx < (int)tris.cpu_objects.size(); idx++)
                         {
                             std::shared_ptr<triangle_rendering::object> obj = tris.cpu_objects[idx];
@@ -2044,6 +2038,15 @@ int main(int argc, char* argv[])
                 camera_on_geodesic = false;
                 camera_time_progresses = false;
             }
+
+            if(dfg.is_dirty && dfg.get_feature<bool>("use_triangle_rendering"))
+            {
+                tris.build(mqueue);
+                phys.setup(mqueue, tris);
+            }
+
+            if(dfg.is_dirty)
+                should_soft_recompile = true;
 
             if(dfg.is_static_dirty)
             {
@@ -2357,6 +2360,7 @@ int main(int argc, char* argv[])
                     }
 
                     init_args_prepass.push_back(dynamic_config);
+                    init_args_prepass.push_back(dynamic_feature_buffer);
                     init_args_prepass.push_back(i_am_prepass);
 
                     mqueue.exec("init_rays_generic", init_args_prepass, {prepass_width*prepass_height}, {256}, {camera_quat_event, last_last_event});
@@ -2395,6 +2399,7 @@ int main(int argc, char* argv[])
                 }
 
                 init_args.push_back(dynamic_config);
+                init_args.push_back(dynamic_feature_buffer);
                 init_args.push_back(i_am_prepass);
 
                 mqueue.exec("init_rays_generic", init_args, {width*height}, {16*16}, {camera_quat_event, last_last_event});
@@ -2414,63 +2419,41 @@ int main(int argc, char* argv[])
                     mqueue.exec("calculate_render_data", texture_args, {width * height}, {16*16});
                 }
 
-                //if(false)
+                if(dfg.get_feature<bool>("adaptive_sampling"))
                 {
-                    st.rays2_count_in.set_to_zero(mqueue);
-                    st.rays3_count_in.set_to_zero(mqueue);
+                    {
+                        st.rays_adaptive_count.set_to_zero(mqueue);
 
-                    cl::args args;
-                    args.push_back(st.rays_in, st.rays_count_in,
-                                   st.render_data, st.render_data_count,
-                                   st.rays3_in, st.rays3_count_in,
-                                   st.g_camera_pos_generic,
-                                   g_camera_quat,
-                                   st.tetrad[0],
-                                   st.tetrad[1],
-                                   st.tetrad[2],
-                                   st.tetrad[3],
-                                   width,
-                                   height,
-                                   dynamic_config,
-                                   dynamic_feature_buffer
-                                   );
+                        cl::args args;
+                        args.push_back(st.rays_in, st.rays_count_in,
+                                       st.render_data, st.render_data_count,
+                                       st.rays_adaptive, st.rays_adaptive_count,
+                                       st.g_camera_pos_generic,
+                                       g_camera_quat,
+                                       st.tetrad[0],
+                                       st.tetrad[1],
+                                       st.tetrad[2],
+                                       st.tetrad[3],
+                                       width,
+                                       height,
+                                       dynamic_config,
+                                       dynamic_feature_buffer
+                                       );
 
-                    mqueue.exec("handle_adaptive_sampling", args, {width/2, height/2}, {8, 8});
+                        mqueue.exec("handle_adaptive_sampling", args, {width/2, height/2}, {8, 8});
+                    }
 
-                    std::swap(st.rays2_in, st.rays_in);
-                    std::swap(st.rays2_count_in, st.rays_count_in);
+                    {
+                        execute_kernel(menu.sett, mqueue, st.rays_adaptive, st.rays_adaptive_count, st.accel_ray_time_min, st.accel_ray_time_max, tris, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer, st.width, st.height, st, single_state, last_event);
+
+                        cl::args texture_args;
+                        texture_args.push_back(st.rays_adaptive, st.rays_adaptive_count, st.render_data, st.render_data_count,
+                                               width, height,
+                                               dynamic_config, dynamic_feature_buffer);
+
+                        mqueue.exec("calculate_render_data", texture_args, {width * height}, {16*16});
+                    }
                 }
-
-                {
-                    execute_kernel(menu.sett, mqueue, st.rays3_in, st.rays3_count_in, st.accel_ray_time_min, st.accel_ray_time_max, tris, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer, st.width, st.height, st, single_state, last_event);
-
-                    cl::args texture_args;
-                    texture_args.push_back(st.rays3_in, st.rays3_count_in, st.render_data, st.render_data_count,
-                                           width, height,
-                                           dynamic_config, dynamic_feature_buffer);
-
-                    mqueue.exec("calculate_render_data", texture_args, {width * height}, {16*16});
-
-                    cl::args coll;
-                    coll.push_back(st.rays_in, st.rays_count_in, st.rays3_in, st.rays3_count_in);
-
-                    mqueue.exec("collate_rays", coll, {width*height}, {16*16});
-                }
-
-                /*cl::args texture_args;
-                texture_args.push_back(st.rays_in);
-                texture_args.push_back(st.rays_count_in);
-                texture_args.push_back(st.texture_coordinates);
-                texture_args.push_back(width);
-                texture_args.push_back(height);
-                texture_args.push_back(dynamic_config);
-                texture_args.push_back(dynamic_feature_buffer);
-
-                mqueue.exec("calculate_texture_coordinates", texture_args, {width*height}, {16*16});*/
-
-
-                //glis.rtex.clear(mqueue);
-                //mqueue.block();
 
                 cl::args render_args;
                 render_args.push_back(st.render_data);
@@ -2487,18 +2470,6 @@ int main(int argc, char* argv[])
                 last_last_event.block();
 
                 produce_event = mqueue.exec("render", render_args, {width*height}, {16*16});
-
-                /*{
-                    cl::args dbg;
-                    dbg.push_back(rtex);
-
-                    mqueue.exec("interpolate_debug", dbg, {width, height}, {16, 16});
-                }*/
-
-                /*cl::args dbg;
-                dbg.push_back(rtex);
-
-                mqueue.exec("interpolate_debug2", dbg, {width, height}, {16, 16});*/
             }
 
             if(dfg.get_feature<bool>("use_triangle_rendering"))

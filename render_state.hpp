@@ -99,11 +99,8 @@ struct render_state
     cl::buffer rays_in;
     cl::buffer rays_count_in;
 
-    cl::buffer rays2_in;
-    cl::buffer rays2_count_in;
-
-    cl::buffer rays3_in;
-    cl::buffer rays3_count_in;
+    cl::buffer rays_adaptive;
+    cl::buffer rays_adaptive_count;
 
     cl::buffer render_data;
     cl::buffer render_data_count;
@@ -134,10 +131,8 @@ struct render_state
         tetrad{ctx, ctx, ctx, ctx},
         rays_in(ctx),
         rays_count_in(ctx),
-        rays2_in(ctx),
-        rays2_count_in(ctx),
-        rays3_in(ctx),
-        rays3_count_in(ctx),
+        rays_adaptive(ctx),
+        rays_adaptive_count(ctx),
         render_data(ctx),
         render_data_count(ctx),
         termination_buffer(ctx),
@@ -162,8 +157,7 @@ struct render_state
         }
 
         rays_count_in.alloc(sizeof(cl_int));
-        rays2_count_in.alloc(sizeof(cl_int));
-        rays3_count_in.alloc(sizeof(cl_int));
+        rays_adaptive_count.alloc(sizeof(cl_int));
         render_data_count.alloc(sizeof(cl_int));
 
         accel_ray_time_min.alloc(sizeof(cl_int));
@@ -178,8 +172,7 @@ struct render_state
         uint32_t ray_count = width * height;
 
         rays_in.alloc(ray_count * sizeof(lightray));
-        rays2_in.alloc(ray_count * sizeof(lightray));
-        rays3_in.alloc(ray_count * sizeof(lightray));
+        rays_adaptive.alloc(ray_count * sizeof(lightray));
         render_data.alloc(ray_count * sizeof(render_data_struct));
 
         termination_buffer.alloc(width * height * sizeof(cl_int));

@@ -28,6 +28,8 @@ DEFINE_SERIALISE_FUNCTION(graphics_settings)
     DO_FSERIALISE(max_frames_ahead);
     DO_FSERIALISE(workgroup_size);
     DO_FSERIALISE(use_old_redshift);
+    DO_FSERIALISE(use_adaptive_sampling);
+    DO_FSERIALISE(adaptive_sampling_threshold);
 }
 
 bool graphics_settings::display_video_settings()
@@ -93,6 +95,23 @@ bool graphics_settings::display_video_settings()
     }
 
     ImGui::Checkbox("Use Old Redshift", &use_old_redshift);
+
+    ImGui::Checkbox("Use Adaptive Sampling", &use_adaptive_sampling);
+
+    if(ImGui::IsItemHovered())
+    {
+        ImGui::SetTooltip("Improves performance by lowering the sample rate in smooth regions");
+    }
+
+    if(use_adaptive_sampling)
+    {
+        ImGui::DragFloat("Adaptive Sample Threshold", &adaptive_sampling_threshold, 1.f, 0.f, 9999.f);
+
+        if(ImGui::IsItemHovered())
+        {
+            ImGui::SetTooltip("Higher is lower quality");
+        }
+    }
 
     ImGui::NewLine();
 
