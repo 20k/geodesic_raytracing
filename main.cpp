@@ -198,7 +198,7 @@ void execute_kernel(graphics_settings& sett,
             run_args.push_back(nullptr);
 
         run_args.push_back(st.stored_ray_counts);
-        run_args.push_back(single_state.max_stored);
+        run_args.push_back(single_state.last_max_stored_rays);
 
         cqueue.exec("do_generic_rays", run_args, {width*height}, {sett.workgroup_size[0]*sett.workgroup_size[1]});
     }
@@ -1380,6 +1380,7 @@ int main(int argc, char* argv[])
     clctx.cqueue.block();
 
     float object_scale = 1.f;
+    int max_stored_rays = 90;
 
     camera cam;
 
@@ -1715,7 +1716,6 @@ int main(int argc, char* argv[])
 
             bool should_soft_recompile = false;
             bool should_update_camera_time = false;
-            bool should_set_observer_velocity = false;
             bool should_chuck_object = false;
 
             if(!taking_screenshot && !hide_ui && !menu.is_first_time_main_menu_open())
@@ -1840,10 +1840,7 @@ int main(int argc, char* argv[])
                             }
                         }
 
-                        if(ImGui::DragFloat("Observer Velocity", &linear_basis_speed, 0.001f, -0.9999999f, 0.9999999f))
-                        {
-                            should_set_observer_velocity = true;
-                        }
+                        ImGui::DragFloat("Observer Velocity", &linear_basis_speed, 0.001f, -0.9999999f, 0.9999999f);
 
                         if(has_geodesic)
                         {
@@ -1884,6 +1881,12 @@ int main(int argc, char* argv[])
                         ImGui::InputInt("Ray Skipping", &ray_skip, 1, 1);
                         ray_skip = clamp(ray_skip, 1, 32);
                         dfg.set_feature("ray_skip", (float)ray_skip);
+
+                        ImGui::InputInt("Ray Storage", &max_stored_rays, 1, 10);
+
+                        if(max_stored_rays < 1)
+                            max_stored_rays = 1;
+
                         ImGui::PopItemWidth();
 
                         ImGui::DragFloat("Object Scale", &object_scale, 0.01f, 0.01f, 100.f);
@@ -2208,16 +2211,18 @@ int main(int argc, char* argv[])
                 }
             }
 
+            bool triangle_rendering_enabled = dfg.get_feature<bool>("use_triangle_rendering");
+
             {
                 int width = glis.rtex.size<2>().x();
                 int height = glis.rtex.size<2>().y();
 
-                if(dfg.get_feature<bool>("use_triangle_rendering"))
+                if(triangle_rendering_enabled)
                 {
                     tris.update_objects(mqueue);
 
                     phys.trace(mqueue, tris, dynamic_config, dynamic_feature_buffer);
-                    single_state.lazy_allocate(width, height);
+                    single_state.lazy_allocate(width, height, max_stored_rays);
                 }
                 else
                 {
@@ -2237,7 +2242,7 @@ int main(int argc, char* argv[])
                     st.termination_buffer.set_to_zero(mqueue);
                 }*/
 
-                if(metric_manage.current_metric->metric_cfg.use_prepass && !dfg.get_feature<bool>("use_triangle_rendering"))
+                if(metric_manage.current_metric->metric_cfg.use_prepass && !triangle_rendering_enabled)
                 {
                     cl_int i_am_prepass = 1;
 
@@ -2328,7 +2333,7 @@ int main(int argc, char* argv[])
                     mqueue.exec("calculate_render_data", texture_args, {width * height}, {16*16});
                 }
 
-                if(dfg.get_feature<bool>("adaptive_sampling") && !dfg.get_feature<bool>("use_triangle_rendering"))
+                if(dfg.get_feature<bool>("adaptive_sampling") && !triangle_rendering_enabled)
                 {
                     {
                         st.rays_adaptive_count.set_to_zero(mqueue);
@@ -2378,7 +2383,7 @@ int main(int argc, char* argv[])
                 mqueue.exec("render", render_args, {width*height}, {16*16});
             }
 
-            if(dfg.get_feature<bool>("use_triangle_rendering"))
+            if(triangle_rendering_enabled)
             {
                 int chunk_x = menu.sett.workgroup_size[0];
                 int chunk_y = menu.sett.workgroup_size[1];
@@ -2419,7 +2424,7 @@ int main(int argc, char* argv[])
                         cl::args args;
                         args.push_back(single_state.stored_rays);
                         args.push_back(st.stored_ray_counts);
-                        args.push_back(single_state.max_stored);
+                        args.push_back(single_state.last_max_stored_rays);
                         args.push_back(st.stored_mins);
                         args.push_back(st.stored_maxs);
                         args.push_back(st.width);

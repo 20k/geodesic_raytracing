@@ -41,12 +41,11 @@ struct single_render_state
     cl::buffer computed_tri_count;
     int max_tris = 1024 * 1024 * 200;
 
-    cl_int max_stored = 90;
-
     bool allocated = false;
 
     uint32_t last_width = 0;
     uint32_t last_height = 0;
+    cl_int last_max_stored_rays = 0;
 
     single_render_state(cl::context& ctx) :
         stored_rays(ctx),
@@ -62,10 +61,9 @@ struct single_render_state
         *this = single_render_state(ctx);
     }
 
-    void lazy_allocate(uint32_t width, uint32_t height)
+    void lazy_allocate(uint32_t width, uint32_t height, int max_stored)
     {
-        if(allocated && last_width == width && last_height == height)
-            return;
+        max_stored = clamp(max_stored, 1, 1000);
 
         if(!allocated || last_width != width || last_height != height)
         {
@@ -78,11 +76,18 @@ struct single_render_state
             tri_list_counts1.alloc(sizeof(cl_int) * width * height);
 
             stored_rays.alloc(sizeof(cl_float4) * width * height * max_stored);
-
-            allocated = true;
-            last_width = width;
-            last_height = height;
         }
+
+        if(!allocated || last_max_stored_rays != max_stored)
+        {
+            stored_rays.alloc(sizeof(cl_float4) * width * height * max_stored);
+        }
+
+        last_width = width;
+        last_height = height;
+        last_max_stored_rays = max_stored;
+
+        allocated = true;
     }
 };
 
