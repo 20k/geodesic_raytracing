@@ -3055,7 +3055,7 @@ void init_rays_generic(__global const float4* g_generic_camera_in, __global cons
     }
     #endif // USE_PREPASS
 
-    if(i_am_prepass || !GET_FEATURE(adaptive_sampling, dfg))
+    if(i_am_prepass || !GET_FEATURE(adaptive_sampling, dfg) || GET_FEATURE(use_triangle_rendering, dfg))
     {
         if(id == 0)
             *metric_ray_count = height * width;

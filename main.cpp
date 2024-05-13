@@ -2419,7 +2419,7 @@ int main(int argc, char* argv[])
                     mqueue.exec("calculate_render_data", texture_args, {width * height}, {16*16});
                 }
 
-                if(dfg.get_feature<bool>("adaptive_sampling"))
+                if(dfg.get_feature<bool>("adaptive_sampling") && !dfg.get_feature<bool>("use_triangle_rendering"))
                 {
                     {
                         st.rays_adaptive_count.set_to_zero(mqueue);
