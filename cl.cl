@@ -5108,7 +5108,12 @@ void handle_adaptive_sampling(global const struct lightray* rays_in, global cons
 
         float rough_angular_change_per_pixel = fov_angle_pi / width;
 
-        if(relative_angular_error >= rough_angular_change_per_pixel * GET_FEATURE(adaptive_sampling_threshold, dfg))
+        bool should_sample = relative_angular_error >= rough_angular_change_per_pixel * GET_FEATURE(adaptive_sampling_threshold, dfg);
+
+        if(centre.terminated != left.terminated || centre.terminated != right.terminated || centre.terminated != up.terminated || centre.terminated != down.terminated || centre.terminated != down_right.terminated)
+            should_sample = true;
+
+        if(should_sample)
         {
             ///output the other 3 rays
 
