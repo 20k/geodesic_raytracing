@@ -14,6 +14,18 @@ struct lightray
     cl_float ku_uobsu;
     cl_float running_dlambda_dnew;
     cl_int terminated;
+    cl_int sx;
+    cl_int sy;
+};
+
+struct render_data_struct
+{
+    cl_float2 tex_coord;
+    cl_float z_shift;
+    cl_int sx;
+    cl_int sy;
+    cl_int terminated;
+    cl_int side;
 };
 
 struct single_render_state
@@ -87,6 +99,12 @@ struct render_state
     cl::buffer rays_in;
     cl::buffer rays_count_in;
 
+    cl::buffer rays_adaptive;
+    cl::buffer rays_adaptive_count;
+
+    cl::buffer render_data;
+    cl::buffer render_data_count;
+
     cl::buffer termination_buffer;
 
     cl::buffer texture_coordinates;
@@ -113,6 +131,10 @@ struct render_state
         tetrad{ctx, ctx, ctx, ctx},
         rays_in(ctx),
         rays_count_in(ctx),
+        rays_adaptive(ctx),
+        rays_adaptive_count(ctx),
+        render_data(ctx),
+        render_data_count(ctx),
         termination_buffer(ctx),
         texture_coordinates(ctx),
         accel_ray_time_min(ctx), accel_ray_time_max(ctx),
@@ -135,6 +157,8 @@ struct render_state
         }
 
         rays_count_in.alloc(sizeof(cl_int));
+        rays_adaptive_count.alloc(sizeof(cl_int));
+        render_data_count.alloc(sizeof(cl_int));
 
         accel_ray_time_min.alloc(sizeof(cl_int));
         accel_ray_time_max.alloc(sizeof(cl_int));
@@ -148,6 +172,8 @@ struct render_state
         uint32_t ray_count = width * height;
 
         rays_in.alloc(ray_count * sizeof(lightray));
+        rays_adaptive.alloc(ray_count * sizeof(lightray));
+        render_data.alloc(ray_count * sizeof(render_data_struct));
 
         termination_buffer.alloc(width * height * sizeof(cl_int));
         texture_coordinates.alloc(width * height * sizeof(float) * 2);

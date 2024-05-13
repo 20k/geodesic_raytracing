@@ -169,8 +169,6 @@ void execute_kernel(graphics_settings& sett,
     {
         st.stored_ray_counts.set_to_zero(cqueue);
 
-        count_in.write_async(cqueue, (const char*)&num_rays, sizeof(int));
-
         if(dfg.get_feature<bool>("use_triangle_rendering"))
         {
             cl_int my_min = INT_MAX;
@@ -203,7 +201,7 @@ void execute_kernel(graphics_settings& sett,
         run_args.push_back(st.stored_ray_counts);
         run_args.push_back(single_state.max_stored);
 
-        cqueue.exec("do_generic_rays", run_args, {width, height}, {sett.workgroup_size[0], sett.workgroup_size[1]}, {evt});
+        cqueue.exec("do_generic_rays", run_args, {width*height}, {sett.workgroup_size[0]*sett.workgroup_size[1]}, {evt});
     }
 }
 
@@ -1052,6 +1050,12 @@ int main(int argc, char* argv[])
     dfg.add_feature<float>("ray_skip");
     dfg.set_feature("ray_skip", 4.f);
 
+    dfg.add_feature<bool>("adaptive_sampling");
+    dfg.set_feature("adaptive_sampling", true);
+
+    dfg.add_feature<float>("adaptive_sampling_threshold");
+    dfg.set_feature("adaptive_sampling_threshold", 64.f);
+
     //print("WLs %f %f %f\n", chromaticity::srgb_to_wavelength({1, 0, 0}), chromaticity::srgb_to_wavelength({0, 1, 0}), chromaticity::srgb_to_wavelength({0, 0, 1}));
 
     int last_supersample_mult = 2;
@@ -1533,6 +1537,8 @@ int main(int argc, char* argv[])
         menu.dirty_settings = false;
 
         dfg.set_feature("use_old_redshift", menu.sett.use_old_redshift);
+        dfg.set_feature("adaptive_sampling", menu.sett.use_adaptive_sampling);
+        dfg.set_feature("adaptive_sampling_threshold", menu.sett.adaptive_sampling_threshold);
 
         exec.poll();
 
@@ -1901,9 +1907,6 @@ int main(int argc, char* argv[])
                             ImGui::SetTooltip("Radius at which lightrays raise their precision checking unconditionally");
                         }
 
-                        if(dfg.is_dirty)
-                            should_soft_recompile = true;
-
                         ImGui::Unindent();
 
                         ImGui::EndTabItem();
@@ -1972,15 +1975,6 @@ int main(int argc, char* argv[])
                         dfg.set_feature("ray_skip", (float)ray_skip);
                         ImGui::PopItemWidth();
 
-                        if(dfg.is_dirty && use_triangle_rendering)
-                        {
-                            tris.build(mqueue);
-                            phys.setup(mqueue, tris);
-                        }
-
-                        if(dfg.is_dirty)
-                            should_soft_recompile = true;
-
                         for(int idx = 0; idx < (int)tris.cpu_objects.size(); idx++)
                         {
                             std::shared_ptr<triangle_rendering::object> obj = tris.cpu_objects[idx];
@@ -2044,6 +2038,15 @@ int main(int argc, char* argv[])
                 camera_on_geodesic = false;
                 camera_time_progresses = false;
             }
+
+            if(dfg.is_dirty && dfg.get_feature<bool>("use_triangle_rendering"))
+            {
+                tris.build(mqueue);
+                phys.setup(mqueue, tris);
+            }
+
+            if(dfg.is_dirty)
+                should_soft_recompile = true;
 
             if(dfg.is_static_dirty)
             {
@@ -2327,12 +2330,16 @@ int main(int argc, char* argv[])
 
                 if(metric_manage.current_metric->metric_cfg.use_prepass && !dfg.get_feature<bool>("use_triangle_rendering"))
                 {
+                    cl_int i_am_prepass = 1;
+
                     cl::args clear_args;
                     clear_args.push_back(st.termination_buffer);
                     clear_args.push_back(prepass_width);
                     clear_args.push_back(prepass_height);
 
                     mqueue.exec("clear_termination_buffer", clear_args, {prepass_width*prepass_height}, {256});
+
+                    st.rays_count_in.set_to_zero(mqueue);
 
                     cl::args init_args_prepass;
 
@@ -2353,6 +2360,8 @@ int main(int argc, char* argv[])
                     }
 
                     init_args_prepass.push_back(dynamic_config);
+                    init_args_prepass.push_back(dynamic_feature_buffer);
+                    init_args_prepass.push_back(i_am_prepass);
 
                     mqueue.exec("init_rays_generic", init_args_prepass, {prepass_width*prepass_height}, {256}, {camera_quat_event, last_last_event});
 
@@ -2369,6 +2378,8 @@ int main(int argc, char* argv[])
 
                     mqueue.exec("calculate_singularities", singular_args, {prepass_width*prepass_height}, {256});
                 }
+
+                cl_int i_am_prepass = 0;
 
                 cl::args init_args;
                 init_args.push_back(st.g_camera_pos_generic);
@@ -2388,6 +2399,8 @@ int main(int argc, char* argv[])
                 }
 
                 init_args.push_back(dynamic_config);
+                init_args.push_back(dynamic_feature_buffer);
+                init_args.push_back(i_am_prepass);
 
                 mqueue.exec("init_rays_generic", init_args, {width*height}, {16*16}, {camera_quat_event, last_last_event});
 
@@ -2395,45 +2408,68 @@ int main(int argc, char* argv[])
 
                 execute_kernel(menu.sett, mqueue, st.rays_in, st.rays_count_in, st.accel_ray_time_min, st.accel_ray_time_max, tris, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer, st.width, st.height, st, single_state, last_event);
 
-                cl::args texture_args;
-                texture_args.push_back(st.rays_in);
-                texture_args.push_back(st.rays_count_in);
-                texture_args.push_back(st.texture_coordinates);
-                texture_args.push_back(width);
-                texture_args.push_back(height);
-                texture_args.push_back(dynamic_config);
-                texture_args.push_back(dynamic_feature_buffer);
+                st.render_data_count.set_to_zero(mqueue);
 
-                mqueue.exec("calculate_texture_coordinates", texture_args, {width, height}, {16, 16});
+                {
+                    cl::args texture_args;
+                    texture_args.push_back(st.rays_in, st.rays_count_in, st.render_data, st.render_data_count,
+                                           width, height,
+                                           dynamic_config, dynamic_feature_buffer);
+
+                    mqueue.exec("calculate_render_data", texture_args, {width * height}, {16*16});
+                }
+
+                if(dfg.get_feature<bool>("adaptive_sampling") && !dfg.get_feature<bool>("use_triangle_rendering"))
+                {
+                    {
+                        st.rays_adaptive_count.set_to_zero(mqueue);
+
+                        cl::args args;
+                        args.push_back(st.rays_in, st.rays_count_in,
+                                       st.render_data, st.render_data_count,
+                                       st.rays_adaptive, st.rays_adaptive_count,
+                                       st.g_camera_pos_generic,
+                                       g_camera_quat,
+                                       st.tetrad[0],
+                                       st.tetrad[1],
+                                       st.tetrad[2],
+                                       st.tetrad[3],
+                                       width,
+                                       height,
+                                       dynamic_config,
+                                       dynamic_feature_buffer
+                                       );
+
+                        mqueue.exec("handle_adaptive_sampling", args, {width/2, height/2}, {8, 8});
+                    }
+
+                    {
+                        execute_kernel(menu.sett, mqueue, st.rays_adaptive, st.rays_adaptive_count, st.accel_ray_time_min, st.accel_ray_time_max, tris, phys, rays_num, false, dfg, dynamic_config, dynamic_feature_buffer, st.width, st.height, st, single_state, last_event);
+
+                        cl::args texture_args;
+                        texture_args.push_back(st.rays_adaptive, st.rays_adaptive_count, st.render_data, st.render_data_count,
+                                               width, height,
+                                               dynamic_config, dynamic_feature_buffer);
+
+                        mqueue.exec("calculate_render_data", texture_args, {width * height}, {16*16});
+                    }
+                }
 
                 cl::args render_args;
-                render_args.push_back(st.rays_in);
-                render_args.push_back(st.rays_count_in);
+                render_args.push_back(st.render_data);
+                render_args.push_back(st.render_data_count);
                 render_args.push_back(glis.rtex);
                 render_args.push_back(back_images.i1);
                 render_args.push_back(back_images.i2);
                 render_args.push_back(width);
                 render_args.push_back(height);
-                render_args.push_back(st.texture_coordinates);
                 render_args.push_back(menu.sett.anisotropy);
                 render_args.push_back(dynamic_config);
                 render_args.push_back(dynamic_feature_buffer);
 
                 last_last_event.block();
 
-                produce_event = mqueue.exec("render", render_args, {width, height}, {16, 16});
-
-                /*{
-                    cl::args dbg;
-                    dbg.push_back(rtex);
-
-                    mqueue.exec("interpolate_debug", dbg, {width, height}, {16, 16});
-                }*/
-
-                /*cl::args dbg;
-                dbg.push_back(rtex);
-
-                mqueue.exec("interpolate_debug2", dbg, {width, height}, {16, 16});*/
+                produce_event = mqueue.exec("render", render_args, {width*height}, {16*16});
             }
 
             if(dfg.get_feature<bool>("use_triangle_rendering"))
@@ -2519,6 +2555,7 @@ int main(int argc, char* argv[])
 
                     {
                         cl::args args;
+                        args.push_back(tris.tris);
                         args.push_back(single_state.computed_tris);
                         args.push_back(single_state.computed_tri_count);
                         args.push_back(phys.object_count);
