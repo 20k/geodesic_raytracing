@@ -103,14 +103,11 @@ bool graphics_settings::display_video_settings()
         ImGui::SetTooltip("Improves performance by lowering the sample rate in smooth regions");
     }
 
-    if(use_adaptive_sampling)
-    {
-        ImGui::DragFloat("Adaptive Sample Threshold", &adaptive_sampling_threshold, 1.f, 0.f, 9999.f);
+    ImGui::DragFloat("Adaptive Sample Threshold", &adaptive_sampling_threshold, 1.f, 0.f, 9999.f);
 
-        if(ImGui::IsItemHovered())
-        {
-            ImGui::SetTooltip("Higher is lower quality");
-        }
+    if(ImGui::IsItemHovered())
+    {
+        ImGui::SetTooltip("Higher is lower quality");
     }
 
     ImGui::NewLine();
