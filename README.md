@@ -10,11 +10,11 @@ This includes black holes, naked singularities, wormholes, warp drives, cosmic s
 
 Pop over to releases and download the latest release. In the top left you can pick your metric, on the right hand side you've got a variety of settings
 
-When in mouse mode, WASD + arrow keys control the camera. Press tab to toggle to mouse look
+When in mouse mode, WASD + arrow keys control the camera. Press tab to toggle mouse look
 
 # What features does this support?
 
-This tool can also do redshift visualisations, has the ability to dynamically modify metric parameters at runtime, and you can attach the camera to a geodesic to fly through a wormhole or fall into a black hole
+This tool can also do redshift visualisations, has the ability to dynamically modify metric parameters at runtime, and you can attach the camera to a geodesic to fly through a wormhole or fall into a black hole. There's also a 4d general relativistic triangle renderer (that at the moment renders cubes), which can accurately render objects along their full timeline. 
 
 Arbitrary metrics can also be added easily in javascript, including complex valued functions. See ./scripts for examples of this. The steam workshop is also supported, if you own this on steam (it'll be free!)
 
@@ -26,7 +26,7 @@ If you want to keep up with development, a full todo list is over here https://t
 
 The intent is to merge a full numerical relativistic simulator into this in the long term, to produce a complete spacetime simulator. That's a way aways though
 
-There's a bunch of other things I'd love to put in here, especially triangle rendering and rigid body physics, but we'll see how things go!
+There's a bunch of other things I'd love to put in here, especially more advanced triangle rendering and rigid body physics, but we'll see how things go!
 
 # Give me the technical details!
 
