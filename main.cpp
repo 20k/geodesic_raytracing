@@ -1887,6 +1887,11 @@ int main(int argc, char* argv[])
                         if(max_stored_rays < 1)
                             max_stored_rays = 1;
 
+                        if(ImGui::IsItemHovered())
+                        {
+                            ImGui::SetTooltip("Maximum length of ray segments that can be stored in memory, takes up significant vram");
+                        }
+
                         ImGui::PopItemWidth();
 
                         ImGui::DragFloat("Object Scale", &object_scale, 0.01f, 0.01f, 100.f);
