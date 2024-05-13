@@ -102,7 +102,15 @@ bool graphics_settings::display_video_settings()
 
     ImGui::NewLine();
 
-    return ImGui::Button("Apply");
+    bool dirty = false;
+
+    /*if(ImGui::Button("Reset"))
+    {
+        dirty = true;
+        *this = graphics_settings();
+    }*/
+
+    return ImGui::Button("Apply") || dirty;
 }
 
 bool graphics_settings::display_control_settings()
