@@ -1023,7 +1023,7 @@ int main(int argc, char* argv[])
 
     dynamic_feature_config dfg;
     dfg.add_feature<bool>("use_triangle_rendering");
-    dfg.set_feature("use_triangle_rendering", true);
+    dfg.set_feature("use_triangle_rendering", false);
 
     dfg.add_feature<bool>("redshift");
     dfg.set_feature("redshift", false);
@@ -1311,7 +1311,7 @@ int main(int argc, char* argv[])
     obj->tris = make_cube({0, 0, 0});
     obj->pos = {0, -5, 0, 0};*/
 
-    #define CUBE_INTO_HORIZON
+    //#define CUBE_INTO_HORIZON
     #ifdef CUBE_INTO_HORIZON
     ///event horizon tester
     std::shared_ptr<triangle_rendering::object> obj = tris.make_new();
