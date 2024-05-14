@@ -3732,11 +3732,24 @@ float3 triangle_normal(float3 v0, float3 v1, float3 v2)
     return normalize(cross(U, V));
 }
 
+float4 sort_vector_timelike(float4 in, int which)
+{
+    if(which == 0)
+        return in;
+
+    float arr[4] = {in.x, in.y, in.z, in.w};
+
+    SWAP(arr[0], arr[which], float);
+
+    return (float4)(arr[0], arr[1], arr[2], arr[3]);
+}
+
 bool intersects_at_fraction(float3 v0, float3 normal, float4 initial_origin, float4 initial_diff,
                             float4 ray_vel_1,
                             float4 object_geodesic_1, float4 object_geodesic_2,
                             float4 i_re0, float4 i_re1, float4 i_re2, float4 i_re3,
                             float4 i_ne0, float4 i_ne1, float4 i_ne2, float4 i_ne3,
+                            int which_coordinate_timelike,
                             float fraction,
                             float4* restrict pos_out, float4* restrict dir_out,
                             float* restrict t_out
@@ -3772,9 +3785,10 @@ bool intersects_at_fraction(float3 v0, float3 normal, float4 initial_origin, flo
 }
 
 bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3 v0, float3 v1, float3 v2, float4 object_geodesic_origin, float4 next_object_geodesic_origin,
-                              float4 i_re0, float4 i_re1, float4 i_re2, float4 i_re3, ///inverse current geodesic segment tetrad
-                              float4 i_ne0, float4 i_ne1, float4 i_ne2, float4 i_ne3, ///inverse next geodesic segment tetrad
-                              float4 periods, float* t_out, bool debug)
+                               int which_coordinate_timelike,
+                               float4 i_re0, float4 i_re1, float4 i_re2, float4 i_re3, ///inverse current geodesic segment tetrad
+                               float4 i_ne0, float4 i_ne1, float4 i_ne2, float4 i_ne3, ///inverse next geodesic segment tetrad
+                               float4 periods, float* t_out, bool debug)
 {
     float ray_lower_t = next_global_pos.x;
     float ray_upper_t = global_pos.x;
@@ -3803,6 +3817,7 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
     #define INTERSECTS_AT(in_frac) intersects_at_fraction(v0, plane_normal, initial_origin, initial_diff, ray_vel, object_pos_1, object_pos_2,\
                                       i_re0, i_re1, i_re2, i_re3,\
                                       i_ne0, i_ne1, i_ne2, i_ne3,\
+                                      which_coordinate_timelike,\
                                       in_frac, &last_pos, &last_dir, &last_dt)
 
     #pragma unroll
@@ -4473,6 +4488,7 @@ void render_chunked_tris(global const struct triangle* const tris,
                          global float4* object_geodesics, global int* object_geodesic_counts,
                          global float4* p_e0, global float4* p_e1, global float4* p_e2, global float4* p_e3,
                          global const float4* restrict inverse_e0s, __global const float4* restrict inverse_e1s, __global const float4* restrict inverse_e2s, __global const float4* restrict inverse_e3s,
+                         global const int* timelike_coordinates,
                          global float4* fine_clip_min, global float4* fine_clip_max,
                          global int* already_rendered,
                          dynamic_config_space const struct dynamic_config* cfg,
@@ -4553,6 +4569,8 @@ void render_chunked_tris(global const struct triangle* const tris,
             float4 native_current = object_geodesics[tri.geodesic_segment];
             float4 native_next = object_geodesics[tri.geodesic_segment + stride * COMPUTED_SKIP];
 
+            int which_timelike = timelike_coordinates[tri.geodesic_segment];
+
             ///current inverse tetrads
             float4 s_ie0 = inverse_e0s[tri.geodesic_segment];
             float4 s_ie1 = inverse_e1s[tri.geodesic_segment];
@@ -4577,7 +4595,7 @@ void render_chunked_tris(global const struct triangle* const tris,
             ///i'm doing this raywise, but traversing the entire ray, so early terminate is borked
             ///this is very inefficient, go along the way and then check the tris
             ///or maybe not actually, there's some good short circuiting i can do, and the tris need more memory fetche
-            if(ray_intersects_toblerone2(current_pos, next_pos, v0, v1, v2, native_current, native_next,
+            if(ray_intersects_toblerone2(current_pos, next_pos, v0, v1, v2, native_current, native_next, which_timelike,
                                          s_ie0, s_ie1, s_ie2, s_ie3, n_ie0, n_ie1, n_ie2, n_ie3, periods, &ray_t, ray_x == 1353 && ray_y == 406))
             {
                 if(last_ray_t != FLT_MAX && ray_t >= last_ray_t)

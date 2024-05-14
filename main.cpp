@@ -2494,6 +2494,8 @@ int main(int argc, char* argv[])
                         for(int i=0; i < 4; i++)
                             args.push_back(phys.subsampled_inverted_tetrads[i]);
 
+                        args.push_back(phys.subsampled_timelike_coordinate);
+
                         args.push_back(st.stored_mins);
                         args.push_back(st.stored_maxs);
                         args.push_back(st.already_rendered);
