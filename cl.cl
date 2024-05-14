@@ -1676,6 +1676,36 @@ void get_local_minkowski(float4 e0_hi, float4 e1_hi, float4 e2_hi, float4 e3_hi,
     }
 }
 
+int calculate_which_coordinate_is_timelike(float4 e0, float4 e1, float4 e2, float4 e3, float big_metric[16])
+{
+    float eps = 0.00001f;
+
+    float minkowski[16];
+    get_local_minkowski(e0, e1, e2, e3, big_metric, minkowski);
+
+    ///is_degenerate check is because its not helpful
+    ///ok no, can quite generally end up with explosions
+    /*if(!IS_DEGENERATE(minkowski[0]) && !approx_equal(minkowski[0], -1, eps) && approx_equal(minkowski[0], 1, eps))
+    {
+        for(int i=0; i < 16; i++)
+        {
+            printf("Mink %f %i\n", minkowski[i], i);
+        }
+
+        printf("Warning, first column vector is not timelike. Todo for me: Fix this %f\n", minkowski[0]);
+    }*/
+
+    for(int i=0; i < 4; i++)
+    {
+        if(approx_equal(minkowski[i * 4 + i], -1, eps))
+            return i;
+    }
+
+    printf("Warning, no index is timelike, physics is broken\n");
+
+    return -1;
+}
+
 ///todo: generic orthonormalisation
 struct frame_basis calculate_frame_basis(float big_metric[])
 {
@@ -1736,7 +1766,6 @@ struct frame_basis calculate_frame_basis(float big_metric[])
     }
 
     float minkowski[16];
-
     get_local_minkowski(sorted_result[0], sorted_result[1], sorted_result[2], sorted_result[3], big_metric, minkowski);
 
     ///is_degenerate check is because its not helpful
@@ -1756,14 +1785,7 @@ struct frame_basis calculate_frame_basis(float big_metric[])
     ///do I need to reshuffle spatial indices?
     if(!approx_equal(minkowski[0], -1, eps))
     {
-        for(int i=0; i < 4; i++)
-        {
-            if(approx_equal(minkowski[i * 4 + i], -1, eps))
-            {
-                which_index_is_timelike = i;
-                break;
-            }
-        }
+        which_index_is_timelike = calculate_which_coordinate_is_timelike(sorted_result[0], sorted_result[1], sorted_result[2], sorted_result[3], big_metric);
 
         ///catastrophic failure
         if(which_index_is_timelike == -1)
