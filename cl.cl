@@ -3820,9 +3820,16 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
 {
     #define TIMELIKE(x) get_vector_timelike_component(x, which_coordinate_timelike)
 
+    /*float ray_lower_t = min(TIMELIKE(next_global_pos), TIMELIKE(global_pos));
+    float ray_upper_t = max(TIMELIKE(next_global_pos), TIMELIKE(global_pos));
+
+    float tri_lower_t = min(TIMELIKE(next_object_geodesic_origin), TIMELIKE(object_geodesic_origin));
+    float tri_upper_t = max(TIMELIKE(next_object_geodesic_origin), TIMELIKE(object_geodesic_origin));*/
+
     float ray_lower_t = TIMELIKE(next_global_pos);
     float ray_upper_t = TIMELIKE(global_pos);
 
+    ///tri lower and tri upper aren't right, for some reason?
     float tri_lower_t = TIMELIKE(object_geodesic_origin);
     float tri_upper_t = TIMELIKE(next_object_geodesic_origin);
 
