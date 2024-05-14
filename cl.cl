@@ -3778,14 +3778,21 @@ void subsample_tri_quantity(int count, __global const int* geodesic_counts, __gl
         float4 e2 = t_e2[current_idx];
         float4 e3 = t_e3[current_idx];
 
+        struct frame_basis basis = calculate_frame_basis_at(geodesic_path[current_idx], cfg);
+
+        float4 unarranged[4] = {e0, e1, e2, e3};
+        SWAP(unarranged[0], unarranged[basis.timelike_coordinate], float4);
+
         float4 e_lo[4];
-        get_tetrad_inverse(e0, e1, e2, e3, &e_lo[0], &e_lo[1], &e_lo[2], &e_lo[3]);
+        get_tetrad_inverse(unarranged[0], unarranged[1], unarranged[2], unarranged[3], &e_lo[0], &e_lo[1], &e_lo[2], &e_lo[3]);
 
         float4 current_position = geodesic_path[current_idx];
 
         float4 to_next = periodic_diff(current_position, last_position, periods);
 
         float4 in_tetrad = coordinate_to_tetrad_basis(to_next, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
+
+        sort_vector_timelike(in_tetrad, basis.timelike_coordinate);
 
         last_position = current_position;
 
