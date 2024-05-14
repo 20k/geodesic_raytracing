@@ -1023,7 +1023,7 @@ int main(int argc, char* argv[])
 
     dynamic_feature_config dfg;
     dfg.add_feature<bool>("use_triangle_rendering");
-    dfg.set_feature("use_triangle_rendering", false);
+    dfg.set_feature("use_triangle_rendering", true);
 
     dfg.add_feature<bool>("redshift");
     dfg.set_feature("redshift", false);
@@ -2416,6 +2416,7 @@ int main(int argc, char* argv[])
                     args.push_back(single_state.computed_tri_count);
                     args.push_back(st.accel_ray_time_min);
                     args.push_back(st.accel_ray_time_max);
+                    args.push_back(phys.subsampled_timelike_coordinate);
                     args.push_back(dynamic_config);
 
                     mqueue.exec("generate_computed_tris", args, {tris.tri_count}, {128});

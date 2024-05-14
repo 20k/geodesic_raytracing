@@ -3748,6 +3748,13 @@ float4 sort_vector_timelike(float4 in, int which)
     return (float4)(arr[0], arr[1], arr[2], arr[3]);
 }
 
+float4 put_timelike_in_correct_position(float4 txyz, int which)
+{
+    ///because this just performs a simple swap, its always valid
+    return sort_vector_timelike(txyz, which);
+}
+
+
 float get_vector_timelike_component(float4 v, int which)
 {
     if(which == 0)
@@ -4321,6 +4328,7 @@ void generate_computed_tris(global struct triangle* tris, int tri_count,
                             global float4* p_e0, global float4* p_e1, global float4* p_e2, global float4* p_e3,
                             global struct computed* ctris, global int* ctri_count,
                             global int* restrict ray_time_min, global int* restrict ray_time_max,
+                            global int* timelike_coordinates,
                             dynamic_config_space const struct dynamic_config* cfg)
 {
     int tri_id = get_global_id(0);
@@ -4364,9 +4372,16 @@ void generate_computed_tris(global struct triangle* tris, int tri_count,
             float4 n_e3 = p_e3[(cc + skip) * stride + tri.parent];
 
             ///triangle coordinates in local space
+            ///i think this is the problem, we've arranged by timelike, spacelike, but the tetrads aren't in the right order
             float4 vert_0 = (float4)(0, tri.v0x, tri.v0y, tri.v0z);
             float4 vert_1 = (float4)(0, tri.v1x, tri.v1y, tri.v1z);
             float4 vert_2 = (float4)(0, tri.v2x, tri.v2y, tri.v2z);
+
+            int timelike_coordinate = timelike_coordinates[cc * stride + tri.parent];
+
+            vert_0 = put_timelike_in_correct_position(vert_0, timelike_coordinate);
+            vert_1 = put_timelike_in_correct_position(vert_1, timelike_coordinate);
+            vert_2 = put_timelike_in_correct_position(vert_2, timelike_coordinate);
 
             ///start triangle coordinates (as a vector) in tangent space
             float4 s_coordinate_v0 = tetrad_to_coordinate_basis(vert_0, s_e0, s_e1, s_e2, s_e3);
