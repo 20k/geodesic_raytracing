@@ -33,6 +33,8 @@ struct physics
     cl::buffer subsampled_segment_maxs;
     cl::buffer subsampled_timelike_coordinate;
 
+    cl::buffer initial_timelike;
+
 
     int object_count = 0;
 
@@ -42,7 +44,7 @@ struct physics
                                 gpu_object_count(ctx),
                                 tetrads{ctx, ctx, ctx, ctx}, parallel_transported_tetrads{ctx, ctx, ctx, ctx}, inverted_tetrads{ctx, ctx, ctx, ctx}, generic_positions(ctx), timelike_vectors(ctx),
                                 subsampled_paths(ctx), subsampled_velocities(ctx), subsampled_ds(ctx), subsampled_counts(ctx), subsampled_parallel_transported_tetrads{ctx, ctx, ctx, ctx}, subsampled_inverted_tetrads{ctx, ctx, ctx, ctx},
-                                subsampled_segment_mins(ctx), subsampled_segment_maxs(ctx), subsampled_timelike_coordinate(ctx)
+                                subsampled_segment_mins(ctx), subsampled_segment_maxs(ctx), subsampled_timelike_coordinate(ctx), initial_timelike(ctx)
     {
         gpu_object_count.alloc(sizeof(cl_int));
     }
@@ -79,6 +81,8 @@ struct physics
         subsampled_segment_mins.alloc(clamped_count * sizeof(cl_float4) * max_path_length);
         subsampled_segment_maxs.alloc(clamped_count * sizeof(cl_float4) * max_path_length);
         subsampled_timelike_coordinate.alloc(clamped_count * sizeof(char) * max_path_length);
+
+        initial_timelike.alloc(clamped_count * sizeof(int));
 
         generic_positions.alloc(clamped_count * sizeof(cl_float4));
         timelike_vectors.alloc(clamped_count * 1024); ///approximate because don't want to import gpu lightray definition
@@ -260,8 +264,19 @@ struct physics
 
         {
             cl::args args;
+            args.push_back(generic_positions);
+            args.push_back(object_count);
+            args.push_back(dynamic_config);
+            args.push_back(initial_timelike);
+
+            cqueue.exec("calculate_timelike_coordinates", args, {object_count}, {256});
+        }
+
+        {
+            cl::args args;
             args.push_back(subsampled_paths);
             args.push_back(subsampled_counts);
+            args.push_back(initial_timelike);
             args.push_back(subsampled_parallel_transported_tetrads[0]);
             args.push_back(subsampled_parallel_transported_tetrads[1]);
             args.push_back(subsampled_parallel_transported_tetrads[2]);
@@ -272,6 +287,7 @@ struct physics
 
             cqueue.exec("calculate_timelike_coordinates_for_path", args, {object_count}, {256});
         }
+
 
         #if 0
         {

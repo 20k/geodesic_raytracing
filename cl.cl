@@ -4,6 +4,7 @@
 
 #define M_PIf ((float)M_PI)
 #define E4(n) n.x, n.y, n.z, n.w
+#define SWAP(x, y, T) do { T SWAP = x; x = y; y = SWAP; } while (0)
 
 struct triangle
 {
@@ -1606,8 +1607,6 @@ float4 normalise_big(float4 in, float big_metric[])
     return in / native_sqrt(fabs(d));
 }
 
-#define SWAP(x, y, T) do { T SWAP = x; x = y; y = SWAP; } while (0)
-
 ///i1-4 are raised
 ///this doesn't handle diagonal matrices!!!
 struct orthonormal_basis orthonormalise4_metric(float4 i1, float4 i2, float4 i3, float4 i4, float big_metric[])
@@ -2189,8 +2188,41 @@ void calculate_timelike_coordinate(__global const float4* generic_position, dyna
 }
 
 __kernel
+void calculate_timelike_coordinates(__global const float4* positions, int count, dynamic_config_space const struct dynamic_config* cfg, __global int* coordinate_out)
+{
+    int id = get_global_id(0);
+
+    if(id >= count)
+        return;
+
+    float4 at_metric = positions[id];
+
+    #ifndef GENERIC_BIG_METRIC
+    float g_metric_local[4] = {};
+    calculate_metric_generic(at_metric, g_metric_local, cfg);
+
+    float g_metric_big_local[16] = {0};
+
+    g_metric_big_local[0] = g_metric_local[0];
+    g_metric_big_local[1*4 + 1] = g_metric_local[1];
+    g_metric_big_local[2*4 + 2] = g_metric_local[2];
+    g_metric_big_local[3*4 + 3] = g_metric_local[3];
+    #endif
+
+    #ifdef GENERIC_BIG_METRIC
+    float g_metric_big_local[16] = {0};
+    calculate_metric_generic_big(at_metric, g_metric_big_local, cfg);
+    #endif
+
+    struct frame_basis basis = calculate_frame_basis(g_metric_big_local);
+
+    coordinate_out[id] = basis.timelike_coordinate;
+}
+
+__kernel
 void calculate_timelike_coordinates_for_path(global const float4* positions, global const int* counts,
                                              global float4* e0_in, global float4* e1_in, global float4* e2_in, global float4* e3_in,
+                                             global const int* initial_timelike,
                                              int object_count, dynamic_config_space const struct dynamic_config* cfg, global int* coordinates_out)
 {
     int id = get_global_id(0);
@@ -2199,6 +2231,7 @@ void calculate_timelike_coordinates_for_path(global const float4* positions, glo
         return;
 
     int my_path_length = counts[id];
+    int first_timelike = initial_timelike[id];
 
     for(int kk=0; kk < my_path_length; kk++)
     {
@@ -2208,10 +2241,10 @@ void calculate_timelike_coordinates_for_path(global const float4* positions, glo
 
         printf("Coord %f %f %f %f\n", position.x, position.y, position.z, position.w);
 
-        float4 e0 = e0_in[p_id];
-        float4 e1 = e1_in[p_id];
-        float4 e2 = e2_in[p_id];
-        float4 e3 = e3_in[p_id];
+        float4 tets[4] = {e0_in[p_id], e1_in[p_id], e2_in[p_id], e3_in[p_id]};
+
+        if(first_timelike != 0)
+            SWAP(tets[0], tets[first_timelike], float4);
 
         #ifndef GENERIC_BIG_METRIC
         float g_metric_local[4] = {};
@@ -2230,7 +2263,9 @@ void calculate_timelike_coordinates_for_path(global const float4* positions, glo
         calculate_metric_generic_big(position, g_metric_big_local, cfg);
         #endif
 
-        coordinates_out[p_id] = calculate_which_coordinate_is_timelike(e0, e1, e2, e3, g_metric_big_local);
+        coordinates_out[p_id] = calculate_which_coordinate_is_timelike(tets[0], tets[1], tets[2], tets[3], g_metric_big_local);
+
+        printf("Timelike %i\n", coordinates_out[p_id]);
     }
 
 }
