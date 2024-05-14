@@ -1695,15 +1695,31 @@ int calculate_which_coordinate_is_timelike(float4 e0, float4 e1, float4 e2, floa
         printf("Warning, first column vector is not timelike. Todo for me: Fix this %f\n", minkowski[0]);
     }*/
 
+    int lowest_index = -1;
+    float lowest_index_value = 0;
+
     for(int i=0; i < 4; i++)
     {
-        if(approx_equal(minkowski[i * 4 + i], -1, eps))
-            return i;
+        if(minkowski[i * 4 + i] < lowest_index_value)
+        {
+            lowest_index = i;
+            lowest_index_value = minkowski[i * 4 + i];
+        }
+    }
+
+    //printf("Lowest index %i\n", lowest_index);
+
+    if(lowest_index != -1)
+        return lowest_index;
+
+    for(int i=0; i < 4; i++)
+    {
+        printf("Kowski %f\n", minkowski[i * 4 + i]);
     }
 
     printf("Warning, no index is timelike, physics is broken\n");
 
-    return -1;
+    return 0;
 }
 
 ///todo: generic orthonormalisation
@@ -1765,9 +1781,6 @@ struct frame_basis calculate_frame_basis(float big_metric[])
         sorted_result[old_index] = result_as_array[i];
     }
 
-    float minkowski[16];
-    get_local_minkowski(sorted_result[0], sorted_result[1], sorted_result[2], sorted_result[3], big_metric, minkowski);
-
     ///is_degenerate check is because its not helpful
     ///ok no, can quite generally end up with explosions
     /*if(!IS_DEGENERATE(minkowski[0]) && !approx_equal(minkowski[0], -1, eps) && approx_equal(minkowski[0], 1, eps))
@@ -1780,22 +1793,11 @@ struct frame_basis calculate_frame_basis(float big_metric[])
         printf("Warning, first column vector is not timelike. Todo for me: Fix this %f\n", minkowski[0]);
     }*/
 
-    int which_index_is_timelike = -1;
+    int which_index_is_timelike = calculate_which_coordinate_is_timelike(sorted_result[0], sorted_result[1], sorted_result[2], sorted_result[3], big_metric);
 
-    ///do I need to reshuffle spatial indices?
-    if(!approx_equal(minkowski[0], -1, eps))
+    if(which_index_is_timelike > 0)
     {
-        which_index_is_timelike = calculate_which_coordinate_is_timelike(sorted_result[0], sorted_result[1], sorted_result[2], sorted_result[3], big_metric);
-
-        ///catastrophic failure
-        if(which_index_is_timelike == -1)
-        {
-
-        }
-        else
-        {
-            SWAP(sorted_result[0], sorted_result[which_index_is_timelike], float4);
-        }
+        SWAP(sorted_result[0], sorted_result[which_index_is_timelike], float4);
     }
 
     struct frame_basis result2;
@@ -2203,6 +2205,8 @@ void calculate_timelike_coordinates_for_path(global const float4* positions, glo
         int p_id = kk * object_count + id;
 
         float4 position = positions[p_id];
+
+        printf("Coord %f %f %f %f\n", position.x, position.y, position.z, position.w);
 
         float4 e0 = e0_in[p_id];
         float4 e1 = e1_in[p_id];
@@ -3744,6 +3748,21 @@ float4 sort_vector_timelike(float4 in, int which)
     return (float4)(arr[0], arr[1], arr[2], arr[3]);
 }
 
+float get_vector_timelike_component(float4 v, int which)
+{
+    if(which == 0)
+        return v.x;
+
+    if(which == 1)
+        return v.y;
+
+    if(which == 2)
+        return v.z;
+
+    if(which == 3)
+        return v.w;
+}
+
 bool intersects_at_fraction(float3 v0, float3 normal, float4 initial_origin, float4 initial_diff,
                             float4 ray_vel_1,
                             float4 object_geodesic_1, float4 object_geodesic_2,
@@ -3767,6 +3786,9 @@ bool intersects_at_fraction(float3 v0, float3 normal, float4 initial_origin, flo
     float4 pos = coordinate_to_tetrad_basis(diff, i_e0, i_e1, i_e2, i_e3);
     float4 dir = coordinate_to_tetrad_basis(ray_vel_1, i_e0, i_e1, i_e2, i_e3);
 
+    pos = sort_vector_timelike(pos, which_coordinate_timelike);
+    dir = sort_vector_timelike(dir, which_coordinate_timelike);
+
     if(pos_out)
         *pos_out = pos;
 
@@ -3781,7 +3803,6 @@ bool intersects_at_fraction(float3 v0, float3 normal, float4 initial_origin, flo
         *t_out = found_t;
 
     return success;
-
 }
 
 bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3 v0, float3 v1, float3 v2, float4 object_geodesic_origin, float4 next_object_geodesic_origin,
@@ -3790,11 +3811,13 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
                                float4 i_ne0, float4 i_ne1, float4 i_ne2, float4 i_ne3, ///inverse next geodesic segment tetrad
                                float4 periods, float* t_out, bool debug)
 {
-    float ray_lower_t = next_global_pos.x;
-    float ray_upper_t = global_pos.x;
+    #define TIMELIKE(x) get_vector_timelike_component(x, which_coordinate_timelike)
 
-    float tri_lower_t = object_geodesic_origin.x;
-    float tri_upper_t = next_object_geodesic_origin.x;
+    float ray_lower_t = TIMELIKE(next_global_pos);
+    float ray_upper_t = TIMELIKE(global_pos);
+
+    float tri_lower_t = TIMELIKE(object_geodesic_origin);
+    float tri_upper_t = TIMELIKE(next_object_geodesic_origin);
 
     float3 plane_normal = normalize(cross(v1 - v0, v2 - v0));
 
@@ -3810,6 +3833,9 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
     float4 initial_diff = periodic_diff(ray_origin, object_pos_1, periods);
     float4 initial_origin = object_pos_1;
 
+    float ray_origin_t = TIMELIKE(ray_origin);
+    float ray_vel_t = TIMELIKE(ray_vel);
+
     float4 last_pos;
     float4 last_dir;
     float last_dt = 0;
@@ -3823,7 +3849,7 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
     #pragma unroll
     for(int i=0; i < 4; i++)
     {
-        float new_t = ray_origin.x + ray_vel.x * last_dt;
+        float new_t = ray_origin_t + ray_vel_t * last_dt;
 
         float frac = (new_t - tri_lower_t) / (tri_upper_t - tri_lower_t);
 
@@ -3837,7 +3863,7 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
 
     bool intersected = ray_intersects_triangle(last_pos.yzw, last_dir.yzw, v0, v1, v2, &ray_t, 0, 0);
 
-    float new_x = ray_origin.x + ray_t * ray_vel.x;
+    float new_x = ray_origin_t + ray_t * ray_vel_t;
 
     if(new_x < ray_lower_t || new_x > ray_upper_t)
         return false;
