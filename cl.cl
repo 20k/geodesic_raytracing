@@ -2186,6 +2186,51 @@ void calculate_timelike_coordinate(__global const float4* generic_position, dyna
     *coordinate_out = basis.timelike_coordinate;
 }
 
+__kernel
+void calculate_timelike_coordinates_for_path(global const float4* positions, global const int* counts,
+                                             global float4* e0_in, global float4* e1_in, global float4* e2_in, global float4* e3_in,
+                                             int object_count, dynamic_config_space const struct dynamic_config* cfg, global int* coordinates_out)
+{
+    int id = get_global_id(0);
+
+    if(id >= object_count)
+        return;
+
+    int my_path_length = counts[id];
+
+    for(int kk=0; kk < my_path_length; kk++)
+    {
+        int p_id = kk * object_count + id;
+
+        float4 position = positions[p_id];
+
+        float4 e0 = e0_in[p_id];
+        float4 e1 = e1_in[p_id];
+        float4 e2 = e2_in[p_id];
+        float4 e3 = e3_in[p_id];
+
+        #ifndef GENERIC_BIG_METRIC
+        float g_metric_local[4] = {};
+        calculate_metric_generic(position, g_metric_local, cfg);
+
+        float g_metric_big_local[16] = {0};
+
+        g_metric_big_local[0] = g_metric_local[0];
+        g_metric_big_local[1*4 + 1] = g_metric_local[1];
+        g_metric_big_local[2*4 + 2] = g_metric_local[2];
+        g_metric_big_local[3*4 + 3] = g_metric_local[3];
+        #endif
+
+        #ifdef GENERIC_BIG_METRIC
+        float g_metric_big_local[16] = {0};
+        calculate_metric_generic_big(position, g_metric_big_local, cfg);
+        #endif
+
+        coordinates_out[p_id] = calculate_which_coordinate_is_timelike(e0, e1, e2, e3, g_metric_big_local);
+    }
+
+}
+
 void calculate_tetrads(float4 at_metric, float3 cartesian_basis_speed,
                        float4* e0_out, float4* e1_out, float4* e2_out, float4* e3_out,
                        dynamic_config_space const struct dynamic_config* cfg, int should_orient)
