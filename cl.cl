@@ -2357,31 +2357,13 @@ void calculate_tetrads(float4 at_metric, float3 cartesian_basis_speed,
     calculate_metric_generic_big(at_metric, g_metric_big_local, cfg);
     #endif
 
+    struct frame_basis basis = calculate_frame_basis(g_metric_big_local);
+
     ///contravariant
-    float4 e0;
-    float4 e1;
-    float4 e2;
-    float4 e3;
-
-    {
-        struct frame_basis basis = calculate_frame_basis(g_metric_big_local);
-
-        /*if(cx == 500 && cy == 400)
-        {
-            float d1 = dot_product_big(basis.v1, basis.v2, g_metric_big);
-            float d2 = dot_product_big(basis.v1, basis.v3, g_metric_big);
-            float d3 = dot_product_big(basis.v1, basis.v4, g_metric_big);
-            float d4 = dot_product_big(basis.v2, basis.v3, g_metric_big);
-            float d5 = dot_product_big(basis.v3, basis.v4, g_metric_big);
-
-            printf("ORTHONORMAL? %f %f %f %f %f\n", d1, d2, d3, d4, d5);
-        }*/
-
-        e0 = basis.v1;
-        e1 = basis.v2;
-        e2 = basis.v3;
-        e3 = basis.v4;
-    }
+    float4 e0 = basis.v1;
+    float4 e1 = basis.v2;
+    float4 e2 = basis.v3;
+    float4 e3 = basis.v4;
 
     /*
     ///???
@@ -2423,8 +2405,12 @@ void calculate_tetrads(float4 at_metric, float3 cartesian_basis_speed,
 
             float3 cart_camera = polar_to_cartesian(apolar);
 
+            float4 unarranged[4] = {e0, e1, e2, e3};
+
+            SWAP(unarranged[0], unarranged[basis.timelike_coordinate], float4);
+
             float4 e_lo[4];
-            get_tetrad_inverse(e0, e1, e2, e3, &e_lo[0], &e_lo[1], &e_lo[2], &e_lo[3]);
+            get_tetrad_inverse(unarranged[0], unarranged[1], unarranged[2], unarranged[3], &e_lo[0], &e_lo[1], &e_lo[2], &e_lo[3]);
 
             float3 cx = (float3)(1, 0, 0);
             float3 cy = (float3)(0, 1, 0);
@@ -2449,14 +2435,22 @@ void calculate_tetrads(float4 at_metric, float3 cartesian_basis_speed,
             float3 forw = rot_quat((float3){0, 0, 1}, local_camera_quat);*/
 
             ///normalise with y first, so that the camera controls always work intuitively - as they are inherently a 'global' concept
+            ///ok so this is in global coordinate
             float4 approximate_basis[3] = {gy, gx, gz};
 
+            ///push it into the tetrad
             float4 tE1 = coordinate_to_tetrad_basis(approximate_basis[0], e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
             float4 tE2 = coordinate_to_tetrad_basis(approximate_basis[1], e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
             float4 tE3 = coordinate_to_tetrad_basis(approximate_basis[2], e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
 
+            tE1 = sort_vector_timelike(tE1, basis.timelike_coordinate);
+            tE2 = sort_vector_timelike(tE2, basis.timelike_coordinate);
+            tE3 = sort_vector_timelike(tE3, basis.timelike_coordinate);
+
+            ///orthonormalise the spatial parts of the projected vectors
             struct ortho_result result = orthonormalise(tE1.yzw, tE2.yzw, tE3.yzw);
 
+            ///discard the timelike component
             float4 basis1 = (float4)(0, result.v1);
             float4 basis2 = (float4)(0, result.v2);
             float4 basis3 = (float4)(0, result.v3);
@@ -2465,6 +2459,7 @@ void calculate_tetrads(float4 at_metric, float3 cartesian_basis_speed,
             float4 y_basis = basis1;
             float4 z_basis = basis3;
 
+            ///use the original tetrads, because we know where the timelike component lives
             float4 x_out = tetrad_to_coordinate_basis(x_basis, e0, e1, e2, e3);
             float4 y_out = tetrad_to_coordinate_basis(y_basis, e0, e1, e2, e3);
             float4 z_out = tetrad_to_coordinate_basis(z_basis, e0, e1, e2, e3);
