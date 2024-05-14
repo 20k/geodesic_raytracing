@@ -1,0 +1,7 @@
+{
+	"name": "minkowski_skew",
+	"adaptive_precision": false,
+	"detect_singularities": false,
+	"inherit_settings": "cartesian_skew_base",
+	"description": "Totally flat, ordinary spacetime"
+}

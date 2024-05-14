@@ -1817,6 +1817,28 @@ struct frame_basis calculate_frame_basis(float big_metric[])
     return result2;
 }
 
+struct frame_basis calculate_frame_basis_at(float4 position, dynamic_config_space const struct dynamic_config* cfg)
+{
+    #ifndef GENERIC_BIG_METRIC
+    float g_metric_local[4] = {};
+    calculate_metric_generic(position, g_metric_local, cfg);
+
+    float g_metric_big_local[16] = {0};
+
+    g_metric_big_local[0] = g_metric_local[0];
+    g_metric_big_local[1*4 + 1] = g_metric_local[1];
+    g_metric_big_local[2*4 + 2] = g_metric_local[2];
+    g_metric_big_local[3*4 + 3] = g_metric_local[3];
+    #endif
+
+    #ifdef GENERIC_BIG_METRIC
+    float g_metric_big_local[16] = {0};
+    calculate_metric_generic_big(position, g_metric_big_local, cfg);
+    #endif
+
+    return calculate_frame_basis(g_metric_big_local);
+};
+
 void print_metric_big_trace(float g_metric_big[])
 {
     printf("%f %f %f %f\n", g_metric_big[0], g_metric_big[5], g_metric_big[10], g_metric_big[15]);
@@ -2233,12 +2255,12 @@ void calculate_timelike_coordinates(__global const float4* positions, int count,
     float4 e2 = basis.v3;
     float4 e3 = basis.v4;
 
-    printf("fTet e0 %f %f %f %f e1 %f %f %f %f e2 %f %f %f %f e3 %f %f %f %f",
+    /*printf("fTet e0 %f %f %f %f e1 %f %f %f %f e2 %f %f %f %f e3 %f %f %f %f",
            e0.x, e0.y, e0.z, e0.w,
            e1.x, e1.y, e1.z, e1.w,
            e2.x, e2.y, e2.z, e2.w,
            e3.x, e3.y, e3.z, e3.w
-           );
+           );*/
 }
 
 __kernel
@@ -2289,7 +2311,7 @@ void calculate_timelike_coordinates_for_path(global const float4* positions, glo
 
         printf("Timelike id %i %i %i\n", id, coordinates_out[p_id], first_timelike);
 
-        float4 e0 = tets[0];
+        /*float4 e0 = tets[0];
         float4 e1 = tets[1];
         float4 e2 = tets[2];
         float4 e3 = tets[3];
@@ -2299,7 +2321,7 @@ void calculate_timelike_coordinates_for_path(global const float4* positions, glo
                e1.x, e1.y, e1.z, e1.w,
                e2.x, e2.y, e2.z, e2.w,
                e3.x, e3.y, e3.z, e3.w
-               );
+               );*/
     }
 
 }
@@ -2589,7 +2611,9 @@ float4 mix_spherical(float4 in1, float4 in2, float a)
 __kernel
 void calculate_tetrad_inverse(__global int* global_count, int count,
                               __global float4* t_e0, __global float4* t_e1, __global float4* t_e2, __global float4* t_e3,
-                              __global float4* ie0, __global float4* ie1, __global float4* ie2, __global float4* ie3)
+                              __global float4* ie0, __global float4* ie1, __global float4* ie2, __global float4* ie3,
+                              __global float4* positions,
+                              dynamic_config_space const struct dynamic_config* cfg)
 {
     int id = get_global_id(0);
 
@@ -2604,13 +2628,16 @@ void calculate_tetrad_inverse(__global int* global_count, int count,
     {
         int current_idx = kk * count + id;
 
-        float4 e0 = t_e0[current_idx];
-        float4 e1 = t_e1[current_idx];
-        float4 e2 = t_e2[current_idx];
-        float4 e3 = t_e3[current_idx];
+        float4 es[4] = {t_e0[current_idx], t_e1[current_idx], t_e2[current_idx], t_e3[current_idx]};
+
+        struct frame_basis basis = calculate_frame_basis_at(positions[current_idx], cfg);
+
+        SWAP(es[0], es[basis.timelike_coordinate], float4);
 
         float4 e_lo[4];
-        get_tetrad_inverse(e0, e1, e2, e3, &e_lo[0], &e_lo[1], &e_lo[2], &e_lo[3]);
+        get_tetrad_inverse(es[0], es[1], es[2], es[3], &e_lo[0], &e_lo[1], &e_lo[2], &e_lo[3]);
+
+        SWAP(e_lo[0], e_lo[basis.timelike_coordinate], float4);
 
         ie0[current_idx] = e_lo[0];
         ie1[current_idx] = e_lo[1];
@@ -3847,7 +3874,8 @@ bool intersects_at_fraction(float3 v0, float3 normal, float4 initial_origin, flo
                             int which_coordinate_timelike,
                             float fraction,
                             float4* restrict pos_out, float4* restrict dir_out,
-                            float* restrict t_out
+                            float* restrict t_out,
+                            bool debug
                             )
 {
     float4 i_e0 = mix(i_re0, i_ne0, fraction);
@@ -3859,11 +3887,19 @@ bool intersects_at_fraction(float3 v0, float3 normal, float4 initial_origin, flo
 
     float4 diff = initial_diff + initial_origin - object_position;
 
+    diff = sort_vector_timelike(diff, which_coordinate_timelike);
+    ray_vel_1 = sort_vector_timelike(ray_vel_1, which_coordinate_timelike);
+
     float4 pos = coordinate_to_tetrad_basis(diff, i_e0, i_e1, i_e2, i_e3);
     float4 dir = coordinate_to_tetrad_basis(ray_vel_1, i_e0, i_e1, i_e2, i_e3);
 
-    pos = sort_vector_timelike(pos, which_coordinate_timelike);
-    dir = sort_vector_timelike(dir, which_coordinate_timelike);
+    //pos = sort_vector_timelike(pos, which_coordinate_timelike);
+    //dir = sort_vector_timelike(dir, which_coordinate_timelike);
+
+    if(debug)
+    {
+        printf("Itet %f %f %f %f\n", i_e0.x, i_e0.y, i_e0.z, i_e0.w);
+    }
 
     if(pos_out)
         *pos_out = pos;
@@ -3927,7 +3963,7 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
                                       i_re0, i_re1, i_re2, i_re3,\
                                       i_ne0, i_ne1, i_ne2, i_ne3,\
                                       which_coordinate_timelike,\
-                                      in_frac, &last_pos, &last_dir, &last_dt)
+                                      in_frac, &last_pos, &last_dir, &last_dt, debug)
 
     #pragma unroll
     for(int i=0; i < 4; i++)
@@ -3935,12 +3971,17 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
         float new_t = ray_origin_t + ray_vel_t * last_dt;
 
         float frac = (new_t - tri_lower_t) / (tri_upper_t - tri_lower_t);
-
         frac = clamp(frac, 0.f, 1.f);
 
         if(!INTERSECTS_AT(frac))
             return false;
     }
+
+
+    /*if(debug)
+    {
+        printf("Fdir %f %f %f %f %i", last_dir.x, last_dir.y, last_dir.z, last_dir.w, which_coordinate_timelike);
+    }*/
 
     float ray_t = 0;
 
@@ -4453,16 +4494,9 @@ void generate_computed_tris(global struct triangle* tris, int tri_count,
             float4 n_e3 = p_e3[(cc + skip) * stride + tri.parent];
 
             ///triangle coordinates in local space
-            ///i think this is the problem, we've arranged by timelike, spacelike, but the tetrads aren't in the right order
             float4 vert_0 = (float4)(0, tri.v0x, tri.v0y, tri.v0z);
             float4 vert_1 = (float4)(0, tri.v1x, tri.v1y, tri.v1z);
             float4 vert_2 = (float4)(0, tri.v2x, tri.v2y, tri.v2z);
-
-            int timelike_coordinate = timelike_coordinates[cc * stride + tri.parent];
-
-            vert_0 = put_timelike_in_correct_position(vert_0, timelike_coordinate);
-            vert_1 = put_timelike_in_correct_position(vert_1, timelike_coordinate);
-            vert_2 = put_timelike_in_correct_position(vert_2, timelike_coordinate);
 
             ///start triangle coordinates (as a vector) in tangent space
             float4 s_coordinate_v0 = tetrad_to_coordinate_basis(vert_0, s_e0, s_e1, s_e2, s_e3);

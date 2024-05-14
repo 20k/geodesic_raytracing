@@ -1311,7 +1311,7 @@ int main(int argc, char* argv[])
     obj->tris = make_cube({0, 0, 0});
     obj->pos = {0, -5, 0, 0};*/
 
-    //#define CUBE_INTO_HORIZON
+    #define CUBE_INTO_HORIZON
     #ifdef CUBE_INTO_HORIZON
     ///event horizon tester
     std::shared_ptr<triangle_rendering::object> obj = tris.make_new();

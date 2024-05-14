@@ -214,6 +214,15 @@ struct physics
             cqueue.exec("parallel_transport_quantity", pt_args, {object_count}, {256});
         }
 
+        {
+            cl::args args;
+            args.push_back(generic_positions);
+            args.push_back(object_count);
+            args.push_back(dynamic_config);
+            args.push_back(initial_timelike);
+
+            cqueue.exec("calculate_timelike_coordinates", args, {object_count}, {256});
+        }
 
         cl::args invert_args;
         invert_args.push_back(counts);
@@ -228,6 +237,9 @@ struct physics
         {
             invert_args.push_back(inverted_tetrads[i]);
         }
+
+        invert_args.push_back(geodesic_paths);
+        invert_args.push_back(dynamic_config);
 
         cqueue.exec("calculate_tetrad_inverse", invert_args, {object_count}, {256});
 
@@ -262,15 +274,6 @@ struct physics
             cqueue.exec("subsample_tri_quantity", args, {object_count}, {256});
         }
 
-        {
-            cl::args args;
-            args.push_back(generic_positions);
-            args.push_back(object_count);
-            args.push_back(dynamic_config);
-            args.push_back(initial_timelike);
-
-            cqueue.exec("calculate_timelike_coordinates", args, {object_count}, {256});
-        }
 
         {
             cl::args args;
