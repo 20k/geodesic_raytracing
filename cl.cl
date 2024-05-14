@@ -1675,7 +1675,7 @@ void get_local_minkowski(float4 e0_hi, float4 e1_hi, float4 e2_hi, float4 e3_hi,
     }
 }
 
-int calculate_which_coordinate_is_timelike(float4 e0, float4 e1, float4 e2, float4 e3, float big_metric[16])
+int calculate_which_coordinate_is_timelike(float4 e0, float4 e1, float4 e2, float4 e3, float big_metric[16], bool debug)
 {
     float eps = 0.00001f;
 
@@ -1693,6 +1693,14 @@ int calculate_which_coordinate_is_timelike(float4 e0, float4 e1, float4 e2, floa
 
         printf("Warning, first column vector is not timelike. Todo for me: Fix this %f\n", minkowski[0]);
     }*/
+
+    if(debug)
+    {
+        for(int i=0; i < 4; i++)
+        {
+            printf("Kowski %f\n", minkowski[i * 4 + i]);
+        }
+    }
 
     int lowest_index = -1;
     float lowest_index_value = 0;
@@ -1792,7 +1800,7 @@ struct frame_basis calculate_frame_basis(float big_metric[])
         printf("Warning, first column vector is not timelike. Todo for me: Fix this %f\n", minkowski[0]);
     }*/
 
-    int which_index_is_timelike = calculate_which_coordinate_is_timelike(sorted_result[0], sorted_result[1], sorted_result[2], sorted_result[3], big_metric);
+    int which_index_is_timelike = calculate_which_coordinate_is_timelike(sorted_result[0], sorted_result[1], sorted_result[2], sorted_result[3], big_metric, false);
 
     if(which_index_is_timelike > 0)
     {
@@ -2217,12 +2225,26 @@ void calculate_timelike_coordinates(__global const float4* positions, int count,
     struct frame_basis basis = calculate_frame_basis(g_metric_big_local);
 
     coordinate_out[id] = basis.timelike_coordinate;
+
+    printf("Id %i found %i\n", id, basis.timelike_coordinate);
+
+    float4 e0 = basis.v1;
+    float4 e1 = basis.v2;
+    float4 e2 = basis.v3;
+    float4 e3 = basis.v4;
+
+    printf("fTet e0 %f %f %f %f e1 %f %f %f %f e2 %f %f %f %f e3 %f %f %f %f",
+           e0.x, e0.y, e0.z, e0.w,
+           e1.x, e1.y, e1.z, e1.w,
+           e2.x, e2.y, e2.z, e2.w,
+           e3.x, e3.y, e3.z, e3.w
+           );
 }
 
 __kernel
 void calculate_timelike_coordinates_for_path(global const float4* positions, global const int* counts,
-                                             global float4* e0_in, global float4* e1_in, global float4* e2_in, global float4* e3_in,
                                              global const int* initial_timelike,
+                                             global float4* e0_in, global float4* e1_in, global float4* e2_in, global float4* e3_in,
                                              int object_count, dynamic_config_space const struct dynamic_config* cfg, global int* coordinates_out)
 {
     int id = get_global_id(0);
@@ -2263,9 +2285,21 @@ void calculate_timelike_coordinates_for_path(global const float4* positions, glo
         calculate_metric_generic_big(position, g_metric_big_local, cfg);
         #endif
 
-        coordinates_out[p_id] = calculate_which_coordinate_is_timelike(tets[0], tets[1], tets[2], tets[3], g_metric_big_local);
+        coordinates_out[p_id] = calculate_which_coordinate_is_timelike(tets[0], tets[1], tets[2], tets[3], g_metric_big_local, true);
 
-        printf("Timelike %i\n", coordinates_out[p_id]);
+        printf("Timelike id %i %i %i\n", id, coordinates_out[p_id], first_timelike);
+
+        float4 e0 = tets[0];
+        float4 e1 = tets[1];
+        float4 e2 = tets[2];
+        float4 e3 = tets[3];
+
+        printf("Tet e0 %f %f %f %f e1 %f %f %f %f e2 %f %f %f %f e3 %f %f %f %f",
+               e0.x, e0.y, e0.z, e0.w,
+               e1.x, e1.y, e1.z, e1.w,
+               e2.x, e2.y, e2.z, e2.w,
+               e3.x, e3.y, e3.z, e3.w
+               );
     }
 
 }
@@ -3917,6 +3951,11 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
     if(new_x < ray_lower_t || new_x > ray_upper_t)
         return false;
 
+    if(debug)
+    {
+        printf("Pos %f %f %f\n", tri_lower_t, tri_upper_t, new_x);
+    }
+
     if(new_x < tri_lower_t || new_x > tri_upper_t)
         return false;
 
@@ -4679,7 +4718,7 @@ void render_chunked_tris(global const struct triangle* const tris,
             ///this is very inefficient, go along the way and then check the tris
             ///or maybe not actually, there's some good short circuiting i can do, and the tris need more memory fetche
             if(ray_intersects_toblerone2(current_pos, next_pos, v0, v1, v2, native_current, native_next, which_timelike,
-                                         s_ie0, s_ie1, s_ie2, s_ie3, n_ie0, n_ie1, n_ie2, n_ie3, periods, &ray_t, ray_x == 1353 && ray_y == 406))
+                                         s_ie0, s_ie1, s_ie2, s_ie3, n_ie0, n_ie1, n_ie2, n_ie3, periods, &ray_t, ray_x == mouse_x && ray_y == mouse_y))
             {
                 if(last_ray_t != FLT_MAX && ray_t >= last_ray_t)
                     continue;
