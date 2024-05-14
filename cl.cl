@@ -6,6 +6,41 @@
 #define E4(n) n.x, n.y, n.z, n.w
 #define SWAP(x, y, T) do { T SWAP = x; x = y; y = SWAP; } while (0)
 
+#define DUMP_TETRAD(str, a, b, c, d) printf(str " p1 %f %f %f %f p2 %f %f %f %f p3 %f %f %f %f p4 %f %f %f %f", a.x, a.y, a.z, a.w, b.x, b.y, b.z, b.w, c.x, c.y, c.z, c.w, d.x, d.y, d.z, d.w)
+
+float4 sort_vector_timelike(float4 in, int which)
+{
+    if(which == 0)
+        return in;
+
+    float arr[4] = {in.x, in.y, in.z, in.w};
+
+    SWAP(arr[0], arr[which], float);
+
+    return (float4)(arr[0], arr[1], arr[2], arr[3]);
+}
+
+float4 put_timelike_in_correct_position(float4 txyz, int which)
+{
+    ///because this just performs a simple swap, its always valid
+    return sort_vector_timelike(txyz, which);
+}
+
+float get_vector_timelike_component(float4 v, int which)
+{
+    if(which == 0)
+        return v.x;
+
+    if(which == 1)
+        return v.y;
+
+    if(which == 2)
+        return v.z;
+
+    if(which == 3)
+        return v.w;
+}
+
 struct triangle
 {
     int parent;
@@ -2581,6 +2616,8 @@ void init_basis_vectors(__global const float4* generic_in, int count,
     e1_out[id] = e1;
     e2_out[id] = e2;
     e3_out[id] = e3;
+
+    //DUMP_TETRAD("Basis Vector", e0, e1, e2, e3);
 }
 
 float4 mix_spherical(float4 in1, float4 in2, float a)
@@ -2637,7 +2674,12 @@ void calculate_tetrad_inverse(__global int* global_count, int count,
         float4 e_lo[4];
         get_tetrad_inverse(es[0], es[1], es[2], es[3], &e_lo[0], &e_lo[1], &e_lo[2], &e_lo[3]);
 
-        SWAP(e_lo[0], e_lo[basis.timelike_coordinate], float4);
+        //SWAP(e_lo[0], e_lo[basis.timelike_coordinate], float4);
+
+        /*e_lo[0] = sort_vector_timelike(e_lo[0], basis.timelike_coordinate);
+        e_lo[1] = sort_vector_timelike(e_lo[1], basis.timelike_coordinate);
+        e_lo[2] = sort_vector_timelike(e_lo[2], basis.timelike_coordinate);
+        e_lo[3] = sort_vector_timelike(e_lo[3], basis.timelike_coordinate);*/
 
         ie0[current_idx] = e_lo[0];
         ie1[current_idx] = e_lo[1];
@@ -3832,40 +3874,6 @@ float3 triangle_normal(float3 v0, float3 v1, float3 v2)
     return normalize(cross(U, V));
 }
 
-float4 sort_vector_timelike(float4 in, int which)
-{
-    if(which == 0)
-        return in;
-
-    float arr[4] = {in.x, in.y, in.z, in.w};
-
-    SWAP(arr[0], arr[which], float);
-
-    return (float4)(arr[0], arr[1], arr[2], arr[3]);
-}
-
-float4 put_timelike_in_correct_position(float4 txyz, int which)
-{
-    ///because this just performs a simple swap, its always valid
-    return sort_vector_timelike(txyz, which);
-}
-
-
-float get_vector_timelike_component(float4 v, int which)
-{
-    if(which == 0)
-        return v.x;
-
-    if(which == 1)
-        return v.y;
-
-    if(which == 2)
-        return v.z;
-
-    if(which == 3)
-        return v.w;
-}
-
 bool intersects_at_fraction(float3 v0, float3 normal, float4 initial_origin, float4 initial_diff,
                             float4 ray_vel_1,
                             float4 object_geodesic_1, float4 object_geodesic_2,
@@ -3887,19 +3895,11 @@ bool intersects_at_fraction(float3 v0, float3 normal, float4 initial_origin, flo
 
     float4 diff = initial_diff + initial_origin - object_position;
 
-    diff = sort_vector_timelike(diff, which_coordinate_timelike);
-    ray_vel_1 = sort_vector_timelike(ray_vel_1, which_coordinate_timelike);
-
     float4 pos = coordinate_to_tetrad_basis(diff, i_e0, i_e1, i_e2, i_e3);
     float4 dir = coordinate_to_tetrad_basis(ray_vel_1, i_e0, i_e1, i_e2, i_e3);
 
-    //pos = sort_vector_timelike(pos, which_coordinate_timelike);
-    //dir = sort_vector_timelike(dir, which_coordinate_timelike);
-
-    if(debug)
-    {
-        printf("Itet %f %f %f %f\n", i_e0.x, i_e0.y, i_e0.z, i_e0.w);
-    }
+    pos = sort_vector_timelike(pos, which_coordinate_timelike);
+    dir = sort_vector_timelike(dir, which_coordinate_timelike);
 
     if(pos_out)
         *pos_out = pos;
@@ -3991,6 +3991,11 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
 
     if(new_x < ray_lower_t || new_x > ray_upper_t)
         return false;
+
+    if(debug)
+    {
+        printf("Itet %f %f %f %f\n", i_re0.x, i_re0.y, i_re0.z, i_re0.w);
+    }
 
     if(debug)
     {
