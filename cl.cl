@@ -3788,6 +3788,8 @@ void subsample_tri_quantity(int count, __global const int* geodesic_counts, __gl
 
         float4 current_position = geodesic_path[current_idx];
 
+        //printf("hi %f %f %f %f which %i\n", current_position.x, current_position.y, current_position.z, current_position.w, basis.timelike_coordinate);
+
         float4 to_next = periodic_diff(current_position, last_position, periods);
 
         float4 in_tetrad = coordinate_to_tetrad_basis(to_next, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
