@@ -4403,7 +4403,7 @@ struct computed
     int geodesic_segment;
 };
 
-#define COMPUTED_SKIP 8
+#define COMPUTED_SKIP 1
 
 __kernel
 void generate_computed_tris(global struct triangle* tris, int tri_count,
