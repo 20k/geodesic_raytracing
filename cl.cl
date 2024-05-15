@@ -4403,7 +4403,7 @@ struct computed
     int geodesic_segment;
 };
 
-#define COMPUTED_SKIP 1
+#define COMPUTED_SKIP 8
 
 __kernel
 void generate_computed_tris(global struct triangle* tris, int tri_count,
@@ -4506,6 +4506,10 @@ void generate_computed_tris(global struct triangle* tris, int tri_count,
         ctris[id] = ctri;
     }
 }
+
+///if i sorted computed tris, generate_tri_lists2 could binary search based on its clipping region.x
+///clipping regions
+
 __kernel
 void generate_tri_lists2(global struct computed* ctri,
                         global int* ctri_count,
