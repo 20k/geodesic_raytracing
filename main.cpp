@@ -890,6 +890,68 @@ void test_overlap()
     static_assert(periodic_range_overlaps(3.1, 4.2, 0.1, 0.3, 2));
 }
 
+struct object_content
+{
+    std::vector<std::filesystem::path> entries;
+    int selected = -1;
+    bool use_cube = true;
+
+    void load()
+    {
+        entries.clear();
+
+        std::string folder = "./models";
+
+        file::mkdir(folder);
+
+        try
+        {
+            for(const auto& entry : std::filesystem::directory_iterator{folder})
+            {
+                if(entry.path().string().ends_with(".obj"))
+                {
+                    entries.push_back(std::filesystem::absolute(entry));
+                }
+            }
+        }
+        catch(...)
+        {
+            std::cout << "Invalid object content " << folder << std::endl;
+        }
+    }
+
+    void display()
+    {
+        ImGui::Checkbox("Use Cube", &use_cube);
+
+        if(ImGui::BeginListBox("Objects"))
+        {
+            for(int i=0; i < (int)entries.size(); i++)
+            {
+                std::string item_name = entries[i].filename().string();
+
+                if(ImGui::Selectable(item_name.c_str(), selected == i))
+                {
+                    use_cube = false;
+                    selected = i;
+                }
+            }
+
+            ImGui::EndListBox();
+        }
+    }
+
+    std::string get()
+    {
+        selected = clamp(selected, 0, (int)entries.size() - 1);
+
+        if(entries.size() == 0)
+            return "";
+
+        return entries.at(selected).string();
+    }
+};
+
 ///i need the ability to have dynamic parameters
 int main(int argc, char* argv[])
 {
@@ -1383,6 +1445,9 @@ int main(int argc, char* argv[])
     int max_stored_rays = 90;
 
     camera cam;
+
+    object_content objects;
+    objects.load();
 
     gl_image_shared_queue glisq;
 
@@ -1897,6 +1962,18 @@ int main(int argc, char* argv[])
                         ImGui::DragFloat("Object Scale", &object_scale, 0.01f, 0.01f, 100.f);
                         ImGui::SliderFloat("Object Throw Speed", &object_chuck_speed, 0.f, 0.99999f);
 
+                        if(ImGui::TreeNode("Objects"))
+                        {
+                            if(ImGui::Button("Refresh"))
+                            {
+                                objects.load();
+                            }
+
+                            objects.display();
+
+                            ImGui::TreePop();
+                        }
+
                         for(int idx = 0; idx < (int)tris.cpu_objects.size(); idx++)
                         {
                             std::shared_ptr<triangle_rendering::object> obj = tris.cpu_objects[idx];
@@ -1933,7 +2010,7 @@ int main(int argc, char* argv[])
                             phys.needs_trace = true;
                         }
 
-                        if(ImGui::Button("Throw Box"))
+                        if(ImGui::Button("Throw Object"))
                         {
                             should_chuck_object = true;
                         }
@@ -1991,20 +2068,38 @@ int main(int argc, char* argv[])
 
             if(dfg.get_feature<bool>("use_triangle_rendering") && should_chuck_object)
             {
-                std::shared_ptr<triangle_rendering::object> obj = tris.make_new();
+                try
+                {
 
-                obj->scale = object_scale;
-                obj->tris = make_cube({0, 0, 0});
-                obj->pos = cam.pos;
+                    std::shared_ptr<triangle_rendering::object> obj;
 
-                vec3f dir = {0, 0, 1};
+                    if(!objects.use_cube)
+                    {
+                        std::string obj_str = objects.get();
+                        obj = tris.make_new(obj_str);
+                    }
+                    else
+                    {
+                        obj = tris.make_new();
+                        obj->tris = make_cube({0,0,0});
+                    }
 
-                vec3f chuck_dir = rot_quat(dir, cam.rot);
+                    obj->scale = object_scale;
+                    obj->pos = cam.pos;
 
-                obj->velocity = chuck_dir * object_chuck_speed;
+                    vec3f dir = {0, 0, 1};
 
-                tris.build(mqueue);
-                phys.setup(mqueue, tris);
+                    vec3f chuck_dir = rot_quat(dir, cam.rot);
+
+                    obj->velocity = chuck_dir * object_chuck_speed;
+
+                    tris.build(mqueue);
+                    phys.setup(mqueue, tris);
+                }
+                catch(std::exception& e)
+                {
+                    std::cout << "Could not throw object " << e.what() << " check object file" << std::endl;
+                }
 
                 should_chuck_object = false;
             }
