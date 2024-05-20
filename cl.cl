@@ -10,9 +10,6 @@
 
 float4 sort_vector_timelike(float4 in, int which)
 {
-    if(which == 0)
-        return in;
-
     float arr[4] = {in.x, in.y, in.z, in.w};
 
     SWAP(arr[0], arr[which], float);
