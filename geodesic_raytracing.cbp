@@ -35,10 +35,11 @@
 				<Option type="1" />
 				<Option compiler="gcc-msys2-mingw64" />
 				<Compiler>
-					<Add option="-O2" />
+					<Add option="-O3" />
 					<Add option="-DGPU_PROFILE" />
 				</Compiler>
 				<Linker>
+					<Add option="-O3" />
 					<Add option="-s" />
 				</Linker>
 			</Target>
@@ -75,6 +76,7 @@
 			<Add option="-fexceptions" />
 			<Add option="`pkg-config --cflags freetype2`" />
 			<Add option="-fvisibility=hidden -fvisibility-inlines-hidden" />
+			<Add option="-Wno-narrowing" />
 			<Add option="-DIMGUI_IMPL_OPENGL_LOADER_GLEW" />
 			<Add option="-DSUBPIXEL_FONT_RENDERING" />
 			<Add option="-DSFML_STATIC" />

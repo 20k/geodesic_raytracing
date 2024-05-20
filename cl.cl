@@ -3884,6 +3884,49 @@ bool intersects_at_fraction(float3 v0, float3 normal, float4 initial_origin, flo
     return success;
 }
 
+bool intersects_at_fraction2(float3 v0, float3 normal,
+                             float4 local_dir_1, float4 local_dir_2,
+                            float4 local_pos_1, float4 local_pos_2,
+                            float fraction,
+                            float4* restrict pos_out, float4* restrict dir_out,
+                            float* restrict t_out,
+                            bool debug
+                            )
+{
+    /*float4 i_e0 = mix(i_re0, i_ne0, fraction);
+    float4 i_e1 = mix(i_re1, i_ne1, fraction);
+    float4 i_e2 = mix(i_re2, i_ne2, fraction);
+    float4 i_e3 = mix(i_re3, i_ne3, fraction);
+
+    float4 object_position = mix(object_geodesic_1, object_geodesic_2, fraction);
+
+    float4 diff = initial_diff + initial_origin - object_position;
+
+    float4 pos = coordinate_to_tetrad_basis(diff, i_e0, i_e1, i_e2, i_e3);
+    float4 dir = coordinate_to_tetrad_basis(ray_vel_1, i_e0, i_e1, i_e2, i_e3);
+
+    pos = sort_vector_timelike(pos, which_coordinate_timelike);
+    dir = sort_vector_timelike(dir, which_coordinate_timelike);*/
+
+    float4 pos = mix(local_pos_1, local_pos_2, fraction);
+    float4 dir = mix(local_dir_1, local_dir_2, fraction);
+
+    if(pos_out)
+        *pos_out = pos;
+
+    if(dir_out)
+        *dir_out = dir;
+
+    float found_t = 0;
+
+    bool success = ray_plane_intersection(v0, normal, pos.yzw, dir.yzw, &found_t);
+
+    if(success && t_out)
+        *t_out = found_t;
+
+    return success;
+}
+
 bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3 v0, float3 v1, float3 v2, float4 object_geodesic_origin, float4 next_object_geodesic_origin,
                                int which_coordinate_timelike,
                                float4 i_re0, float4 i_re1, float4 i_re2, float4 i_re3, ///inverse current geodesic segment tetrad
@@ -3926,11 +3969,40 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
     float4 last_dir;
     float last_dt = 0;
 
-    #define INTERSECTS_AT(in_frac) intersects_at_fraction(v0, plane_normal, initial_origin, initial_diff, ray_vel, object_pos_1, object_pos_2,\
+    /*#define INTERSECTS_AT(in_frac) intersects_at_fraction(v0, plane_normal, initial_origin, initial_diff, ray_vel, object_pos_1, object_pos_2,\
                                       i_re0, i_re1, i_re2, i_re3,\
                                       i_ne0, i_ne1, i_ne2, i_ne3,\
                                       which_coordinate_timelike,\
-                                      in_frac, &last_pos, &last_dir, &last_dt, debug)
+                                      in_frac, &last_pos, &last_dir, &last_dt, debug)*/
+
+    /*float4 i_e0 = mix(i_re0, i_ne0, fraction);
+    float4 i_e1 = mix(i_re1, i_ne1, fraction);
+    float4 i_e2 = mix(i_re2, i_ne2, fraction);
+    float4 i_e3 = mix(i_re3, i_ne3, fraction);
+
+    float4 object_position = mix(object_geodesic_1, object_geodesic_2, fraction);
+
+    float4 diff = initial_diff + initial_origin - object_position;
+
+    float4 pos = coordinate_to_tetrad_basis(diff, i_e0, i_e1, i_e2, i_e3);
+    float4 dir = coordinate_to_tetrad_basis(ray_vel_1, i_e0, i_e1, i_e2, i_e3);
+
+    pos = sort_vector_timelike(pos, which_coordinate_timelike);
+    dir = sort_vector_timelike(dir, which_coordinate_timelike);*/
+
+    float4 diff1 = initial_diff + initial_origin - object_pos_1;
+    float4 diff2 = initial_diff + initial_origin - object_pos_2;
+
+    float4 pos1 = coordinate_to_tetrad_basis(diff1, i_re0, i_re1, i_re2, i_re3);
+    float4 pos2 = coordinate_to_tetrad_basis(diff2, i_ne0, i_ne1, i_ne2, i_ne3);
+
+    float4 vel1 = coordinate_to_tetrad_basis(ray_vel, i_re0, i_re1, i_re2, i_re3);
+    float4 vel2 = coordinate_to_tetrad_basis(ray_vel, i_ne0, i_ne1, i_ne2, i_ne3);
+
+    pos1 = sort_vector_timelike(pos1, which_coordinate_timelike);
+    pos2 = sort_vector_timelike(pos2, which_coordinate_timelike);
+    vel1 = sort_vector_timelike(vel1, which_coordinate_timelike);
+    vel2 = sort_vector_timelike(vel2, which_coordinate_timelike);
 
     #pragma unroll
     for(int i=0; i < 4; i++)
@@ -3940,15 +4012,12 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
         float frac = (new_t - tri_lower_t) / (tri_upper_t - tri_lower_t);
         frac = clamp(frac, 0.f, 1.f);
 
-        if(!INTERSECTS_AT(frac))
+        if(!intersects_at_fraction2(v0, plane_normal, vel1, vel2, pos1, pos2, frac, &last_pos, &last_dir, &last_dt, debug))
             return false;
+
+        //if(!INTERSECTS_AT(frac))
+        //    return false;
     }
-
-
-    /*if(debug)
-    {
-        printf("Fdir %f %f %f %f %i", last_dir.x, last_dir.y, last_dir.z, last_dir.w, which_coordinate_timelike);
-    }*/
 
     float ray_t = 0;
 
