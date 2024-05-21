@@ -1394,6 +1394,7 @@ int main(int argc, char* argv[])
 
     //#define TRI_STANDARD_CASE
     #ifdef TRI_STANDARD_CASE
+    dfg.set_feature("use_triangle_rendering", true);
     std::shared_ptr<triangle_rendering::object> obj = tris.make_new("./models/newell_teaset/smallteapot.obj");
 
     //obj->tris = make_cube({0, 0, 0});
