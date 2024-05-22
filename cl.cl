@@ -2195,24 +2195,15 @@ float4 parallel_transport_get_velocity(float4 X, float4 geodesic_position, float
 float4 get_timelike_vector(float3 cartesian_basis_speed, float time_direction,
                            float4 e0, float4 e1, float4 e2, float4 e3)
 {
-    float v = length(cartesian_basis_speed);
-    float Y = 1 / sqrt(1 - v*v);
 
-    float B = v;
+    float v2 = dot(cartesian_basis_speed, cartesian_basis_speed);
 
-    float psi = B * Y;
+    float Y = 1 / sqrt(1 - v2);
 
     float4 bT = time_direction * Y * e0;
-
-    float3 dir = normalize(cartesian_basis_speed);
-
-    if(v == 0)
-        dir = (float3)(0, 0, 1);
-
-    ///i'm so dumb
-    float4 bX = psi * dir.x * e1;
-    float4 bY = psi * dir.y * e2;
-    float4 bZ = psi * dir.z * e3;
+    float4 bX = Y * cartesian_basis_speed.x * e1;
+    float4 bY = Y * cartesian_basis_speed.y * e2;
+    float4 bZ = Y * cartesian_basis_speed.z * e3;
 
     return bT + bX + bY + bZ;
 }
