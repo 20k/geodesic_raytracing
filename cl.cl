@@ -1922,13 +1922,14 @@ void calculate_lorentz_boost_big(float4 time_basis, float4 observer_velocity, fl
     {
         for(int v=0; v < 4; v++)
         {
-            coeff_out[u * 4 + v] = delta[u * 4 + v] - (1 / (1 + lorentz_factor)) * (T[u] + uobs[u]) * (-lT[v] - luobs[v]) - 2 * uobs[u] * lT[v];
+            coeff_out[u * 4 + v] = delta[u * 4 + v] + (1 / (1 + lorentz_factor)) * (T[u] + uobs[u]) * (lT[v] + luobs[v]) - 2 * uobs[u] * lT[v];
         }
     }
 }
 
 #else
 
+///https://arxiv.org/pdf/2404.05744
 void calculate_lorentz_boost(float4 time_basis, float4 observer_velocity, float g_metric[4], float coeff_out[])
 {
     float delta[] = {1, 0, 0, 0,
@@ -1950,7 +1951,7 @@ void calculate_lorentz_boost(float4 time_basis, float4 observer_velocity, float 
     {
         for(int v=0; v < 4; v++)
         {
-            coeff_out[u * 4 + v] = delta[u * 4 + v] - (1 / (1 + lorentz_factor)) * (T[u] + uobs[u]) * (-lT[v] - luobs[v]) - 2 * uobs[u] * lT[v];
+            coeff_out[u * 4 + v] = delta[u * 4 + v] + (1 / (1 + lorentz_factor)) * (T[u] + uobs[u]) * (lT[v] + luobs[v]) - 2 * uobs[u] * lT[v];
         }
     }
 }
@@ -2208,6 +2209,7 @@ float4 get_timelike_vector(float3 cartesian_basis_speed, float time_direction,
     if(v == 0)
         dir = (float3)(0, 0, 1);
 
+    ///i'm so dumb
     float4 bX = psi * dir.x * e1;
     float4 bY = psi * dir.y * e2;
     float4 bZ = psi * dir.z * e3;
@@ -3945,16 +3947,17 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
     }
 
 
-    /*if(debug)
-    {
-        printf("Fdir %f %f %f %f %i", last_dir.x, last_dir.y, last_dir.z, last_dir.w, which_coordinate_timelike);
-    }*/
-
     float ray_t = 0;
 
     bool intersected = ray_intersects_triangle(last_pos.yzw, last_dir.yzw, v0, v1, v2, &ray_t, 0, 0);
 
     float new_x = ray_origin_t + ray_t * ray_vel_t;
+
+    ///the issue is the ray time is just slightly outside of the tri time
+    /*if(debug)
+    {
+        printf("Intersected %i time %f lower ray %f upper ray %f lower tri %f upper tri %f\n", intersected, new_x, ray_lower_t, ray_upper_t, tri_lower_t, tri_upper_t);
+    }*/
 
     if(new_x < ray_lower_t || new_x > ray_upper_t)
         return false;
