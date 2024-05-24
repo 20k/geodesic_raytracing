@@ -768,7 +768,7 @@ js::value setter_set_default(js::value_context* vctx, js::value value)
     if(s.which != 0)
         throw std::runtime_error("Something really weirds happened in setter_set_default");
 
-    if(!s.d.real.value_payload.has_value())
+    if(!s.d.real.is_value())
         throw std::runtime_error("Must be pseudoconstant value in $default set");
 
     std::string name = type_to_string(s.d.real);
