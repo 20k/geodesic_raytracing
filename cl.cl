@@ -4813,7 +4813,7 @@ void render_chunked_tris(global const struct triangle* const tris,
 
         float3 ncol = fabs(triangle_normal(v0, v1, v2));
 
-        float z_shift = 1;
+        float z_shift = 0;
 
         if(GET_FEATURE(redshift, dfg) && linear_idx < *rdata_count)
         {
@@ -5288,7 +5288,7 @@ void calculate_render_data(global const struct lightray* rays_in, global const i
     dat.z_shift = 0;
     dat.tex_coord = (float2){0,0};
     dat.side = 1;
-    dat.ku_uobsu = 0;
+    dat.ku_uobsu = ray->ku_uobsu;
 
     if(gid == 0)
         *rdata_count = width * height;
@@ -5342,7 +5342,6 @@ void calculate_render_data(global const struct lightray* rays_in, global const i
     z_shift = max(z_shift, -0.999f);
 
     dat.z_shift = z_shift;
-    dat.ku_uobsu = ray->ku_uobsu;
 
     dat.tex_coord = angle_to_tex(position.zw);
 
