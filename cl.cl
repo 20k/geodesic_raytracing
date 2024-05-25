@@ -8,6 +8,35 @@
 
 #define DUMP_TETRAD(str, a, b, c, d) printf(str " p1 %f %f %f %f p2 %f %f %f %f p3 %f %f %f %f p4 %f %f %f %f", a.x, a.y, a.z, a.w, b.x, b.y, b.z, b.w, c.x, c.y, c.z, c.w, d.x, d.y, d.z, d.w)
 
+struct dynamic_config
+{
+    #ifdef DYNVARS
+    float DYNVARS;
+    #endif // DYNVARS
+};
+
+struct dynamic_feature_config
+{
+    #ifdef DYNAMIC_FLOAT_FEATURES
+    float DYNAMIC_FLOAT_FEATURES;
+    #endif // DYNAMIC_FLOAT_FEATURES
+
+    #ifdef DYNAMIC_BOOL_FEATURES
+    int DYNAMIC_BOOL_FEATURES;
+    #endif // DYNAMIC_BOOL_FEATURES
+};
+
+#ifdef KERNEL_IS_STATIC
+#define GET_FEATURE(name, dfg) FEATURE_##name
+#endif // KERNEL_IS_STATIC
+
+#ifdef KERNEL_IS_DYNAMIC
+#define GET_FEATURE(name, dfg) dfg->name
+#endif // KERNEL_IS_DYNAMIC
+
+#define dynamic_config_space __constant
+
+
 struct render_data
 {
     float2 tex_coord;
@@ -18,6 +47,8 @@ struct render_data
     int side;
     float ku_uobsu;
 };
+
+float3 redshift(float3 v, float z, dynamic_config_space const struct dynamic_feature_config* dfg);
 
 float4 sort_vector_timelike(float4 in, int which)
 {
@@ -947,34 +978,6 @@ void small_to_big_partials(float g_metric_partials[], float g_metric_partials_bi
         }
     }
 }
-
-struct dynamic_config
-{
-    #ifdef DYNVARS
-    float DYNVARS;
-    #endif // DYNVARS
-};
-
-struct dynamic_feature_config
-{
-    #ifdef DYNAMIC_FLOAT_FEATURES
-    float DYNAMIC_FLOAT_FEATURES;
-    #endif // DYNAMIC_FLOAT_FEATURES
-
-    #ifdef DYNAMIC_BOOL_FEATURES
-    int DYNAMIC_BOOL_FEATURES;
-    #endif // DYNAMIC_BOOL_FEATURES
-};
-
-#ifdef KERNEL_IS_STATIC
-#define GET_FEATURE(name, dfg) FEATURE_##name
-#endif // KERNEL_IS_STATIC
-
-#ifdef KERNEL_IS_DYNAMIC
-#define GET_FEATURE(name, dfg) dfg->name
-#endif // KERNEL_IS_DYNAMIC
-
-#define dynamic_config_space __constant
 
 #ifndef GENERIC_BIG_METRIC
 void calculate_metric_generic(float4 spacetime_position, float g_metric_out[], dynamic_config_space const struct dynamic_config* cfg)
@@ -3987,7 +3990,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
                       int width, int height,
                       int mouse_x, int mouse_y,
                       __global float4* ray_write,
-                      __global float* ray_velocity,
+                      __global float4* ray_velocity,
                       __global int* ray_write_counts,
                       int max_write)
 {
@@ -4071,6 +4074,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
     int ray_skipping = GET_FEATURE(ray_skip, dfg);
 
     bool use_redshift = GET_FEATURE(redshift, dfg);
+    float4 last_pos_generic;
 
     //#pragma unroll
     for(int i=0; i < loop_limit; i++)
@@ -4720,9 +4724,7 @@ void render_chunked_tris(global const struct triangle* const tris,
     float last_ray_t = FLT_MAX;
 
     int last_tri_id = -1;
-
-    float4 emitter_velocity = (float4)(0,0,0,0);
-    float4 redshift_velocity = (float4)(0,0,0,0);
+    int hit_rs = -1;
 
     for(int rs = bounds.x; rs < bounds.y - 1; rs++)
     {
@@ -4789,9 +4791,7 @@ void render_chunked_tris(global const struct triangle* const tris,
                 last_ray_t = ray_t;
 
                 last_tri_id = tri_id;
-
-                emitter_velocity = p_e0[tri.geodesic_segment];
-                redshift_velocity = ray_velocities[rs * width * height + ray_id];
+                hit_rs = rs;
             }
         }
 
@@ -4807,48 +4807,69 @@ void render_chunked_tris(global const struct triangle* const tris,
 
         int linear_idx = ray_y * width + ray_x;
 
-        float z_shift = 1;
-
-        if(linear_idx < *rdata_count && GET_FEATURE(redshift, dfg))
-        {
-            //z_shift = rdata[linear_idx].z_shift;
-        }
-
         float3 v0 = (float3)(tri.v0x, tri.v0y, tri.v0z);
         float3 v1 = (float3)(tri.v1x, tri.v1y, tri.v1z);
         float3 v2 = (float3)(tri.v2x, tri.v2y, tri.v2z);
 
         float3 ncol = fabs(triangle_normal(v0, v1, v2));
 
-        float3 lin_result = ncol;
+        float z_shift = 1;
 
-        ///Pick an arbitrary wavelength, the peak of human vision
-        float test_wavelength = 555 / real_sol;
-
-        float local_wavelength = test_wavelength / (z_shift + 1);
-
-        ///this is relative luminance instead of absolute specific intensity, but relative_luminance / wavelength^3 should still be lorenz invariant (?)
-        float relative_luminance = 0.2126f * lin_result.x + 0.7152f * lin_result.y + 0.0722f * lin_result.z;
-
-        ///Iv = I1 / v1^3, where Iv is lorenz invariant
-        ///Iv = I2 / v2^3 in our new frame of reference
-        ///therefore we can calculate the new intensity in our new frame of reference as...
-        ///I1/v1^3 = I2 / v2^3
-        ///I2 = v2^3 * I1/v1^3
-
-        float new_relative_luminance = pow(local_wavelength, 3) * relative_luminance / pow(test_wavelength, 3);
-
-        new_relative_luminance = clamp(new_relative_luminance, 0.f, 1.f);
-
-        if(relative_luminance > 0.00001)
+        if(GET_FEATURE(redshift, dfg) && linear_idx < *rdata_count)
         {
-            lin_result = (new_relative_luminance / relative_luminance) * lin_result;
+            float4 geodesic_velocity = ray_velocities[hit_rs * width * height + ray_id];
+            float4 emitter_velocity = p_e0[found_ctri.geodesic_segment];
+            float4 generic_position = object_geodesics[found_ctri.geodesic_segment];
 
+            {
+                #ifndef GENERIC_BIG_METRIC
+                float g_metric[4] = {0};
+                calculate_metric_generic(generic_position, g_metric, cfg);
+                #else
+                float g_metric[16] = {0};
+                calculate_metric_generic_big(generic_position, g_metric, cfg);
+                #endif
+
+                float4 geodesic_low = lower_index_generic(geodesic_velocity, g_metric);
+
+                z_shift = (dot(geodesic_low, emitter_velocity) / rdata[linear_idx].ku_uobsu) - 1;
+                z_shift = max(z_shift, -0.999f);
+            }
+
+            float3 lin_result = ncol;
+
+            float real_sol = 299792458;
+
+            ///Pick an arbitrary wavelength, the peak of human vision
+            float test_wavelength = 555 / real_sol;
+
+            float local_wavelength = test_wavelength / (z_shift + 1);
+
+            ///this is relative luminance instead of absolute specific intensity, but relative_luminance / wavelength^3 should still be lorenz invariant (?)
+            float relative_luminance = 0.2126f * lin_result.x + 0.7152f * lin_result.y + 0.0722f * lin_result.z;
+
+            ///Iv = I1 / v1^3, where Iv is lorenz invariant
+            ///Iv = I2 / v2^3 in our new frame of reference
+            ///therefore we can calculate the new intensity in our new frame of reference as...
+            ///I1/v1^3 = I2 / v2^3
+            ///I2 = v2^3 * I1/v1^3
+
+            float new_relative_luminance = pow(local_wavelength, 3) * relative_luminance / pow(test_wavelength, 3);
+
+            new_relative_luminance = clamp(new_relative_luminance, 0.f, 1.f);
+
+            if(relative_luminance > 0.00001)
+            {
+                lin_result = (new_relative_luminance / relative_luminance) * lin_result;
+
+                lin_result = clamp(lin_result, 0.f, 1.f);
+            }
+
+            lin_result = redshift(lin_result, z_shift, dfg);
             lin_result = clamp(lin_result, 0.f, 1.f);
-        }
 
-        lin_result = redshift(lin_result, z_shift, dfg);
-        lin_result = clamp(lin_result, 0.f, 1.f);
+            ncol = lin_result;
+        }
 
         write_imagef(screen, (int2)(ray_x, ray_y), (float4)(ncol.x, ncol.y, ncol.z, 1));
 

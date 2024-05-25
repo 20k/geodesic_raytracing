@@ -2587,6 +2587,7 @@ int main(int argc, char* argv[])
                         args.push_back(chunk_x);
                         args.push_back(chunk_y);
                         args.push_back(single_state.stored_rays);
+                        args.push_back(single_state.stored_ray_relative_lengths);
                         args.push_back(st.stored_ray_counts);
                         args.push_back(phys.subsampled_paths);
                         args.push_back(phys.subsampled_counts);

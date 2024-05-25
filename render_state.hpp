@@ -51,7 +51,7 @@ struct single_render_state
     bool last_use_redshift = false;
 
     single_render_state(cl::context& ctx) :
-        stored_rays(ctx),
+        stored_rays(ctx), stored_ray_relative_lengths(ctx),
         tri_list_allocator(ctx), tri_list_offsets(ctx),
         tri_list1(ctx), tri_list_counts1(ctx),
         computed_tris(ctx), computed_tri_count(ctx)
