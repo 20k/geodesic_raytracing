@@ -3987,6 +3987,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
                       int width, int height,
                       int mouse_x, int mouse_y,
                       __global float4* ray_write,
+                      __global float* ray_velocity,
                       __global int* ray_write_counts,
                       int max_write)
 {
@@ -4068,6 +4069,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
     int which_ray_write = 0;
 
     int ray_skipping = GET_FEATURE(ray_skip, dfg);
+
+    bool use_redshift = GET_FEATURE(redshift, dfg);
 
     //#pragma unroll
     for(int i=0; i < loop_limit; i++)
@@ -4176,6 +4179,8 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
 
         step_verlet(position, velocity, acceleration, true, ds, &next_position, &next_velocity, &next_acceleration, &dLambda_dNew, cfg, dfg);
 
+        float old_dlambda = running_dlambda_dnew;
+
         running_dlambda_dnew *= dLambda_dNew;
 
         #ifdef ADAPTIVE_PRECISION
@@ -4207,7 +4212,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
 
         if(GET_FEATURE(use_triangle_rendering, dfg) && ((i % ray_skipping) == 0))
         {
-            float4 native_position = position;
+            /*float4 native_position = position;
 
             #if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC) || defined(DEBUG_CONSTANT_THETA)
             {
@@ -4233,16 +4238,58 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
 
                 native_position = next_pos_generic;
             }
+            #endif*/
+
+            float4 generic_position_out = position;
+            float4 generic_velocity_out = velocity / old_dlambda;
+
+            #if (defined(GENERIC_METRIC) && defined(GENERIC_CONSTANT_THETA)) || !defined(GENERIC_METRIC) || defined(DEBUG_CONSTANT_THETA)
+            {
+                float4 pos_spherical = generic_to_spherical(position, cfg);
+                float4 vel_spherical = generic_velocity_to_spherical_velocity(position, velocity / old_dlambda, cfg);
+
+                float fsign = sign(pos_spherical.y);
+                pos_spherical.y = fabs(pos_spherical.y);
+
+                float3 pos_cart = polar_to_cartesian(pos_spherical.yzw);
+                float3 vel_cart = spherical_velocity_to_cartesian_velocity(pos_spherical.yzw, vel_spherical.yzw);
+
+                float4 quat = ray->initial_quat;
+
+                pos_cart = rot_quat(pos_cart, quat);
+                vel_cart = rot_quat(vel_cart, quat);
+
+                float3 next_pos_spherical = cartesian_to_polar(pos_cart);
+                float3 next_vel_spherical = cartesian_velocity_to_polar_velocity(pos_cart, vel_cart);
+
+                if(fsign < 0)
+                {
+                    next_pos_spherical.x = -next_pos_spherical.x;
+                }
+
+                float4 next_pos_generic = spherical_to_generic((float4)(pos_spherical.x, next_pos_spherical), cfg);
+                float4 next_vel_generic = spherical_velocity_to_generic_velocity((float4)(pos_spherical.x, next_pos_spherical), (float4)(vel_spherical.x, next_vel_spherical), cfg);
+
+                if(i != 0)
+                    next_pos_generic = periodic_diff(next_pos_generic, last_pos_generic, periods) + last_pos_generic;
+
+                last_pos_generic = next_pos_generic;
+
+                generic_position_out = next_pos_generic;
+                generic_velocity_out = next_vel_generic;
+
+                //printf("In pos %f %f %f %f out %f %f %f %f\n", position.x, position.y, position.z, position.w, next_pos_generic.x, next_pos_generic.y, next_pos_generic.z, next_pos_generic.w);
+            }
             #endif
 
             if(i == 0)
             {
-                last_real_pos = native_position;
+                last_real_pos = generic_position_out;
             }
 
-            float4 real_pos = native_position;
+            float4 real_pos = generic_position_out;
 
-            float4 pdiff = periodic_diff(native_position, last_real_pos, periods);
+            float4 pdiff = periodic_diff(generic_position_out, last_real_pos, periods);
 
             ///I think this periodic diff is only necessary in constant theta metrics?
             float4 next_real_pos = pdiff + last_real_pos;
@@ -4250,6 +4297,11 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
             if(which_ray_write < max_write)
             {
                 ray_write[which_ray_write * width * height + id] = next_real_pos;
+
+                if(use_redshift)
+                {
+                    ray_velocity[which_ray_write * width * height + id] =  generic_velocity_out;
+                }
 
                 which_ray_write++;
                 ray_write_counts[ray->sy * width + ray->sx] = which_ray_write;
@@ -4610,7 +4662,7 @@ void render_chunked_tris(global const struct triangle* const tris,
                          int height,
                          int chunk_x,
                          int chunk_y,
-                         global float4* ray_segments,
+                         global float4* ray_segments, global float4* ray_velocities,
                          global int* ray_segments_count,
                          global float4* object_geodesics, global int* object_geodesic_counts,
                          global float4* p_e0, global float4* p_e1, global float4* p_e2, global float4* p_e3,
@@ -4668,6 +4720,9 @@ void render_chunked_tris(global const struct triangle* const tris,
     float last_ray_t = FLT_MAX;
 
     int last_tri_id = -1;
+
+    float4 emitter_velocity = (float4)(0,0,0,0);
+    float4 redshift_velocity = (float4)(0,0,0,0);
 
     for(int rs = bounds.x; rs < bounds.y - 1; rs++)
     {
@@ -4734,6 +4789,9 @@ void render_chunked_tris(global const struct triangle* const tris,
                 last_ray_t = ray_t;
 
                 last_tri_id = tri_id;
+
+                emitter_velocity = p_e0[tri.geodesic_segment];
+                redshift_velocity = ray_velocities[rs * width * height + ray_id];
             }
         }
 
@@ -4753,7 +4811,7 @@ void render_chunked_tris(global const struct triangle* const tris,
 
         if(linear_idx < *rdata_count && GET_FEATURE(redshift, dfg))
         {
-            z_shift = rdata[linear_idx].z_shift;
+            //z_shift = rdata[linear_idx].z_shift;
         }
 
         float3 v0 = (float3)(tri.v0x, tri.v0y, tri.v0z);

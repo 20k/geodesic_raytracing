@@ -32,6 +32,7 @@ struct render_data_struct
 struct single_render_state
 {
     cl::buffer stored_rays;
+    cl::buffer stored_ray_relative_lengths;
 
     cl::buffer tri_list_allocator;
     cl::buffer tri_list_offsets;
@@ -47,6 +48,7 @@ struct single_render_state
     uint32_t last_width = 0;
     uint32_t last_height = 0;
     cl_int last_max_stored_rays = 0;
+    bool last_use_redshift = false;
 
     single_render_state(cl::context& ctx) :
         stored_rays(ctx),
@@ -62,7 +64,7 @@ struct single_render_state
         *this = single_render_state(ctx);
     }
 
-    void lazy_allocate(uint32_t width, uint32_t height, int max_stored)
+    void lazy_allocate(uint32_t width, uint32_t height, int max_stored, bool use_redshift)
     {
         max_stored = clamp(max_stored, 1, 1000);
 
@@ -79,7 +81,19 @@ struct single_render_state
             stored_rays.alloc(sizeof(cl_float4) * width * height * max_stored);
         }
 
-        if(!allocated || last_max_stored_rays != max_stored)
+        if(!allocated || last_use_redshift != use_redshift)
+        {
+            if(use_redshift)
+            {
+                stored_ray_relative_lengths.alloc(sizeof(cl_float4) * width * height * max_stored);
+            }
+            else
+            {
+                stored_ray_relative_lengths.alloc(1);
+            }
+        }
+
+        if(last_max_stored_rays != max_stored)
         {
             stored_rays.alloc(sizeof(cl_float4) * width * height * max_stored);
         }

@@ -193,9 +193,15 @@ void execute_kernel(graphics_settings& sett,
         run_args.push_back(mouse_y);
 
         if(dfg.get_feature<bool>("use_triangle_rendering"))
+        {
             run_args.push_back(single_state.stored_rays);
+            run_args.push_back(single_state.stored_ray_relative_lengths);
+        }
         else
+        {
             run_args.push_back(nullptr);
+            run_args.push_back(nullptr);
+        }
 
         run_args.push_back(st.stored_ray_counts);
         run_args.push_back(single_state.last_max_stored_rays);
@@ -2323,7 +2329,7 @@ int main(int argc, char* argv[])
                     tris.update_objects(mqueue);
 
                     phys.trace(mqueue, tris, dynamic_config, dynamic_feature_buffer);
-                    single_state.lazy_allocate(width, height, max_stored_rays);
+                    single_state.lazy_allocate(width, height, max_stored_rays, dfg.get_feature<bool>("redshift"));
                 }
                 else
                 {
