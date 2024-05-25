@@ -2600,7 +2600,10 @@ int main(int argc, char* argv[])
                         float mx = ImGui::GetIO().MousePos.x;
                         float my = ImGui::GetIO().MousePos.y;
 
+                        args.push_back(st.render_data);
+                        args.push_back(st.render_data_count);
                         args.push_back(dynamic_config);
+                        args.push_back(dynamic_feature_buffer);
                         args.push_back(mx);
                         args.push_back(my);
                         args.push_back(kk);

@@ -8,6 +8,17 @@
 
 #define DUMP_TETRAD(str, a, b, c, d) printf(str " p1 %f %f %f %f p2 %f %f %f %f p3 %f %f %f %f p4 %f %f %f %f", a.x, a.y, a.z, a.w, b.x, b.y, b.z, b.w, c.x, c.y, c.z, c.w, d.x, d.y, d.z, d.w)
 
+struct render_data
+{
+    float2 tex_coord;
+    float z_shift;
+    int sx;
+    int sy;
+    int terminated;
+    int side;
+    float ku_uobsu;
+};
+
 float4 sort_vector_timelike(float4 in, int which)
 {
     if(which == 0)
@@ -4607,7 +4618,9 @@ void render_chunked_tris(global const struct triangle* const tris,
                          global const int* timelike_coordinates,
                          global float4* fine_clip_min, global float4* fine_clip_max,
                          global int* already_rendered,
+                         global const struct render_data* rdata, global int* rdata_count,
                          dynamic_config_space const struct dynamic_config* cfg,
+                         dynamic_config_space const struct dynamic_feature_config* dfg,
                          float mouse_x,
                          float mouse_y,
                          int offset
@@ -4711,6 +4724,7 @@ void render_chunked_tris(global const struct triangle* const tris,
             ///i'm doing this raywise, but traversing the entire ray, so early terminate is borked
             ///this is very inefficient, go along the way and then check the tris
             ///or maybe not actually, there's some good short circuiting i can do, and the tris need more memory fetche
+            ///need to extract timelike component, and geodesic velocity
             if(ray_intersects_toblerone2(current_pos, next_pos, v0, v1, v2, native_current, native_next, which_timelike,
                                          s_ie0, s_ie1, s_ie2, s_ie3, n_ie0, n_ie1, n_ie2, n_ie3, periods, &ray_t, ray_x == mouse_x && ray_y == mouse_y))
             {
@@ -4733,11 +4747,51 @@ void render_chunked_tris(global const struct triangle* const tris,
         struct computed found_ctri = ctri[last_tri_id];
         struct triangle tri = tris[found_ctri.root_tri_id];
 
+        int linear_idx = ray_y * width + ray_x;
+
+        float z_shift = 1;
+
+        if(linear_idx < *rdata_count && GET_FEATURE(redshift, dfg))
+        {
+            z_shift = rdata[linear_idx].z_shift;
+        }
+
         float3 v0 = (float3)(tri.v0x, tri.v0y, tri.v0z);
         float3 v1 = (float3)(tri.v1x, tri.v1y, tri.v1z);
         float3 v2 = (float3)(tri.v2x, tri.v2y, tri.v2z);
 
         float3 ncol = fabs(triangle_normal(v0, v1, v2));
+
+        float3 lin_result = ncol;
+
+        ///Pick an arbitrary wavelength, the peak of human vision
+        float test_wavelength = 555 / real_sol;
+
+        float local_wavelength = test_wavelength / (z_shift + 1);
+
+        ///this is relative luminance instead of absolute specific intensity, but relative_luminance / wavelength^3 should still be lorenz invariant (?)
+        float relative_luminance = 0.2126f * lin_result.x + 0.7152f * lin_result.y + 0.0722f * lin_result.z;
+
+        ///Iv = I1 / v1^3, where Iv is lorenz invariant
+        ///Iv = I2 / v2^3 in our new frame of reference
+        ///therefore we can calculate the new intensity in our new frame of reference as...
+        ///I1/v1^3 = I2 / v2^3
+        ///I2 = v2^3 * I1/v1^3
+
+        float new_relative_luminance = pow(local_wavelength, 3) * relative_luminance / pow(test_wavelength, 3);
+
+        new_relative_luminance = clamp(new_relative_luminance, 0.f, 1.f);
+
+        if(relative_luminance > 0.00001)
+        {
+            lin_result = (new_relative_luminance / relative_luminance) * lin_result;
+
+            lin_result = clamp(lin_result, 0.f, 1.f);
+        }
+
+        lin_result = redshift(lin_result, z_shift, dfg);
+        lin_result = clamp(lin_result, 0.f, 1.f);
+
         write_imagef(screen, (int2)(ray_x, ray_y), (float4)(ncol.x, ncol.y, ncol.z, 1));
 
         already_rendered[ray_id] = 1;
@@ -5075,16 +5129,6 @@ float4 get_intersection_position(struct lightray ray, dynamic_config_space const
     return (float4)(position.x, npolar.xyz);
 }
 
-struct render_data
-{
-    float2 tex_coord;
-    float z_shift;
-    int sx;
-    int sy;
-    int terminated;
-    int side;
-};
-
 float3 angle_to_vec(float2 a)
 {
     return polar_to_cartesian((float3)(1.f, a));
@@ -5165,6 +5209,7 @@ void calculate_render_data(global const struct lightray* rays_in, global const i
     dat.z_shift = 0;
     dat.tex_coord = (float2){0,0};
     dat.side = 1;
+    dat.ku_uobsu = 0;
 
     if(gid == 0)
         *rdata_count = width * height;
@@ -5218,6 +5263,7 @@ void calculate_render_data(global const struct lightray* rays_in, global const i
     z_shift = max(z_shift, -0.999f);
 
     dat.z_shift = z_shift;
+    dat.ku_uobsu = ray->ku_uobsu;
 
     dat.tex_coord = angle_to_tex(position.zw);
 

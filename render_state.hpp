@@ -26,6 +26,7 @@ struct render_data_struct
     cl_int sy;
     cl_int terminated;
     cl_int side;
+    cl_float ku_uobsu;
 };
 
 struct single_render_state
