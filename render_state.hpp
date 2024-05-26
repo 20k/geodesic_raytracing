@@ -85,7 +85,7 @@ struct single_render_state
         {
             if(use_redshift)
             {
-                stored_ray_relative_lengths.alloc(sizeof(cl_float4) * width * height * max_stored);
+                stored_ray_relative_lengths.alloc(sizeof(cl_float) * width * height * max_stored);
             }
             else
             {

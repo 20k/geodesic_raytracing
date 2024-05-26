@@ -3895,7 +3895,7 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
                                int which_coordinate_timelike,
                                float4 i_re0, float4 i_re1, float4 i_re2, float4 i_re3, ///inverse current geodesic segment tetrad
                                float4 i_ne0, float4 i_ne1, float4 i_ne2, float4 i_ne3, ///inverse next geodesic segment tetrad
-                               float4 periods, float* t_out, bool debug)
+                               float4 periods, float* t_out, float* frac_out, float* ray_frac_out, bool debug)
 {
     #define TIMELIKE(x) get_vector_timelike_component(x, which_coordinate_timelike)
 
@@ -3939,6 +3939,8 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
                                       which_coordinate_timelike,\
                                       in_frac, &last_pos, &last_dir, &last_dt, debug)
 
+    float last_frac = 0;
+
     #pragma unroll
     for(int i=0; i < 4; i++)
     {
@@ -3949,8 +3951,11 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
 
         if(!INTERSECTS_AT(frac))
             return false;
+
+        last_frac = frac;
     }
 
+    *frac_out = last_frac;
 
     float ray_t = 0;
 
@@ -3971,6 +3976,7 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
         return false;
 
     *t_out = ray_t;
+    *ray_frac_out = last_frac;
 
     /*if(debug)
     {
@@ -4731,7 +4737,9 @@ void render_chunked_tris(global const struct triangle* const tris,
 
     int last_tri_id = -1;
     int hit_rs = -1;
-    float pseudo_ray_length = 0;
+    float last_frac = 0;
+    int stride = object_count;
+    float last_ray_frac = 0;
 
     for(int rs = bounds.x; rs < bounds.y - 1; rs++)
     {
@@ -4746,7 +4754,6 @@ void render_chunked_tris(global const struct triangle* const tris,
             struct computed tri = ctri[tri_id];
             struct triangle ttri = tris[tri.root_tri_id];
 
-            int stride = object_count;
 
             float4 min_extents = tri.min_extents;
             float4 max_extents = tri.max_extents;
@@ -4781,6 +4788,8 @@ void render_chunked_tris(global const struct triangle* const tris,
             float3 v2 = (float3)(ttri.v2x, ttri.v2y, ttri.v2z);
 
             float ray_t = FLT_MAX;
+            float frac = 0;
+            float ray_frac = 0;
 
             ///todo: sort by minimum ray intersection length? whats going on here
             ///wait. do i want the last hit??
@@ -4790,7 +4799,7 @@ void render_chunked_tris(global const struct triangle* const tris,
             ///or maybe not actually, there's some good short circuiting i can do, and the tris need more memory fetche
             ///need to extract timelike component, and geodesic velocity
             if(ray_intersects_toblerone2(current_pos, next_pos, v0, v1, v2, native_current, native_next, which_timelike,
-                                         s_ie0, s_ie1, s_ie2, s_ie3, n_ie0, n_ie1, n_ie2, n_ie3, periods, &ray_t, ray_x == mouse_x && ray_y == mouse_y))
+                                         s_ie0, s_ie1, s_ie2, s_ie3, n_ie0, n_ie1, n_ie2, n_ie3, periods, &ray_t, &frac, &ray_frac, ray_x == mouse_x && ray_y == mouse_y))
             {
                 if(last_ray_t != FLT_MAX && ray_t >= last_ray_t)
                     continue;
@@ -4799,7 +4808,8 @@ void render_chunked_tris(global const struct triangle* const tris,
 
                 last_tri_id = tri_id;
                 hit_rs = rs;
-                pseudo_ray_length = length(next_pos - current_pos);
+                last_frac = frac;
+                last_ray_frac = ray_frac;
             }
         }
 
@@ -4825,11 +4835,22 @@ void render_chunked_tris(global const struct triangle* const tris,
 
         if(GET_FEATURE(redshift, dfg) && linear_idx < *rdata_count)
         {
-            float pretend_over_real = ray_velocityl[hit_rs * width * height + ray_id];
+            float pretend_over_real = ray_velocityl[(hit_rs + 1) * width * height + ray_id];
 
-            float4 geodesic_velocity = (ray_segments[(hit_rs + 1) * width * height + ray_id] - ray_segments[hit_rs * width * height + ray_id]) / pretend_over_real;
-            float4 emitter_velocity = p_e0[found_ctri.geodesic_segment];
-            float4 generic_position = object_geodesics[found_ctri.geodesic_segment];
+            float4 current_ray_pos = ray_segments[hit_rs * width * height + ray_id];
+            float4 next_ray_pos = ray_segments[(hit_rs + 1) * width * height + ray_id];
+
+            float4 geodesic_velocity = (next_ray_pos - current_ray_pos) / pretend_over_real;
+
+            if(hit_rs + 2 < bounds.y)
+            {
+                float4 next_geodesic_velocity = (ray_segments[(hit_rs + 2) * width * height + ray_id] - next_ray_pos) / ray_velocityl[(hit_rs + 2) * width * height + ray_id];
+
+                geodesic_velocity = mix(geodesic_velocity, next_geodesic_velocity, last_ray_frac);
+            }
+
+            float4 emitter_velocity = mix(p_e0[found_ctri.geodesic_segment], p_e0[found_ctri.geodesic_segment + stride * COMPUTED_SKIP], last_frac);
+            float4 generic_position = mix(object_geodesics[found_ctri.geodesic_segment], object_geodesics[found_ctri.geodesic_segment + stride * COMPUTED_SKIP], last_frac);
 
             {
                 #ifndef GENERIC_BIG_METRIC
