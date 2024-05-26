@@ -3930,13 +3930,16 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
 
     float base_ray_length = length(ray_vel);
 
+    float next_t = ray_origin_t;
+    float4 last_gintersection_point = (float4)(0,0,0,0);
+
     #pragma unroll
     for(int i=0; i < 4; i++)
     {
         ///this is wrong, we need to express this in terms of fractions
-        float new_t = ray_origin_t + ray_vel_t * last_dt;
+        //float new_t = ray_origin_t + ray_vel_t * last_dt;
 
-        float frac = (new_t - tri_lower_t) / (tri_upper_t - tri_lower_t);
+        float frac = (next_t - tri_lower_t) / (tri_upper_t - tri_lower_t);
         frac = clamp(frac, 0.f, 1.f);
 
         if(!INTERSECTS_AT(frac))
@@ -3952,28 +3955,15 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
         float4 intersection_point = last_pos + last_dir * last_dt;
 
         float4 tetrad_origin = mix(object_pos_1, object_pos_2, frac);
-        float4 gintersection_point = tetrad_to_coordinate_basis(intersection_point, ipe0, ipe1, ipe2, ipe3) + tetrad_origin;
 
-        last_dt = length(periodic_diff(gintersection_point, ray_origin, periods)) / length(ray_vel);
+        last_gintersection_point = tetrad_to_coordinate_basis(intersection_point, ipe0, ipe1, ipe2, ipe3) + tetrad_origin;
+        next_t = TIMELIKE(last_gintersection_point);
     }
 
     float ray_t = 0;
-
     bool intersected = ray_intersects_triangle(last_pos.yzw, last_dir.yzw, v0, v1, v2, &ray_t, 0, 0);
 
-    float4 ipe0 = mix(pe0, npe0, last_frac);
-    float4 ipe1 = mix(pe1, npe1, last_frac);
-    float4 ipe2 = mix(pe2, npe2, last_frac);
-    float4 ipe3 = mix(pe3, npe3, last_frac);
-
-    float4 intersection_point = last_pos + last_dir * ray_t;
-
-    float4 tetrad_origin = mix(object_pos_1, object_pos_2, last_frac);
-    float4 gintersection_point = tetrad_to_coordinate_basis(intersection_point, ipe0, ipe1, ipe2, ipe3) + tetrad_origin;
-
-    ray_t = length(periodic_diff(gintersection_point, ray_origin, periods)) / length(ray_vel);
-
-    float new_x = ray_origin_t + ray_t * ray_vel_t;
+    float new_x = TIMELIKE(last_gintersection_point);
 
     ///the issue is the ray time is just slightly outside of the tri time
     /*if(debug)
