@@ -2692,6 +2692,93 @@ void parallel_transport_quantity(__global float4* geodesic_path, __global float4
     quantity_out[(cnt - 1) * stride + id] = current_quantity;
 }
 
+float4 transport(float4 current_quantity,
+                 float4 current_position, float4 current_velocity,
+                 float4 next_position, float4 next_velocity,
+                 float ds,
+                 dynamic_config_space const struct dynamic_config* cfg)
+{
+
+    ///this isn't verlet, its generic 2nd order integration
+    float4 f_x = parallel_transport_get_velocity(current_quantity, current_position, current_velocity, cfg);
+
+    float4 intermediate_next = current_quantity + f_x * ds;
+
+    float4 next = current_quantity + 0.5f * ds * (f_x + parallel_transport_get_velocity(intermediate_next, next_position, next_velocity, cfg));
+
+    return next;
+}
+
+__kernel
+void parallel_transport_tetrads(__global float4* geodesic_path, __global float4* geodesic_velocity, __global float* ds_in,
+                                __global float4* in_e0, __global float4* in_e1, __global float4* in_e2, __global float4* in_e3,
+                                __global int* count_in, int count,
+                                __global float4* out_e0, __global float4* out_e1, __global float4* out_e2, __global float4* out_e3,
+                                dynamic_config_space const struct dynamic_config* cfg)
+{
+    int id = get_global_id(0);
+
+    if(id >= count)
+        return;
+
+    int cnt = count_in[id];
+
+    if(cnt == 0)
+        return;
+
+    int stride = count;
+
+    ///i * stride + id
+    float4 e0 = in_e0[0 * stride + id];
+    float4 e1 = in_e1[0 * stride + id];
+    float4 e2 = in_e2[0 * stride + id];
+    float4 e3 = in_e3[0 * stride + id];
+
+    out_e0[0 * stride + id] = e0;
+    out_e1[0 * stride + id] = e1;
+    out_e2[0 * stride + id] = e2;
+    out_e3[0 * stride + id] = e3;
+
+    if(cnt == 1)
+        return;
+
+    for(int kk=0; kk < cnt - 1; kk++)
+    {
+        int current_idx = kk * stride + id;
+        int next_idx = (kk + 1) * stride + id;
+
+        float ds = ds_in[current_idx];
+
+        float4 current_position = geodesic_path[current_idx];
+        float4 next_position = geodesic_path[next_idx];
+
+        float4 current_velocity = geodesic_velocity[current_idx];
+        float4 next_velocity = geodesic_velocity[next_idx];
+
+        float4 ne0 = transport(e0, current_position, current_velocity, next_position, next_velocity, ds, cfg);
+        float4 ne1 = transport(e1, current_position, current_velocity, next_position, next_velocity, ds, cfg);
+        float4 ne2 = transport(e2, current_position, current_velocity, next_position, next_velocity, ds, cfg);
+        float4 ne3 = transport(e3, current_position, current_velocity, next_position, next_velocity, ds, cfg);
+
+        ///so. quantity_out[0] ends up being initial, quantity_out[1] = after one transport
+        out_e0[current_idx] = ne0;
+        out_e1[current_idx] = ne1;
+        out_e2[current_idx] = ne2;
+        out_e3[current_idx] = ne3;
+
+        e0 = ne0;
+        e1 = ne1;
+        e2 = ne2;
+        e3 = ne3;
+    }
+
+    ///need to write final one
+    out_e0[(cnt - 1) * stride + id] = e0;
+    out_e1[(cnt - 1) * stride + id] = e1;
+    out_e2[(cnt - 1) * stride + id] = e2;
+    out_e3[(cnt - 1) * stride + id] = e3;
+}
+
 __kernel
 void handle_interpolating_geodesic(__global const float4* geodesic_path, __global const float4* geodesic_velocity, __global const float* ds_in,
                                    __global float4* g_camera_generic_out,

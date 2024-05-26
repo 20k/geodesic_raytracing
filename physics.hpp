@@ -199,7 +199,7 @@ struct physics
             cqueue.exec("get_geodesic_path", snapshot_args, {object_count}, {256});
         }
 
-        for(int i=0; i < 4; i++)
+        /*for(int i=0; i < 4; i++)
         {
             cl::args pt_args;
             pt_args.push_back(geodesic_paths);
@@ -212,9 +212,23 @@ struct physics
             pt_args.push_back(dynamic_config);
 
             cqueue.exec("parallel_transport_quantity", pt_args, {object_count}, {256});
-        }
+        }*/
 
         {
+            cl::args pt_args;
+            pt_args.push_back(geodesic_paths);
+            pt_args.push_back(geodesic_velocities);
+            pt_args.push_back(geodesic_ds);
+            pt_args.push_back(tetrads[0], tetrads[1], tetrads[2], tetrads[3]);
+            pt_args.push_back(counts);
+            pt_args.push_back(object_count);
+            pt_args.push_back(parallel_transported_tetrads[0], parallel_transported_tetrads[1], parallel_transported_tetrads[2], parallel_transported_tetrads[3]);
+            pt_args.push_back(dynamic_config);
+
+            cqueue.exec("parallel_transport_tetrads", pt_args, {object_count}, {256});
+        }
+
+        /*{
             cl::args args;
             args.push_back(generic_positions);
             args.push_back(object_count);
@@ -222,7 +236,7 @@ struct physics
             args.push_back(initial_timelike);
 
             cqueue.exec("calculate_timelike_coordinates", args, {object_count}, {256});
-        }
+        }*/
 
         cl::args invert_args;
         invert_args.push_back(counts);
