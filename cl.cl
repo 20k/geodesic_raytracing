@@ -3914,13 +3914,8 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
     float4 initial_diff = periodic_diff(ray_origin, object_pos_1, periods);
     float4 initial_origin = object_pos_1;
 
-    float ray_origin_t = TIMELIKE(ray_origin);
-    float ray_vel_t = TIMELIKE(ray_vel);
-
     float4 last_pos;
     float4 last_dir;
-    float last_dt = 0;
-    float last_frac = 0;
 
     #define INTERSECTS_AT(in_frac) intersects_at_fraction(v0, plane_normal, initial_origin, initial_diff, ray_vel, object_pos_1, object_pos_2,\
                                       i_re0, i_re1, i_re2, i_re3,\
@@ -3928,24 +3923,19 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
                                       which_coordinate_timelike,\
                                       in_frac, &last_pos, &last_dir, &last_dt, debug)
 
-    float base_ray_length = length(ray_vel);
-
-    float next_t = ray_origin_t;
+    float next_t = TIMELIKE(ray_origin);
     float4 last_gintersection_point = (float4)(0,0,0,0);
 
     #pragma unroll
     for(int i=0; i < 4; i++)
     {
-        ///this is wrong, we need to express this in terms of fractions
-        //float new_t = ray_origin_t + ray_vel_t * last_dt;
-
         float frac = (next_t - tri_lower_t) / (tri_upper_t - tri_lower_t);
         frac = clamp(frac, 0.f, 1.f);
 
+        float last_dt = 0;
+
         if(!INTERSECTS_AT(frac))
             return false;
-
-        last_frac = frac;
 
         float4 ipe0 = mix(pe0, npe0, frac);
         float4 ipe1 = mix(pe1, npe1, frac);
