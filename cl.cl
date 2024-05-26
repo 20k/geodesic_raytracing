@@ -3981,6 +3981,12 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
 
 }
 
+///at the moment we have:  position4, velocity4
+///this.... is not ideal. Velocity 4 is directly related to position4 via a length, or at least approximately related
+///velocity4 also has the relation where we can calculate the time element from the metric
+///velocity4 could be a half. Or even a fixed point uint8_t4
+///slightly crazy idea but i could parallel transport the velocity along the ray again
+
 __kernel
 void do_generic_rays (__global struct lightray* restrict generic_rays_in,
                       __global const int* restrict generic_count_in,
@@ -3990,7 +3996,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
                       int width, int height,
                       int mouse_x, int mouse_y,
                       __global float4* ray_write,
-                      __global float4* ray_velocity,
+                      __global float* ray_velocityl,
                       __global int* ray_write_counts,
                       int max_write)
 {
@@ -4304,7 +4310,7 @@ void do_generic_rays (__global struct lightray* restrict generic_rays_in,
 
                 if(use_redshift)
                 {
-                    ray_velocity[which_ray_write * width * height + id] =  generic_velocity_out;
+                    ray_velocityl[which_ray_write * width * height + id] =  length(next_real_pos - last_real_pos) / length(generic_velocity_out);
                 }
 
                 which_ray_write++;
@@ -4666,7 +4672,7 @@ void render_chunked_tris(global const struct triangle* const tris,
                          int height,
                          int chunk_x,
                          int chunk_y,
-                         global float4* ray_segments, global float4* ray_velocities,
+                         global float4* ray_segments, global float* ray_velocityl,
                          global int* ray_segments_count,
                          global float4* object_geodesics, global int* object_geodesic_counts,
                          global float4* p_e0, global float4* p_e1, global float4* p_e2, global float4* p_e3,
@@ -4725,6 +4731,7 @@ void render_chunked_tris(global const struct triangle* const tris,
 
     int last_tri_id = -1;
     int hit_rs = -1;
+    float pseudo_ray_length = 0;
 
     for(int rs = bounds.x; rs < bounds.y - 1; rs++)
     {
@@ -4792,6 +4799,7 @@ void render_chunked_tris(global const struct triangle* const tris,
 
                 last_tri_id = tri_id;
                 hit_rs = rs;
+                pseudo_ray_length = length(next_pos - current_pos);
             }
         }
 
@@ -4817,7 +4825,9 @@ void render_chunked_tris(global const struct triangle* const tris,
 
         if(GET_FEATURE(redshift, dfg) && linear_idx < *rdata_count)
         {
-            float4 geodesic_velocity = ray_velocities[hit_rs * width * height + ray_id];
+            float pretend_over_real = ray_velocityl[hit_rs * width * height + ray_id];
+
+            float4 geodesic_velocity = (ray_segments[(hit_rs + 1) * width * height + ray_id] - ray_segments[hit_rs * width * height + ray_id]) / pretend_over_real;
             float4 emitter_velocity = p_e0[found_ctri.geodesic_segment];
             float4 generic_position = object_geodesics[found_ctri.geodesic_segment];
 
