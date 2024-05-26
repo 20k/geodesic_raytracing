@@ -2760,16 +2760,35 @@ void parallel_transport_tetrads(__global float4* geodesic_path, __global float4*
         float4 ne2 = transport(e2, current_position, current_velocity, next_position, next_velocity, ds, cfg);
         float4 ne3 = transport(e3, current_position, current_velocity, next_position, next_velocity, ds, cfg);
 
-        ///so. quantity_out[0] ends up being initial, quantity_out[1] = after one transport
-        out_e0[current_idx] = ne0;
-        out_e1[current_idx] = ne1;
-        out_e2[current_idx] = ne2;
-        out_e3[current_idx] = ne3;
+        #ifndef GENERIC_BIG_METRIC
+        float g_metric_local[4] = {};
+        calculate_metric_generic(current_position, g_metric_local, cfg);
 
-        e0 = ne0;
-        e1 = ne1;
-        e2 = ne2;
-        e3 = ne3;
+        float g_metric_big_local[16] = {0};
+
+        g_metric_big_local[0] = g_metric_local[0];
+        g_metric_big_local[1*4 + 1] = g_metric_local[1];
+        g_metric_big_local[2*4 + 2] = g_metric_local[2];
+        g_metric_big_local[3*4 + 3] = g_metric_local[3];
+        #endif
+
+        #ifdef GENERIC_BIG_METRIC
+        float g_metric_big_local[16] = {0};
+        calculate_metric_generic_big(current_position, g_metric_big_local, cfg);
+        #endif
+
+        struct orthonormal_basis ortho = orthonormalise4_metric(ne0, ne1, ne2, ne3, g_metric_big_local);
+
+        ///so. quantity_out[0] ends up being initial, quantity_out[1] = after one transport
+        out_e0[current_idx] = ortho.v1;
+        out_e1[current_idx] = ortho.v2;
+        out_e2[current_idx] = ortho.v3;
+        out_e3[current_idx] = ortho.v4;
+
+        e0 = ortho.v1;
+        e1 = ortho.v2;
+        e2 = ortho.v3;
+        e3 = ortho.v4;
     }
 
     ///need to write final one
