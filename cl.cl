@@ -3989,6 +3989,9 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
 
     float next_frac = 0;
 
+    float last_object_start_t = 0;
+    float last_object_end_t = 0;
+
     #pragma unroll
     for(int i=0; i < 4; i++)
     {
@@ -4028,6 +4031,9 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
         float object_end_t = object_end_in_tetrad.x;
         float object_start_t = object_start_in_tetrad.x;
 
+        last_object_end_t = object_end_t;
+        last_object_start_t = object_start_t;
+
         ///so. here we express our tri bounds in the local tetrad, which is situated between the two
         ///we want to calculate the interpolating fraction of our next guess, which is with respect to our object bounds
         ///we have a new coordinate time position, which is last_pos.x + last_dir.x * last_dt
@@ -4050,7 +4056,12 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
     float ray_t = 0;
     bool intersected = ray_intersects_triangle(last_pos.yzw, last_dir.yzw, v0, v1, v2, &ray_t, 0, 0);
 
+    float end_t = last_pos.x + last_dir.x * ray_t;
+
     //float new_x = TIMELIKE(last_gintersection_point);
+
+    if(end_t < last_object_start_t || end_t > last_object_end_t)
+        return false;
 
     if(ray_t < 0 || ray_t > 1)
         return false;
