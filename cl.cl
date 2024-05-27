@@ -2311,26 +2311,6 @@ void calculate_tetrads(float4 at_metric, float3 cartesian_basis_speed,
     float4 e2 = basis.v3;
     float4 e3 = basis.v4;
 
-    /*
-    ///???
-    float4 observer_velocity = bT;
-
-    //float4 observer_velocity = {1, 0.5, 0, 0};
-    float lorentz[16] = {};
-
-    #ifndef GENERIC_BIG_METRIC
-    calculate_lorentz_boost(bT, observer_velocity, g_metric, lorentz);
-    #else
-    calculate_lorentz_boost_big(bT, observer_velocity, g_metric_big, lorentz);
-    #endif // GENERIC_BIG_METRIC
-
-    bT = observer_velocity;
-
-    float4 sVx = tensor_contract(lorentz, btheta);
-    float4 sVy = tensor_contract(lorentz, bphi);
-    float4 sVz = tensor_contract(lorentz, bX);
-    */
-
     if(should_orient)
     {
         /*printf("Basis bT %f %f %f %f\n", e0.x, e0.y, e0.z, e0.w);
@@ -2351,10 +2331,8 @@ void calculate_tetrads(float4 at_metric, float3 cartesian_basis_speed,
 
             float3 cart_camera = polar_to_cartesian(apolar);
 
-            float4 unarranged[4] = {e0, e1, e2, e3};
-
             float4 e_lo[4];
-            get_tetrad_inverse(unarranged[0], unarranged[1], unarranged[2], unarranged[3], &e_lo[0], &e_lo[1], &e_lo[2], &e_lo[3]);
+            get_tetrad_inverse(e0, e1, e2, e3, &e_lo[0], &e_lo[1], &e_lo[2], &e_lo[3]);
 
             float3 cx = (float3)(1, 0, 0);
             float3 cy = (float3)(0, 1, 0);
@@ -2374,9 +2352,6 @@ void calculate_tetrads(float4 at_metric, float3 cartesian_basis_speed,
             float4 gx = spherical_velocity_to_generic_velocity(polar_camera, (float4)(0, sx), cfg);
             float4 gy = spherical_velocity_to_generic_velocity(polar_camera, (float4)(0, sy), cfg);
             float4 gz = spherical_velocity_to_generic_velocity(polar_camera, (float4)(0, sz), cfg);
-
-            /*float3 right = rot_quat((float3){1, 0, 0}, local_camera_quat);
-            float3 forw = rot_quat((float3){0, 0, 1}, local_camera_quat);*/
 
             ///normalise with y first, so that the camera controls always work intuitively - as they are inherently a 'global' concept
             ///ok so this is in global coordinate
@@ -2421,7 +2396,6 @@ void calculate_tetrads(float4 at_metric, float3 cartesian_basis_speed,
         e3 = le3;
     }
 
-
     {
         float4 observer_velocity = get_timelike_vector(cartesian_basis_speed, 1, e0, e1, e2, e3);
 
@@ -2442,7 +2416,6 @@ void calculate_tetrads(float4 at_metric, float3 cartesian_basis_speed,
         e2 = tensor_contract(lorentz, e2);
         e3 = tensor_contract(lorentz, e3);
     }
-
 
     *e0_out = e0;
     *e1_out = e1;
@@ -2563,13 +2536,15 @@ void calculate_tetrad_inverse(__global int* global_count, int count,
     {
         int current_idx = kk * count + id;
 
-        float4 es[4] = {t_e0[current_idx], t_e1[current_idx], t_e2[current_idx], t_e3[current_idx]};
+        float4 e0 = t_e0[current_idx];
+        float4 e1 = t_e1[current_idx];
+        float4 e2 = t_e2[current_idx];
+        float4 e3 = t_e3[current_idx];
 
-        ///this is the wrong way to calculate the timelike coordinate
         struct frame_basis basis = calculate_frame_basis_at(positions[current_idx], cfg);
 
         float4 e_lo[4];
-        get_tetrad_inverse(es[0], es[1], es[2], es[3], &e_lo[0], &e_lo[1], &e_lo[2], &e_lo[3]);
+        get_tetrad_inverse(e0, e1, e2, e3, &e_lo[0], &e_lo[1], &e_lo[2], &e_lo[3]);
 
         ie0[current_idx] = e_lo[0];
         ie1[current_idx] = e_lo[1];
