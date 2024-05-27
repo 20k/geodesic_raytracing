@@ -2541,8 +2541,6 @@ void calculate_tetrad_inverse(__global int* global_count, int count,
         float4 e2 = t_e2[current_idx];
         float4 e3 = t_e3[current_idx];
 
-        struct frame_basis basis = calculate_frame_basis_at(positions[current_idx], cfg);
-
         float4 e_lo[4];
         get_tetrad_inverse(e0, e1, e2, e3, &e_lo[0], &e_lo[1], &e_lo[2], &e_lo[3]);
 
@@ -2775,33 +2773,6 @@ void handle_interpolating_geodesic(__global const float4* geodesic_path, __globa
     {
         float4 current_pos = geodesic_path[i];
         float4 next_pos = geodesic_path[i + 1];
-
-        /*{
-            #ifndef GENERIC_BIG_METRIC
-            float g_metric[4] = {0};
-            calculate_metric_generic(next_pos, g_metric, cfg);
-            #else
-            float g_metric[16] = {0};
-            calculate_metric_generic_big(next_pos, g_metric, cfg);
-            #endif // GENERIC_BIG_METRIC
-
-            struct frame_basis basis = orthonormalise4_metric(ne0, ne1, ne2, ne3, g_metric);
-
-            ne0 = basis.v1;
-            ne1 = basis.v2;
-            ne2 = basis.v3;
-            ne3 = basis.v4;
-        }*/
-
-        /*if(next_pos.x < current_pos.x)
-        {
-            float4 im = current_pos;
-            current_pos = next_pos;
-            next_pos = im;
-        }*/
-
-        //float dt = next_pos.x - current_pos.x;
-        //float next_proper_time = current_proper_time + dT_dt[i] * dt;
 
         float next_proper_time = current_proper_time + ds_in[i];
 
@@ -3800,8 +3771,6 @@ void subsample_tri_quantity(int count, __global const int* geodesic_counts, __gl
         float4 e1 = t_e1[current_idx];
         float4 e2 = t_e2[current_idx];
         float4 e3 = t_e3[current_idx];
-
-        struct frame_basis basis = calculate_frame_basis_at(geodesic_path[current_idx], cfg);
 
         float4 e_lo[4];
         get_tetrad_inverse(e0, e1, e2, e3, &e_lo[0], &e_lo[1], &e_lo[2], &e_lo[3]);
