@@ -4044,7 +4044,7 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
         if(!INTERSECTS_AT(frac))
             return false;
 
-        ///this is incorrect when timelike 1 != timelike 2
+        ///this is not incorrect, because the timelike status of the vectors does not change
         float4 ipe0 = mix(pe0, npe0, frac);
         float4 ipe1 = mix(pe1, npe1, frac);
         float4 ipe2 = mix(pe2, npe2, frac);
@@ -4061,7 +4061,10 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
     float ray_t = 0;
     bool intersected = ray_intersects_triangle(last_pos.yzw, last_dir.yzw, v0, v1, v2, &ray_t, 0, 0);
 
-    float new_x = TIMELIKE(last_gintersection_point);
+    //float new_x = TIMELIKE(last_gintersection_point);
+
+    if(ray_t < 0 || ray_t > 1)
+        return false;
 
     ///the issue is the ray time is just slightly outside of the tri time
     /*if(debug)
@@ -4070,8 +4073,8 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
     }*/
 
     ///why am I still doing it like this? Do I need the timelike coordinate here, when we could do an overlaps check?
-    if(new_x < ray_lower_t || new_x > ray_upper_t)
-        return false;
+    //if(new_x < ray_lower_t || new_x > ray_upper_t)
+    //    return false;
 
     /*if(debug)
     {
