@@ -3942,46 +3942,6 @@ float3 triangle_normal(float3 v0, float3 v1, float3 v2)
     return normalize(cross(U, V));
 }
 
-bool intersects_at_fraction(float3 v0, float3 normal, float4 initial_origin, float4 initial_diff,
-                            float4 ray_vel_1,
-                            float4 object_geodesic_1, float4 object_geodesic_2,
-                            float4 i_re0, float4 i_re1, float4 i_re2, float4 i_re3,
-                            float4 i_ne0, float4 i_ne1, float4 i_ne2, float4 i_ne3,
-                            int which_coordinate_timelike,
-                            float fraction,
-                            float4* restrict pos_out, float4* restrict dir_out,
-                            float* restrict t_out,
-                            bool debug
-                            )
-{
-    float4 i_e0 = mix(i_re0, i_ne0, fraction);
-    float4 i_e1 = mix(i_re1, i_ne1, fraction);
-    float4 i_e2 = mix(i_re2, i_ne2, fraction);
-    float4 i_e3 = mix(i_re3, i_ne3, fraction);
-
-    float4 object_position = mix(object_geodesic_1, object_geodesic_2, fraction);
-
-    float4 diff = initial_diff + initial_origin - object_position;
-
-    float4 pos = coordinate_to_tetrad_basis(diff, i_e0, i_e1, i_e2, i_e3);
-    float4 dir = coordinate_to_tetrad_basis(ray_vel_1, i_e0, i_e1, i_e2, i_e3);
-
-    if(pos_out)
-        *pos_out = pos;
-
-    if(dir_out)
-        *dir_out = dir;
-
-    float found_t = 0;
-
-    bool success = ray_plane_intersection(v0, normal, pos.yzw, dir.yzw, &found_t);
-
-    if(success && t_out)
-        *t_out = found_t;
-
-    return success;
-}
-
 bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3 v0, float3 v1, float3 v2, float4 object_geodesic_origin, float4 next_object_geodesic_origin,
                                int which_coordinate_timelike,
                                float4 pe0, float4 pe1, float4 pe2, float4 pe3,
@@ -4023,12 +3983,6 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
 
     float4 last_pos;
     float4 last_dir;
-
-    #define INTERSECTS_AT(in_frac) intersects_at_fraction(v0, plane_normal, initial_origin, initial_diff, ray_vel, object_pos_1, object_pos_2,\
-                                      i_re0, i_re1, i_re2, i_re3,\
-                                      i_ne0, i_ne1, i_ne2, i_ne3,\
-                                      which_coordinate_timelike,\
-                                      in_frac, &last_pos, &last_dir, &last_dt, debug)
 
     float next_t = TIMELIKE(ray_origin);
     float4 last_gintersection_point = (float4)(0,0,0,0);
