@@ -2312,7 +2312,18 @@ void calculate_timelike_coordinates_for_path(global const float4* positions, glo
         calculate_metric_generic_big(position, g_metric_big_local, cfg);
         #endif
 
-        coordinates_out[p_id] = calculate_which_coordinate_is_timelike(tets[0], tets[1], tets[2], tets[3], g_metric_big_local);
+        {
+            float minkowski[16] = {};
+            get_local_minkowski(tets[0], tets[1], tets[2], tets[3], g_metric_big_local, minkowski);
+
+            printf("MINKY %f %f %f %f\n", minkowski[0], minkowski[1*4+1], minkowski[2 * 4 + 2], minkowski[3 * 4 + 3]);
+        }
+
+        int timelike = calculate_which_coordinate_is_timelike(tets[0], tets[1], tets[2], tets[3], g_metric_big_local);
+
+        printf("Timelike %i %f %f\n", timelike, position.x, position.y);
+
+        coordinates_out[p_id] = timelike;
     }
 
 }
@@ -2426,6 +2437,10 @@ void calculate_tetrads(float4 at_metric, float3 cartesian_basis_speed,
 
             /*float3 right = rot_quat((float3){1, 0, 0}, local_camera_quat);
             float3 forw = rot_quat((float3){0, 0, 1}, local_camera_quat);*/
+
+            gx = sort_vector_timelike(gx, basis.timelike_coordinate);
+            gy = sort_vector_timelike(gy, basis.timelike_coordinate);
+            gz = sort_vector_timelike(gz, basis.timelike_coordinate);
 
             ///normalise with y first, so that the camera controls always work intuitively - as they are inherently a 'global' concept
             ///ok so this is in global coordinate
@@ -2618,6 +2633,7 @@ void calculate_tetrad_inverse(__global int* global_count, int count,
 
         float4 es[4] = {t_e0[current_idx], t_e1[current_idx], t_e2[current_idx], t_e3[current_idx]};
 
+        ///this is the wrong way to calculate the timelike coordinate
         struct frame_basis basis = calculate_frame_basis_at(positions[current_idx], cfg);
 
         SWAP(es[0], es[basis.timelike_coordinate], float4);
@@ -2789,6 +2805,16 @@ void parallel_transport_tetrads(__global float4* geodesic_path, __global float4*
         e1 = ortho.v2;
         e2 = ortho.v3;
         e3 = ortho.v4;
+
+        /*out_e0[current_idx] = ne0;
+        out_e1[current_idx] = ne1;
+        out_e2[current_idx] = ne2;
+        out_e3[current_idx] = ne3;
+
+        e0 = ne0;
+        e1 = ne1;
+        e2 = ne2;
+        e3 = ne3;*/
     }
 
     ///need to write final one
@@ -4043,6 +4069,7 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
         if(!INTERSECTS_AT(frac))
             return false;
 
+        ///this is incorrect when timelike 1 != timelike 2
         float4 ipe0 = mix(pe0, npe0, frac);
         float4 ipe1 = mix(pe1, npe1, frac);
         float4 ipe2 = mix(pe2, npe2, frac);
@@ -4067,11 +4094,14 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
         printf("Intersected %i time %f lower ray %f upper ray %f lower tri %f upper tri %f\n", intersected, new_x, ray_lower_t, ray_upper_t, tri_lower_t, tri_upper_t);
     }*/
 
+    ///why am I still doing it like this? Do I need the timelike coordinate here, when we could do an overlaps check?
     if(new_x < ray_lower_t || new_x > ray_upper_t)
         return false;
 
-    if(new_x < tri_lower_t || new_x > tri_upper_t)
-        return false;
+    /*if(debug)
+    {
+        printf("%i timelike pos %f %f\n", which_coordinate_timelike, last_gintersection_point.x, last_gintersection_point.y);
+    }*/
 
     *t_out = ray_t;
 
