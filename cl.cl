@@ -2411,8 +2411,6 @@ void calculate_tetrads(float4 at_metric, float3 cartesian_basis_speed,
 
             float4 unarranged[4] = {e0, e1, e2, e3};
 
-            SWAP(unarranged[0], unarranged[basis.timelike_coordinate], float4);
-
             float4 e_lo[4];
             get_tetrad_inverse(unarranged[0], unarranged[1], unarranged[2], unarranged[3], &e_lo[0], &e_lo[1], &e_lo[2], &e_lo[3]);
 
@@ -2438,10 +2436,6 @@ void calculate_tetrads(float4 at_metric, float3 cartesian_basis_speed,
             /*float3 right = rot_quat((float3){1, 0, 0}, local_camera_quat);
             float3 forw = rot_quat((float3){0, 0, 1}, local_camera_quat);*/
 
-            gx = sort_vector_timelike(gx, basis.timelike_coordinate);
-            gy = sort_vector_timelike(gy, basis.timelike_coordinate);
-            gz = sort_vector_timelike(gz, basis.timelike_coordinate);
-
             ///normalise with y first, so that the camera controls always work intuitively - as they are inherently a 'global' concept
             ///ok so this is in global coordinate
             float4 approximate_basis[3] = {gy, gx, gz};
@@ -2450,10 +2444,6 @@ void calculate_tetrads(float4 at_metric, float3 cartesian_basis_speed,
             float4 tE1 = coordinate_to_tetrad_basis(approximate_basis[0], e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
             float4 tE2 = coordinate_to_tetrad_basis(approximate_basis[1], e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
             float4 tE3 = coordinate_to_tetrad_basis(approximate_basis[2], e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
-
-            tE1 = sort_vector_timelike(tE1, basis.timelike_coordinate);
-            tE2 = sort_vector_timelike(tE2, basis.timelike_coordinate);
-            tE3 = sort_vector_timelike(tE3, basis.timelike_coordinate);
 
             ///orthonormalise the spatial parts of the projected vectors
             struct ortho_result result = orthonormalise(tE1.yzw, tE2.yzw, tE3.yzw);
@@ -2636,17 +2626,8 @@ void calculate_tetrad_inverse(__global int* global_count, int count,
         ///this is the wrong way to calculate the timelike coordinate
         struct frame_basis basis = calculate_frame_basis_at(positions[current_idx], cfg);
 
-        SWAP(es[0], es[basis.timelike_coordinate], float4);
-
         float4 e_lo[4];
         get_tetrad_inverse(es[0], es[1], es[2], es[3], &e_lo[0], &e_lo[1], &e_lo[2], &e_lo[3]);
-
-        //SWAP(e_lo[0], e_lo[basis.timelike_coordinate], float4);
-
-        /*e_lo[0] = sort_vector_timelike(e_lo[0], basis.timelike_coordinate);
-        e_lo[1] = sort_vector_timelike(e_lo[1], basis.timelike_coordinate);
-        e_lo[2] = sort_vector_timelike(e_lo[2], basis.timelike_coordinate);
-        e_lo[3] = sort_vector_timelike(e_lo[3], basis.timelike_coordinate);*/
 
         ie0[current_idx] = e_lo[0];
         ie1[current_idx] = e_lo[1];
@@ -3905,11 +3886,8 @@ void subsample_tri_quantity(int count, __global const int* geodesic_counts, __gl
 
         struct frame_basis basis = calculate_frame_basis_at(geodesic_path[current_idx], cfg);
 
-        float4 unarranged[4] = {e0, e1, e2, e3};
-        SWAP(unarranged[0], unarranged[basis.timelike_coordinate], float4);
-
         float4 e_lo[4];
-        get_tetrad_inverse(unarranged[0], unarranged[1], unarranged[2], unarranged[3], &e_lo[0], &e_lo[1], &e_lo[2], &e_lo[3]);
+        get_tetrad_inverse(e0, e1, e2, e3, &e_lo[0], &e_lo[1], &e_lo[2], &e_lo[3]);
 
         float4 current_position = geodesic_path[current_idx];
 
@@ -3918,8 +3896,6 @@ void subsample_tri_quantity(int count, __global const int* geodesic_counts, __gl
         float4 to_next = periodic_diff(current_position, last_position, periods);
 
         float4 in_tetrad = coordinate_to_tetrad_basis(to_next, e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
-
-        sort_vector_timelike(in_tetrad, basis.timelike_coordinate);
 
         last_position = current_position;
 
@@ -3990,9 +3966,6 @@ bool intersects_at_fraction(float3 v0, float3 normal, float4 initial_origin, flo
     float4 pos = coordinate_to_tetrad_basis(diff, i_e0, i_e1, i_e2, i_e3);
     float4 dir = coordinate_to_tetrad_basis(ray_vel_1, i_e0, i_e1, i_e2, i_e3);
 
-    pos = sort_vector_timelike(pos, which_coordinate_timelike);
-    dir = sort_vector_timelike(dir, which_coordinate_timelike);
-
     if(pos_out)
         *pos_out = pos;
 
@@ -4017,6 +3990,8 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
                                float4 i_ne0, float4 i_ne1, float4 i_ne2, float4 i_ne3, ///inverse next geodesic segment tetrad
                                float4 periods, float* t_out, bool debug)
 {
+    which_coordinate_timelike = 0;
+
     #define TIMELIKE(x) get_vector_timelike_component(x, which_coordinate_timelike)
 
     float ray_lower_t = min(TIMELIKE(next_global_pos), TIMELIKE(global_pos));
