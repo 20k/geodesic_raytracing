@@ -3954,11 +3954,11 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
 
     #define TIMELIKE(x) get_vector_timelike_component(x, which_coordinate_timelike)
 
-    float ray_lower_t = min(TIMELIKE(next_global_pos), TIMELIKE(global_pos));
+    /*float ray_lower_t = min(TIMELIKE(next_global_pos), TIMELIKE(global_pos));
     float ray_upper_t = max(TIMELIKE(next_global_pos), TIMELIKE(global_pos));
 
     float tri_lower_t = min(TIMELIKE(next_object_geodesic_origin), TIMELIKE(object_geodesic_origin));
-    float tri_upper_t = max(TIMELIKE(next_object_geodesic_origin), TIMELIKE(object_geodesic_origin));
+    float tri_upper_t = max(TIMELIKE(next_object_geodesic_origin), TIMELIKE(object_geodesic_origin));*/
 
     /*float ray_lower_t = TIMELIKE(next_global_pos);
     float ray_upper_t = TIMELIKE(global_pos);
@@ -3984,24 +3984,28 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
     float4 last_pos;
     float4 last_dir;
 
-    float next_t = TIMELIKE(ray_origin);
+    //float next_t = TIMELIKE(ray_origin);
     float4 last_gintersection_point = (float4)(0,0,0,0);
+
+    float next_frac = 0;
 
     #pragma unroll
     for(int i=0; i < 4; i++)
     {
-        float frac = (next_t - tri_lower_t) / (tri_upper_t - tri_lower_t);
-        frac = clamp(frac, 0.f, 1.f);
+        /*float frac = (next_t - tri_lower_t) / (tri_upper_t - tri_lower_t);
+        frac = clamp(frac, 0.f, 1.f);*/
+
+        float frac = clamp(next_frac, 0.f, 1.f);
 
         float last_dt = 0;
 
-        {
-            float4 i_e0 = mix(i_re0, i_ne0, frac);
-            float4 i_e1 = mix(i_re1, i_ne1, frac);
-            float4 i_e2 = mix(i_re2, i_ne2, frac);
-            float4 i_e3 = mix(i_re3, i_ne3, frac);
+        float4 i_e0 = mix(i_re0, i_ne0, frac);
+        float4 i_e1 = mix(i_re1, i_ne1, frac);
+        float4 i_e2 = mix(i_re2, i_ne2, frac);
+        float4 i_e3 = mix(i_re3, i_ne3, frac);
+        float4 object_position = mix(object_pos_1, object_pos_2, frac);
 
-            float4 object_position = mix(object_pos_1, object_pos_2, frac);
+        {
 
             float4 diff = initial_diff + initial_origin - object_position;
 
@@ -4018,6 +4022,17 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
             last_dir = dir;
         }
 
+        float4 object_start_in_tetrad = coordinate_to_tetrad_basis(object_pos_1 - object_position, i_e0, i_e1, i_e2, i_e3);
+        float4 object_end_in_tetrad = coordinate_to_tetrad_basis(object_pos_2 - object_position, i_e0, i_e1, i_e2, i_e3);
+
+        float object_end_t = object_end_in_tetrad.x;
+        float object_start_t = object_start_in_tetrad.x;
+
+        ///so. here we express our tri bounds in the local tetrad, which is situated between the two
+        ///we want to calculate the interpolating fraction of our next guess, which is with respect to our object bounds
+        ///we have a new coordinate time position, which is last_pos.x + last_dir.x * last_dt
+        ///so our new fraction is (new_x - object_start_t) / (object_end_t - object_start_t)
+
         ///this is not incorrect, because the timelike status of the vectors does not change
         float4 ipe0 = mix(pe0, npe0, frac);
         float4 ipe1 = mix(pe1, npe1, frac);
@@ -4026,10 +4041,10 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
 
         float4 intersection_point = last_pos + last_dir * last_dt;
 
-        float4 tetrad_origin = mix(object_pos_1, object_pos_2, frac);
+        next_frac = (intersection_point.x - object_start_t) / (object_end_t - object_start_t);
 
-        last_gintersection_point = tetrad_to_coordinate_basis(intersection_point, ipe0, ipe1, ipe2, ipe3) + tetrad_origin;
-        next_t = TIMELIKE(last_gintersection_point);
+        last_gintersection_point = tetrad_to_coordinate_basis(intersection_point, ipe0, ipe1, ipe2, ipe3) + object_position;
+        //next_t = TIMELIKE(last_gintersection_point);
     }
 
     float ray_t = 0;
