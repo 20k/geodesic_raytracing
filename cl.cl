@@ -3908,9 +3908,6 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
     float4 last_pos;
     float4 last_dir;
 
-    //float next_t = TIMELIKE(ray_origin);
-    float4 last_gintersection_point = (float4)(0,0,0,0);
-
     float next_frac = 0;
 
     float last_object_start_t = 0;
@@ -3969,17 +3966,12 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
         float4 intersection_point = last_pos + last_dir * last_dt;
 
         next_frac = (intersection_point.x - object_start_t) / (object_end_t - object_start_t);
-
-        last_gintersection_point = tetrad_to_coordinate_basis(intersection_point, ipe0, ipe1, ipe2, ipe3) + object_position;
-        //next_t = TIMELIKE(last_gintersection_point);
     }
 
     float ray_t = 0;
     bool intersected = ray_intersects_triangle(last_pos.yzw, last_dir.yzw, v0, v1, v2, &ray_t, 0, 0);
 
     float end_t = last_pos.x + last_dir.x * ray_t;
-
-    //float new_x = TIMELIKE(last_gintersection_point);
 
     if(end_t < last_object_start_t || end_t > last_object_end_t)
         return false;
@@ -3992,10 +3984,6 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
     {
         printf("Intersected %i time %f lower ray %f upper ray %f lower tri %f upper tri %f\n", intersected, new_x, ray_lower_t, ray_upper_t, tri_lower_t, tri_upper_t);
     }*/
-
-    ///why am I still doing it like this? Do I need the timelike coordinate here, when we could do an overlaps check?
-    //if(new_x < ray_lower_t || new_x > ray_upper_t)
-    //    return false;
 
     /*if(debug)
     {
