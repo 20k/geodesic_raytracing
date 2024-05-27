@@ -4041,8 +4041,28 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
 
         float last_dt = 0;
 
-        if(!INTERSECTS_AT(frac))
-            return false;
+        {
+            float4 i_e0 = mix(i_re0, i_ne0, frac);
+            float4 i_e1 = mix(i_re1, i_ne1, frac);
+            float4 i_e2 = mix(i_re2, i_ne2, frac);
+            float4 i_e3 = mix(i_re3, i_ne3, frac);
+
+            float4 object_position = mix(object_pos_1, object_pos_2, frac);
+
+            float4 diff = initial_diff + initial_origin - object_position;
+
+            float4 pos = coordinate_to_tetrad_basis(diff, i_e0, i_e1, i_e2, i_e3);
+            float4 dir = coordinate_to_tetrad_basis(ray_vel, i_e0, i_e1, i_e2, i_e3);
+
+            float found_t = 0;
+
+            if(!ray_plane_intersection(v0, plane_normal, pos.yzw, dir.yzw, &found_t))
+                return false;
+
+            last_dt = found_t;
+            last_pos = pos;
+            last_dir = dir;
+        }
 
         ///this is not incorrect, because the timelike status of the vectors does not change
         float4 ipe0 = mix(pe0, npe0, frac);
