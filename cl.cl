@@ -2270,64 +2270,6 @@ void calculate_timelike_coordinates(__global const float4* positions, int count,
     coordinate_out[id] = basis.timelike_coordinate;
 }
 
-__kernel
-void calculate_timelike_coordinates_for_path(global const float4* positions, global const int* counts,
-                                             global const int* initial_timelike,
-                                             global float4* e0_in, global float4* e1_in, global float4* e2_in, global float4* e3_in,
-                                             int object_count, dynamic_config_space const struct dynamic_config* cfg, global int* coordinates_out)
-{
-    int id = get_global_id(0);
-
-    if(id >= object_count)
-        return;
-
-    int my_path_length = counts[id];
-    int first_timelike = initial_timelike[id];
-
-    for(int kk=0; kk < my_path_length; kk++)
-    {
-        int p_id = kk * object_count + id;
-
-        float4 position = positions[p_id];
-
-        float4 tets[4] = {e0_in[p_id], e1_in[p_id], e2_in[p_id], e3_in[p_id]};
-
-        if(first_timelike != 0)
-            SWAP(tets[0], tets[first_timelike], float4);
-
-        #ifndef GENERIC_BIG_METRIC
-        float g_metric_local[4] = {};
-        calculate_metric_generic(position, g_metric_local, cfg);
-
-        float g_metric_big_local[16] = {0};
-
-        g_metric_big_local[0] = g_metric_local[0];
-        g_metric_big_local[1*4 + 1] = g_metric_local[1];
-        g_metric_big_local[2*4 + 2] = g_metric_local[2];
-        g_metric_big_local[3*4 + 3] = g_metric_local[3];
-        #endif
-
-        #ifdef GENERIC_BIG_METRIC
-        float g_metric_big_local[16] = {0};
-        calculate_metric_generic_big(position, g_metric_big_local, cfg);
-        #endif
-
-        {
-            float minkowski[16] = {};
-            get_local_minkowski(tets[0], tets[1], tets[2], tets[3], g_metric_big_local, minkowski);
-
-            printf("MINKY %f %f %f %f\n", minkowski[0], minkowski[1*4+1], minkowski[2 * 4 + 2], minkowski[3 * 4 + 3]);
-        }
-
-        int timelike = calculate_which_coordinate_is_timelike(tets[0], tets[1], tets[2], tets[3], g_metric_big_local);
-
-        printf("Timelike %i %f %f\n", timelike, position.x, position.y);
-
-        coordinates_out[p_id] = timelike;
-    }
-
-}
-
 void calculate_tetrads(float4 at_metric, float3 cartesian_basis_speed,
                        float4* e0_out, float4* e1_out, float4* e2_out, float4* e3_out,
                        dynamic_config_space const struct dynamic_config* cfg, int should_orient)
@@ -3943,30 +3885,12 @@ float3 triangle_normal(float3 v0, float3 v1, float3 v2)
 }
 
 bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3 v0, float3 v1, float3 v2, float4 object_geodesic_origin, float4 next_object_geodesic_origin,
-                               int which_coordinate_timelike,
                                float4 pe0, float4 pe1, float4 pe2, float4 pe3,
                                float4 npe0, float4 npe1, float4 npe2, float4 npe3,
                                float4 i_re0, float4 i_re1, float4 i_re2, float4 i_re3, ///inverse current geodesic segment tetrad
                                float4 i_ne0, float4 i_ne1, float4 i_ne2, float4 i_ne3, ///inverse next geodesic segment tetrad
                                float4 periods, float* t_out, bool debug)
 {
-    which_coordinate_timelike = 0;
-
-    #define TIMELIKE(x) get_vector_timelike_component(x, which_coordinate_timelike)
-
-    /*float ray_lower_t = min(TIMELIKE(next_global_pos), TIMELIKE(global_pos));
-    float ray_upper_t = max(TIMELIKE(next_global_pos), TIMELIKE(global_pos));
-
-    float tri_lower_t = min(TIMELIKE(next_object_geodesic_origin), TIMELIKE(object_geodesic_origin));
-    float tri_upper_t = max(TIMELIKE(next_object_geodesic_origin), TIMELIKE(object_geodesic_origin));*/
-
-    /*float ray_lower_t = TIMELIKE(next_global_pos);
-    float ray_upper_t = TIMELIKE(global_pos);
-
-    ///tri lower and tri upper aren't right, for some reason?
-    float tri_lower_t = TIMELIKE(object_geodesic_origin);
-    float tri_upper_t = TIMELIKE(next_object_geodesic_origin);*/
-
     float3 plane_normal = normalize(cross(v1 - v0, v2 - v0));
 
     float4 object_pos_1 = object_geodesic_origin;
@@ -3995,9 +3919,6 @@ bool ray_intersects_toblerone2(float4 global_pos, float4 next_global_pos, float3
     #pragma unroll
     for(int i=0; i < 4; i++)
     {
-        /*float frac = (next_t - tri_lower_t) / (tri_upper_t - tri_lower_t);
-        frac = clamp(frac, 0.f, 1.f);*/
-
         float frac = clamp(next_frac, 0.f, 1.f);
 
         float last_dt = 0;
@@ -4531,7 +4452,6 @@ void generate_computed_tris(global struct triangle* tris, int tri_count,
                             global float4* p_e0, global float4* p_e1, global float4* p_e2, global float4* p_e3,
                             global struct computed* ctris, global int* ctri_count,
                             global int* restrict ray_time_min, global int* restrict ray_time_max,
-                            global int* timelike_coordinates,
                             dynamic_config_space const struct dynamic_config* cfg)
 {
     int tri_id = get_global_id(0);
@@ -4729,7 +4649,6 @@ void render_chunked_tris(global const struct triangle* const tris,
                          global float4* object_geodesics, global int* object_geodesic_counts,
                          global float4* p_e0, global float4* p_e1, global float4* p_e2, global float4* p_e3,
                          global const float4* restrict inverse_e0s, __global const float4* restrict inverse_e1s, __global const float4* restrict inverse_e2s, __global const float4* restrict inverse_e3s,
-                         global const int* timelike_coordinates,
                          global float4* fine_clip_min, global float4* fine_clip_max,
                          global int* already_rendered,
                          dynamic_config_space const struct dynamic_config* cfg,
@@ -4810,8 +4729,6 @@ void render_chunked_tris(global const struct triangle* const tris,
             float4 native_current = object_geodesics[tri.geodesic_segment];
             float4 native_next = object_geodesics[tri.geodesic_segment + stride * COMPUTED_SKIP];
 
-            int which_timelike = timelike_coordinates[tri.geodesic_segment];
-
             ///current inverse tetrads
             float4 s_ie0 = inverse_e0s[tri.geodesic_segment];
             float4 s_ie1 = inverse_e1s[tri.geodesic_segment];
@@ -4848,7 +4765,7 @@ void render_chunked_tris(global const struct triangle* const tris,
             ///i'm doing this raywise, but traversing the entire ray, so early terminate is borked
             ///this is very inefficient, go along the way and then check the tris
             ///or maybe not actually, there's some good short circuiting i can do, and the tris need more memory fetche
-            if(ray_intersects_toblerone2(current_pos, next_pos, v0, v1, v2, native_current, native_next, which_timelike,
+            if(ray_intersects_toblerone2(current_pos, next_pos, v0, v1, v2, native_current, native_next,
                                          pe0, pe1, pe2, pe3,
                                          npe0, npe1, npe2, npe3,
                                          s_ie0, s_ie1, s_ie2, s_ie3, n_ie0, n_ie1, n_ie2, n_ie3, periods, &ray_t, ray_x == mouse_x && ray_y == mouse_y))
