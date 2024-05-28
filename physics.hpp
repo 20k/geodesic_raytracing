@@ -31,7 +31,6 @@ struct physics
     std::array<cl::buffer, 4> subsampled_inverted_tetrads;
     cl::buffer subsampled_segment_mins;
     cl::buffer subsampled_segment_maxs;
-    cl::buffer subsampled_timelike_coordinate;
 
     cl::buffer initial_timelike;
 
@@ -44,7 +43,7 @@ struct physics
                                 gpu_object_count(ctx),
                                 tetrads{ctx, ctx, ctx, ctx}, parallel_transported_tetrads{ctx, ctx, ctx, ctx}, inverted_tetrads{ctx, ctx, ctx, ctx}, generic_positions(ctx), timelike_vectors(ctx),
                                 subsampled_paths(ctx), subsampled_velocities(ctx), subsampled_ds(ctx), subsampled_counts(ctx), subsampled_parallel_transported_tetrads{ctx, ctx, ctx, ctx}, subsampled_inverted_tetrads{ctx, ctx, ctx, ctx},
-                                subsampled_segment_mins(ctx), subsampled_segment_maxs(ctx), subsampled_timelike_coordinate(ctx), initial_timelike(ctx)
+                                subsampled_segment_mins(ctx), subsampled_segment_maxs(ctx), initial_timelike(ctx)
     {
         gpu_object_count.alloc(sizeof(cl_int));
     }
@@ -80,7 +79,6 @@ struct physics
 
         subsampled_segment_mins.alloc(clamped_count * sizeof(cl_float4) * max_path_length);
         subsampled_segment_maxs.alloc(clamped_count * sizeof(cl_float4) * max_path_length);
-        subsampled_timelike_coordinate.alloc(clamped_count * sizeof(char) * max_path_length);
 
         initial_timelike.alloc(clamped_count * sizeof(int));
 
@@ -199,29 +197,18 @@ struct physics
             cqueue.exec("get_geodesic_path", snapshot_args, {object_count}, {256});
         }
 
-        for(int i=0; i < 4; i++)
         {
             cl::args pt_args;
             pt_args.push_back(geodesic_paths);
             pt_args.push_back(geodesic_velocities);
             pt_args.push_back(geodesic_ds);
-            pt_args.push_back(tetrads[i]);
+            pt_args.push_back(tetrads[0], tetrads[1], tetrads[2], tetrads[3]);
             pt_args.push_back(counts);
             pt_args.push_back(object_count);
-            pt_args.push_back(parallel_transported_tetrads[i]);
+            pt_args.push_back(parallel_transported_tetrads[0], parallel_transported_tetrads[1], parallel_transported_tetrads[2], parallel_transported_tetrads[3]);
             pt_args.push_back(dynamic_config);
 
-            cqueue.exec("parallel_transport_quantity", pt_args, {object_count}, {256});
-        }
-
-        {
-            cl::args args;
-            args.push_back(generic_positions);
-            args.push_back(object_count);
-            args.push_back(dynamic_config);
-            args.push_back(initial_timelike);
-
-            cqueue.exec("calculate_timelike_coordinates", args, {object_count}, {256});
+            cqueue.exec("parallel_transport_tetrads", pt_args, {object_count}, {256});
         }
 
         cl::args invert_args;
@@ -273,24 +260,6 @@ struct physics
 
             cqueue.exec("subsample_tri_quantity", args, {object_count}, {256});
         }
-
-
-        {
-            cl::args args;
-            args.push_back(subsampled_paths);
-            args.push_back(subsampled_counts);
-            args.push_back(initial_timelike);
-            args.push_back(subsampled_parallel_transported_tetrads[0]);
-            args.push_back(subsampled_parallel_transported_tetrads[1]);
-            args.push_back(subsampled_parallel_transported_tetrads[2]);
-            args.push_back(subsampled_parallel_transported_tetrads[3]);
-            args.push_back(object_count);
-            args.push_back(dynamic_config);
-            args.push_back(subsampled_timelike_coordinate);
-
-            cqueue.exec("calculate_timelike_coordinates_for_path", args, {object_count}, {256});
-        }
-
 
         #if 0
         {

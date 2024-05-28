@@ -2512,7 +2512,6 @@ int main(int argc, char* argv[])
                     args.push_back(single_state.computed_tri_count);
                     args.push_back(st.accel_ray_time_min);
                     args.push_back(st.accel_ray_time_max);
-                    args.push_back(phys.subsampled_timelike_coordinate);
                     args.push_back(dynamic_config);
 
                     mqueue.exec("generate_computed_tris", args, {tris.tri_count}, {128});
@@ -2590,8 +2589,6 @@ int main(int argc, char* argv[])
 
                         for(int i=0; i < 4; i++)
                             args.push_back(phys.subsampled_inverted_tetrads[i]);
-
-                        args.push_back(phys.subsampled_timelike_coordinate);
 
                         args.push_back(st.stored_mins);
                         args.push_back(st.stored_maxs);
