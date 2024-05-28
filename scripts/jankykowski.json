@@ -1,7 +1,0 @@
-{
-	"name": "jankykowski",
-	"adaptive_precision": false,
-	"detect_singularities": false,
-	"inherit_settings": "cartesian_base",
-	"description": "Totally flat, ordinary spacetime"
-}
