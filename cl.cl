@@ -5150,7 +5150,7 @@ void calculate_render_data(global const struct lightray* rays_in, global const i
     float4 position = get_intersection_position(*ray, cfg, dfg);
     float4 generic_velocity = ray->velocity / ray->running_dlambda_dnew;
 
-    dat.side = position.y < 0 ? 0 : 1;
+    dat.side = generic_to_spherical(ray->position, cfg).y < 0 ? 0 : 1;
 
     float r_value = position.y;
 
@@ -5424,7 +5424,7 @@ float4 read_mipmap(image2d_array_t mipmap1, image2d_array_t mipmap2, int side, f
     float4 v1 = mix(read_imagef(mipmap1, sam, full_lower_coord), read_imagef(mipmap1, sam, full_upper_coord), lower_weight);
     float4 v2 = mix(read_imagef(mipmap2, sam, full_lower_coord), read_imagef(mipmap2, sam, full_upper_coord), lower_weight);
 
-    return side >= 0 ? v1 : v2;
+    return side >= 1 ? v1 : v2;
 }
 
 #define MIPMAP_CONDITIONAL(x) ((side > 0) ? x(mip_background) : x(mip_background2))
