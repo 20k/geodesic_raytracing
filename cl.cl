@@ -5378,8 +5378,6 @@ float3 redshift(float3 v, float z, dynamic_config_space const struct dynamic_fea
 
             float remaining_energy = real_energy - final_energy;
 
-            float energy_per_colour = 0.2125 + 0.7154;
-
             col.xy += remaining_energy * (red + green).xy;
         }
 
