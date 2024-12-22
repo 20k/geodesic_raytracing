@@ -1758,8 +1758,9 @@ int calculate_which_coordinate_is_timelike(float4 e0, float4 e1, float4 e2, floa
 }
 
 ///todo: generic orthonormalisation
-struct frame_basis calculate_frame_basis(float big_metric[])
+struct frame_basis calculate_frame_basis_with_swap_index(float big_metric[], int index_swap)
 {
+    ///this is nuts, why am I doing this?
     float4 ri1 = (float4)(1, 0, 0, 0);
     float4 ri2 = (float4)(0, 1, 0, 0);
     float4 ri3 = (float4)(0, 0, 1, 0);
@@ -1775,6 +1776,9 @@ struct frame_basis calculate_frame_basis(float big_metric[])
     ///all of the below is to fix misner
     float4 as_array[4] = {ri1, ri2, ri3, ri4};
     float lengths[4] = {dot(ri1, i1), dot(ri2, i2), dot(ri3, i3), dot(ri4, i4)};
+
+    SWAP(as_array[0], as_array[index_swap], float4);
+    SWAP(lengths[0], lengths[index_swap], float);
 
     int indices[4] = {0, 1, 2, 3};
 
@@ -1844,6 +1848,17 @@ struct frame_basis calculate_frame_basis(float big_metric[])
 
     return result2;
 }
+
+///frame basis construction is truly insane
+struct frame_basis calculate_frame_basis(float big_metric[])
+{
+    struct frame_basis frame_1 = calculate_frame_basis_with_swap_index(big_metric, 0);
+
+    if(frame_1.timelike_coordinate == 0)
+        return frame_1;
+
+    return calculate_frame_basis_with_swap_index(big_metric, frame_1.timelike_coordinate);
+};
 
 struct frame_basis calculate_frame_basis_at(float4 position, dynamic_config_space const struct dynamic_config* cfg)
 {
