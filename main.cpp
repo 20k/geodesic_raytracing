@@ -955,9 +955,12 @@ struct object_content
 ///i need the ability to have dynamic parameters
 int main(int argc, char* argv[])
 {
+    printf("Started\n");
+
     test_overlap();
 
     #ifdef REDIRECT_STDOUT
+    printf("Redirecting output\n");
     *stdout = *fopen("debug.txt","w");
     #endif // REDIRECT_STDOUT
 
@@ -982,21 +985,31 @@ int main(int argc, char* argv[])
         }
     }
 
+    printf("Parsed args\n");
+
     bool has_new_content = false;
 
     steam_info steam;
 
+    printf("Set up steam context\n");
+
     ugc_view workshop;
     workshop.only_get_subscribed();
+
+    printf("Workshop started\n");
 
     steam_callback_executor exec;
 
     workshop.fetch(steam, exec, [&](){has_new_content = true;});
 
+    printf("Workshop callback\n");
+
     //dual_types::test_operation();
 
     main_menu menu;
     bool loaded_settings = menu.load();
+
+    printf("Main menu\n");
 
     render_settings sett;
     sett.width = 1280;
@@ -1017,11 +1030,17 @@ int main(int argc, char* argv[])
         #endif
     }
 
+    printf("Pre render window\n");
+
     render_window win(sett, "Geodesics");
+
+    printf("Post render window\n");
 
     #ifdef REMEMBER_SIZE
     win.backend->set_window_position({menu.sett.pos_x, menu.sett.pos_y});
     #endif // REMEMBER_SIZE
+
+    printf("Position\n");
 
     if(loaded_settings)
     {
@@ -1039,11 +1058,17 @@ int main(int argc, char* argv[])
         win.backend->clear_demaximise_cache();
     }
 
+    printf("Vsync and cache\n");
+
     #ifndef REMEMBER_SIZE
     win.backend->set_is_maximised(false);
     #endif
 
+    printf("Set maximise\n");
+
     assert(win.clctx);
+
+    printf("Has opencl context\n");
 
     //std::cout << "extensions " << cl::get_extensions(win.clctx->ctx) << std::endl;
 
@@ -1056,12 +1081,20 @@ int main(int argc, char* argv[])
 
     ImGuiIO& io = ImGui::GetIO();
 
+    printf("Font, imgui\n");
+
     io.Fonts->Clear();
     io.Fonts->AddFontFromFileTTF("VeraMono.ttf", 14, &font_cfg);
 
+    printf("Add vera\n");
+
     opencl_context& clctx = *win.clctx;
 
-    cl::command_queue async_queue(clctx.ctx, CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE);
+    printf("Pre Aqueue\n");
+
+    cl::command_queue async_queue(clctx.ctx);
+
+    printf("Post aqueue\n");
 
     std::filesystem::path scripts_dir{"./scripts"};
 
@@ -1077,9 +1110,13 @@ int main(int argc, char* argv[])
         }
     }
 
+    printf("found scripts\n");
+
     content_manager all_content;
 
     all_content.add_content_folder("./scripts");
+
+    printf("Added content folder\n");
 
     cl::buffer dynamic_feature_buffer(clctx.ctx);
 
@@ -1119,6 +1156,8 @@ int main(int argc, char* argv[])
 
     dfg.add_feature<float>("field_of_view");
     dfg.set_feature("field_of_view", 90.f);;
+
+    printf("Feature support\n");
 
     //print("WLs %f %f %f\n", chromaticity::srgb_to_wavelength({1, 0, 0}), chromaticity::srgb_to_wavelength({0, 1, 0}), chromaticity::srgb_to_wavelength({0, 0, 1}));
 
@@ -1176,6 +1215,8 @@ int main(int argc, char* argv[])
     q.load_from_axis_angle({1, 0, 0, -M_PI/2});
 
     camera_quat = q * camera_quat;*/
+
+    printf("Pre buffer decl\n");
 
     sf::Clock clk;
 
@@ -2598,6 +2639,7 @@ int main(int argc, char* argv[])
                         float my = ImGui::GetIO().MousePos.y;
 
                         args.push_back(dynamic_config);
+                        args.push_back(dynamic_feature_buffer);
                         args.push_back(mx);
                         args.push_back(my);
                         args.push_back(kk);

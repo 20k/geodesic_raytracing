@@ -4590,6 +4590,7 @@ void render_chunked_tris(global const struct triangle* const tris,
                          global float4* fine_clip_min, global float4* fine_clip_max,
                          global int* already_rendered,
                          dynamic_config_space const struct dynamic_config* cfg,
+                         dynamic_config_space const struct dynamic_feature_config* dfg,
                          float mouse_x,
                          float mouse_y,
                          int offset
@@ -4635,6 +4636,7 @@ void render_chunked_tris(global const struct triangle* const tris,
     float4 periods = get_coordinate_period(cfg);
 
     float last_ray_t = FLT_MAX;
+    float last_ray_frac = 0;
 
     int last_tri_id = -1;
 
@@ -4718,6 +4720,12 @@ void render_chunked_tris(global const struct triangle* const tris,
         float3 v2 = (float3)(tri.v2x, tri.v2y, tri.v2z);
 
         float3 ncol = fabs(triangle_normal(v0, v1, v2));
+
+        if(GET_FEATURE(redshift, dfg))
+        {
+
+        }
+
         write_imagef(screen, (int2)(ray_x, ray_y), (float4)(ncol.x, ncol.y, ncol.z, 1));
 
         already_rendered[ray_id] = 1;

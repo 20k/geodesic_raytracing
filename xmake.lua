@@ -3,7 +3,7 @@ add_rules("mode.debug", "mode.release")
 add_requireconfs("*", {configs = {shared = false}, system=false})
 add_requires("zlib")
 add_requires("freetype")
-add_requires("openssl", "opengl", "glfw", "glew", "sfml")
+add_requires("openssl", "opengl", "glfw", "glew", "sfml 2.6.1")
 
 add_files("workshop/steam_ugc_manager.cpp")
 add_files("deps/imgui/backends/imgui_impl_glfw.cpp")
@@ -48,7 +48,8 @@ add_defines("IMGUI_IMPL_OPENGL_LOADER_GLEW",
 "FAST_CL",
 "REDIRECT_STDOUT",
 "REMEMBER_SIZE",
-"NO_OPENCL_SCREEN")
+"NO_OPENCL_SCREEN",
+"SFML_USE_STATIC_STD_LIBS")
 
 add_packages("openssl", "opengl", "glfw", "glew", "freetype", "sfml")
 
